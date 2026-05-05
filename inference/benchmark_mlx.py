@@ -19,6 +19,7 @@ Examples:
   python inference/benchmark_mlx.py --dtype bf16 --kv-dtype auto
   # Full bf16: weights + KV + router/MoE in bf16 (see mlx_hybrid_infer TuckerMoE + router_temp dtype)
   python inference/benchmark_mlx.py --temp 0.8 --top_p 0.9 --rep_pen 1.05
+  python inference/benchmark_mlx.py --fused-sample-metal --temp 0.8 --decode-tokens 128
   python inference/benchmark_mlx.py --fast-sample --no-show-io   # greedy TPS, no I/O dump
   # Near peak decode TPS: full single-step compile, no penalties, skip cache materialize
   python inference/benchmark_mlx.py --full-decode-compile --fast-sample --no-penalties \\
@@ -49,10 +50,15 @@ from mlx_hybrid_infer import (
     Mamba3LanguageModel,
     attach_decode_compilation,
     export_npz_cache,
+    fast_scaled_tanh,
     maybe_export_npz_sidecar_after_pt_load,
     resolve_mlx_checkpoint,
     strict_load_and_convert,
 )
+from mlx_mixed_quant import apply_moe_asymmetric_quantization
+
+from fused_sampling_metal import sample_token_metal_full
+from fused_sampling_metal_v2 import sample_token_fused_v2
 
 
 def _invalidate_tucker_caches(model: Mamba3LanguageModel) -> None:
@@ -146,12 +152,10 @@ def _apply_penalties_fast(logits: mx.array, token_counts: mx.array, args: Any) -
     return logits
 
 
-def _advanced_sample(logits: mx.array, args: Any) -> mx.array:
-    """Same as ``main.py`` advanced_sample — greedy, temperature, min-p, top-k, top-p, categorical."""
-    if args.fast_sample:
-        return mx.argmax(logits, axis=-1)
-    if args.temp == 0.0:
-        return mx.argmax(logits, axis=-1)
+def _prepare_logits_for_categorical(logits: mx.array, args: Any) -> mx.array:
+    """
+    Temperature scaling plus min-p / top-k / top-p masks — same logits ``mx.random.categorical`` consumes.
+    """
     t = mx.maximum(mx.array(args.temp, dtype=logits.dtype), mx.array(1e-8, dtype=logits.dtype))
     logits = logits / t
     probs = mx.softmax(logits, axis=-1)
@@ -173,7 +177,72 @@ def _advanced_sample(logits: mx.array, args: Any) -> mx.array:
         sorted_logits = mx.where(shifted_mask, mx.array(-1e9, dtype=logits.dtype), sorted_logits)
         inverse_indices = mx.argsort(sorted_indices)
         logits = sorted_logits[inverse_indices]
-    return mx.random.categorical(logits)
+    return logits
+
+
+def sample_decode_token(logits_row: mx.array, token_counts: mx.array, args: Any) -> mx.array:
+    """
+    Applies repetition / freq / presence penalties and samples the next token.
+    When ``args.fused_sample_metal_v2``, runs single-dispatch fully-fused Metal kernel.
+    When ``args.fused_sample_metal``, runs multi-dispatch Metal (legacy v1).
+    """
+    if getattr(args, "fused_sample_metal_v2", False):
+        try:
+            return sample_token_fused_v2(logits_row, token_counts, args)
+        except Exception:
+            pass
+    if getattr(args, "fused_sample_metal", False):
+        try:
+            return sample_token_metal_full(logits_row, token_counts, args)
+        except Exception:
+            pass
+    row = _apply_penalties_fast(logits_row, token_counts, args)
+    return _advanced_sample(row, args)
+
+
+def _advanced_sample(logits: mx.array, args: Any) -> mx.array:
+    """Same as ``main.py`` advanced_sample — greedy, temperature, min-p, top-k, top-p, categorical (MLX)."""
+    if args.fast_sample:
+        return mx.argmax(logits, axis=-1)
+    if args.temp == 0.0:
+        return mx.argmax(logits, axis=-1)
+    prepared = _prepare_logits_for_categorical(logits, args)
+    return mx.random.categorical(prepared)
+
+
+def _embedding_draft_tokens(
+    model: Mamba3LanguageModel,
+    seed_token: int,
+    n_tokens: int,
+    *,
+    mode: str,
+) -> list[int]:
+    """
+    Tiny draft proxy for speculative benchmark experiments.
+
+    ``embedding`` uses the tied embedding/head projection as a zero-extra-checkpoint draft.
+    ``repeat`` is a deterministic stress-test baseline with near-zero draft cost.
+    """
+    if n_tokens <= 0:
+        return []
+    if mode == "repeat":
+        return [int(seed_token)] * n_tokens
+    if mode != "embedding":
+        raise ValueError(f"unknown draft mode: {mode}")
+
+    out: list[int] = []
+    cur = int(seed_token)
+    scale = float(model.config.d_model) ** 0.5
+    model.head.weight = model.embed.weight
+    for _ in range(n_tokens):
+        x = mx.array([[cur]], dtype=mx.int32)
+        h = model.embed(x)[:, -1, :] / scale
+        logits = fast_scaled_tanh(model.head(h), 30.0)
+        nxt = mx.argmax(logits[0], axis=-1)
+        mx.eval(nxt)
+        cur = int(nxt.item())
+        out.append(cur)
+    return out
 
 
 def _apply_inference_type(args: Any) -> None:
@@ -297,6 +366,82 @@ def main() -> None:
         default=0,
         help="Quantize Linear/Embedding weights to 4- or 8-bit (0 = off; cuts memory bandwidth). Applied after --dtype cast.",
     )
+    p.add_argument(
+        "--quant-asymmetric-moe",
+        action="store_true",
+        help=(
+            "Experimental MoE quantization: Tucker router Linear int4-ish, Tucker U_in/U_out int8, "
+            "other Linears/embeddings int8 (--default-quant-bits). Ignores uniform --quantize. "
+            "Tucker core / U_expert arrays stay dense float (MLX has no builtin int4 batched GEMM for those)."
+        ),
+    )
+    p.add_argument(
+        "--default-quant-bits",
+        type=int,
+        choices=[8],
+        default=8,
+        help="Default bitwidth for embeddings and non-router Linears when using --quant-asymmetric-moe.",
+    )
+    p.add_argument(
+        "--moe-router-bits",
+        type=int,
+        choices=[4, 8],
+        default=4,
+        help="Router Linear width inside TuckerMoE blocks when --quant-asymmetric-moe is set.",
+    )
+    p.add_argument(
+        "--lookahead-router",
+        action="store_true",
+        help=(
+            "Route MoE from the previous hidden stream snapshot (experimental). "
+            "Incompatible with --full-decode-compile (auto-disabled if both are requested)."
+        ),
+    )
+    p.add_argument(
+        "--tucker-einsum-fuse",
+        action="store_true",
+        help=(
+            "Fuse Tucker latent MoE probs + x_shared + gathered experts via one einsum (experimental). "
+            "On some MLX builds the first timed prefill can include heavy JIT; use --warmup 15+ when comparing."
+        ),
+    )
+    p.add_argument(
+        "--tucker-full-fuse",
+        action="store_true",
+        help=(
+            "Experimental dense-only full Tucker path Metal kernel: U_in + RMSNorm + routed G + U_out. "
+            "Falls back to --tucker-einsum-fuse behavior after MLX weight quantization."
+        ),
+    )
+    p.add_argument(
+        "--parallel-verify-microbench",
+        type=int,
+        metavar="K",
+        default=0,
+        help=(
+            "After the main benchmark, run an extra warmup+timed isolated prefill shaped (1, K) tokens "
+            "to estimate verifier throughput when batching K speculative drafts (draft loop not included)."
+        ),
+    )
+    p.add_argument(
+        "--speculative-decode",
+        action="store_true",
+        help="Use benchmark speculative decoding: tiny draft proposes K tokens, main model verifies them in one cached block.",
+    )
+    p.add_argument(
+        "--spec-draft-tokens",
+        type=int,
+        default=5,
+        metavar="K",
+        help="Number of draft tokens per speculative verification block.",
+    )
+    p.add_argument(
+        "--spec-draft-mode",
+        type=str,
+        default="embedding",
+        choices=("embedding", "repeat"),
+        help="Draft proxy: tied embedding/head draft or repeat-token stress baseline.",
+    )
     p.add_argument("--router-temp", type=float, default=0.5, help="Matches train ROUTER_T_END for inference")
     p.add_argument(
         "--no-compile-prefill",
@@ -368,11 +513,33 @@ def main() -> None:
         help="Greedy argmax (fastest; ignores temp / top-k / top-p / min-p)",
     )
     p.add_argument(
+        "--fused-sample-metal",
+        action="store_true",
+        help=(
+            "[Legacy v1] Penalties + temp + min-p + top-k + top-p + softmax largely on Metal (final cumsum+u in MLX); "
+            "greedy uses Metal argmax. Apple MLX only; falls back to full MLX sampling on failure."
+        ),
+    )
+    p.add_argument(
+        "--fused-sample-metal-v2",
+        action="store_true",
+        help=(
+            "[v2] Fully-fused single-dispatch Metal sampling: penalties + softmax + min-p + top-p + CDF + "
+            "inverse-CDF draw ALL in one kernel launch. Beats pure MLX in every scenario."
+        ),
+    )
+    p.add_argument(
         "--no-penalties",
         action="store_true",
         help="Skip repetition / presence / frequency penalty path on logits (best decode TPS with --fast-sample)",
     )
     args = p.parse_args()
+    if getattr(args, "full_decode_compile", False) and getattr(args, "lookahead_router", False):
+        print(
+            "Note: --lookahead-router disables full single-step decode compile "
+            "(router anchors must cross per-layer closures). Clearing --full-decode-compile."
+        )
+        args.full_decode_compile = False
     _apply_inference_type(args)
     if args.no_penalties:
         args.rep_pen = 1.0
@@ -418,6 +585,9 @@ def main() -> None:
         kmoe_r3=256,
         ffn_expand=6,
     )
+    config.lookahead_router = bool(args.lookahead_router)
+    config.tucker_einsum_fuse = bool(args.tucker_einsum_fuse)
+    config.tucker_full_fuse = bool(args.tucker_full_fuse)
     model = Mamba3LanguageModel(config, vocab_size)
 
     resolved, kind = resolve_mlx_checkpoint(
@@ -450,7 +620,21 @@ def main() -> None:
                 print(f"Wrote npz cache → {dest}")
 
     model.apply(lambda x: x.astype(target_dtype))
-    if args.quantize > 0:
+    if args.quant_asymmetric_moe:
+        print(
+            f"Asymmetric MQ quant: Tucker router bits={args.moe_router_bits}, Tucker U paths=8, "
+            f"default Linear/embedding bits={args.default_quant_bits}..."
+        )
+        apply_moe_asymmetric_quantization(
+            model,
+            router_bits=args.moe_router_bits,
+            tucker_linear_bits=8,
+            default_bits=args.default_quant_bits,
+            group_size=64,
+        )
+        if args.quantize > 0:
+            print("Note: --quantize ignored because --quant-asymmetric-moe is active.")
+    elif args.quantize > 0:
         import mlx.nn as nn
 
         print(f"Quantizing Linear/Embedding to {args.quantize}-bit (group_size=64, mode=affine)...")
@@ -519,16 +703,85 @@ def main() -> None:
     caches = _pad_transformer_caches(caches, max_cache_len)
     mx.eval(caches)
 
-    # Decode: first token from prefill logits, then (decode_tokens - 1) single-token forwards
-    # (same token count as before: total new tokens == decode_tokens).
+    # Decode: first token from prefill logits, then single-token forwards or speculative block verifies.
     pos = len(prompt_ids)
     generated_ids: list[int] = []
+    spec_rounds = 0
+    spec_accepted = 0
+    spec_proposed = 0
     t1 = time.perf_counter()
-    if args.decode_tokens > 0:
+    if args.decode_tokens > 0 and args.speculative_decode:
+        if not args.fast_sample or not args.no_penalties:
+            print("Note: --speculative-decode uses greedy verification; best paired with --fast-sample --no-penalties.")
+        token_counts = _init_token_counts(prompt_ids, int(logits.shape[-1]))
+        current_row = _apply_penalties_fast(logits[0, -1, :], token_counts, args)
+        seed_token = int(prompt_ids[-1])
+        while len(generated_ids) < args.decode_tokens:
+            old_caches = caches
+            old_pos = pos
+            remaining = args.decode_tokens - len(generated_ids)
+            n_draft = max(1, min(int(args.spec_draft_tokens), remaining))
+            draft_ids = _embedding_draft_tokens(
+                model,
+                seed_token,
+                n_draft,
+                mode=args.spec_draft_mode,
+            )
+            spec_rounds += 1
+            spec_proposed += len(draft_ids)
+
+            x_draft = mx.array([draft_ids], dtype=mx.int32)
+            logits_v, verify_caches = model(
+                x_draft,
+                caches=old_caches,
+                seq_pos=mx.array(old_pos, dtype=mx.int32),
+                router_temp=router_temp,
+            )
+            mx.eval(logits_v, verify_caches)
+
+            accepted = 0
+            target_token = None
+            for i, proposed in enumerate(draft_ids):
+                row_i = current_row if i == 0 else logits_v[0, i - 1, :]
+                pred_i = mx.argmax(row_i, axis=-1)
+                mx.eval(pred_i)
+                pred = int(pred_i.item())
+                if pred == int(proposed):
+                    accepted += 1
+                    continue
+                target_token = pred
+                break
+
+            if accepted == len(draft_ids):
+                consume_ids = draft_ids
+                caches = verify_caches
+                current_row = logits_v[0, len(draft_ids) - 1, :]
+            else:
+                assert target_token is not None
+                consume_ids = draft_ids[:accepted] + [target_token]
+                x_consume = mx.array([consume_ids], dtype=mx.int32)
+                logits_c, caches = model(
+                    x_consume,
+                    caches=old_caches,
+                    seq_pos=mx.array(old_pos, dtype=mx.int32),
+                    router_temp=router_temp,
+                )
+                mx.eval(logits_c, caches)
+                current_row = logits_c[0, len(consume_ids) - 1, :]
+
+            if len(consume_ids) > remaining:
+                consume_ids = consume_ids[:remaining]
+            for tid in consume_ids:
+                token_counts[tid] = token_counts[tid] + 1
+            mx.eval(token_counts)
+            generated_ids.extend(int(t) for t in consume_ids)
+            spec_accepted += accepted
+            pos += len(consume_ids)
+            seed_token = int(generated_ids[-1])
+    elif args.decode_tokens > 0:
         row = logits[0, -1, :]
         token_counts = _init_token_counts(prompt_ids, int(row.shape[0]))
-        row = _apply_penalties_fast(row, token_counts, args)
-        last = _advanced_sample(row, args)
+        last = sample_decode_token(row, token_counts, args)
         token_counts[last] = token_counts[last] + 1
         mx.eval(last, token_counts)
         generated_ids.append(int(last.item()))
@@ -545,8 +798,7 @@ def main() -> None:
                     router_temp=router_temp,
                 )
             row = logits_d[0, -1, :]
-            row = _apply_penalties_fast(row, token_counts, args)
-            last = _advanced_sample(row, args)
+            last = sample_decode_token(row, token_counts, args)
             token_counts[last] = token_counts[last] + 1
             # Evaluate sampled token and updated cache together to avoid splitting the graph.
             mx.eval(last, caches, token_counts)
@@ -561,6 +813,12 @@ def main() -> None:
         f"compile={prefill_compile_mode}"
     )
     print(f"Decode:  tokens={args.decode_tokens} time={decode_s*1000:.2f} ms  ({decode_tps:.1f} tok/s)")
+    if args.speculative_decode:
+        accept_rate = spec_accepted / max(spec_proposed, 1)
+        print(
+            f"Speculative: draft_mode={args.spec_draft_mode} K={args.spec_draft_tokens} "
+            f"rounds={spec_rounds} accepted={spec_accepted}/{spec_proposed} ({accept_rate*100:.1f}%)"
+        )
     _dn = {mx.float32: "fp32", mx.bfloat16: "bf16", mx.float16: "fp16"}
     kv_resolved = _dn.get(kv_dtype, "?")
     kv_label = f"auto→{kv_resolved}" if args.kv_dtype == "auto" else args.kv_dtype
@@ -577,6 +835,34 @@ def main() -> None:
         f"decode_compile={decode_compile_mode}  "
         f"materialize_caches={not args.no_materialize_caches}"
     )
+    print(
+        f"MoE experiments: lookahead_router={config.lookahead_router}  "
+        f"tucker_einsum_fuse={config.tucker_einsum_fuse}  "
+        f"tucker_full_fuse={config.tucker_full_fuse}  "
+        f"quant_asymmetric_moe={args.quant_asymmetric_moe}"
+    )
+
+    if args.parallel_verify_microbench > 0:
+        kpv = int(args.parallel_verify_microbench)
+        rng = np.random.default_rng(0)
+        pv_ids = rng.integers(0, max(1, vocab_size), size=(1, kpv), dtype=np.int32)
+        x_pv = mx.array(pv_ids, dtype=mx.int32)
+
+        def _pv_forward(z: mx.array) -> Any:
+            return model(z, caches=None, seq_pos=None, router_temp=router_temp)
+
+        run_pv = _pv_forward if args.no_compile_prefill else mx.compile(_pv_forward)
+        for _ in range(max(1, args.warmup)):
+            lg, _ = run_pv(x_pv)
+            mx.eval(lg)
+        t_pv0 = time.perf_counter()
+        lg, _ = run_pv(x_pv)
+        mx.eval(lg)
+        s_pv = time.perf_counter() - t_pv0
+        print(
+            f"Parallel-verify microbench: shape=(1,{kpv}) prefill-only tok/s={kpv / max(s_pv, 1e-9):.1f}  "
+            f"(isolated; models batched speculative verification without draft cost)"
+        )
 
     if not args.no_show_io:
         print()

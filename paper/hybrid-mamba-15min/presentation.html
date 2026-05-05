@@ -3,65 +3,497 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>True Hybrid Mamba-TuckerMoE · NeurIPS 2026</title>
+    <title>Hybrid Mamba-TuckerMoE · 學術簡報</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
-      crossorigin="anonymous"
-    />
-    <link rel="stylesheet" href="./assets/ui/css/presentation.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="./presentation.css" />
+    <style>
+      /* Full-page figure slides — images fill the slide */
+      .slide.active .fig-slide,
+      .fig-slide {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        height: 100%;
+        padding: 0.6rem 2vw 0.4rem;
+        box-sizing: border-box;
+      }
+      .fig-slide .fig-title {
+        font-family: var(--sans);
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .fig-slide .fig-caption {
+        font-size: 0.75rem;
+        color: var(--ink3);
+        margin-top: 0.4rem;
+        text-align: center;
+        max-width: 60rem;
+        flex-shrink: 0;
+      }
+      /* Single image — grow to fill remaining space */
+      .fig-slide > img {
+        flex: 1 1 0;
+        min-height: 0;
+        max-width: 98%;
+        width: auto;
+        height: 100%;
+        object-fit: contain;
+        border: 1px solid var(--rule2);
+        display: block;
+      }
+      /* Two-image row */
+      .fig-slide .fig-row {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        gap: 1rem;
+        align-items: stretch;
+        justify-content: center;
+        width: 100%;
+      }
+      .fig-slide .fig-row img {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 0;
+        max-width: 49%;
+        height: 100%;
+        object-fit: contain;
+        border: 1px solid var(--rule2);
+      }
+      /* Let the slide itself have minimal padding for fig slides */
+      .slide:has(.fig-slide) {
+        padding: 0.5rem 1vw 0.5rem;
+      }
+      .slide:has(.fig-slide) .inner {
+        max-width: 100%;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
   </head>
   <body>
     <div class="shell">
       <div class="topbar">
-        <span class="venue">NeurIPS 2026 · Oral Presentation</span>
-        <span>True Hybrid Mamba-TuckerMoE</span>
-        <span
-          id="ctr-top"
-          style="
-            font-variant-numeric: tabular-nums;
-            min-width: 3rem;
-            text-align: right;
-          "
-          >01 / 19</span
-        >
+        <span class="venue">學術報告 · Hybrid Mamba-TuckerMoE</span>
+        <span>Breaking the Memory Wall</span>
+        <span id="ctr-top" style="font-variant-numeric:tabular-nums;min-width:3rem;text-align:right;">01 / 22</span>
       </div>
       <div class="top-progress" aria-hidden="true">
         <div class="top-progress-fill" id="pgt"></div>
       </div>
-      <div class="stage" id="stage"></div>
-      <!-- /stage -->
 
-      <div class="toolbar">
-        <button class="nb" id="bp" disabled>← Prev</button>
-        <button class="nb" id="bn">Next →</button>
-        <button class="nb" id="bpa">Auto Play</button>
-        <div class="pw"><div class="pb" id="pg" style="width: 5.9%"></div></div>
-        <span class="ct" id="ct">01 / 19</span>
-        <span class="hk">
-          <kbd>←</kbd><kbd>→</kbd> navigate · <kbd>Home</kbd><kbd>End</kbd> jump
-        </span>
+      <div class="stage" id="stage">
+
+<!-- ══ SLIDE 01 — Title ══ -->
+<section class="slide active" data-idx="0">
+  <div class="inner">
+    <div class="cover-wrap">
+      <div style="margin-bottom:0.8rem">
+        <span class="tag">ICLR 2026</span><span class="tag teal">Mamba-3</span><span class="tag green">TuckerMoE</span>
+      </div>
+      <h1 class="t1">Breaking the Memory Wall:<br>Compute-Bound TuckerMoE for<br>Hybrid State Space Models</h1>
+      <p class="lead" style="max-width:42rem;margin-top:0.6rem">
+        結合 Mamba-3 SSM 與 Tucker 分解稀疏 MoE，以 82.87% 參數壓縮<br>
+        <span style="font-size:0.92rem;font-style:italic;color:var(--ink3)">將 MoE 推論從 Memory-bound 轉為 Compute-bound，實現邊緣裝置部署</span>
+      </p>
+      <div style="margin-top:1.5rem">
+        <div class="pipe" style="justify-content:center">
+          <div class="pipe-s" style="border-color:var(--red);color:var(--red)">Dense MoE<br><span style="font-size:0.6rem;opacity:0.7">Memory-bound</span></div>
+          <span class="pa">→</span>
+          <div class="pipe-s hi">Tucker 分解<br><span style="font-size:0.6rem;opacity:0.8">跨專家共享 ★</span></div>
+          <span class="pa">→</span>
+          <div class="pipe-s" style="border-color:var(--teal);color:var(--teal)">Hybrid SSM<br><span style="font-size:0.6rem;opacity:0.7">O(1) decode</span></div>
+          <span class="pa">→</span>
+          <div class="pipe-s" style="border-color:var(--green);color:var(--green)">邊緣部署<br><span style="font-size:0.6rem;opacity:0.7">Apple Silicon</span></div>
+        </div>
+      </div>
+      <div class="cm"><span style="color:var(--ink2)">賴泓瑋</span><br><span style="display:block;margin-top:0.3rem">Midterm Report — 2026 年 5 月</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 02 — Outline ══ -->
+<section class="slide" data-idx="1">
+  <div class="inner outline-page">
+    <header class="outline-head">
+      <h2 class="t2">簡報大綱（Outline）</h2>
+      <div class="outline-subline" aria-hidden="true"></div>
+      <div class="outline-deck">
+        <p class="outline-deck-main">
+          主線：<strong>問題動機</strong>
+          <span style="color:var(--ink3);margin:0 0.3rem">→</span><strong>Hybrid 架構</strong>
+          <span style="color:var(--ink3);margin:0 0.3rem">→</span><strong>TuckerMoE 核心</strong>
+          <span style="color:var(--ink3);margin:0 0.3rem">→</span><strong>訓練與實驗</strong>
+          <span style="color:var(--ink3);margin:0 0.3rem">→</span><strong>結論</strong>
+        </p>
+      </div>
+    </header>
+    <div class="outline-grid" style="grid-template-columns:repeat(5,1fr)">
+      <article class="outline-card oc-a" data-oc="1"><h3 class="t3">問題動機</h3><ol class="n"><li>Transformer 雙重瓶頸</li><li>SSM vs MoE 路徑</li></ol></article>
+      <article class="outline-card oc-b" data-oc="2"><h3 class="t3">Hybrid 架構</h3><ol class="n" start="3"><li>4:1 Macro Block</li><li>Mamba-3 SSM</li></ol></article>
+      <article class="outline-card oc-c" data-oc="3"><h3 class="t3">TuckerMoE</h3><ol class="n" start="5"><li>MoE 痛點</li><li>Tucker 三階分解</li><li>I/O 複雜度</li></ol></article>
+      <article class="outline-card oc-d" data-oc="4"><h3 class="t3">訓練與實驗</h3><ol class="n" start="8"><li>聯合損失</li><li>Router 診斷</li></ol></article>
+      <article class="outline-card oc-e" data-oc="5"><h3 class="t3">部署與結論</h3><ol class="n" start="10"><li>MLX 推論</li><li>結論</li></ol></article>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 03 — Problem ══ -->
+<section class="slide" data-idx="2">
+  <div class="inner">
+    <h2 class="t2">§1 · Transformer 的雙重規模瓶頸</h2>
+    <p class="lead">Self-attention 在自迴歸推論中同時面臨時間與記憶體的平方級成長。</p>
+    <div class="cols">
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--red)">
+        <div style="font-weight:700;color:var(--red);margin-bottom:0.4rem">⏱️ 時間複雜度瓶頸</div>
+        <div class="eq-highlight">\[\sum_{t=1}^{N} O(t \cdot d) = O(N^2 d)\]</div>
+        <ul class="b" style="font-size:0.85rem"><li>每步生成需計算與所有先前 token 的注意力</li><li>累計成本呈<strong>平方成長</strong></li><li>長序列推論成為部署瓶頸</li></ul>
+      </div>
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--gold)">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:0.4rem">💾 KV Cache 記憶體爆炸</div>
+        <div class="eq-highlight">\[\text{KV mem} \propto L \times N \times d_h \times H_{\text{kv}}\]</div>
+        <ul class="b" style="font-size:0.85rem"><li>每層每 1K token ≈ <strong>1.5 MiB</strong></li><li>30 層 × 32K 上下文 → 記憶體消耗驚人</li><li>裝置端部署幾乎不可能</li></ul>
       </div>
     </div>
+    <div class="insight" style="margin-top:1rem"><strong>核心問題：</strong>兩個瓶頸共同使「裝置端長上下文推論」成為 LLM 落地的主要阻礙。</div>
+  </div>
+</section>
 
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-      crossorigin="anonymous"
-    ></script>
-    <script defer src="./assets/ui/js/slide-loader.js"></script>
-    <script defer src="./assets/ui/js/presentation.js"></script>
-    <script defer src="./assets/ui/js/hot-reload.js"></script>
+<!-- ══ SLIDE 04 — Two Paths ══ -->
+<section class="slide" data-idx="3">
+  <div class="inner">
+    <h2 class="t2">§1.2–1.3 · 兩條獨立的演化路徑</h2>
+    <p class="lead">學界分別從「時間複雜度」與「模型容量」兩個方向突破瓶頸。</p>
+    <div class="cols">
+      <div class="box accent">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:0.4rem">🔄 路徑 A：SSM 取代 Attention</div>
+        <div class="eq-highlight">\[h_t = \bar{A}_t h_{t-1} + \bar{B}_t x_t, \quad y_t = C_t h_t\]</div>
+        <ul class="b" style="font-size:0.85rem"><li>解碼記憶體 <strong>\(O(1)\)</strong>，與序列長度無關</li><li>Mamba：選擇式記憶，input-dependent \(\Delta, B, C\)</li><li style="color:var(--red)">弱點：精確全域查表不如 Attention</li></ul>
+      </div>
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--gold)">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:0.4rem">🧩 路徑 B：MoE 擴增 FFN 容量</div>
+        <div class="eq-highlight">\[y = \sum_{e \in \mathcal{E}(x)} p_e(x) \cdot W_e \cdot x\]</div>
+        <ul class="b" style="font-size:0.85rem"><li>每 token active FLOPs 與 dense FFN 相當</li><li>\(E\) 個專家 → \(E\) 倍模型容量</li><li style="color:var(--red)">代價：權重儲存 \(E\) 倍，記憶體壓力巨大</li></ul>
+      </div>
+    </div>
+    <div class="insight" style="margin-top:1rem"><strong>本研究：</strong>結合兩條路徑 → <strong>Hybrid Mamba-3 + TuckerMoE</strong></div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 05 — Divider: Architecture ══ -->
+<section class="slide" data-idx="4">
+  <div class="inner"><div class="section-divider"><div class="part-num">Part 2</div><h2>Hybrid 模型架構</h2><div class="section-sub">4:1 Macro Block + Mamba-3 SSM + Sparse GQA</div></div></div>
+</section>
+
+<!-- ══ SLIDE 06 — Macro Block (text) ══ -->
+<section class="slide" data-idx="5">
+  <div class="inner">
+    <h2 class="t2">§5.1 · 4:1 Macro Block 架構</h2>
+    <p class="lead">每個 Macro Block 由 4 個 Mamba-3 塊 + 1 個 GQA Transformer 塊組成，共 6 個 Macro Block = 30 層。</p>
+    <div class="pipe" style="justify-content:center;margin:1.2rem 0">
+      <div class="pipe-s" style="border-color:var(--blue);color:var(--blue)">Mamba-3<br><span style="font-size:0.6rem">SSM #1</span></div><span class="pa">→</span>
+      <div class="pipe-s" style="border-color:var(--blue);color:var(--blue)">Mamba-3<br><span style="font-size:0.6rem">SSM #2</span></div><span class="pa">→</span>
+      <div class="pipe-s" style="border-color:var(--blue);color:var(--blue)">Mamba-3<br><span style="font-size:0.6rem">SSM #3</span></div><span class="pa">→</span>
+      <div class="pipe-s" style="border-color:var(--blue);color:var(--blue)">Mamba-3<br><span style="font-size:0.6rem">SSM #4</span></div><span class="pa">→</span>
+      <div class="pipe-s hi" style="border-color:var(--green);color:var(--green)">GQA<br><span style="font-size:0.6rem">Attention</span></div>
+    </div>
+    <div class="eq-highlight">\[\mathcal{B}(x) = \mathcal{A}\bigl(\mathcal{M}_4(\mathcal{M}_3(\mathcal{M}_2(\mathcal{M}_1(x))))\bigr) \quad \times \; L_{\text{macro}}=6\]</div>
+    <div class="cols3" style="margin-top:1rem">
+      <div class="sg"><span class="stat">24</span><span class="stat-l">Mamba Blocks</span><p style="font-size:0.8rem;margin-top:0.3rem">\(O(1)\) 解碼狀態</p></div>
+      <div class="sg"><span class="stat">6</span><span class="stat-l">GQA Blocks</span><p style="font-size:0.8rem;margin-top:0.3rem">週期性全域回看</p></div>
+      <div class="sg"><span class="stat">80%</span><span class="stat-l">KV Cache 節省</span><p style="font-size:0.8rem;margin-top:0.3rem">bf16, 16K ≈ 288 MiB</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 07 — Macro Block (figure) ══ -->
+<section class="slide" data-idx="6">
+  <div class="inner fig-slide">
+    <div class="fig-title">Hybrid Mamba-TuckerMoE 整體方法流程</div>
+    <img src="assets/method_flowchart.png" alt="Method Flowchart" />
+    <div class="fig-caption">圖：4:1 Macro Block 結構 — 每 5 層中 4 層為 Mamba-3 (SSM)，1 層為 GQA Transformer，TuckerMoE 替代所有 dense FFN</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 08 — Mamba-3 SSM (text) ══ -->
+<section class="slide" data-idx="7">
+  <div class="inner">
+    <h2 class="t2">§5.2 · Mamba-3 Selective State Space Model</h2>
+    <p class="lead">固定大小的隱藏狀態 \(h \in \mathbb{R}^{n \times p}\) 壓縮式記憶所有歷史資訊。</p>
+    <div class="box accent" style="margin-bottom:0.8rem">
+      <div style="font-weight:700;color:var(--blue);margin-bottom:0.3rem">SSM 核心遞迴方程</div>
+      <div class="eq-highlight">\[h_t = \bar{A}_t h_{t-1} + \bar{B}_t x_t, \qquad y_t = C_t h_t\]</div>
+      <p style="font-size:0.85rem">\(\bar{A}=\exp(\Delta A)\) — input-dependent 選擇性記憶，\(\Delta\) 控制遺忘/保留</p>
+    </div>
+    <div class="cols">
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--teal)">
+        <div style="font-weight:700;color:var(--teal);margin-bottom:0.3rem">🔑 關鍵特性</div>
+        <ul class="b" style="font-size:0.85rem"><li><strong>Complex-valued RoPE</strong> — 相對位置敏感性</li><li><strong>MIMO rank=4</strong> — 4 個獨立 SSM head</li><li><strong>Chunk-Parallel Scan</strong> — \(O(\log N)\) 深度</li><li><strong>TuckerMoE × 2</strong> — in_proj + out_proj</li></ul>
+      </div>
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--green)">
+        <div style="font-weight:700;color:var(--green);margin-bottom:0.3rem">⚡ 結合律保證平行化</div>
+        <div class="eq-highlight" style="padding:0.5rem">\[(a_i,b_i) \bullet (a_j,b_j) = (a_ja_i, \; a_jb_i+b_j)\]</div>
+        <p style="font-size:0.85rem">chunk 內平行前綴和，chunk 間 carry 合併 — 兼顧速度與記憶體。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 09 — Parallel Scan (figure) ══ -->
+<section class="slide" data-idx="8">
+  <div class="inner fig-slide">
+    <div class="fig-title">Chunk-Parallel Scan 結合律運算示意</div>
+    <img src="assets/plots/parallel_scan_associativity.png" alt="Parallel Scan" />
+    <div class="fig-caption">圖：利用結合律 \((a_i,b_i) \bullet (a_j,b_j)\) 將序列掃描平行化為 \(O(\log N)\) 深度的 prefix sum — 訓練時 chunk 內平行計算，chunk 間透過 carry state 合併</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 10 — Divider: TuckerMoE ══ -->
+<section class="slide" data-idx="9">
+  <div class="inner"><div class="section-divider"><div class="part-num">Part 3</div><h2>TuckerMoE 核心技術</h2><div class="section-sub">從 MoE 痛點到 Tucker 三階分解的 Memory-bound → Compute-bound 相變</div></div></div>
+</section>
+
+<!-- ══ SLIDE 11 — MoE Pain Points + Tucker (text) ══ -->
+<section class="slide" data-idx="10">
+  <div class="inner">
+    <h2 class="t2">§5.4.1–5.4.3 · MoE 痛點與 Tucker 分解</h2>
+    <p class="lead">Top-K MoE 的兩大核心痛點，以及 Tucker 分解如何系統性解決。</p>
+    <div class="cols">
+      <div class="box red">
+        <div style="font-weight:700;color:var(--red);margin-bottom:0.3rem">💥 痛點 1：路由崩塌</div>
+        <ul class="b" style="font-size:0.85rem"><li>馬太效應 — 少數「明星專家」吸走大多數 token</li><li>Load-Balance Loss 與語言建模目標存在<strong>干擾梯度</strong></li><li>解決：\(\mathcal{L}_{\text{LB}} + \mathcal{L}_{\text{Z}}\) + 溫度退火</li></ul>
+      </div>
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--gold)">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:0.3rem">🐌 痛點 2：Memory-Bound 推論</div>
+        <ul class="b" style="font-size:0.85rem"><li>Decode 時每位 expert 僅 ~4 token → 算術強度 ≈ 4</li><li>遠低於 H100 BF16 平衡點 (~400 FLOPs/Byte)</li><li>完整 \(d_{\text{in}} \times d_{\text{out}}\) 權重需全部載入 HBM</li></ul>
+      </div>
+    </div>
+    <div class="cols" style="margin-top:0.6rem">
+      <div class="box" style="border-width:1px 1px 1px 4px;border-left-color:var(--red)">
+        <div style="font-weight:700;margin-bottom:0.3rem">逐專家 SVD（Baseline）</div>
+        <div class="eq" style="margin:0.4rem 0">\[W^{(e)} = U^{(e)}_r \Sigma^{(e)}_r V^{(e)\top}_r\]</div>
+        <p style="font-size:0.8rem;color:var(--red)">✗ 獨立分解，無法捕捉跨專家冗餘。60% 壓縮下 PPL: 7 → <strong>7168</strong></p>
+      </div>
+      <div class="box green">
+        <div style="font-weight:700;color:var(--green);margin-bottom:0.3rem">Tucker 三階分解（Ours）</div>
+        <div class="eq" style="margin:0.4rem 0">\[\mathcal{W} \approx \mathcal{G} \times_1 U^{(1)} \times_2 U^{(2)} \times_3 U^{(3)}\]</div>
+        <p style="font-size:0.8rem;color:var(--green)">✓ \(U^{(2)}, U^{(3)}\) 跨專家共享 → <strong>82.87%</strong> 壓縮</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 12 — Tucker Figures ══ -->
+<section class="slide" data-idx="11">
+  <div class="inner fig-slide">
+    <div class="fig-title">Tucker 分解：能量分佈與核心張量稀疏結構</div>
+    <div class="fig-row">
+      <img src="assets/plots/tucker_energy.png" alt="Tucker Energy" />
+      <img src="assets/plots/tucker_sparse_matrix.png" alt="Tucker Sparse" />
+    </div>
+    <div class="fig-caption">左：Tucker Core Energy Retention — 跨專家冗餘可視化，80% 資訊集中於少數核心成分。右：Expert Sparse Gate Matrix — 各專家身分向量的稀疏結構</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 13 — TuckerMoE Structure (text) ══ -->
+<section class="slide" data-idx="12">
+  <div class="inner">
+    <h2 class="t2">§5.4.4 · TuckerMoE 推論結構</h2>
+    <p class="lead">On-the-fly 推論：無需物化完整專家權重，每一步只涉及低秩維度 \(r_2, r_3\)。</p>
+    <div class="pipe" style="justify-content:center;margin:1rem 0">
+      <div class="pipe-s" style="border-color:var(--blue);color:var(--blue)">\(x \in \mathbb{R}^{d}\)</div><span class="pa">→</span>
+      <div class="pipe-s hi">\(U_{\text{in}}\)<br><span style="font-size:0.6rem">\(d \to r_3\) shared</span></div><span class="pa">→</span>
+      <div class="pipe-s" style="border-color:var(--gold);color:var(--gold)">RMSNorm</div><span class="pa">→</span>
+      <div class="pipe-s hi">\(G_e\)<br><span style="font-size:0.6rem">\(r_3 \to r_2\) per-expert</span></div><span class="pa">→</span>
+      <div class="pipe-s hi">\(U_{\text{out}}\)<br><span style="font-size:0.6rem">\(r_2 \to d_{\text{out}}\) shared</span></div><span class="pa">→</span>
+      <div class="pipe-s" style="border-color:var(--green);color:var(--green)">\(y\)</div>
+    </div>
+    <table class="j" style="margin-top:0.8rem">
+      <thead><tr><th>成分</th><th>形狀</th><th>共享</th><th>功能</th></tr></thead>
+      <tbody>
+        <tr><td>Router \(W_r\)</td><td>\(d_{\text{in}} \times E\)</td><td>—</td><td>softmax → top-2</td></tr>
+        <tr><td>\(U_{\text{in}}\)</td><td>\(d_{\text{in}} \times r_3\)</td><td><strong>是</strong></td><td>輸入投影至共享低秩子空間</td></tr>
+        <tr><td>\(\mathcal{G}\)</td><td>\(r_1 \times r_3 \times r_2\)</td><td><strong>是</strong></td><td>核心張量，跨維度交互</td></tr>
+        <tr><td>\(U_{\text{out}}\)</td><td>\(r_2 \times d_{\text{out}}\)</td><td><strong>是</strong></td><td>升回輸出空間</td></tr>
+      </tbody>
+    </table>
+    <div class="eq-highlight" style="margin-top:0.6rem">\[\mathbf{W}_e = U_{\text{in}} \cdot G_e \cdot U_{\text{out}}, \qquad G_e = U_{\text{expert}}[e] \times_1 \mathcal{G}\]</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 14 — TuckerMoE Forward/Backward (figure) ══ -->
+<section class="slide" data-idx="13">
+  <div class="inner fig-slide">
+    <div class="fig-title">TuckerMoE Forward / Backward 計算流程</div>
+    <img src="assets/plots/tuckermoe_forward_backward.png" alt="TuckerMoE Forward/Backward" />
+    <div class="fig-caption">圖：Forward pass 透過共享因子 \(U_{\text{in}}, U_{\text{out}}\) 在低秩空間完成計算。Backward pass 梯度直接作用於 \(\mathcal{G}\) 與 \(U_{\text{expert}}\)，無需展開完整權重</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 15 — I/O Complexity (text) ══ -->
+<section class="slide" data-idx="14">
+  <div class="inner">
+    <h2 class="t2">§5.4.2 · I/O 複雜度與壓縮結果</h2>
+    <p class="lead">TuckerMoE 將 MoE 推論從 Memory-bound 推向 Compute-bound 區間。</p>
+    <div class="cols">
+      <div class="box accent">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:0.3rem">命題 1：HBM I/O 比率</div>
+        <div class="eq-highlight">\[\frac{\text{HBM}^{\text{Tucker}}}{\text{HBM}^{\text{Dense}}} = \mathcal{O}\!\left(\frac{r_3}{d_{\text{ff}}} + \frac{r_2}{d}\right)\]</div>
+        <table class="j">
+          <tr><td>Dense MoE</td><td style="text-align:right;color:var(--red)"><strong>151.6 MiB/層</strong></td></tr>
+          <tr><td>TuckerMoE</td><td style="text-align:right;color:var(--green)"><strong>13.4 MiB/層</strong></td></tr>
+          <tr class="hi"><td>縮減</td><td style="text-align:right"><strong>11.3×</strong></td></tr>
+        </table>
+      </div>
+      <div class="box green">
+        <div style="font-weight:700;color:var(--green);margin-bottom:0.3rem">82.87% 參數壓縮</div>
+        <table class="j">
+          <thead><tr><th>壓縮率</th><th>Tucker</th><th>SVD</th><th>改善</th></tr></thead>
+          <tbody>
+            <tr><td>80%</td><td>0.00099</td><td>0.00205</td><td style="color:var(--green)">−51.7%</td></tr>
+            <tr><td>82.87%</td><td>0.00135</td><td>0.00247</td><td style="color:var(--green)">−45.3%</td></tr>
+            <tr><td>90%</td><td>0.00267</td><td>0.00387</td><td style="color:var(--green)">−31.0%</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:0.8rem;margin-top:0.4rem">算術強度 \(\mathcal{I}^{\text{Tucker}} \to r_2=512\) → <strong>越過 roofline 進入 compute-bound</strong></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 16 — Regime + Compression (figures) ══ -->
+<section class="slide" data-idx="15">
+  <div class="inner fig-slide">
+    <div class="fig-title">Regime 切換與壓縮分析</div>
+    <div class="fig-row">
+      <img src="assets/plots/TuckerMoE_LinePlot_Regimes (6).png" alt="Regime Plot" />
+      <img src="assets/plots/checkpoint_compression_study.png" alt="Compression Study" />
+    </div>
+    <div class="fig-caption">左：Dense MoE (memory-bound) → TuckerMoE (compute-bound) 的 regime 切換。右：不同壓縮率下 Tucker vs SVD 重建 MSE 比較</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 17 — Training Recipe (text) ══ -->
+<section class="slide" data-idx="16">
+  <div class="inner">
+    <h2 class="t2">§7 · 聯合損失 + Router 溫度退火</h2>
+    <div class="eq-highlight" style="margin-bottom:0.8rem">
+      \[\boxed{\;\mathcal{L} = \mathcal{L}_{\text{CE}} + \frac{\beta_{\text{LB}}}{n}\mathcal{L}_{\text{LB}} + \frac{\beta_{\text{Z}}}{n}\mathcal{L}_{\text{Z}}\;}\]
+      <p style="font-size:0.8rem;margin-top:0.3rem;color:var(--ink3)">\(\beta_{\text{LB}}=0.1\), \(\beta_{\text{Z}}=5 \times 10^{-3}\), \(n=66\) TuckerMoE modules</p>
+    </div>
+    <div class="cols3">
+      <div class="box accent"><div style="font-weight:700;font-size:0.9rem;margin-bottom:0.3rem">\(\mathcal{L}_{\text{CE}}\) Cross-Entropy</div><p style="font-size:0.8rem">Logit 截斷：\(z' = 30\tanh(z/30\sqrt{d})\)<br>防止 fp16 overflow</p></div>
+      <div class="box" style="border-left:4px solid var(--teal)"><div style="font-weight:700;font-size:0.9rem;margin-bottom:0.3rem">\(\mathcal{L}_{\text{LB}}\) Load-Balance</div><p style="font-size:0.8rem">\(E \sum_e \bar{m}_e \bar{p}_e\)<br>懲罰專家使用不均</p></div>
+      <div class="box" style="border-left:4px solid var(--gold)"><div style="font-weight:700;font-size:0.9rem;margin-bottom:0.3rem">\(\mathcal{L}_{\text{Z}}\) Router Z-loss</div><p style="font-size:0.8rem">\(\mathbb{E}[\text{logsumexp}(s)^2]\)<br>雙向正則化 logit</p></div>
+    </div>
+    <div class="box" style="border-left:4px solid var(--gold);margin-top:0.8rem">
+      <div style="font-weight:700;margin-bottom:0.3rem">🌡️ 溫度退火策略</div>
+      <div class="eq" style="margin:0.4rem 0">\[T(s) = T_{\text{end}} + \tfrac{1}{2}(T_{\text{start}}-T_{\text{end}})(1+\cos(\pi \cdot p(s)))\]</div>
+      <p style="font-size:0.8rem">\(T: 2.0 \to 0.5\) — 初期高溫探索，後期低溫收斂。<strong>LayerScale</strong> init=\(10^{-2}\)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 18 — Training Schedules (figure) ══ -->
+<section class="slide" data-idx="17">
+  <div class="inner fig-slide">
+    <div class="fig-title">訓練排程 · 學習率 / 溫度 / Loss 曲線</div>
+    <img src="assets/plots/training_schedules.png" alt="Training Schedules" />
+    <div class="fig-caption">圖：學習率 cosine decay、Router 溫度退火 \(T: 2.0 \to 0.5\)、以及訓練 loss 收斂曲線</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 19 — Router Diagnostics (text + table) ══ -->
+<section class="slide" data-idx="18">
+  <div class="inner">
+    <h2 class="t2">§9 · Router 診斷 + NCU Profiling</h2>
+    <p class="lead">四項定量指標全數通過，確認無路由崩塌。</p>
+    <table class="j" style="margin-bottom:1rem">
+      <thead><tr><th>指標</th><th>門檻</th><th>實測</th><th>結果</th></tr></thead>
+      <tbody>
+        <tr><td>min entropy ratio</td><td>≥0.28</td><td>0.294</td><td style="color:var(--green)"><strong>PASS</strong></td></tr>
+        <tr><td>max top-1 share</td><td>≤0.85</td><td>0.322</td><td style="color:var(--green)"><strong>PASS</strong></td></tr>
+        <tr><td>dead-expert ratio</td><td>≤0.5</td><td>0.000</td><td style="color:var(--green)"><strong>PASS</strong></td></tr>
+        <tr><td>total NaN</td><td>=0</td><td>0</td><td style="color:var(--green)"><strong>PASS</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="box accent">
+      <div style="font-weight:700;margin-bottom:0.3rem">雙峰瓶頸分析 (NCU Profiling)</div>
+      <table class="j" style="font-size:0.85rem">
+        <tr><td>Fused MoE</td><td>66.9% time</td><td>DRAM 4.4% peak</td><td>片上排程瓶頸</td></tr>
+        <tr><td>Chunk Scan</td><td>33.1% time</td><td style="color:var(--red)">DRAM 75.3% peak</td><td>DRAM-heavy</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 20 — Router + Profiling (figures) ══ -->
+<section class="slide" data-idx="19">
+  <div class="inner fig-slide">
+    <div class="fig-title">Router 崩塌診斷 + Kernel Profiling</div>
+    <div class="fig-row">
+      <img src="assets/plots/router_collapse.png" alt="Router Collapse" />
+      <img src="assets/plots/profiling_latency.png" alt="NCU Profiling" />
+    </div>
+    <div class="fig-caption">左：Router entropy / top-1 share 分佈 — 所有模組均通過崩塌門檻。右：NCU kernel-level 延遲分佈 — Fused MoE 佔 66.9% 但 DRAM 利用率僅 4.4%，已轉為 compute-bound</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 21 — Conclusion (text) ══ -->
+<section class="slide" data-idx="20">
+  <div class="inner">
+    <h2 class="t2">§10 · 結論：同算力擴增容量</h2>
+    <p class="lead">在相同訓練算力與每 token active FLOPs 下，TuckerMoE 擴增容量可獲等效更大 dense 模型的生成能力。</p>
+    <div class="cols3">
+      <div class="sg"><span class="stat">82.87%</span><span class="stat-l">參數壓縮率</span><p style="font-size:0.8rem;margin-top:0.3rem">2.43B → 417M</p></div>
+      <div class="sg"><span class="stat">80%</span><span class="stat-l">KV 記憶體節省</span><p style="font-size:0.8rem;margin-top:0.3rem">4:1 Hybrid 架構</p></div>
+      <div class="sg"><span class="stat">14.1 MiB</span><span class="stat-l">邊緣部署記憶體</span><p style="font-size:0.8rem;margin-top:0.3rem">M2 Pro 8-bit</p></div>
+    </div>
+    <table class="j" style="margin-top:1rem">
+      <thead><tr><th>設備</th><th>Prefill</th><th>Decode</th><th>KV+State</th></tr></thead>
+      <tbody>
+        <tr><td>M2 Pro bf16</td><td>~3,800 tok/s</td><td>~42 tok/s</td><td>22.3 MiB</td></tr>
+        <tr class="hi"><td>M2 Pro 8-bit</td><td>~3,650 tok/s</td><td style="color:var(--green)">~68 tok/s</td><td style="color:var(--green)">14.1 MiB</td></tr>
+        <tr><td>M1 bf16</td><td>~2,100 tok/s</td><td>~27 tok/s</td><td>22.3 MiB</td></tr>
+      </tbody>
+    </table>
+    <div class="insight" style="margin-top:0.8rem"><strong>核心成果：</strong>以 230M active parameters 達到 2.4B dense-equivalent 容量，在 Apple Silicon 上實現實時生成。</div>
+  </div>
+</section>
+
+<!-- ══ SLIDE 22 — Pareto + MLX (figures) ══ -->
+<section class="slide" data-idx="21">
+  <div class="inner fig-slide">
+    <div class="fig-title">Pareto 前沿 + MLX 推論基準</div>
+    <div class="fig-row">
+      <img src="assets/plots/pareto_frontier.png" alt="Pareto Frontier" />
+      <img src="assets/plots/mlx_inference_benchmark.png" alt="MLX Benchmark" />
+    </div>
+    <div class="fig-caption">左：推論成本 vs. 有效容量 Pareto 前沿 — 以 230M active 達到 2.4B dense-equiv。右：Apple Silicon MLX 推論基準 — M2 Pro 8-bit decode ~68 tok/s</div>
+  </div>
+</section>
+
+
+      </div><!-- end .stage -->
+      <div class="toolbar">
+        <button class="nb" id="bp" disabled>← Prev</button>
+        <div class="pw"></div>
+        <div class="pb" id="pg" style="width:0%"></div>
+        <span class="ct" id="ct">01 / 22</span>
+        <button class="nb" id="bn">Next →</button>
+      </div>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script src="./presentation.js"></script>
   </body>
 </html>

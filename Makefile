@@ -38,6 +38,9 @@ SEQ_ARG = $(if $(strip $(SEQ_LEN)), --seq-len $(SEQ_LEN),)
 
 # Extra benchmark args, e.g. BENCH_EXTRA='--prompt "Hello" --decode-tokens 64' or --no-show-io
 BENCH_EXTRA ?=
+# 1 / true / yes → pass --lookahead-router to benchmark_mlx.py (do NOT run `make target --lookahead-router`; make eats --flags)
+LOOKAHEAD_ROUTER ?= 0
+LOOKAHEAD_ARG = $(if $(filter 1 true TRUE yes YES,$(LOOKAHEAD_ROUTER)),--lookahead-router,)
 
 .PHONY: help mlx-bench mlx-bench-quick mlx-stream mlx-stream-spec mlx-stream-spec-debug mlx-stream-spec-sweep mlx-stream-spec-ab-quant mlx-profile mlx-export-npz mlx-force-pt deps-mlx frontend-dev frontend backend-dev backend up
 
@@ -61,13 +64,17 @@ help:
 	@echo "  make up                Start backend-dev + frontend-dev together"
 	@echo "  make deps-mlx           pip install mlx numpy transformers torch"
 	@echo ""
-	@echo "Variables: CHECKPOINT, SEQ_LEN(optional), DECODE_TOK, MAX_NEW_TOK, WARMUP, DTYPE, KV_DTYPE, ROUTER_TEMP, INFER_TYPE, BENCH_EXTRA, STREAM_EXTRA, STREAM_QUANT, SPEC_DRAFT_LAYERS, SPEC_MAX_DRAFT, SPEC_NO_EOS_STOP, SPEC_EXTRA, SPEC_SWEEP_LAYERS, SPEC_DEBUG_PROMPT, BACKEND_HOST, BACKEND_PORT, BACKEND_EXTRA, FRONTEND_PORT, FRONTEND_EXTRA, FRONTEND_API_BASE, FRONTEND_WS_BASE, PYTHON"
+	@echo "Variables: CHECKPOINT, SEQ_LEN(optional), DECODE_TOK, MAX_NEW_TOK, WARMUP, DTYPE, KV_DTYPE, ROUTER_TEMP, INFER_TYPE, BENCH_EXTRA, LOOKAHEAD_ROUTER, STREAM_EXTRA, STREAM_QUANT, SPEC_DRAFT_LAYERS, SPEC_MAX_DRAFT, SPEC_NO_EOS_STOP, SPEC_EXTRA, SPEC_SWEEP_LAYERS, SPEC_DEBUG_PROMPT, BACKEND_HOST, BACKEND_PORT, BACKEND_EXTRA, FRONTEND_PORT, FRONTEND_EXTRA, FRONTEND_API_BASE, FRONTEND_WS_BASE, PYTHON"
 	@echo "Example:   make mlx-bench CHECKPOINT=checkpoint.pt SEQ_LEN=1024"
 	@echo "Example:   make mlx-bench BENCH_EXTRA='--prompt \"Hi\" --decode-tokens 32'"
+	@echo "Benchmark flags: BENCH_EXTRA='--foo' or LOOKAHEAD_ROUTER=1. Note: trailing --foo after the target is parsed by GNU make, not benchmark_mlx.py."
+	@echo "Example:   make mlx-bench-quick LOOKAHEAD_ROUTER=1"
+	@echo "Example:   make mlx-bench-quick BENCH_EXTRA='--lookahead-router --tucker-einsum-fuse'"
+	@echo "Example:   make mlx-stream LOOKAHEAD_ROUTER=1   # disables default outer full-decode-compile for decode"
 
 # Core benchmark (auto model.npz / checkpoint.pt when CHECKPOINT is empty)
 mlx-bench:
-	$(PYTHON) $(BENCH)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --decode-tokens $(DECODE_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP) $(BENCH_EXTRA) 
+	$(PYTHON) $(BENCH)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --decode-tokens $(DECODE_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP) $(LOOKAHEAD_ARG) $(BENCH_EXTRA)
 
 mlx-bench-quick:
 	$(MAKE) mlx-bench SEQ_LEN=128 DECODE_TOK=512 WARMUP=2
@@ -87,10 +94,10 @@ SPEC_SWEEP_LAYERS ?= 6 8 10 12
 SPEC_DEBUG_PROMPT ?= Hello! Write one short sentence about MLX on Apple Silicon.
 
 mlx-stream:
-	$(PYTHON) $(STREAM)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --max-new-tokens $(MAX_NEW_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP)$(STREAM_QUANT_ARG) $(STREAM_EXTRA) --no-eos-stop
+	$(PYTHON) $(STREAM)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --max-new-tokens $(MAX_NEW_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP)$(STREAM_QUANT_ARG) $(LOOKAHEAD_ARG) $(STREAM_EXTRA) --no-eos-stop
 
 mlx-stream-spec:
-	$(PYTHON) $(STREAM)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --max-new-tokens $(MAX_NEW_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP)$(STREAM_QUANT_ARG) --speculative --spec-draft-layers $(SPEC_DRAFT_LAYERS) --spec-max-draft $(SPEC_MAX_DRAFT) $(SPEC_EXTRA)$(SPEC_EOS_ARG)
+	$(PYTHON) $(STREAM)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --max-new-tokens $(MAX_NEW_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP)$(STREAM_QUANT_ARG) $(LOOKAHEAD_ARG) --speculative --spec-draft-layers $(SPEC_DRAFT_LAYERS) --spec-max-draft $(SPEC_MAX_DRAFT) $(SPEC_EXTRA)$(SPEC_EOS_ARG)
 
 mlx-stream-spec-debug:
 	$(MAKE) mlx-stream-spec SPEC_NO_EOS_STOP=1 SPEC_EXTRA='$(SPEC_EXTRA) --show-special-tokens --prompt "$(SPEC_DEBUG_PROMPT)"'
@@ -99,7 +106,7 @@ mlx-stream-spec-sweep:
 	@for L in $(SPEC_SWEEP_LAYERS); do \
 		echo ""; \
 		echo "===== speculative draft_layers=$$L ====="; \
-		$(PYTHON) $(STREAM)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --max-new-tokens $(MAX_NEW_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP)$(STREAM_QUANT_ARG) --speculative --spec-draft-layers $$L --spec-max-draft $(SPEC_MAX_DRAFT) $(SPEC_EXTRA)$(SPEC_EOS_ARG); \
+		$(PYTHON) $(STREAM)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE)$(SEQ_ARG) --max-new-tokens $(MAX_NEW_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP)$(STREAM_QUANT_ARG) $(LOOKAHEAD_ARG) --speculative --spec-draft-layers $$L --spec-max-draft $(SPEC_MAX_DRAFT) $(SPEC_EXTRA)$(SPEC_EOS_ARG); \
 	done
 
 mlx-stream-spec-ab-quant:
@@ -115,7 +122,7 @@ mlx-profile:
 	$(PYTHON) $(PROF)$(CKPT_ARG) --tokenizer $(TOK) --dtype $(DTYPE) --kv-dtype $(KV_DTYPE)$(SEQ_ARG) --profile-decode-steps $(PROFILE_DECODE_STEPS) $(BENCH_EXTRA)
 
 mlx-force-pt:
-	$(PYTHON) $(BENCH)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE) --force-pt$(SEQ_ARG) --decode-tokens $(DECODE_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP) $(BENCH_EXTRA)
+	$(PYTHON) $(BENCH)$(CKPT_ARG) --tokenizer $(TOK) --inference-type $(INFER_TYPE) --dtype $(DTYPE) --force-pt$(SEQ_ARG) --decode-tokens $(DECODE_TOK) --warmup $(WARMUP) --kv-dtype $(KV_DTYPE) --router-temp $(ROUTER_TEMP) $(LOOKAHEAD_ARG) $(BENCH_EXTRA)
 
 # After success, next `make mlx-bench` can load the .npz without torch
 mlx-export-npz:

@@ -8,7 +8,14 @@ MLX ``mx.compile`` is process-local JIT; this script compiles a **single-token**
 print or push to an API without waiting for the full sequence. Core model code is unchanged.
 
 Usage (repo root):
-  python inference/stream_mlx.py --prompt "Hello" --max-new-tokens 64
+  python inference/stream_mlx.py --prompt "Hello"
+
+Defaults target maximum throughput on Apple Silicon (same spirit as inference/bench_pure_metal.sh):
+bf16 + ``--kv-dtype auto``, 4-bit weight quant, Tucker einsum fuse, full single-step decode compile,
+greedy sampling, no penalties, skip cache materialization by default.
+By default **up to 2048 new tokens** are streamed and **EOS does not end generation**; use
+``--stop-on-eos`` to stop when the tokenizer emits EOS, or ``--max-new-tokens N`` to cap length.
+Use ``--materialize-caches`` / ``--no-fast-sample`` / ``--enable-penalties`` when you need safer or richer sampling.
 
 Programmatic:
   from stream_mlx import generate_token_stream, make_compiled_decode_step
@@ -47,13 +54,12 @@ if _INF_DIR not in sys.path:
 
 from benchmark_mlx import (
     _apply_inference_type,
-    _apply_penalties_fast,
-    _advanced_sample,
     _build_prompt_ids,
     _init_token_counts,
     _invalidate_tucker_caches,
     _materialize_cache_tree,
     _pad_transformer_caches,
+    sample_decode_token,
 )
 from mlx_hybrid_infer import (
     Mamba3Config,
@@ -139,8 +145,7 @@ def generate_token_stream(
 
     row = logits[0, -1, :]
     token_counts = _init_token_counts(prompt_ids, int(row.shape[0]))
-    row = _apply_penalties_fast(row, token_counts, sample_args)
-    last = _advanced_sample(row, sample_args)
+    last = sample_decode_token(row, token_counts, sample_args)
     token_counts[last] = token_counts[last] + 1
     mx.eval(last)
     yield last
@@ -155,8 +160,7 @@ def generate_token_stream(
         seq_pos = mx.array(pos, dtype=mx.int32)
         logits_d, caches = decode_fn(x_one, caches, seq_pos)
         row = logits_d[0, -1, :]
-        row = _apply_penalties_fast(row, token_counts, sample_args)
-        last = _advanced_sample(row, sample_args)
+        last = sample_decode_token(row, token_counts, sample_args)
         token_counts[last] = token_counts[last] + 1
         # Evaluate sampled token and updated cache together to keep one larger graph.
         mx.eval(last, caches, token_counts)
@@ -196,21 +200,48 @@ def main() -> None:
         choices=("throughput", "safe", "eager", "sequential-ssm", "custom"),
     )
     p.add_argument("--seq-len", type=int, default=256)
-    p.add_argument("--max-new-tokens", type=int, default=128)
+    p.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=2048,
+        help="Maximum new tokens to stream after the prompt (default 2048).",
+    )
     p.add_argument("--warmup", type=int, default=2)
     p.add_argument("--vocab-size", type=int, default=32007)
-    p.add_argument("--dtype", type=str, default="fp32", choices=["fp32", "bf16", "fp16"])
-    p.add_argument("--kv-dtype", type=str, default="bf16", choices=["auto", "bf16", "fp16", "fp32"])
-    p.add_argument("--quantize", type=int, choices=[0, 4, 8], default=0)
+    p.add_argument("--dtype", type=str, default="bf16", choices=["fp32", "bf16", "fp16"])
+    p.add_argument(
+        "--kv-dtype",
+        type=str,
+        default="auto",
+        choices=["auto", "bf16", "fp16", "fp32"],
+        help="KV cache dtype; 'auto' matches --dtype (recommended with bf16 weights).",
+    )
+    p.add_argument("--quantize", type=int, choices=[0, 4, 8], default=4)
     p.add_argument("--router-temp", type=float, default=0.5)
     p.add_argument("--no-compile-prefill", action="store_true")
     p.add_argument("--eager-decode", action="store_true")
     p.add_argument(
         "--full-decode-compile",
+        dest="full_decode_compile",
         action="store_true",
-        help="Single mx.compile for whole decode step; disables per-layer decode compile (see benchmark_mlx)",
+        default=True,
+        help="Single mx.compile for whole decode step; disables per-layer decode compile (default on for speed).",
     )
-    p.add_argument("--no-materialize-caches", action="store_true")
+    p.add_argument(
+        "--no-full-decode-compile",
+        dest="full_decode_compile",
+        action="store_false",
+        help="Use per-layer compiled decode instead of one outer mx.compile step.",
+    )
+    p.add_argument(
+        "--materialize-caches",
+        action="store_true",
+        default=False,
+        help=(
+            "Copy caches out of compiled prefill outputs (safer streaming; slower). "
+            "Default skips this copy for throughput."
+        ),
+    )
     p.add_argument(
         "--no-outer-compile",
         action="store_true",
@@ -229,7 +260,32 @@ def main() -> None:
     p.add_argument("--rep_pen", type=float, default=1.1)
     p.add_argument("--pres_pen", type=float, default=0.0)
     p.add_argument("--freq_pen", type=float, default=0.02)
-    p.add_argument("--fast-sample", action="store_true")
+    p.add_argument(
+        "--fast-sample",
+        dest="fast_sample",
+        action="store_true",
+        default=True,
+        help="Greedy argmax (default; fastest).",
+    )
+    p.add_argument(
+        "--no-fast-sample",
+        dest="fast_sample",
+        action="store_false",
+        help="Use temp / top-k / top-p / min-p per --temp/--top_k/...",
+    )
+    p.add_argument(
+        "--fused-sample-metal",
+        action="store_true",
+        help=(
+            "Penalties, temperature, min-p, top-k, top-p, softmax, and sampling run on Metal (inverse CDF uses "
+            "MLX cumsum). Greedy uses Metal argmax. Requires Apple MLX Metal; falls back to MLX on error."
+        ),
+    )
+    p.add_argument(
+        "--fused-sample-metal-v2",
+        action="store_true",
+        help="Single-dispatch fully-fused Metal sampling (v2). Faster than v1 and pure MLX in most cases.",
+    )
     p.add_argument(
         "--plain-output",
         action="store_true",
@@ -237,22 +293,67 @@ def main() -> None:
     )
     p.add_argument(
         "--no-penalties",
+        dest="no_penalties",
         action="store_true",
-        help="Skip repetition / presence / frequency penalty path (faster streaming)",
+        default=True,
+        help="Skip repetition / presence / frequency penalties (default; faster).",
+    )
+    p.add_argument(
+        "--enable-penalties",
+        dest="no_penalties",
+        action="store_false",
+        help="Apply --rep_pen / --pres_pen / --freq_pen on logits (slower).",
+    )
+    p.add_argument(
+        "--stop-on-eos",
+        action="store_true",
+        default=False,
+        help="Stop streaming when the tokenizer EOS id is emitted (default: keep generating until --max-new-tokens).",
     )
     p.add_argument(
         "--no-eos-stop",
         action="store_true",
-        help="Do not stop when EOS is generated",
+        default=False,
+        help="Same as default behavior (ignore EOS); kept for scripts/Make compatibility.",
     )
     p.add_argument(
         "--kmoe-no-gather",
         action="store_true",
         help="A/B mode: avoid dynamic g_all[top_k] gather in TuckerMoE (computes all experts then sparse-weighted sum)",
     )
+    p.add_argument(
+        "--lookahead-router",
+        action="store_true",
+        help=(
+            "Experimental MoE routing from previous sublayer hidden (see mlx_hybrid_infer). "
+            "Disables single-step outer mx.compile for decode; use with per-layer compile only."
+        ),
+    )
+    p.add_argument(
+        "--tucker-einsum-fuse",
+        dest="tucker_einsum_fuse",
+        action="store_true",
+        default=True,
+        help="Fused Tucker MoE latent einsum Metal path (default on for speed).",
+    )
+    p.add_argument(
+        "--no-tucker-einsum-fuse",
+        dest="tucker_einsum_fuse",
+        action="store_false",
+        help="Disable fused Tucker einsum (reference path).",
+    )
     args = p.parse_args()
+    if args.lookahead_router and args.full_decode_compile:
+        print(
+            "Note: --lookahead-router disables --full-decode-compile (per-layer decode graphs only).",
+            file=sys.stderr,
+        )
+        args.full_decode_compile = False
     _apply_inference_type(args)
-    if args.no_penalties:
+    # Benchmark ``throughput`` preset requests cache materialization; streaming defaults omit the copy unless
+    # ``--materialize-caches``. (Overrides preset; matches inference/bench_pure_metal.sh intent.)
+    args.no_materialize_caches = not bool(getattr(args, "materialize_caches", False))
+    if getattr(args, "no_penalties", False):
         args.rep_pen = 1.0
         args.pres_pen = 0.0
         args.freq_pen = 0.0
@@ -289,7 +390,9 @@ def main() -> None:
         kmoe_r3=256,
         ffn_expand=6,
     )
-    
+    config.lookahead_router = bool(args.lookahead_router)
+    config.tucker_einsum_fuse = bool(args.tucker_einsum_fuse)
+
     model = Mamba3LanguageModel(config, vocab_size)
 
     resolved, kind = resolve_mlx_checkpoint(
@@ -371,10 +474,20 @@ def main() -> None:
     eos_id = getattr(tokenizer, "eos_token_id", None)
     if isinstance(eos_id, (list, tuple)):
         eos_id = eos_id[0] if eos_id else None
-    if args.no_eos_stop:
+    stop_at_eos = bool(getattr(args, "stop_on_eos", False))
+    if getattr(args, "no_eos_stop", False):
+        stop_at_eos = False
+    if not stop_at_eos:
         eos_id = None
 
-    use_outer_compile = bool(args.full_decode_compile or not args.no_outer_compile)
+    # Lookahead needs per-layer backbone compiles; wrapping the whole step in mx.compile breaks it.
+    base_outer_compile = bool(args.full_decode_compile or not args.no_outer_compile)
+    use_outer_compile = base_outer_compile and not args.lookahead_router
+    if args.lookahead_router and base_outer_compile:
+        print(
+            "Note: lookahead-router → per-layer compiled decode only (outer single-step mx.compile off).",
+            file=sys.stderr,
+        )
     if args.full_decode_compile:
         dec_mode = "full"
     elif not args.eager_decode:
@@ -384,7 +497,14 @@ def main() -> None:
     print(
         f"Prefill: {len(prompt_ids)} tokens in {prefill_s*1000:.2f} ms  compile={prefill_compile_mode}  "
         f"decode_step={dec_mode}  outer_mx_compile={use_outer_compile}  "
-        f"kmoe_no_gather={args.kmoe_no_gather}"
+        f"dtype={args.dtype}  kv_dtype={args.kv_dtype}  quantize={args.quantize}  "
+        f"materialize_caches={not args.no_materialize_caches}  fast_sample={args.fast_sample}  "
+        f"fused_sample_metal={bool(getattr(args, 'fused_sample_metal', False))}  "
+        f"fused_sample_metal_v2={bool(getattr(args, 'fused_sample_metal_v2', False))}  "
+        f"penalties={'off' if args.no_penalties else 'on'}  "
+        f"kmoe_no_gather={args.kmoe_no_gather}  lookahead_router={args.lookahead_router}  "
+        f"tucker_einsum_fuse={args.tucker_einsum_fuse}  "
+        f"max_new_tokens={args.max_new_tokens}  stop_on_eos={stop_at_eos}"
     )
     print("─" * 60)
     try:

@@ -61,6 +61,12 @@ class Mamba3Config:
         self.num_kv_heads = num_kv_heads
         self.kv_groups = self.n_heads // num_kv_heads
         self.layer_scale_init = layer_scale_init
+        # Experimental decode / MoE optimizations (benchmark-friendly; default off).
+        self.lookahead_router: bool = False
+        #: Single einsum ``bk,br,bkrs->bs`` latent MoE (vs staged matmul + sum).
+        self.tucker_einsum_fuse: bool = False
+        #: Fuse dense U_in + RMSNorm + routed Tucker core + U_out into one Metal kernel.
+        self.tucker_full_fuse: bool = False
 
 
 def fast_scaled_tanh(x: mx.array, scale: float = 10.0) -> mx.array:
@@ -98,6 +104,23 @@ def _topk_indices(router_logits: mx.array, k: int) -> mx.array:
     return mx.argpartition(-router_logits, k - 1, axis=-1)[:, :k]
 
 
+def _router_anchor_matching_dim(raw: Optional[mx.array], expected_last: int) -> Optional[mx.array]:
+    """
+    Previous-layer hidden lookahead only applies when Tucker ``router`` in_features matches
+    *expected_last* (e.g. Mamba ``x_up_proj`` routers see ``n_heads * d_head``, not ``d_model``).
+    """
+    if raw is None:
+        return None
+    if int(raw.shape[-1]) != int(expected_last):
+        return None
+    return raw
+
+
+def _is_dense_linear(m: Any) -> bool:
+    """True for plain MLX Linear modules; QuantizedLinear needs a different packed-weight kernel."""
+    return m.__class__.__name__ == "Linear" and hasattr(m, "weight")
+
+
 def chunk_parallel_scan_mlx(
     u: mx.array,
     dt_b: mx.array,
@@ -129,22 +152,50 @@ def chunk_parallel_scan_mlx(
 
     lc = la_c.shape[2]
     d_inner = n * p
-    # Intra-chunk scan: h[t]=exp(la[t])h[t-1]+u[t]  <=>  h = M @ u with M[t,s]=exp(P[t]-P[s]) for s<=t
-    # Clip log-domain differences before exp: large |diff| overflows float32 exp → inf; then inf*0 in matmul
-    # yields NaN at padded / zero-u positions (position 0 can still pick up NaNs via the reduction).
-    _CLIP = mx.array(40.0, dtype=la_c.dtype)
-    P = mx.cumsum(la_c, axis=2)
-    diff = mx.expand_dims(P, 3) - mx.expand_dims(P, 2)
-    diff = mx.clip(diff, -_CLIP, _CLIP)
-    idx = mx.arange(lc)
-    mask2d = (idx[:, None] >= idx[None, :]).astype(diff.dtype)
-    mask5 = mx.reshape(mask2d, (1, 1, lc, lc, 1))
-    decay5 = mx.exp(diff) * mask5
-    M = mx.transpose(decay5, (0, 1, 4, 2, 3))
-    u_flat = mx.transpose(u_c, (0, 1, 3, 2, 4, 5)).reshape(b, nc, h, lc, d_inner)
-    h_flat = mx.matmul(M, u_flat)
-    h_intra = mx.transpose(h_flat.reshape(b, nc, h, lc, n, p), (0, 1, 3, 2, 4, 5))
+    
+    # Intra-chunk scan: Fast Custom Metal Kernel (Sequential Scan O(N))
+    # Replace O(N^2) matmul with optimal thread-per-channel sequential scan.
+    _SSM_METAL_SRC = """
+        uint d = thread_position_in_grid.x;
+        uint h = thread_position_in_grid.y;
+        uint b_c = thread_position_in_grid.z;
+        
+        if (d >= D || h >= H || b_c >= B * nc) return;
+        
+        T h_val = T(0.0);
+        for (uint t = 0; t < Lc; ++t) {
+            T la = la_c[b_c * Lc * H + t * H + h];
+            T u  = u_c[b_c * Lc * H * D + t * H * D + h * D + d];
+            
+            la = la > T(40.0) ? T(40.0) : la;
+            la = la < T(-40.0) ? T(-40.0) : la;
+            
+            h_val = metal::exp(la) * h_val + u;
+            out[b_c * Lc * H * D + t * H * D + h * D + d] = h_val;
+        }
+    """
+    
+    u_c_reshaped = u_c.reshape(b, nc, lc, h, d_inner)
+    kernel = mx.fast.metal_kernel(
+        name="ssm_chunk_scan",
+        input_names=["la_c", "u_c"],
+        output_names=["out"],
+        source=_SSM_METAL_SRC,
+        header=f"constant uint B = {b}; constant uint nc = {nc}; constant uint Lc = {lc}; constant uint H = {h}; constant uint D = {d_inner};"
+    )
+    
+    h_intra_flat = kernel(
+        inputs=[la_c, u_c_reshaped],
+        template=[("T", la_c.dtype)],
+        grid=(d_inner, h, b * nc),
+        threadgroup=(32, 1, 1),
+        output_shapes=[(b, nc, lc, h, d_inner)],
+        output_dtypes=[u_c.dtype],
+    )[0]
+    
+    h_intra = h_intra_flat.reshape(b, nc, lc, h, n, p)
 
+    _CLIP = mx.array(40.0, dtype=la_c.dtype)
     y_diag = mx.einsum("bclhnp,bclhnr->bclhpr", h_intra, c_c)
 
     decay = mx.exp(mx.clip(mx.sum(la_c, axis=2), -_CLIP, _CLIP))
@@ -210,10 +261,153 @@ class TuckerMoE(nn.Module):
             mx.eval(self._G_cache)
         return self._G_cache
 
-    def __call__(self, x: mx.array, router_temp: mx.array) -> mx.array:
+    def _full_fused_dense(
+        self,
+        x_flat: mx.array,
+        top_k_probs: mx.array,
+        top_k_indices: mx.array,
+        g_all: mx.array,
+    ) -> mx.array:
+        """
+        Experimental dense-only full Tucker path:
+        x -> U_in -> RMSNorm -> routed G -> U_out -> bias in one Metal dispatch.
+
+        This intentionally does not handle MLX QuantizedLinear yet; callers guard for dense Linears.
+        """
+        bsz, dim_in = x_flat.shape
+        _, top_k = top_k_probs.shape
+        num_experts, r3, r2 = g_all.shape
+        dim_out = self.U_out.weight.shape[0]
+        tg_size = 128
+        bank_shift = 5
+        r3_pad = r3 + ((r3 + ((1 << bank_shift) - 1)) >> bank_shift)
+        r2_pad = r2 + ((r2 + ((1 << bank_shift) - 1)) >> bank_shift)
+        norm_eps = float(getattr(self.inner_norm, "eps", 1e-5))
+
+        source = """
+            uint j = thread_position_in_grid.x;
+            uint b = thread_position_in_grid.y;
+            uint lid = thread_index_in_threadgroup;
+
+            threadgroup float x_sram[R3_PAD];
+            threadgroup float core_sram[R2_PAD];
+
+            for (uint r = lid; r < R3; r += TG_SIZE) {
+                float acc = 0.0f;
+                uint w_base = r * DIM_IN;
+                uint x_base = b * DIM_IN;
+                for (uint i = 0; i < DIM_IN; ++i) {
+                    acc += float(x[x_base + i]) * float(u_in_w[w_base + i]);
+                }
+                x_sram[r + (r >> BANK_SHIFT)] = acc;
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+
+            float ss = 0.0f;
+            for (uint r = 0; r < R3; ++r) {
+                float v = x_sram[r + (r >> BANK_SHIFT)];
+                ss += v * v;
+            }
+            float inv_rms = metal::rsqrt(ss / float(R3) + NORM_EPS);
+            for (uint r = lid; r < R3; r += TG_SIZE) {
+                uint rp = r + (r >> BANK_SHIFT);
+                x_sram[rp] = x_sram[rp] * inv_rms * float(norm_w[r]);
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+
+            for (uint s = lid; s < R2; s += TG_SIZE) {
+                float acc = 0.0f;
+                for (uint k = 0; k < K; ++k) {
+                    int expert = expert_idx[b * K + k];
+                    if (expert < 0 || expert >= int(NUM_EXPERTS)) {
+                        continue;
+                    }
+                    float prob = float(probs[b * K + k]);
+                    uint g_base = uint(expert) * R3 * R2 + s;
+                    uint r = 0;
+                    for (; r + 3 < R3; r += 4) {
+                        float x0 = x_sram[r + (r >> BANK_SHIFT)];
+                        float x1 = x_sram[(r + 1) + ((r + 1) >> BANK_SHIFT)];
+                        float x2 = x_sram[(r + 2) + ((r + 2) >> BANK_SHIFT)];
+                        float x3 = x_sram[(r + 3) + ((r + 3) >> BANK_SHIFT)];
+                        float g0 = float(g_all[g_base + r * R2]);
+                        float g1 = float(g_all[g_base + (r + 1) * R2]);
+                        float g2 = float(g_all[g_base + (r + 2) * R2]);
+                        float g3 = float(g_all[g_base + (r + 3) * R2]);
+                        acc += prob * (x0 * g0 + x1 * g1 + x2 * g2 + x3 * g3);
+                    }
+                    for (; r < R3; ++r) {
+                        acc += prob * x_sram[r + (r >> BANK_SHIFT)] * float(g_all[g_base + r * R2]);
+                    }
+                }
+                core_sram[s + (s >> BANK_SHIFT)] = acc;
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+
+            if (b >= B || j >= DIM_OUT) return;
+            float y = float(bias[j]);
+            uint w_out_base = j * R2;
+            uint s = 0;
+            for (; s + 3 < R2; s += 4) {
+                float c0 = core_sram[s + (s >> BANK_SHIFT)];
+                float c1 = core_sram[(s + 1) + ((s + 1) >> BANK_SHIFT)];
+                float c2 = core_sram[(s + 2) + ((s + 2) >> BANK_SHIFT)];
+                float c3 = core_sram[(s + 3) + ((s + 3) >> BANK_SHIFT)];
+                y += c0 * float(u_out_w[w_out_base + s]);
+                y += c1 * float(u_out_w[w_out_base + s + 1]);
+                y += c2 * float(u_out_w[w_out_base + s + 2]);
+                y += c3 * float(u_out_w[w_out_base + s + 3]);
+            }
+            for (; s < R2; ++s) {
+                y += core_sram[s + (s >> BANK_SHIFT)] * float(u_out_w[w_out_base + s]);
+            }
+            out[b * DIM_OUT + j] = T(y);
+        """
+
+        kernel = mx.fast.metal_kernel(
+            name=f"tucker_full_fused_dense_d{dim_in}_o{dim_out}_k{top_k}_r{r3}_{r2}",
+            input_names=["x", "probs", "expert_idx", "g_all", "u_in_w", "u_out_w", "norm_w", "bias"],
+            output_names=["out"],
+            source=source,
+            header=(
+                f"constant uint B={bsz}; constant uint DIM_IN={dim_in}; constant uint DIM_OUT={dim_out}; "
+                f"constant uint NUM_EXPERTS={num_experts}; constant uint K={top_k}; "
+                f"constant uint R3={r3}; constant uint R2={r2}; constant uint TG_SIZE={tg_size}; "
+                f"constant uint BANK_SHIFT={bank_shift}; constant uint R3_PAD={r3_pad}; "
+                f"constant uint R2_PAD={r2_pad}; constant float NORM_EPS={norm_eps};"
+            ),
+        )
+        return kernel(
+            inputs=[
+                x_flat,
+                top_k_probs,
+                top_k_indices.astype(mx.int32),
+                g_all,
+                self.U_in.weight,
+                self.U_out.weight,
+                self.inner_norm.weight,
+                self.bias,
+            ],
+            template=[("T", x_flat.dtype)],
+            grid=(dim_out, bsz, 1),
+            threadgroup=(tg_size, 1, 1),
+            output_shapes=[(bsz, dim_out)],
+            output_dtypes=[x_flat.dtype],
+        )[0]
+
+    def __call__(
+        self,
+        x: mx.array,
+        router_temp: mx.array,
+        *,
+        router_x: Optional[mx.array] = None,
+        einsum_fuse: Optional[bool] = None,
+        full_fuse: Optional[bool] = None,
+    ) -> mx.array:
         orig_shape = x.shape
         x_flat = x.reshape(-1, orig_shape[-1])
-        raw_logits = self.router(x_flat)
+        rx = x_flat if router_x is None else router_x.reshape(-1, router_x.shape[-1])
+        raw_logits = self.router(rx)
         rt_dt = router_temp.dtype
         t = mx.maximum(router_temp, mx.array(1e-4, dtype=rt_dt))
         capped = fast_scaled_tanh(raw_logits, 10.0)
@@ -224,17 +418,88 @@ class TuckerMoE(nn.Module):
         eps = mx.array(1e-6, dtype=top_k_raw.dtype)
         top_k_probs = top_k_raw / (mx.sum(top_k_raw, axis=-1, keepdims=True) + eps)
 
-        x_shared = rms_norm_fast(self.U_in(x_flat), self.inner_norm)
         g_all = self._get_G()
+        do_full_fuse = bool(full_fuse) if full_fuse is not None else False
+        if (
+            do_full_fuse
+            and _is_dense_linear(self.U_in)
+            and _is_dense_linear(self.U_out)
+            and self.U_out.weight.shape[0] >= 128
+        ):
+            out = self._full_fused_dense(x_flat, top_k_probs, top_k_indices, g_all)
+            return out.reshape(*orig_shape[:-1], -1)
+
+        x_shared = rms_norm_fast(self.U_in(x_flat), self.inner_norm)
         g_sel = g_all[top_k_indices]
-        # Per-(batch,topk) matmul: (1, r3) @ (r3, r2) -> (r2)
-        bsz, k_sel, r3, r2 = g_sel.shape
-        x_exp = mx.broadcast_to(x_shared[:, None, :], (bsz, k_sel, r3))
-        expert_outs = mx.matmul(
-            x_exp.reshape(-1, 1, r3),
-            g_sel.reshape(-1, r3, r2),
-        ).reshape(bsz, k_sel, r2)
-        out_core = mx.sum(expert_outs * mx.expand_dims(top_k_probs, -1), axis=1)
+        do_fuse = bool(einsum_fuse) if einsum_fuse is not None else False
+        if do_fuse and g_sel.shape[-1] >= 128:
+            # Σ_k p_k · (x @ G_k) === Σ_{k,r} p_k · x_r · G_{k,r,s}
+            # Custom Metal Kernel for Fused Tucker MoE.
+            # Cache x_shared per output-s tile to avoid rereading the same latent vector for every s.
+            _TUCKER_METAL_SRC = """
+                uint s = thread_position_in_grid.x;
+                uint b = thread_position_in_grid.y;
+                uint lid = thread_index_in_threadgroup;
+
+                threadgroup float x_sram[R1_PAD];
+                for (uint r = lid; r < R1; r += TG_SIZE) {
+                    x_sram[r + (r >> BANK_SHIFT)] = float(x_shared[b * R1 + r]);
+                }
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                
+                if (b >= B || s >= R2) return;
+
+                float sum = 0.0f;
+                for (uint k = 0; k < K; ++k) {
+                    float prob = float(probs[b * K + k]);
+                    uint g_base = b * K * R1 * R2 + k * R1 * R2 + s;
+                    uint r = 0;
+                    for (; r + 3 < R1; r += 4) {
+                        float x0 = x_sram[r + (r >> BANK_SHIFT)];
+                        float x1 = x_sram[(r + 1) + ((r + 1) >> BANK_SHIFT)];
+                        float x2 = x_sram[(r + 2) + ((r + 2) >> BANK_SHIFT)];
+                        float x3 = x_sram[(r + 3) + ((r + 3) >> BANK_SHIFT)];
+                        float g0 = float(g_sel[g_base + r * R2]);
+                        float g1 = float(g_sel[g_base + (r + 1) * R2]);
+                        float g2 = float(g_sel[g_base + (r + 2) * R2]);
+                        float g3 = float(g_sel[g_base + (r + 3) * R2]);
+                        sum += prob * (x0 * g0 + x1 * g1 + x2 * g2 + x3 * g3);
+                    }
+                    for (; r < R1; ++r) {
+                        sum += prob * x_sram[r + (r >> BANK_SHIFT)] * float(g_sel[g_base + r * R2]);
+                    }
+                }
+                out[b * R2 + s] = T(sum);
+            """
+            _b, _k = top_k_probs.shape
+            _, _r1 = x_shared.shape
+            _, _, _, _r2 = g_sel.shape
+            _tg_size = 128
+            _bank_shift = 5
+            _r1_pad = _r1 + ((_r1 + ((1 << _bank_shift) - 1)) >> _bank_shift)
+            
+            kernel = mx.fast.metal_kernel(
+                name=f"fused_tucker_einsum_sram_b{_b}_k{_k}_r{_r1}_{_r2}",
+                input_names=["probs", "x_shared", "g_sel"],
+                output_names=["out"],
+                source=_TUCKER_METAL_SRC,
+                header=(
+                    f"constant uint B={_b}; constant uint K={_k}; constant uint R1={_r1}; "
+                    f"constant uint R2={_r2}; constant uint TG_SIZE={_tg_size}; "
+                    f"constant uint BANK_SHIFT={_bank_shift}; constant uint R1_PAD={_r1_pad};"
+                )
+            )
+            out_core = kernel(
+                inputs=[top_k_probs, x_shared, g_sel],
+                template=[("T", top_k_probs.dtype)],
+                grid=(_r2, _b, 1),
+                threadgroup=(_tg_size, 1, 1),
+                output_shapes=[(_b, _r2)],
+                output_dtypes=[top_k_probs.dtype],
+            )[0]
+        else:
+            expert_outs = mx.einsum("br,bkrs->bks", x_shared, g_sel)
+            out_core = mx.sum(expert_outs * mx.expand_dims(top_k_probs, axis=-1), axis=1)
         out = self.U_out(out_core).reshape(*orig_shape[:-1], -1)
         return out + self.bias
 
@@ -254,10 +519,28 @@ class MixtralMoEFeedForward(nn.Module):
         self.up_proj = TuckerMoE(config.d_model, d_ff, **kw)
         self.down_proj = TuckerMoE(d_ff, config.d_model, **kw)
 
-    def __call__(self, x: mx.array, router_temp: mx.array) -> mx.array:
-        gate = self.gate_proj(x, router_temp)
-        feat = self.up_proj(x, router_temp)
-        return self.down_proj(fast_silu_gating(gate, feat), router_temp)
+    def __call__(
+        self,
+        x: mx.array,
+        router_temp: mx.array,
+        *,
+        router_anchor: Optional[mx.array] = None,
+        einsum_fuse: Optional[bool] = None,
+        full_fuse: Optional[bool] = None,
+    ) -> mx.array:
+        d_ff_router_in = self.down_proj.router.weight.shape[1]
+        dm = self.gate_proj.router.weight.shape[1]
+        anch_up = _router_anchor_matching_dim(router_anchor, int(dm))
+        anch_down = _router_anchor_matching_dim(router_anchor, int(d_ff_router_in))
+        gate = self.gate_proj(x, router_temp, router_x=anch_up, einsum_fuse=einsum_fuse, full_fuse=full_fuse)
+        feat = self.up_proj(x, router_temp, router_x=anch_up, einsum_fuse=einsum_fuse, full_fuse=full_fuse)
+        return self.down_proj(
+            fast_silu_gating(gate, feat),
+            router_temp,
+            router_x=anch_down,
+            einsum_fuse=einsum_fuse,
+            full_fuse=full_fuse,
+        )
 
 
 class Mamba3Block(nn.Module):
@@ -320,6 +603,7 @@ class Mamba3Block(nn.Module):
         x: mx.array,
         cache: Optional[Tuple[mx.array, mx.array, mx.array]] = None,
         router_temp: Optional[mx.array] = None,
+        router_anchor: Optional[mx.array] = None,
     ) -> Tuple[mx.array, Optional[Tuple[mx.array, mx.array, mx.array]]]:
         b_sz, l, _ = x.shape
         h, g, p, n, r, ratio = (
@@ -368,8 +652,19 @@ class Mamba3Block(nn.Module):
         b_rotated = apply_rope(self._bg(b_reshaped) + self.bias_B, angles)
         c_rotated = apply_rope(self._bg(c_reshaped) + self.bias_C, angles)
 
+        _ef = self.config.tucker_einsum_fuse
+        _ff = self.config.tucker_full_fuse
+        xp_dim = int(h * p)
+        xm_anchor = _router_anchor_matching_dim(router_anchor, xp_dim)
+        out_anchor = _router_anchor_matching_dim(router_anchor, int(self.config.d_model))
         if self.config.use_kmoe:
-            x_up = self.x_up_proj(x_prime.reshape(b_sz, l, -1), router_temp)
+            x_up = self.x_up_proj(
+                x_prime.reshape(b_sz, l, -1),
+                router_temp,
+                router_x=xm_anchor,
+                einsum_fuse=_ef,
+                full_fuse=_ff,
+            )
             x_ssm = x_up.reshape(b_sz, l, h, p, r)
         else:
             x_ssm = self.x_up_proj(x_prime).reshape(b_sz, l, h, p, r)
@@ -380,18 +675,27 @@ class Mamba3Block(nn.Module):
         av = mx.exp(dt_b * a_b).reshape(b_sz, l, h, 1, 1)
 
         if cache is not None:
-            ip = prev_input
+            ip = mx.concatenate([prev_input, input_signal[:, :-1]], axis=1)
         else:
             ip = mx.concatenate([mx.zeros_like(input_signal[:, :1]), input_signal[:, :-1]], axis=1)
         u_ssm = lv * dv * input_signal + (1.0 - lv) * dv * av * ip
 
-        if cache is not None:
+        if cache is not None and l == 1:
             h_final = prev_h * av[:, 0] + u_ssm[:, 0]
             y_stack = mx.einsum("bhnp, bhnr -> bhpr", h_final, c_rotated[:, 0])[:, None, ...]
         elif self.config.use_parallel_scan and l > 1:
-            y_stack, h_final = chunk_parallel_scan_mlx(
-                u_ssm, dt_b, a_b, c_rotated, self.config.chunk_size
-            )
+            if cache is None:
+                y_stack, h_final = chunk_parallel_scan_mlx(
+                    u_ssm, dt_b, a_b, c_rotated, self.config.chunk_size
+                )
+            else:
+                # Speculative verification feeds a short token block with existing recurrent state.
+                h_final = prev_h
+                ys = []
+                for t in range(l):
+                    h_final = h_final * av[:, t] + u_ssm[:, t]
+                    ys.append(mx.einsum("bhnp,bhnr->bhpr", h_final, c_rotated[:, t])[:, None, ...])
+                y_stack = mx.concatenate(ys, axis=1)
         else:
             h_final = mx.zeros((b_sz, h, n, p), dtype=x.dtype)
             ys = []
@@ -412,7 +716,13 @@ class Mamba3Block(nn.Module):
         mid_x = residual_mamba + self.ls_mamba(mamba_out)
         normed_mid = rms_norm_fast(mid_x, self.norm_out_proj)
         if self.config.use_kmoe:
-            proj_out = self.out_proj(normed_mid, router_temp)
+            proj_out = self.out_proj(
+                normed_mid,
+                router_temp,
+                router_x=out_anchor,
+                einsum_fuse=_ef,
+                full_fuse=_ff,
+            )
         else:
             proj_out = self.out_proj(normed_mid)
         out = mid_x + self.ls_out_proj(proj_out)
@@ -422,6 +732,7 @@ class Mamba3Block(nn.Module):
 class TransformerBlock(nn.Module):
     def __init__(self, config: Mamba3Config):
         super().__init__()
+        self.config = config
         self.head_dim = 64
         self.num_heads = config.d_model // 64
         self.num_kv_heads = config.num_kv_heads
@@ -452,6 +763,7 @@ class TransformerBlock(nn.Module):
         cache: Optional[Tuple[mx.array, mx.array]] = None,
         seq_pos: Optional[mx.array] = None,
         router_temp: Optional[mx.array] = None,
+        router_anchor: Optional[mx.array] = None,
     ) -> Tuple[mx.array, Tuple[mx.array, mx.array]]:
         b, l, d = x.shape
         if router_temp is None:
@@ -484,7 +796,8 @@ class TransformerBlock(nn.Module):
 
         if seq_pos is not None:
             max_l = k.shape[2]
-            mask = mx.arange(max_l).reshape(1, 1, 1, max_l) > (seq_pos + l - 1)
+            q_pos = seq_pos + mx.arange(l)
+            mask = mx.arange(max_l).reshape(1, 1, 1, max_l) > q_pos.reshape(1, 1, l, 1)
             attn = mx.fast.scaled_dot_product_attention(q, k, v, scale=1.0 / math.sqrt(64.0), mask=mask)
         else:
             # Causal LM prefill (matches PyTorch scaled_dot_product_attention is_causal=True).
@@ -499,7 +812,13 @@ class TransformerBlock(nn.Module):
         residual2 = x
         h = rms_norm_fast(x, self.norm_ffn)
         if self.use_kmoe:
-            ffn_out = self.ffn(h, router_temp)
+            ffn_out = self.ffn(
+                h,
+                router_temp,
+                router_anchor=router_anchor,
+                einsum_fuse=self.config.tucker_einsum_fuse,
+                full_fuse=self.config.tucker_full_fuse,
+            )
         else:
             ffn_out = self.ffn_down(fast_silu_gating(self.ffn_gate(h), self.ffn_up(h)))
         return residual2 + self.ls_ffn(ffn_out), new_cache
@@ -530,23 +849,40 @@ class TrueHybridMamba(nn.Module):
             caches = [None] * len(self.layers)
         new_caches: List[Any] = []
         l = x.shape[1]
-        for layer, cache in zip(self.layers, caches):
+        lookahead = self.config.lookahead_router
+        layer_in: List[mx.array] = []
+        for li, (layer, cache) in enumerate(zip(self.layers, caches)):
             lt = getattr(layer, "l_type", None)
+            anchor = layer_in[-1] if lookahead and li >= 1 else None
+            x_in = x
             if lt == "transformer":
                 if l == 1 and cache is not None and seq_pos is not None and getattr(layer, "_compiled_decode", None) is not None:
                     k_cache, v_cache = cache
-                    x, nk, nv = layer._compiled_decode(x, k_cache, v_cache, seq_pos)
+                    if lookahead:
+                        x, nk, nv = layer._compiled_decode(x, k_cache, v_cache, seq_pos, anchor)
+                    else:
+                        x, nk, nv = layer._compiled_decode(x, k_cache, v_cache, seq_pos)
                     new_caches.append((nk, nv))
                 else:
-                    x, nc = layer(x, cache=cache, seq_pos=seq_pos, router_temp=router_temp)
+                    x, nc = layer(
+                        x,
+                        cache=cache,
+                        seq_pos=seq_pos,
+                        router_temp=router_temp,
+                        router_anchor=anchor,
+                    )
                     new_caches.append(nc)
             elif l == 1 and cache is not None and getattr(layer, "_compiled_decode", None) is not None:
                 h_s, prev_in, prev_ang = cache
-                x, nh, npi, nas = layer._compiled_decode(x, h_s, prev_in, prev_ang)
+                if lookahead:
+                    x, nh, npi, nas = layer._compiled_decode(x, h_s, prev_in, prev_ang, anchor)
+                else:
+                    x, nh, npi, nas = layer._compiled_decode(x, h_s, prev_in, prev_ang)
                 new_caches.append((nh, npi, nas))
             else:
-                x, nc = layer(x, cache=cache, router_temp=router_temp)
+                x, nc = layer(x, cache=cache, router_temp=router_temp, router_anchor=anchor)
                 new_caches.append(nc)
+            layer_in.append(x_in)
         return x, new_caches
 
 
@@ -614,38 +950,66 @@ def attach_decode_compilation(
     h_dim, p_dim, n_dim = config.n_heads, config.d_head, config.d_state
     dummy_x = mx.zeros((1, 1, config.d_model), dtype=dtype)
 
+    la = getattr(config, "lookahead_router", False)
+    dummy_anchor = mx.zeros((1, 1, config.d_model), dtype=dtype)
+
     for layer in model.backbone.layers:
         if getattr(layer, "l_type", None) == "mamba":
 
-            def make_mamba_compiled(blk: Mamba3Block):
-                def _decode_step(x, h_s, prev_in, prev_ang):
+            def make_mamba_compiled(blk: Mamba3Block, *, use_la: bool):
+                def _decode_step_plain(x, h_s, prev_in, prev_ang):
                     out_step, nc = blk(x, cache=(h_s, prev_in, prev_ang), router_temp=rt_const)
                     return out_step, nc[0], nc[1], nc[2]
 
-                return mx.compile(_decode_step)
+                def _decode_step_la(x, h_s, prev_in, prev_ang, router_anchor):
+                    out_step, nc = blk(
+                        x,
+                        cache=(h_s, prev_in, prev_ang),
+                        router_temp=rt_const,
+                        router_anchor=router_anchor,
+                    )
+                    return out_step, nc[0], nc[1], nc[2]
+
+                return mx.compile(_decode_step_la if use_la else _decode_step_plain)
 
             dh = mx.zeros((1, h_dim, n_dim, p_dim), dtype=dtype)
             dpi = mx.zeros((1, 1, h_dim, n_dim, p_dim), dtype=dtype)
             dang = mx.zeros((1, 1, h_dim, n_dim // 2), dtype=dtype)
-            _o, _ = layer(dummy_x, cache=(dh, dpi, dang), router_temp=rt_const)
+            kw: dict[str, Any] = dict(cache=(dh, dpi, dang), router_temp=rt_const)
+            if la:
+                kw["router_anchor"] = dummy_anchor
+            _o, _ = layer(dummy_x, **kw)
             mx.eval(_o)
 
-            layer._compiled_decode = make_mamba_compiled(layer)
+            layer._compiled_decode = make_mamba_compiled(layer, use_la=la)
         elif getattr(layer, "l_type", None) == "transformer":
 
-            def make_transformer_compiled(blk: TransformerBlock):
-                def _decode_step(x, k_cache, v_cache, seq_pos_i):
+            def make_transformer_compiled(blk: TransformerBlock, *, use_la: bool):
+                def _decode_step_plain(x, k_cache, v_cache, seq_pos_i):
                     out_step, nc = blk(x, cache=(k_cache, v_cache), seq_pos=seq_pos_i, router_temp=rt_const)
                     return out_step, nc[0], nc[1]
 
-                return mx.compile(_decode_step)
+                def _decode_step_la(x, k_cache, v_cache, seq_pos_i, router_anchor):
+                    out_step, nc = blk(
+                        x,
+                        cache=(k_cache, v_cache),
+                        seq_pos=seq_pos_i,
+                        router_temp=rt_const,
+                        router_anchor=router_anchor,
+                    )
+                    return out_step, nc[0], nc[1]
+
+                return mx.compile(_decode_step_la if use_la else _decode_step_plain)
 
             dk = mx.zeros((1, layer.num_heads, max_cache_len, 64), dtype=kv_dtype)
             dv = mx.zeros((1, layer.num_heads, max_cache_len, 64), dtype=kv_dtype)
-            _o, _ = layer(dummy_x, cache=(dk, dv), seq_pos=mx.array(0, dtype=mx.int32), router_temp=rt_const)
+            tk: dict[str, Any] = dict(cache=(dk, dv), seq_pos=mx.array(0, dtype=mx.int32), router_temp=rt_const)
+            if la:
+                tk["router_anchor"] = dummy_anchor
+            _o, _ = layer(dummy_x, **tk)
             mx.eval(_o)
 
-            layer._compiled_decode = make_transformer_compiled(layer)
+            layer._compiled_decode = make_transformer_compiled(layer, use_la=la)
 
     model.set_lm_head_compile(True)
     mx.eval(model.parameters())
