@@ -2,6 +2,21 @@
 
 本目錄包含 Mamba3-XR 模型在 Apple Silicon (MLX) 上的極致推論優化實作。
 
+## 📁 檔案說明
+
+| 檔案名稱 | 功能描述 |
+| :--- | :--- |
+| **`stream_mlx.py`** | 主要串流推論程式。支援互動式 Rich UI 介面與 token-by-token 輸出。 |
+| **`benchmark_mlx.py`** | 綜合效能評測工具。支援 Speculative Decoding、各種算子編譯策略與吞吐量分析。 |
+| **`fused_sampling_metal_v2.py`** | **[核心]** 最新 V3 單核心融合取樣核心。合併 Softmax、Min-P、Top-P 與抽樣邏輯。 |
+| **`mlx_hybrid_infer.py`** | 模型架構核心定義。包含 Mamba3 與 Transformer 的混合層實作與緩存管理。 |
+| **`mlx_mixed_quant.py`** | 混合精度量化引擎。針對 TuckerMoE 的 router 與權重進行非對稱位元量化。 |
+| **`stream_fast_metal.sh`** | **[推薦]** 極速啟動腳本。預設開啟所有優化旗標以達到最高 tok/s。 |
+| **`bench_pure_metal.sh`** | 硬體吞吐量極限測試。排除 I/O 與 Python 顯示開銷的純推論基準測試。 |
+| **`custom_metal_ssm.py`** | 自定義 Metal SSM 並行掃描 (Parallel Scan) 算子介面。 |
+| **`custom_metal_tucker.py`** | 自定義 Metal TuckerMoE 權重分解融合算子介面。 |
+| **`bench_optimizations_ab.py`** | 自動化優化驗證工具。用於比較不同優化階段的性能收益 (A/B Test)。 |
+
 ## 🚀 核心優化：Fused Metal Sampling v3
 
 我們實作了全新的單次調度 (Single-Dispatch) Metal 取樣核心 (`fused_sampling_metal_v2.py`)，將原本分散的 Logits 修正、Softmax、Top-P/Min-P 過濾與隨機抽樣全部合併為一個 GPU Kernel。
