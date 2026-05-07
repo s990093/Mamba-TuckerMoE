@@ -5,6 +5,7 @@
 > Research Implementation & Presentation Assets
 
 ![Architecture overview](assets/architecture.png)
+![Method Pipeline](paper/hybrid-mamba-15min/assets/method_flowchart.png)
 
 ## Overview
 
