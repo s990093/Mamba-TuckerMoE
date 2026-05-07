@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _ensure_kagglehub() -> object:
