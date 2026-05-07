@@ -1,7 +1,6 @@
-# Mamba3-XR & TD-MoE
+# Hybrid Mamba-TuckerMoE
 
-> **Mamba-3: Enhanced State Space Models with Trapezoidal Discretization and MIMO Projections**
-> **TD-MoE: Tensor Decomposition Mixture of Experts**
+> **Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid State Space Models**
 > Research Implementation & Presentation Assets
 
 ![Architecture overview](assets/architecture.png)
@@ -9,7 +8,7 @@
 
 ## Overview
 
-This repository contains the training code, inference implementation, and interactive 3D paper assets for **Mamba-3** and **TD-MoE (Tensor Decomposition Mixture of Experts)**.
+This repository contains the training code, inference implementation, and interactive 3D paper assets for **Hybrid Mamba-TuckerMoE**.
 
 ### Key Innovations:
 
@@ -34,7 +33,7 @@ This repository contains the training code, inference implementation, and intera
 
 ---
 
-## 🖥 TD-MoE 3D Interactive Simulator
+## 🖥 TuckerMoE 3D Interactive Simulator
 
 As part of the ICLR 2026 paper submission, we provide an interactive 3D web-based presentation simulator.
 It visually demonstrates:
@@ -150,13 +149,13 @@ It includes:
 
 ## 📎 Citation
 
-If you use Mamba-3 or TD-MoE in your research, please cite:
+If you use Hybrid Mamba-TuckerMoE in your research, please cite:
 
 ```bibtex
-@article{mamba3_td_moe_2026,
-  title={Mamba-3: Enhanced State Space Models with Trapezoidal Discretization and TD-MoE},
+@article{hybrid_mamba_tuckermoe_2026,
+  title={Hybrid Mamba-TuckerMoE: Compute-Bound Tensor Decomposition for State Space Models},
   author={Research Implementation},
-  journal={ICLR Submission},
+  journal={Technical Report},
   year={2026}
 }
 ```
