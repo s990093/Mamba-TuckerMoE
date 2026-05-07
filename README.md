@@ -18,16 +18,17 @@ This repository contains the training code, inference implementation, and intera
 ## 📂 Repository Structure
 
 ```text
+├── checkpoints/                     # 💾 Model weights (.pt / .npz sidecars)
 ├── paper/
-│   ├── td-moe-iclr2026/
-│   │   └── td-moe-simulator-react/  # 🖥️ Interactive 3D presentation simulator (React)
+│   ├── td-moe-iclr2026/             # 📝 ICLR submission & 3D Simulator
 │   └── hybrid-mamba-15min/          # 📄 Technical report: "Breaking the Memory Wall"
-├── pre-train/                       # 🏋️ Model pre-training scripts and datasets
-├── inference/                       # ⚡ MLX inference: entrypoints, lib/, tools/, results/, experimental/
-├── mamba/                           # 🧠 Core Mamba/MIMO architecture blocks
-├── benchmarks/                      # 📊 Profiling and latency evaluations
+├── pre-train/                       # 🏋️ Training scripts, logs, and notebooks
+├── inference/                       # ⚡ MLX inference: core lib, tools, & results
+├── metal/                           # 🤘 Custom Metal kernels & optimization research
+├── mamba/                           # 🧠 Core Mamba-3 / MIMO architecture blocks
+├── metadata_sft_tiny_llm/           # 🏷️ Vocab & SFT metadata reports
 ├── train.py                         # 🎯 Unified standalone training script
-└── docs/                            # 📖 Internal technical reports and documentation
+└── Makefile                         # 🛠️ Development & benchmarking shortcuts
 ```
 
 ---
