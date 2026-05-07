@@ -1,0 +1,41 @@
+{
+  "settings": {
+    "checkpoint": "",
+    "tokenizer": "inference/tokenizer",
+    "seq_len": 256,
+    "decode_tokens": 128,
+    "warmup": 2,
+    "repeats": 5,
+    "dtype": "bf16",
+    "kv_dtype": "auto",
+    "quantize": 0,
+    "extra_benchmark_args": "--fast-sample --no-penalties --no-materialize-caches"
+  },
+  "results": [
+    {
+      "mode": "eager",
+      "runs_tok_s": [
+        37.3,
+        37.1,
+        35.1,
+        34.2,
+        32.2
+      ],
+      "mean_tok_s": 35.18,
+      "std_tok_s": 2.1229696182470423
+    },
+    {
+      "mode": "throughput",
+      "runs_tok_s": [
+        43.3,
+        44.2,
+        52.5,
+        51.3,
+        49.4
+      ],
+      "mean_tok_s": 48.14,
+      "std_tok_s": 4.169292505929513
+    }
+  ],
+  "compile_uplift_percent": 36.83911313246162
+}
