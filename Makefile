@@ -13,7 +13,7 @@ VENV_PY := $(ROOT)/.venv/bin/python3
 PYTHON ?= $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3)
 BENCH := $(ROOT)/inference/benchmark_mlx.py
 STREAM := $(ROOT)/inference/stream_mlx.py
-PROF := $(ROOT)/inference/profile_mlx_infer.py
+PROF := $(ROOT)/inference/tools/profile_mlx_infer.py
 TOK ?= $(ROOT)/inference/tokenizer
 PROFILE_DECODE_STEPS ?= 32
 # Preset: throughput | safe | eager | sequential-ssm | custom
@@ -56,7 +56,7 @@ help:
 	@echo "  make mlx-stream-spec-ab-quant  A/B speculative quality: quant=8 vs quant=0"
 	@echo "  make mlx-export-npz     Load .pt, write .npz cache next to checkpoint (set CHECKPOINT=...)"
 	@echo "  make mlx-force-pt       Same as mlx-bench but --force-pt"
-	@echo "  make mlx-profile        Layer/host-GPU proxy profiler (see inference/profile_mlx_infer.py)"
+	@echo "  make mlx-profile        Layer/host-GPU proxy profiler (see inference/tools/profile_mlx_infer.py)"
 	@echo "  make backend-dev        Start FastAPI backend with --reload"
 	@echo "  make backend            Start FastAPI backend (production mode)"
 	@echo "  make frontend-dev       Start Next.js frontend with hot-reload"
@@ -117,7 +117,7 @@ mlx-stream-spec-ab-quant:
 	@echo "===== speculative quant=0 ====="
 	@$(MAKE) mlx-stream-spec STREAM_QUANT=0
 
-# Bottleneck report: wall vs thread CPU, MLX peak memory (does not modify mlx_hybrid_infer.py)
+# Bottleneck report: wall vs thread CPU, MLX peak memory (does not modify inference/lib/mlx_hybrid_infer.py)
 mlx-profile:
 	$(PYTHON) $(PROF)$(CKPT_ARG) --tokenizer $(TOK) --dtype $(DTYPE) --kv-dtype $(KV_DTYPE)$(SEQ_ARG) --profile-decode-steps $(PROFILE_DECODE_STEPS) $(BENCH_EXTRA)
 
@@ -175,3 +175,8 @@ up:
 	@bash -lc 'set -e; trap "kill 0" INT TERM EXIT; \
 		cd "$(BACKEND_DIR)" && INFERENCE_NO_EOS_STOP="$(BACKEND_NO_EOS_STOP)" "$(PYTHON)" -m uvicorn app.main:app --host "$(BACKEND_HOST)" --port "$(BACKEND_PORT)" --reload $(BACKEND_EXTRA) & \
 		cd "$(FRONTEND_DIR)" && NEXT_PUBLIC_API_BASE="$(FRONTEND_API_BASE)" NEXT_PUBLIC_WS_BASE="$(FRONTEND_WS_BASE)" npm run dev -- --port "$(FRONTEND_PORT)" $(FRONTEND_EXTRA)'
+
+
+
+
+sh /Users/hungwei/Desktop/Proj/Mamba3-XR/inference/run_stable_stream.sh --interactive             

@@ -1,0 +1,7 @@
+.venv/
+models/
+datasets/
+reports/*.json
+reports/*.txt
+__pycache__/
+*.pyc

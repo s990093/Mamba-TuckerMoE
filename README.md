@@ -3,7 +3,6 @@
 > **Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid State Space Models**
 > Research Implementation & Presentation Assets
 
-![Architecture overview](assets/architecture.png)
 ![Method Pipeline](paper/hybrid-mamba-15min/assets/method_flowchart.png)
 
 ## Overview
@@ -65,17 +64,19 @@ Navigate to `http://localhost:5173` to interact with the 3D pipeline.
 Hybrid Mamba-TuckerMoE is optimized for **Apple Silicon (Unified Memory Architecture)**, delivering high throughput and low memory footprint.
 
 ### Key Results (M2 Pro 16GB):
+
 - **Throughput**: **~3,800 tok/s** (Prefill) | **68 tok/s** (8-bit Quantized Decode).
 - **Compression**: **82.87%** parameter reduction (417M actual vs 2.4B dense-equivalent).
 - **Memory Efficiency**: **14.1 MiB** KV+State memory @512 steps (80% less than pure Transformers).
 - **Compute-Bound**: Fused Metal kernels move MoE dispatch from memory-bound to compute-bound states.
 
-| Metric | Hybrid (bf16) | Hybrid (8-bit) | Saving vs Transformer |
-| :--- | :---: | :---: | :---: |
-| **Decode Speed** | 42 tok/s | 68 tok/s | - |
-| **KV Memory (@512)** | 22.3 MiB | 14.1 MiB | **~80%** |
+| Metric               | Hybrid (bf16) | Hybrid (8-bit) | Saving vs Transformer |
+| :------------------- | :-----------: | :------------: | :-------------------: |
+| **Decode Speed**     |   42 tok/s    |    68 tok/s    |           -           |
+| **KV Memory (@512)** |   22.3 MiB    |    14.1 MiB    |       **~80%**        |
 
 ### Benchmark Visualization
+
 <p align="center">
   <img src="paper/hybrid-mamba-15min/assets/plots/mlx_inference_benchmark.png" width="800" alt="MLX Inference Benchmark">
   <br><i>Figure 1: Inference throughput and memory growth analysis on Apple Silicon.</i>

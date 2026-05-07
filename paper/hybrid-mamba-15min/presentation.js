@@ -24,6 +24,29 @@ document.addEventListener("DOMContentLoaded", () => {
     bn  = document.getElementById("bn");
   const p2 = (n) => String(n).padStart(2, "0");
 
+  const fsOverlay = document.getElementById("fs-overlay");
+  const fsImg = document.getElementById("fs-img");
+  const fsExit = document.getElementById("fs-exit");
+  const isFsOpen = () => fsOverlay && fsOverlay.classList.contains("open");
+
+  function openFigureFullscreen(src, alt) {
+    if (!fsOverlay || !fsImg) return;
+    fsImg.src = src;
+    fsImg.alt = alt || "";
+    fsOverlay.classList.add("open");
+    fsOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("fs-open");
+  }
+
+  function closeFigureFullscreen() {
+    if (!fsOverlay || !fsImg) return;
+    fsOverlay.classList.remove("open");
+    fsOverlay.setAttribute("aria-hidden", "true");
+    fsImg.src = "";
+    fsImg.alt = "";
+    document.body.classList.remove("fs-open");
+  }
+
   function go(d) {
     const nx = Math.max(0, Math.min(N - 1, c + d));
     if (nx === c && d !== 0) return;
@@ -68,6 +91,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (bp) bp.addEventListener("click", () => go(-1));
   if (bn) bn.addEventListener("click", () => go(1));
 
+  document.querySelectorAll("[data-fullscreen-img]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openFigureFullscreen(btn.dataset.fullscreenImg, btn.dataset.fullscreenAlt || btn.textContent);
+    });
+  });
+  if (fsExit) fsExit.addEventListener("click", closeFigureFullscreen);
+  if (fsOverlay) {
+    fsOverlay.addEventListener("click", (e) => {
+      if (e.target === fsOverlay) closeFigureFullscreen();
+    });
+  }
+
   // ── Auto-Play ──
   let autoPlayInterval = null;
   const bpa = document.getElementById("bpa");
@@ -98,6 +133,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("keydown", (e) => {
     const t = e.target;
     if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+
+    if (isFsOpen()) {
+      e.preventDefault();
+      if (e.key === "Escape") closeFigureFullscreen();
+      return;
+    }
 
     if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "PageDown") {
       e.preventDefault(); go(1);

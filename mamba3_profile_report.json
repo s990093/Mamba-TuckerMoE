@@ -3,7 +3,7 @@
   "profiler": "profile_mlx_infer",
   "generated_unix_s": 1775881157.3976262,
   "argv": [
-    "inference/profile_mlx_infer.py",
+    "inference/tools/profile_mlx_infer.py",
     "--seq-len",
     "256",
     "--profile-decode-steps",

@@ -1,6 +1,6 @@
 // Reference Metal for fused stable softmax over 1-D logits (vocab vector).
 // The active path is compiled from Python via ``mx.fast.metal_kernel`` in
-// ``inference/fused_sampling_metal.py`` with embedded ``constant uint V / TG``.
+// ``inference/lib/fused_sampling_metal.py`` with embedded ``constant uint V / TG``.
 //
 // Stages (single threadgroup, ``TG`` threads, each striding over ``V``):
 //   1) Parallel max of logits (promoted to float).

@@ -41,9 +41,11 @@ import numpy as np
 
 # Allow `python inference/benchmark_mlx.py` without installing the package.
 _INF_DIR = os.path.dirname(os.path.abspath(__file__))
+_LIB_DIR = os.path.join(_INF_DIR, "lib")
 _REPO_ROOT = os.path.abspath(os.path.join(_INF_DIR, ".."))
-if _INF_DIR not in sys.path:
-    sys.path.insert(0, _INF_DIR)
+for _p in (_LIB_DIR, _INF_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from mlx_hybrid_infer import (
     Mamba3Config,
@@ -98,18 +100,74 @@ def _materialize_cache_tree(node: Any) -> Any:
     return node
 
 
-def _build_prompt_ids(tokenizer, text: str, seq_len: int) -> list[int]:
+def _format_chatml_user_open_assistant(user_turn: str) -> str:
     """
-    Tokenize *text*; do NOT pad/repeat to ``seq_len``.
+    SFT-aligned inference prefix (single user turn): model continues after literal
+    ``<|im_start|>assistant\\n``. Matches lima/_format_conversation last-turn-only-user layout.
+    """
+    return f"<|im_start|>user\n{user_turn.strip()}<|im_end|>\n<|im_start|>assistant\n"
 
-    - If *seq_len* > 0: truncate to at most *seq_len*.
-    - If tokenization is empty: fall back to a single token.
+
+def _encode_plain(tokenizer: Any, text: str) -> list[int]:
+    try:
+        return list(tokenizer.encode(text, add_special_tokens=False))
+    except TypeError:
+        return list(tokenizer.encode(text))
+
+
+def _build_prompt_ids(
+    tokenizer: Any,
+    text: str,
+    seq_len: int,
+    *,
+    chatml_user: bool = True,
+) -> list[int]:
     """
-    ids = list(tokenizer.encode(text))
+    Tokenize prompt for prefill.
+
+    - **chatml_user=True (default):** *text* is **plain user content** only; it is wrapped with
+      ChatML + ``<|im_end|>`` then ``<|im_start|>assistant\\n``, and encoded with
+      ``add_special_tokens=False`` (same spirit as ``sft_cli`` / ``lima_to_bin._format_conversation``).
+      If *seq_len* > 0, the user substring is shortened from the end until the wrapped string fits.
+
+    - **chatml_user=False:** legacy behavior — encode *text* verbatim (tokenizer default quirks unchanged).
+    """
+    if not chatml_user:
+        ids = list(tokenizer.encode(text))
+        if not ids:
+            ids = list(tokenizer.encode("a"))[:1]
+        if seq_len > 0 and len(ids) > seq_len:
+            return ids[:seq_len]
+        return ids
+
+    user = text.strip()
+    if not user:
+        user = " "
+
+    def wrapped(u: str) -> str:
+        return _format_chatml_user_open_assistant(u)
+
+    minimum = len(_encode_plain(tokenizer, wrapped(" ")))
+    if seq_len > 0 and seq_len < minimum:
+        raise ValueError(
+            f"--seq-len ({seq_len}) is smaller than the ChatML inference prefix "
+            f"({minimum} tokens minimum with empty user). Increase --seq-len or use --raw-prompt."
+        )
+
+    u_work = user
+    ids = _encode_plain(tokenizer, wrapped(u_work))
+    if seq_len > 0:
+        while len(ids) > seq_len and len(u_work) > 0:
+            u_work = u_work[:-1]
+            ids = _encode_plain(tokenizer, wrapped(u_work if u_work else " "))
+        if not ids:
+            ids = _encode_plain(tokenizer, wrapped(" "))
+        if len(ids) > seq_len:
+            ids = ids[:seq_len]
     if not ids:
-        ids = list(tokenizer.encode("a"))[:1]
+        ids = _encode_plain(tokenizer, wrapped("a"))
     if seq_len > 0 and len(ids) > seq_len:
-        return ids[:seq_len]
+        ids = ids[:seq_len]
     return ids
 
 
@@ -470,7 +528,15 @@ def main() -> None:
         "--prompt",
         type=str,
         default="Hello! Write one short sentence about MLX on Apple Silicon.",
-        help="Text for prefill (tokenized / padded to --seq-len). Ignored when --synthetic-prompt is set.",
+        help=(
+            "Plain **user** utterance for ChatML prefill (wrapped to end with <|im_start|>assistant\\n). "
+            "Ignored when --synthetic-prompt is set. Use --raw-prompt to pass an already-formatted literal string."
+        ),
+    )
+    p.add_argument(
+        "--raw-prompt",
+        action="store_true",
+        help="Do not wrap --prompt in ChatML; encode it as a literal (legacy; breaks SFT alignment if misused).",
     )
     p.add_argument(
         "--synthetic-prompt",
@@ -652,7 +718,9 @@ def main() -> None:
         prompt_ids = filler
         prompt_source = "[synthetic repeat for throughput]"
     else:
-        prompt_ids = _build_prompt_ids(tokenizer, args.prompt, args.seq_len)
+        prompt_ids = _build_prompt_ids(
+            tokenizer, args.prompt, args.seq_len, chatml_user=not args.raw_prompt
+        )
         prompt_source = args.prompt
 
     prefill_tokens = len(prompt_ids)
@@ -872,7 +940,12 @@ def main() -> None:
         if args.synthetic_prompt:
             print(f"Prompt mode: synthetic ({args.seq_len} tokens)")
         else:
-            print(f"Prompt ({len(prompt_source)} chars → {len(prompt_ids)} tokens):")
+            if args.raw_prompt:
+                print(f"Prompt raw ({len(prompt_source)} chars → {len(prompt_ids)} tokens):")
+            else:
+                print(
+                    f"User ({len(prompt_source)} chars) → {len(prompt_ids)} prefill tokens (ChatML + assistant header):"
+                )
             preview = prompt_source if len(prompt_source) <= 600 else prompt_source[:600] + " …"
             for line in preview.splitlines() or [preview]:
                 print(f"  {line}")
