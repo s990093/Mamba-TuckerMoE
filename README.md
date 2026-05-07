@@ -13,17 +13,18 @@ This repository contains the training code, inference implementation, and intera
 ### Key Innovations:
 
 1. **Mamba-3 (Trapezoidal Discretization)**: Replaces standard Euler methods with a higher-order trapezoidal integration scheme and MIMO projections, pushing sequence lengths up to 32K tokens efficiently.
-2. **TD-MoE (Tensor Decomposition MoE)**: A novel architecture that compresses massive MoE parameter matrices by up to 94% using Tucker Decomposition. It eliminates memory bandwidth bottlenecks via an **On-the-fly Inference Pipeline** without needing to reconstruct the full weight matrices.
+2. **Hybrid Mamba-TuckerMoE**: Combines Mamba-3 selective SSMs with Grouped-Query Attention (GQA) and joint Tucker-decomposed experts. This achieves a **2.4B dense-equivalent capacity** with only **417M parameters** (82.87% compression).
+3. **On-the-fly Inference Pipeline**: Eliminates memory bandwidth bottlenecks by processing low-rank latent experts without full weight reconstruction, achieving compute-bound throughput on Apple Silicon.
 
 ## 📂 Repository Structure
 
 ```text
-Mamba3-XR/
 ├── paper/
-│   └── td-moe-iclr2026/
-│       └── td-moe-simulator-react/  # 🖥️ Interactive 3D presentation simulator (React)
+│   ├── td-moe-iclr2026/
+│   │   └── td-moe-simulator-react/  # 🖥️ Interactive 3D presentation simulator (React)
+│   └── hybrid-mamba-15min/          # 📄 Technical report: "Breaking the Memory Wall"
 ├── pre-train/                       # 🏋️ Model pre-training scripts and datasets
-├── inference/                       # ⚡ Model evaluation and on-the-fly inference scripts
+├── inference/                       # ⚡ MLX inference: entrypoints, lib/, tools/, results/, experimental/
 ├── mamba/                           # 🧠 Core Mamba/MIMO architecture blocks
 ├── benchmarks/                      # 📊 Profiling and latency evaluations
 ├── train.py                         # 🎯 Unified standalone training script
@@ -56,6 +57,38 @@ npm run dev
 ```
 
 Navigate to `http://localhost:5173` to interact with the 3D pipeline.
+
+---
+
+## 📊 Performance & Efficiency Benchmarks
+
+Hybrid Mamba-TuckerMoE is optimized for **Apple Silicon (Unified Memory Architecture)**, delivering high throughput and low memory footprint.
+
+### Key Results (M2 Pro 16GB):
+- **Throughput**: **~3,800 tok/s** (Prefill) | **68 tok/s** (8-bit Quantized Decode).
+- **Compression**: **82.87%** parameter reduction (417M actual vs 2.4B dense-equivalent).
+- **Memory Efficiency**: **14.1 MiB** KV+State memory @512 steps (80% less than pure Transformers).
+- **Compute-Bound**: Fused Metal kernels move MoE dispatch from memory-bound to compute-bound states.
+
+| Metric | Hybrid (bf16) | Hybrid (8-bit) | Saving vs Transformer |
+| :--- | :---: | :---: | :---: |
+| **Decode Speed** | 42 tok/s | 68 tok/s | - |
+| **KV Memory (@512)** | 22.3 MiB | 14.1 MiB | **~80%** |
+
+### Benchmark Visualization
+<p align="center">
+  <img src="paper/hybrid-mamba-15min/assets/plots/mlx_inference_benchmark.png" width="800" alt="MLX Inference Benchmark">
+  <br><i>Figure 1: Inference throughput and memory growth analysis on Apple Silicon.</i>
+</p>
+
+<p align="center">
+  <img src="paper/hybrid-mamba-15min/assets/plots/pareto_frontier.png" width="400" alt="Pareto Frontier">
+  <img src="inference/results/bench_decode_compile_comparison.png" width="400" alt="Compile Uplift">
+  <br><i>Figure 2: (Left) Pareto Frontier of capacity vs cost; (Right) Graph compilation speedup (+36.8%).</i>
+</p>
+
+> [!TIP]
+> For a detailed technical breakdown, see the full report: [Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid SSMs](paper/hybrid-mamba-15min/report.md).
 
 ---
 
