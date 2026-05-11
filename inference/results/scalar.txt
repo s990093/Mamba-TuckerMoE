@@ -1,0 +1,32 @@
+📥 正在從 /Users/hungwei/Desktop/Proj/Mamba3-XR/checkpoints/checkpoint_sft_s27510_model_only.npz 讀取權重...
+✅ 成功提取 Checkpoint，來源 /Users/hungwei/Desktop/Proj/Mamba3-XR/checkpoints/checkpoint_sft_s27510_model_only.npz，共 879 個權重張量。
+🔍 模型權重匹配率: 100.00% (879/879)
+✨ 強制嚴格檢查通過！權重已完美轉換並載入至 MLX 模型中！
+Prefill: tokens=23 time=185.90 ms  (123.7 tok/s)  compile=static
+Decode:  tokens=128 time=4838.29 ms  (26.5 tok/s)
+Inference: type=safe  dtype=bf16  kv_dtype=auto→bf16  parallel_scan=True  compile_prefill=True  prefill_graph=static  decode_compile=eager  materialize_caches=True
+MoE experiments: lookahead_router=False  tucker_einsum_fuse=False  tucker_full_fuse=False  tucker_amx_fuse=False  quant_asymmetric_moe=False
+
+────────────────────────────────────────────────────────────
+I/O
+────────────────────────────────────────────────────────────
+User (59 chars) → 23 prefill tokens (ChatML + assistant header):
+  Hello! Write one short sentence about MLX on Apple Silicon.
+Prefill tokens decoded (sanity check):
+  user
+Hello! Write one short sentence about MLX on Apple Silicon.
+assistant
+
+
+Generated (128 new tokens):
+  The 
+  As a small artist, I can provide you with the number of questions and examples based on that data.
+  1. I'm located at A2 10 in BNR. 
+  
+  Sakar has been using its personal-vulrow team to work with other individuals who have two/ The team is known for their well-rinded and popularity. Some of their opinions include:
+  
+   - They were not as aware of the environment, but have been able to find commoned systems in their own water.
+  2. In November 2021
+
+New token ids (first 24): [1576, 29871, 13, 2887, 263, 2319, 7664, 29892, 306, 508, 3867, 366, 411, 278, 1353, 310, 5155, 322, 6455, 2729, 373, 393, 848, 29889]
+────────────────────────────────────────────────────────────

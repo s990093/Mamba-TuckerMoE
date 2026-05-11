@@ -1,5 +1,3 @@
-%%writefile train.py
-
 # -*- coding: utf-8 -*-
 import os
 import gc
@@ -8,6 +6,7 @@ import math
 import time
 import warnings
 import shutil
+from contextlib import nullcontext
 from collections import defaultdict
 
 import numpy as np
@@ -42,18 +41,11 @@ else:
     print("🐢 舊版 GPU，自動 Fallback 至 fp16。")
 
 
-
 class PretokenizedDataset(IterableDataset):
     """
     【資料集】記憶體映射的預先 Tokenize 資料集
     ─────────────────────────────────────────
     直接從 .bin 檔（uint16 token id）以 mmap 方式串流讀取。
-
-    優化：整個 buffer 一次性轉成 Long Tensor，再逐行 yield，
-    消除了每條樣本都呼叫 torch.from_numpy 的 Python loop overhead。
-    配合 DataLoader pin_memory=True 可以讓 CPU→GPU 非同步傳輸完整發揮。
-
-    多 Worker：根據 worker id 自動分割資料範圍。
     """
     def __init__(self, data_path: str, seq_len: int, buffer_size: int = 4_000_000):
         self.data_path    = data_path
@@ -76,21 +68,18 @@ class PretokenizedDataset(IterableDataset):
 
         while curr_idx + self.seq_len < end_idx:
             chunk_end = min(curr_idx + self.buffer_size, end_idx)
-            # ── 整個 chunk 一次轉成 int64，再包成 Tensor（零額外拷貝）──
             buffer   = mmap_data[curr_idx:chunk_end].astype(np.int64)
             num_seqs = (len(buffer) - 1) // self.seq_len
             if num_seqs == 0:
                 break
 
-            # 一次性建立 Tensor：(num_seqs, seq_len)，避免逐條 from_numpy
             x_t = torch.from_numpy(
                 buffer[: num_seqs * self.seq_len].reshape(num_seqs, self.seq_len)
-            )  # shape: [N, L]
+            ) 
             y_t = torch.from_numpy(
                 buffer[1 : num_seqs * self.seq_len + 1].reshape(num_seqs, self.seq_len)
-            )  # shape: [N, L]
+            ) 
 
-            # 逐行 yield：DataLoader collate 只需 stack，不必再做 from_numpy
             for i in range(num_seqs):
                 yield x_t[i], y_t[i]
 
@@ -101,14 +90,33 @@ def unwrap_model(model: nn.Module) -> nn.Module:
     if hasattr(model, "_orig_mod"): model = model._orig_mod
     return model
 
-def get_lr_scheduler(optimizer, warmup_steps: int, total_steps: int):
+def get_lr_scheduler(optimizer, warmup_steps: int, total_steps: int, resume_step: int = 0, rewarmup_steps: int = 100):
+    decay_steps = 12000 
+    stable_steps = total_steps - warmup_steps - decay_steps
+
     def lr_lambda(step):
-        if step < warmup_steps: return step / max(1, warmup_steps)
-        return max(0.1, 0.5 * (1.0 + math.cos(math.pi * ((step - warmup_steps) / max(1, total_steps - warmup_steps)))))
+        # 1. 算出「理想狀態」下，目前 step 應該要有的 LR 比例
+        if step < warmup_steps:
+            target_mult = step / max(1, warmup_steps)
+        elif step < warmup_steps + stable_steps:
+            progress = (step - warmup_steps) / max(1, stable_steps)
+            target_mult = 1.0 - (0.2 * progress) # 從 1.0 緩降到 0.8
+        else:
+            decay_progress = (step - (warmup_steps + stable_steps)) / max(1, decay_steps)
+            min_lr_ratio = 0.05 
+            target_mult = min_lr_ratio + 0.5 * (0.8 - min_lr_ratio) * (1.0 + math.cos(math.pi * decay_progress))
+
+        # 2. 如果是接續訓練，強制加上一段短暫的 Rewarmup 避免震盪
+        if resume_step > 0 and step >= resume_step and step < resume_step + rewarmup_steps:
+            # 從目標值的 10% 開始，線性拉升回 100% 的目標值
+            rewarmup_progress = (step - resume_step) / rewarmup_steps
+            return target_mult * (0.1 + 0.9 * rewarmup_progress)
+
+        return target_mult
+
     return LambdaLR(optimizer, lr_lambda)
 
-
-# ── Triton Kernels & Model Classes (synced from test_cpmoe.py) ──
+# ── Triton Kernels & Model Classes ──
 
 @triton.jit
 def tanh_approx(x):
@@ -149,20 +157,7 @@ def _fused_scaled_tanh_bwd(dy_ptr, x_ptr, dx_ptr, scale, n_elements, BLOCK_SIZE:
     t  = tanh_approx(x * (1.0 / scale))
     tl.store(dx_ptr + offsets, dy * (1.0 - t * t), mask=mask)
 
-# ── Triton Autograd Wrappers ──────────────────────────────────────────
-
 class _FastScaledTanh(torch.autograd.Function):
-    """
-    【Triton Autograd】縮放 Tanh 激活函數（Triton 加速）
-    ────────────────────────────────────────────────────
-    計算：y = scale * tanh(x / scale)
-
-    用途：對 Logits 做「軟性截斷（Soft Capping）」，
-    避免 Router 或最終 logits 爆炸，同時保留梯度流通。
-
-    使用 CUDA PTX `tanh.approx.f32` 指令，
-    比 PyTorch 原生 tanh 快 2–3x。
-    """
     @staticmethod
     def forward(ctx, x, scale=10.0):
         ctx.save_for_backward(x); ctx.scale = scale
@@ -205,18 +200,6 @@ def _fused_silu_mul_bwd(dout_ptr, gate_ptr, feat_ptr, dgate_ptr, dfeat_ptr, n_el
     tl.store(dgate_ptr + offsets, dout * feat * sig * (1.0 + gate * (1.0 - sig)), mask=mask)
 
 class _FastSiluGating(torch.autograd.Function):
-    """
-    【Triton Autograd】融合 SiLU Gating（Triton 加速）
-    ──────────────────────────────────────────────────
-    計算：y = silu(gate) * feat  （GLU-style gating）
-
-    在 Triton kernel 中融合兩個元素操作：
-      1. SiLU(gate) = gate * sigmoid(gate)
-      2. element-wise multiply with feat
-
-    用於 MixtralMoEFeedForward 的 gate 路徑，
-    比兩次獨立 kernel 呼叫少一次 HBM round-trip。
-    """
     @staticmethod
     def forward(ctx, gate, feat):
         ctx.save_for_backward(gate, feat)
@@ -224,6 +207,7 @@ class _FastSiluGating(torch.autograd.Function):
         grid = lambda meta: (triton.cdiv(gate.numel(), meta["BLOCK_SIZE"]),)
         _fused_silu_mul_fwd[grid](gate, feat, out, gate.numel())
         return out
+    
     @staticmethod
     def backward(ctx, dout):
         gate, feat = ctx.saved_tensors
@@ -241,28 +225,7 @@ def get_router_temperature(step, warmup=500, total=10000, t_start=2.0, t_end=0.5
     progress = min((step - warmup) / max(1, total - warmup), 1.0)
     return t_end + 0.5 * (t_start - t_end) * (1.0 + math.cos(math.pi * progress))
 
-
-# ── Core Model Components ─────────────────────────────────────────────
-
 class Mamba3Config:
-    """
-    【設定檔】Mamba3 模型的所有超參數集中管理
-    ────────────────────────────────────────────
-    負責計算並儲存所有衍生維度（d_inner、n_heads、kv_groups 等），
-    確保模型各元件的參數一致。
-
-    關鍵欄位：
-        d_model         : 主幹隱藏層維度
-        d_state         : SSM 狀態維度 N
-        d_head          : 每個 Head 的維度 P
-        n_heads         : 總 Head 數 = d_inner // d_head
-        expand          : d_inner = expand * d_model
-        mimo_rank       : SSM 中 B/C 矩陣的 MIMO Rank R
-        kmoe_r1/r2/r3   : Tucker 分解的三個 Rank
-        ffn_expand      : Transformer FFN 的擴張比例
-        num_kv_heads    : GQA 的 KV-Head 數
-        chunk_size      : Parallel Scan 的 Chunk 大小
-    """
     def __init__(
         self, d_model=768, d_state=64, d_head=64, n_groups=1, mimo_rank=4, expand=4,
         num_layers=15, use_parallel_scan=True, use_kmoe=True,
@@ -282,42 +245,11 @@ class Mamba3Config:
         self.dt_min, self.dt_max, self.dt_init_floor = dt_min, dt_max, dt_init_floor
         self.layer_scale_init = layer_scale_init
 
-# class RMSNorm(LigerRMSNorm):
-#     """
-#     【標準化】Root Mean Square 層標準化
-#     ────────────────────────────────────
-#     繼承 liger_kernel 的 LigerRMSNorm，
-#     提供 CUDA-level fused kernel（比原生 PyTorch 約 2x 快）。
-#     沒有 Bias；縮放係數 γ 可學習。
-
-#     公式：y = x / sqrt(mean(x²) + eps) * γ
-#     """
-#     def __init__(self, dim, eps=1e-5):
-#         super().__init__(hidden_size=dim, eps=eps)
-
-
 class RMSNorm(nn.RMSNorm):
-    """
-    【標準化】Root Mean Square 層標準化 (原生 PyTorch)
-    ────────────────────────────────────
-    使用 PyTorch 內建的 nn.RMSNorm，完美支援 torch.compile 與 CUDA Graphs。
-    """
     def __init__(self, dim, eps=1e-5):
-        # 官方的參數名稱叫做 normalized_shape，我們把傳進來的 dim 交給它
         super().__init__(normalized_shape=dim, eps=eps)    
 
 class LayerScale(nn.Module):
-    """
-    【殘差縮放】LayerScale — 每層學習一個縮放係數
-    ──────────────────────────────────────────────
-    對殘差分支的輸出乘上可學習純量向量 γ（初始值很小）。
-    防止深層網路初期訓練時殘差分支破壞主幹特徵，
-    有效改善深度模型的訓練穩定性。
-
-    參考：CaiT (Touvron et al. 2021) — "Going deeper with Image Transformers"
-
-    公式：LayerScale(x) = x * γ，  γ ∈ R^d_model
-    """
     def __init__(self, dim, init_value=1e-2):
         super().__init__()
         self.gamma = nn.Parameter(torch.ones(dim) * init_value)
@@ -390,30 +322,7 @@ def _fused_latent_moe_bwd_dG_kernel(
              acc.to(dG_ptr.dtype.element_ty), mask=mask_r3[:, None] & mask_r2[None, :])
 
 
-# ── MoE Triton Kernels ───────────────────────────────────────────────
-
 class FusedLatentMoE(torch.autograd.Function):
-    """
-    【Triton Autograd】Tucker 潛在空間 MoE 專家混合層（自定義反向傳播）
-    ────────────────────────────────────────────────────────
-    Forward：計算純量分解的 Top-K MoE 加譄展開
-
-        x_out[b, :] = Σ_{k=0}^{top_k-1}  prob[b,k] * G_experts[idx[b,k]] @ x_shared[b]
-
-    其中 G_experts = U_expert ×_1 Core（Tucker 專家矩陣）。
-
-    Backward：
-        • dx_shared  : 通過 PyTorch bmm 反推
-        • dG_experts : 由專屬 Triton kernel (_fused_latent_moe_bwd_dG_kernel) 計算
-                       按專家分組續寫，避免鍵竭問題
-        • dprobs     : softmax 路由機率的梯度
-
-    輸入：
-        x_shared     : (B, r3) 口 Token 在潛在 r3 空間的共享表示
-        G_experts    : (E, r3, r2) Tucker 漗合專家矩陣
-        top_k_indices: (B, top_k)  選出的專家索引
-        top_k_probs  : (B, top_k)  歸一化後的路由機率
-    """
     @staticmethod
     def forward(ctx, x_shared, G_experts, top_k_indices, top_k_probs):
         B, r3 = x_shared.shape; E, _, r2 = G_experts.shape; top_k = top_k_indices.size(1)
@@ -426,6 +335,7 @@ class FusedLatentMoE(torch.autograd.Function):
             top_k_indices.stride(0), top_k_indices.stride(1),
             top_k_probs.stride(0), top_k_probs.stride(1),
             out.stride(0), out.stride(1), B, r3, r2, top_k)
+        
         return out
 
     @staticmethod
@@ -435,21 +345,17 @@ class FusedLatentMoE(torch.autograd.Function):
         dx_shared = torch.zeros_like(x_shared)
         dprobs    = torch.zeros_like(top_k_probs)
 
-        # 🚀 核心修正：Backward 內 autocast 不作用，必須手動對齊 dtype
-        # x_shared.dtype 是 fp16/bf16（forward 時由 autocast 決定）
         target_dtype = x_shared.dtype
-        dout = dout.to(target_dtype)   # dout 可能從上層傳入 fp32，強制對齊
+        dout = dout.to(target_dtype)
 
         for k in range(top_k):
             idx  = top_k_indices[:, k]
-            # top_k_probs 可能是 fp32（softmax 數值穩定），強制轉換
             prob = top_k_probs[:, k].unsqueeze(1).to(target_dtype)
             G_k  = G_experts[idx].to(target_dtype)
 
             dout_k     = dout * prob
             dx_shared += torch.matmul(dout_k.unsqueeze(1), G_k.transpose(1, 2)).squeeze(1)
 
-            # dprobs 的 dtype 是 top_k_probs 的原始 dtype（可能 fp32），存回前轉換
             dprobs_k        = (dout * torch.matmul(x_shared.unsqueeze(1), G_k).squeeze(1)).sum(dim=-1)
             dprobs[:, k]    = dprobs_k.to(dprobs.dtype)
 
@@ -463,82 +369,72 @@ class FusedLatentMoE(torch.autograd.Function):
         return dx_shared, dG_experts, None, dprobs
 
 class TritonTuckerMoE(nn.Module):
-    """
-    【專家層】Tucker 張量分解 Mixture-of-Experts（核心元件）
-    ─────────────────────────────────────────────────────
-    將傳統 MoE 的專家矩陣 (n_experts, d_in, d_out) Tucker 分解為：
-
-        考慮 E 個專家：  G[e] = U_expert[e] ×_1 Core  ∈ R^{r3 x r2}
-        專家輸出：      y = FusedLatentMoE(U_in @ x, G, top_k_idx, probs) @ U_out + bias
-
-    參數量比較：(vs. 密集 MLP 每專家 d_in*d_out)
-        勘筣儲存： U_expert(E*r1) + U_in(d_in*r3) + U_out(r2*d_out) + Core(r1*r3*r2)
-        每層專家激活：僅需 top_k / num_experts 的專家參數
-
-    Router：
-        使用 ScaledTanh-capped softmax + trainable temperature 退火。
-        訓練時有 Load Balancing Loss + Z-Loss 防止 Router Collapse。
-
-    參數：
-        dim_in / dim_out  : 輸入輸出維度
-        num_experts       : 總專家數 E
-        top_k             : 每 token 激活的專家數
-        r1, r2, r3        : Tucker Rank
-    """
     def __init__(self, dim_in, dim_out, num_experts=8, top_k=2, r1=4, r2=1024, r3=256):
         super().__init__()
-        self.num_experts = num_experts; self.top_k = min(top_k, num_experts)
+        self.num_experts = num_experts
+        self.top_k = min(top_k, num_experts)
+        
         self.router = nn.Linear(dim_in, num_experts, bias=False)
         nn.init.normal_(self.router.weight, mean=0.0, std=0.02)
+        
         self.U_expert = nn.Parameter(torch.empty(num_experts, r1))
         self.U_in     = nn.Parameter(torch.empty(dim_in, r3))
         self.U_out    = nn.Parameter(torch.empty(r2, dim_out))
         self.core     = nn.Parameter(torch.empty(r1, r3, r2))
         self.bias     = nn.Parameter(torch.zeros(dim_out))
-        nn.init.normal_(self.U_expert, std=1.0)
-        nn.init.normal_(self.U_in,  std=1.0 / math.sqrt(dim_in))
-        nn.init.normal_(self.U_out, std=1.0 / math.sqrt(r2))
-        nn.init.normal_(self.core,  std=1.0 / math.sqrt(r1 * r3))
 
-    def forward(self, x, step=None):
-        orig_shape = x.shape; x_flat = x.reshape(-1, orig_shape[-1]); B_flat = x_flat.size(0)
-        temperature = get_router_temperature(step)
+        self.inner_norm = RMSNorm(r3) 
+        
+        nn.init.orthogonal_(self.U_in)
+        nn.init.orthogonal_(self.U_out)
+        nn.init.xavier_uniform_(self.U_expert)
+        nn.init.xavier_uniform_(self.core)
+
+    def forward(self, x, router_temp=None):
+        orig_shape = x.shape
+        x_flat = x.reshape(-1, orig_shape[-1])
+        B_flat = x_flat.size(0)
+
         raw_logits  = self.router(x_flat)
-        capped      = fast_scaled_tanh(raw_logits, 10.0)
+        if router_temp is None:
+            temperature = raw_logits.new_tensor(get_router_temperature(None))
+        elif isinstance(router_temp, torch.Tensor):
+            temperature = router_temp.to(device=raw_logits.device, dtype=raw_logits.dtype)
+        else:
+            temperature = raw_logits.new_tensor(float(router_temp))
+            
+            
+        temperature = temperature.clamp_min(1e-4)
+        capped      = fast_scaled_tanh(raw_logits, 10.0) 
+        
         z_loss = (torch.mean(torch.logsumexp(capped, dim=-1) ** 2) if self.training else 0.0)
+        
         router_logits = capped / temperature
         router_probs  = torch.softmax(router_logits, dim=-1)
+        
         _, top_k_indices = torch.topk(router_logits, self.top_k, dim=-1)
         top_k_raw   = router_probs.gather(-1, top_k_indices)
         top_k_probs = top_k_raw / (top_k_raw.sum(-1, keepdim=True) + 1e-6)
+        
         if self.training:
             expert_mask = torch.zeros_like(router_logits).scatter_(1, top_k_indices, 1.0)
             lb_loss = self.num_experts * torch.sum(expert_mask.mean(0) * router_probs.float().mean(0))
         else:
             lb_loss = 0.0
-        x_shared  = torch.matmul(x_flat, self.U_in)
+            
+        x_shared = torch.matmul(x_flat, self.U_in)
+        x_shared = self.inner_norm(x_shared)
+        
         G_experts = torch.einsum('er, rst -> est', self.U_expert, self.core)
-        x_core    = FusedLatentMoE.apply(x_shared, G_experts, top_k_indices, top_k_probs).to(x.dtype)
+        x_core = FusedLatentMoE.apply(x_shared, G_experts, top_k_indices, top_k_probs).to(x.dtype)
+        
         out = torch.matmul(x_core, self.U_out).reshape(*orig_shape[:-1], -1)
+        
         return out + self.bias, lb_loss, z_loss
 
 TuckerMoE = TritonTuckerMoE
 
 class MixtralMoEFeedForward(nn.Module):
-    """
-    【FFN】Mixtral 式三段 MoE Feed-Forward Network
-    ──────────────────────────────────────────
-    在 TransformerBlock 內作為 FFN，三個投影層全部是 TuckerMoE：
-
-        流程：
-            gate  = TuckerMoE(x)              ← 潛在幾何門控
-            feat  = TuckerMoE(x)              ← 主內容路徑
-            y     = TuckerMoE(silu(gate)*feat) ← 下投影（压縮回 d_model）
-
-        d_ff = ceil(ffn_expand * d_model / 256) * 256  ← 對齊到 256 的倍數
-
-    返回：(output, lb_loss, z_loss) —— 輔助損失用於訓練
-    """
     def __init__(self, config: Mamba3Config):
         super().__init__()
         d_ff = int(math.ceil(config.ffn_expand * config.d_model / 256) * 256)
@@ -548,82 +444,143 @@ class MixtralMoEFeedForward(nn.Module):
         self.up_proj   = TuckerMoE(config.d_model, d_ff, **kw)
         self.down_proj = TuckerMoE(d_ff, config.d_model, **kw)
 
-    def forward(self, x, step=None):
-        gate, lb_g, z_g = self.gate_proj(x, step=step)
-        feat, lb_u, z_u = self.up_proj(x, step=step)
-        y,    lb_d, z_d = self.down_proj(fast_silu_gating(gate, feat), step=step)
+    def forward(self, x, router_temp=None):
+        gate, lb_g, z_g = self.gate_proj(x, router_temp=router_temp)
+        feat, lb_u, z_u = self.up_proj(x, router_temp=router_temp)
+        y,    lb_d, z_d = self.down_proj(fast_silu_gating(gate, feat), router_temp=router_temp)
         return y, lb_g + lb_u + lb_d, z_g + z_u + z_d
+
+
+# ── 新版 Triton Parallel Scan (包含完整的 Forward 和 Backward) ──
 
 @triton.jit
 def first_order_combine_op(alpha_left, beta_left, alpha_right, beta_right):
     return alpha_right * alpha_left, alpha_right * beta_left + beta_right
 
-@triton.autotune(
-    configs=[
-        triton.Config({'BLOCK_D': 32},  num_warps=4),
-        triton.Config({'BLOCK_D': 64},  num_warps=4),
+def get_fwd_autotune_configs():
+    return [
+        triton.Config({'BLOCK_D': 32}, num_warps=4),
+        triton.Config({'BLOCK_D': 64}, num_warps=4),
         triton.Config({'BLOCK_D': 128}, num_warps=8),
         triton.Config({'BLOCK_D': 256}, num_warps=8),
-        triton.Config({'BLOCK_D': 512}, num_warps=8),
-    ],
-    key=['D', 'L'],
-)
+        triton.Config({'BLOCK_D': 512}, num_warps=16),
+    ]
+
+@triton.autotune(configs=get_fwd_autotune_configs(), key=['D', 'L'])
 @triton.jit
-def _chunk_scan_kernel(
-    alpha_ptr, u_ptr, h_out_ptr,
+def _chunk_scan_fwd_kernel(
+    log_alpha_ptr, u_ptr, h_out_ptr,
     stride_a_b, stride_a_l, stride_u_b, stride_u_l, stride_u_d,
     B_flat, L: tl.constexpr, D: tl.constexpr, BLOCK_D: tl.constexpr
 ):
-    pid_b = tl.program_id(0); pid_d = tl.program_id(1)
+    pid_b, pid_d = tl.program_id(0), tl.program_id(1)
     offset_d = pid_d * BLOCK_D + tl.arange(0, BLOCK_D)
     offset_l = tl.arange(0, L)
     mask_d = offset_d < D
-    alpha = tl.load(alpha_ptr + pid_b * stride_a_b + offset_l * stride_a_l)
-    u     = tl.load(u_ptr + pid_b * stride_u_b + offset_l[:, None] * stride_u_l + offset_d[None, :] * stride_u_d,
-                    mask=mask_d[None, :], other=0.0)
-    alpha_fp32 = alpha.to(tl.float32); u_fp32 = u.to(tl.float32)
-    _, h_out_fp32 = tl.associative_scan(
-        (tl.broadcast_to(alpha_fp32[:, None], (L, BLOCK_D)), u_fp32),
-        axis=0, combine_fn=first_order_combine_op)
-    tl.store(h_out_ptr + pid_b * stride_u_b + offset_l[:, None] * stride_u_l + offset_d[None, :] * stride_u_d,
-             h_out_fp32.to(u.dtype), mask=mask_d[None, :])
+
+    alpha_ptrs = log_alpha_ptr + pid_b * stride_a_b + offset_l * stride_a_l
+    alpha = tl.exp(tl.load(alpha_ptrs).to(tl.float32))
+    
+    u_ptrs = u_ptr + pid_b * stride_u_b + offset_l[:, None] * stride_u_l + offset_d[None, :] * stride_u_d
+    u = tl.load(u_ptrs, mask=mask_d[None, :], other=0.0).to(tl.float32)
+
+    _, h = tl.associative_scan((tl.broadcast_to(alpha[:, None], (L, BLOCK_D)), u), axis=0, combine_fn=first_order_combine_op)
+
+    h_out_ptrs = h_out_ptr + pid_b * stride_u_b + offset_l[:, None] * stride_u_l + offset_d[None, :] * stride_u_d
+    tl.store(h_out_ptrs, h.to(u_ptr.dtype.element_ty), mask=mask_d[None, :])
+
+def get_bwd_autotune_configs():
+    return [
+        triton.Config({'BLOCK_D': 32}, num_warps=4),
+        triton.Config({'BLOCK_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_D': 128}, num_warps=8),
+        triton.Config({'BLOCK_D': 256}, num_warps=8),
+    ]
+
+@triton.autotune(configs=get_bwd_autotune_configs(), key=['D', 'L'])
+@triton.jit
+def _chunk_scan_bwd_kernel(
+    log_alpha_ptr, h_ptr, dh_ptr, du_ptr, dlog_alpha_ptr,
+    stride_a_b, stride_a_l, stride_u_b, stride_u_l, stride_u_d,
+    B_flat, L: tl.constexpr, D: tl.constexpr, BLOCK_D: tl.constexpr
+):
+    pid_b, pid_d = tl.program_id(0), tl.program_id(1)
+    offset_d = pid_d * BLOCK_D + tl.arange(0, BLOCK_D)
+    mask_d = offset_d < D
+    offset_l = tl.arange(0, L)
+    rev_offset_l = L - 1 - offset_l  
+
+    dh_ptrs = dh_ptr + pid_b * stride_u_b + rev_offset_l[:, None] * stride_u_l + offset_d[None, :] * stride_u_d
+    dh = tl.load(dh_ptrs, mask=mask_d[None, :], other=0.0).to(tl.float32)
+
+    alpha_next_idx = L - offset_l
+    alpha_next_mask = alpha_next_idx < L
+    log_alpha_next = tl.load(log_alpha_ptr + pid_b * stride_a_b + alpha_next_idx * stride_a_l, mask=alpha_next_mask, other=-float('inf')).to(tl.float32)
+    alpha_rev = tl.where(alpha_next_mask, tl.exp(log_alpha_next), 0.0)
+
+    _, delta_rev = tl.associative_scan((tl.broadcast_to(alpha_rev[:, None], (L, BLOCK_D)), dh), axis=0, combine_fn=first_order_combine_op)
+
+    du_ptrs = du_ptr + pid_b * stride_u_b + rev_offset_l[:, None] * stride_u_l + offset_d[None, :] * stride_u_d
+    tl.store(du_ptrs, delta_rev.to(du_ptr.dtype.element_ty), mask=mask_d[None, :])
+
+    h_prev_idx = L - 2 - offset_l
+    h_prev = tl.load(h_ptr + pid_b * stride_u_b + h_prev_idx[:, None] * stride_u_l + offset_d[None, :] * stride_u_d, mask=(h_prev_idx >= 0)[:, None] & mask_d[None, :], other=0.0).to(tl.float32)
+    alpha_curr_idx = L - 1 - offset_l
+    alpha_curr = tl.exp(tl.load(log_alpha_ptr + pid_b * stride_a_b + alpha_curr_idx * stride_a_l).to(tl.float32))
+
+    dlog_alpha_sum = tl.sum(delta_rev * alpha_curr[:, None] * h_prev, axis=1)
+    tl.atomic_add(dlog_alpha_ptr + pid_b * stride_a_b + alpha_curr_idx * stride_a_l, dlog_alpha_sum)
+
+class TritonParallelScanFn(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, log_alpha_chunk, u_chunk):
+        B, num_chunks, L, H = log_alpha_chunk.shape
+        D = u_chunk.shape[-1] * u_chunk.shape[-2]
+        
+        log_alpha_flat = log_alpha_chunk.transpose(2, 3).reshape(-1, L).contiguous()
+        u_flat = u_chunk.transpose(2, 3).reshape(-1, L, D).contiguous()
+        
+        h_out_flat = torch.empty_like(u_flat)
+        B_flat = log_alpha_flat.shape[0]
+        
+        _chunk_scan_fwd_kernel[lambda meta: (B_flat, triton.cdiv(D, meta['BLOCK_D']))](
+            log_alpha_flat, u_flat, h_out_flat,
+            log_alpha_flat.stride(0), log_alpha_flat.stride(1),
+            u_flat.stride(0), u_flat.stride(1), u_flat.stride(2),
+            B_flat=B_flat, L=L, D=D
+        )
+        
+        ctx.save_for_backward(log_alpha_flat, h_out_flat)
+        ctx.dims = (B, num_chunks, L, H, u_chunk.shape[-2], u_chunk.shape[-1])
+        return h_out_flat.reshape(B, num_chunks, H, L, u_chunk.shape[-2], u_chunk.shape[-1]).transpose(2, 3)
+
+    @staticmethod
+    def backward(ctx, dh_out):
+        log_alpha_flat, h_out_flat = ctx.saved_tensors
+        B, num_chunks, L, H, N, P = ctx.dims
+        D = N * P
+        B_flat = log_alpha_flat.shape[0]
+        
+        dh_flat = dh_out.transpose(2, 3).reshape(-1, L, D).contiguous()
+        du_flat = torch.empty_like(dh_flat)
+        dlog_alpha_flat = torch.zeros_like(log_alpha_flat)
+        
+        _chunk_scan_bwd_kernel[lambda meta: (B_flat, triton.cdiv(D, meta['BLOCK_D']))](
+            log_alpha_flat, h_out_flat, dh_flat, du_flat, dlog_alpha_flat,
+            log_alpha_flat.stride(0), log_alpha_flat.stride(1),
+            dh_flat.stride(0), dh_flat.stride(1), dh_flat.stride(2),
+            B_flat=B_flat, L=L, D=D
+        )
+        
+        return dlog_alpha_flat.reshape(B, num_chunks, H, L).transpose(2, 3), du_flat.reshape(B, num_chunks, H, L, N, P).transpose(2, 3)
 
 def fast_triton_chunk_scan(log_alpha_chunk, u_chunk):
-    B, num_chunks, L, H = log_alpha_chunk.shape; D = u_chunk.shape[-1] * u_chunk.shape[-2]
-    alpha_flat = torch.exp(log_alpha_chunk).transpose(2, 3).reshape(-1, L).contiguous()
-    u_flat     = u_chunk.transpose(2, 3).reshape(-1, L, D).contiguous()
-    h_out_flat = torch.empty_like(u_flat)
-    B_flat = alpha_flat.shape[0]
-    _chunk_scan_kernel[lambda meta: (B_flat, triton.cdiv(D, meta['BLOCK_D']))](
-        alpha_flat, u_flat, h_out_flat,
-        alpha_flat.stride(0), alpha_flat.stride(1),
-        u_flat.stride(0), u_flat.stride(1), u_flat.stride(2),
-        B_flat=B_flat, L=L, D=D)
-    return h_out_flat.reshape(B, num_chunks, H, L, u_chunk.shape[-2], u_chunk.shape[-1]).transpose(2, 3)
+    return TritonParallelScanFn.apply(log_alpha_chunk, u_chunk)
 
 
 # ── Main Architecture Blocks ──────────────────────────────────────────
 
 class Mamba3Block(nn.Module):
-    """
-    【核心區塊】Mamba-3 SSM 區塊（含 MIMO + RoPE + TuckerMoE 投影）
-    ───────────────────────────────────────────────────────────
-    本區塊包含兩個殘差分支：
-
-    (1) Mamba SSM 分支：
-        in_proj → x_up (TuckerMoE) → Chunk Parallel Scan (SSD) →
-        y_down_proj → mamba_dense_proj * SiLU(z) + D*x_prime
-        加上 RoPE 旋轉的 B/C 矩陣、可學習频率 theta_log。
-        LSTM-like lambda gate 控制新舊輸入的混合比例。
-
-    (2) Out-Proj 分支斯：
-        norm_out_proj → out_proj (TuckerMoE) → LayerScale
-
-    兩層獨立的 LayerScale 、RMSNorm 、LayerScale·ls_mamba / ls_out_proj
-    對殘差分支做縮放。
-
-    返回： (hidden, lb_loss, z_loss)
-    """
     def __init__(self, config: Mamba3Config):
         super().__init__()
         self.config = config
@@ -638,6 +595,7 @@ class Mamba3Block(nn.Module):
         else:
             self.x_up_proj = nn.Linear(P, P*R, bias=False)
             self.out_proj  = nn.Linear(d_in, d_in, bias=False)
+            
         self.y_down_proj      = nn.Linear(P*R, P, bias=False)
         self.theta_log        = nn.Parameter(torch.randn(G, N//2))
         self.D                = nn.Parameter(torch.ones(H))
@@ -652,6 +610,8 @@ class Mamba3Block(nn.Module):
         self.norm_out_proj    = RMSNorm(config.d_model)
         self.ls_mamba         = LayerScale(config.d_model, init_value=config.layer_scale_init)
         self.ls_out_proj      = LayerScale(config.d_model, init_value=config.layer_scale_init)
+
+        
         with torch.no_grad():
             self.bias_B.fill_(1.0); self.bias_C.fill_(1.0)
             dt = torch.clamp(torch.exp(torch.rand(G) * (math.log(config.dt_max) - math.log(config.dt_min)) + math.log(config.dt_min)), min=config.dt_init_floor)
@@ -685,7 +645,10 @@ class Mamba3Block(nn.Module):
         u_c  = u.view(B, nc, chunk_size, H, N, P)
         la_c = log_alpha.view(B, nc, chunk_size, H)
         C_c  = C.view(B, nc, chunk_size, H, N, R)
+        
+        # ── 這裡已經接上了我們最新的 TritonParallelScanFn ──
         h_intra = fast_triton_chunk_scan(la_c, u_c)
+        
         y_diag  = torch.einsum("bclhnp, bclhnr -> bclhpr", h_intra, C_c)
         decay   = torch.exp(torch.sum(la_c, dim=2))
         h_prev  = torch.zeros(B, H, N, P, device=u.device, dtype=input_dtype)
@@ -698,7 +661,7 @@ class Mamba3Block(nn.Module):
         y = (y_diag + y_off).view(B, -1, H, P, R)
         return (y[:, :L_orig] if L_orig < L else y).to(input_dtype), h_prev.to(input_dtype)
 
-    def forward(self, x, step=None):
+    def forward(self, x, router_temp=None, mamba_cache=None, return_mamba_cache=False):
         B_sz, L, _ = x.shape
         H, G, P, N, R, ratio = self.config.n_heads, self.config.n_groups, self.config.d_head, self.config.d_state, self.config.mimo_rank, self.ratio
         residual_mamba, u = x, self.norm_mamba(x)
@@ -708,59 +671,66 @@ class Mamba3Block(nn.Module):
         dt = F.softplus(dt); A = -torch.exp(A_param); theta = torch.exp(self.theta_log)
         bg = lambda t: t.repeat_interleave(ratio, dim=2)
         dt_b = bg(dt.unsqueeze(-1)).squeeze(-1); A_b = bg(A.unsqueeze(-1)).squeeze(-1)
-        angles = torch.cumsum(torch.einsum("blh, hn -> blhn", dt_b, theta.repeat_interleave(ratio, dim=0)), dim=1)
-        B_rotated = self.apply_rope(bg(self.norm_B(B_param.reshape(B_sz,L,G,N*R)).view(B_sz,L,G,N,R) + self.bias_B), angles)
-        C_rotated = self.apply_rope(bg(self.norm_C(C_param.reshape(B_sz,L,G,N*R)).view(B_sz,L,G,N,R) + self.bias_C), angles)
+        theta_rep = theta.repeat_interleave(ratio, dim=0)
+        current_angle_step = torch.einsum("blh, hn -> blhn", dt_b, theta_rep)
+        if mamba_cache is not None:
+            assert L == 1, "mamba_cache is only valid for single-token decode (L == 1)."
+            prev_h, prev_input, prev_angle_sum = mamba_cache
+            angles = prev_angle_sum + torch.cumsum(current_angle_step, dim=1)
+        else:
+            angles = torch.cumsum(current_angle_step, dim=1)
+        B_rotated = self.apply_rope(bg(self.norm_B(B_param.reshape(B_sz, L, G, N * R)).view(B_sz, L, G, N, R) + self.bias_B), angles)
+        C_rotated = self.apply_rope(bg(self.norm_C(C_param.reshape(B_sz, L, G, N * R)).view(B_sz, L, G, N, R) + self.bias_C), angles)
         if self.config.use_kmoe:
-            x_up, lb_up, z_up = self.x_up_proj(x_prime.view(B_sz, L, -1), step=step)
+            x_up, lb_up, z_up = self.x_up_proj(x_prime.view(B_sz, L, -1), router_temp=router_temp)
             x_ssm = x_up.view(B_sz, L, H, P, R)
         else:
-            x_ssm, lb_up, z_up = self.x_up_proj(x_prime).view(B_sz,L,H,P,R), 0.0, 0.0
+            x_ssm, lb_up, z_up = self.x_up_proj(x_prime).view(B_sz, L, H, P, R), 0.0, 0.0
         input_signal = torch.einsum("blhnr, blhpr -> blhnp", B_rotated, x_ssm)
-        lv = F.sigmoid(bg(lambda_param.unsqueeze(-1)).squeeze(-1)).view(B_sz,L,H,1,1)
-        dv = dt_b.view(B_sz,L,H,1,1); av = torch.exp(dt_b*A_b).view(B_sz,L,H,1,1)
-        ip = torch.roll(input_signal,1,1); ip[:,0] = 0
-        u_ssm = lv*dv*input_signal + (1-lv)*dv*av*ip
-
-        
-        if self.config.use_parallel_scan:
-            y_stack, _ = self.chunk_parallel_scan(u_ssm, dt_b, A_b, C_rotated, chunk_size=self.config.chunk_size)
+        lv = F.sigmoid(bg(lambda_param.unsqueeze(-1)).squeeze(-1)).view(B_sz, L, H, 1, 1)
+        dv = dt_b.view(B_sz, L, H, 1, 1)
+        av = torch.exp(dt_b * A_b).view(B_sz, L, H, 1, 1)
+        if mamba_cache is not None:
+            ip = prev_input
         else:
-            h_s = torch.zeros(B_sz,H,N,P,device=x.device); y_list=[]
+            ip = torch.roll(input_signal, 1, 1); ip[:, 0] = 0
+        u_ssm = lv * dv * input_signal + (1 - lv) * dv * av * ip
+
+        mamba_cache_out = None
+        if mamba_cache is not None:
+            h_s = prev_h * av[:, 0] + u_ssm[:, 0]
+            y_stack = torch.einsum("bhnp,bhnr->bhpr", h_s, C_rotated[:, 0]).unsqueeze(1)
+            mamba_cache_out = (h_s, input_signal[:, -1:], angles[:, -1:])
+        elif self.config.use_parallel_scan:
+            y_stack, h_prev = self.chunk_parallel_scan(u_ssm, dt_b, A_b, C_rotated, chunk_size=self.config.chunk_size)
+            if return_mamba_cache:
+                mamba_cache_out = (h_prev, input_signal[:, -1:], angles[:, -1:])
+        else:
+            h_s = torch.zeros(B_sz, H, N, P, device=x.device, dtype=u_ssm.dtype)
+            y_list = []
             for t in range(L):
-                h_s = h_s * av[:,t] + u_ssm[:,t]
-                y_list.append(torch.einsum("bhnp,bhnr->bhpr", h_s, C_rotated[:,t]))
+                h_s = h_s * av[:, t] + u_ssm[:, t]
+                y_list.append(torch.einsum("bhnp,bhnr->bhpr", h_s, C_rotated[:, t]))
             y_stack = torch.stack(y_list, dim=1)
-        y = self.y_down_proj(y_stack.view(B_sz,L,H,P*R)).view(B_sz,L,H*P)
+            if return_mamba_cache:
+                mamba_cache_out = (h_s, input_signal[:, -1:], angles[:, -1:])
+
+        y = self.y_down_proj(y_stack.view(B_sz, L, H, P * R)).view(B_sz, L, H * P)
         y = y + x_prime.reshape(B_sz,L,H*P) * self.D.repeat_interleave(P,dim=0)
         mamba_out = self.mamba_dense_proj(self.pre_gate_norm(y) * self.act(z))
         mid_x = residual_mamba + self.ls_mamba(mamba_out)
         residual_proj, normed_mid = mid_x, self.norm_out_proj(mid_x)
+        
         if self.config.use_kmoe:
-            proj_out, lb_out, z_out = self.out_proj(normed_mid, step=step)
+            proj_out, lb_out, z_out = self.out_proj(normed_mid, router_temp=router_temp)
         else:
             proj_out, lb_out, z_out = self.out_proj(normed_mid), 0.0, 0.0
-        return residual_proj + self.ls_out_proj(proj_out), lb_up + lb_out, z_up + z_out
+        out = residual_proj + self.ls_out_proj(proj_out)
+        if mamba_cache is not None or return_mamba_cache:
+            return out, lb_up + lb_out, z_up + z_out, mamba_cache_out
+        return out, lb_up + lb_out, z_up + z_out
 
 class TransformerBlock(nn.Module):
-    """
-    【注意力區塊】Grouped Query Attention (GQA) + MoE FFN
-    ────────────────────────────────────────────────
-    區塊內部包含兩個殘差分支：
-
-    (1) 自注意力：
-        - Q-Head: n_heads = d_model // 64 組
-        - KV-Head: num_kv_heads 組（GQA — kv_groups = n_heads // num_kv_heads）
-        - FlashAttention 透過 F.scaled_dot_product_attention（因果遅燬注意力遮罩）
-        - out_proj: 羮集層輸出
-
-    (2) FFN：若 use_kmoe=True 兩段使用 MixtralMoEFeedForward，
-              否則使用駔滿式 GLU-FFN (SwiGLU)。
-
-    兩層獨立的 RMSNorm + LayerScale。
-
-    返回： (hidden, lb_loss, z_loss)
-    """
     def __init__(self, config: Mamba3Config):
         super().__init__()
         self.head_dim=64; self.num_heads=config.d_model//64
@@ -781,37 +751,39 @@ class TransformerBlock(nn.Module):
         self.ls_attn = LayerScale(config.d_model, init_value=config.layer_scale_init)
         self.ls_ffn  = LayerScale(config.d_model, init_value=config.layer_scale_init)
 
-    def forward(self, x, step=None):
+    def forward(self, x, router_temp=None, past_kv=None, seq_pos=0, return_kv=False):
         B, L, D = x.shape; residual, nx = x, self.norm_attn(x)
-        q = self.q_proj(nx).view(B,L,self.num_heads,64).transpose(1,2)
-        k = self.k_proj(nx).view(B,L,self.num_kv_heads,64).transpose(1,2)
-        v = self.v_proj(nx).view(B,L,self.num_kv_heads,64).transpose(1,2)
-        k = k.unsqueeze(2).expand(B,self.num_kv_heads,self.kv_groups,L,64).reshape(B,self.num_heads,L,64)
-        v = v.unsqueeze(2).expand(B,self.num_kv_heads,self.kv_groups,L,64).reshape(B,self.num_heads,L,64)
-        attn = F.scaled_dot_product_attention(q,k,v,dropout_p=0.0,is_causal=True)
-        x = residual + self.ls_attn(self.o_proj(attn.transpose(1,2).contiguous().view(B,L,D)))
+        q = self.q_proj(nx).view(B, L, self.num_heads, 64).transpose(1, 2)
+        k_new = self.k_proj(nx).view(B, L, self.num_kv_heads, 64).transpose(1, 2)
+        v_new = self.v_proj(nx).view(B, L, self.num_kv_heads, 64).transpose(1, 2)
+        k_new = k_new.unsqueeze(2).expand(B, self.num_kv_heads, self.kv_groups, L, 64).reshape(B, self.num_heads, L, 64)
+        v_new = v_new.unsqueeze(2).expand(B, self.num_kv_heads, self.kv_groups, L, 64).reshape(B, self.num_heads, L, 64)
+        kv_out = None
+        if past_kv is None:
+            attn = F.scaled_dot_product_attention(q, k_new, v_new, dropout_p=0.0, is_causal=True)
+            if return_kv:
+                kv_out = (k_new.detach(), v_new.detach())
+        else:
+            k_buf, v_buf = past_kv
+            k_buf[:, :, seq_pos : seq_pos + L, :] = k_new
+            v_buf[:, :, seq_pos : seq_pos + L, :] = v_new
+            prefix = seq_pos + L
+            attn = F.scaled_dot_product_attention(
+                q, k_buf[:, :, :prefix, :], v_buf[:, :, :prefix, :], dropout_p=0.0, is_causal=False
+            )
+            kv_out = (k_buf, v_buf)
+        x = residual + self.ls_attn(self.o_proj(attn.transpose(1, 2).contiguous().view(B, L, D)))
         residual, h = x, self.norm_ffn(x)
         if self.use_kmoe:
-            ffn_out, lb, z = self.ffn(h, step=step)
+            ffn_out, lb, z = self.ffn(h, router_temp=router_temp)
         else:
             ffn_out = self.ffn_down(fast_silu_gating(self.ffn_gate(h), self.ffn_up(h))); lb=0.0; z=0.0
-        return residual + self.ls_ffn(ffn_out), lb, z
+        out = residual + self.ls_ffn(ffn_out)
+        if past_kv is not None or return_kv:
+            return out, lb, z, kv_out
+        return out, lb, z
 
 class TrueHybridMamba(nn.Module):
-    """
-    【Backbone】混合型 Mamba3 主幹（Mamba 區塊 + Attention 區塊 交採堆疊）
-    ────────────────────────────────────────────────────────────
-    每個 Macro Block = mamba_ratio 個 Mamba3Block + 1 個 TransformerBlock。
-    共堆疊 num_layers 層，總層數 = num_layers * (mamba_ratio + 1)。
-
-    重要設計小節：
-      • 全部區塊除了結構外一薇相同，方便 checkpoint 和 compile。
-      • 使用 torch.utils.checkpoint 將每個 Block 包複，
-        成倒倒就活化歸一化梯度檢查點技術（Gradient Checkpointing）。
-      • 累積 Load Balancing Loss 和 Z-Loss。
-
-    返回： (hidden_states, total_lb_loss, total_z_loss)
-    """
     def __init__(self, config: Mamba3Config, mamba_ratio=4):
         super().__init__()
         self.layers = nn.ModuleList()
@@ -820,39 +792,49 @@ class TrueHybridMamba(nn.Module):
                 self.layers.append(nn.ModuleDict({"block": Mamba3Block(config)}))
             self.layers.append(nn.ModuleDict({"block": TransformerBlock(config)}))
 
-    def forward(self, x, step=None):
+    def forward(self, x, router_temp=None):
         total_lb, total_z = 0.0, 0.0
         for ld in self.layers:
-            x, lb, z = checkpoint(ld["block"], x, step, use_reentrant=False)
+            if router_temp is None:
+                x, lb, z = ld["block"](x, router_temp=None)
+            else:
+                x, lb, z = checkpoint(ld["block"], x, router_temp, use_reentrant=False)
             if isinstance(lb, torch.Tensor): total_lb = total_lb + lb; total_z = total_z + z
         return x, total_lb, total_z
 
+    def forward_inference(self, x, router_temp, layer_caches, seq_pos: int, prefill: bool):
+        """Batch size 1 inference: prefill (prefill=True) or decode (prefill=False) with per-layer caches."""
+        total_lb, total_z = 0.0, 0.0
+        new_caches = []
+        for i, ld in enumerate(self.layers):
+            blk = ld["block"]
+            if isinstance(blk, TransformerBlock):
+                if prefill:
+                    x, lb, z, kv_out = blk(
+                        x, router_temp=router_temp, past_kv=None, seq_pos=0, return_kv=True
+                    )
+                else:
+                    past = layer_caches[i]
+                    x, lb, z, kv_out = blk(
+                        x, router_temp=router_temp, past_kv=past, seq_pos=seq_pos, return_kv=False
+                    )
+                new_caches.append(kv_out)
+            else:
+                if prefill:
+                    x, lb, z, mc_out = blk(
+                        x, router_temp=router_temp, mamba_cache=None, return_mamba_cache=True
+                    )
+                else:
+                    x, lb, z, mc_out = blk(
+                        x, router_temp=router_temp, mamba_cache=layer_caches[i], return_mamba_cache=False
+                    )
+                new_caches.append(mc_out)
+            if isinstance(lb, torch.Tensor):
+                total_lb = total_lb + lb
+                total_z = total_z + z
+        return x, total_lb, total_z, new_caches
+
 class Mamba3LanguageModel(nn.Module):
-    """
-    【頂層模型】Mamba3 語言模型（含 Causal LM 損失計算）
-    ───────────────────────────────────────────────────
-    結構：
-        embed (Embedding)   --設計 tied weights  --> head (Linear)
-            ↓
-        TrueHybridMamba (Backbone)
-            ↓
-        RMSNorm
-            ↓
-        ScaledTanh-capped Logits (scale=30)
-
-    Forward 輸入/輸出：
-        輸入： input_ids (B, L)、labels (B, L)、step (int 或 None)
-        輸出 (labels 不為 None)：5-tuple
-            (loss, lb_tensor, ce_loss.detach(), lb_contrib.detach(), z_contrib.detach())
-        輸出 (labels 為 None)： logits (B, L, Vocab)
-
-    損失公式：
-        loss = CE_loss + (0.1/n_moe) * LB_loss + (1e-3/n_moe) * Z_loss
-
-    注意：
-        self._last_loss_terms 已將註解挎去，避免 CUDA Graph breaks。
-        訓練時請從返回的 5-tuple 取得分量損失。
-    """
     def __init__(self, config: Mamba3Config, vocab_size: int, **kwargs):
         super().__init__()
         self.config = config
@@ -865,8 +847,8 @@ class Mamba3LanguageModel(nn.Module):
         self._last_loss_terms = None
         nn.init.normal_(self.embed.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids, labels=None, step=None):
-        backbone_out = self.backbone(self.embed(input_ids), step=step)
+    def forward(self, input_ids, labels=None, router_temp=None):
+        backbone_out = self.backbone(self.embed(input_ids), router_temp=router_temp)
         hidden = self.norm(backbone_out[0])
         total_lb_loss, total_z_loss = backbone_out[1], backbone_out[2]
         logits = fast_scaled_tanh(self.head(hidden / math.sqrt(self.config.d_model)), 30.0)
@@ -876,26 +858,33 @@ class Mamba3LanguageModel(nn.Module):
                 total_lb_loss = total_lb_loss.mean(); total_z_loss = total_z_loss.mean()
             n = self.config.num_layers * (4*2 + 1*3)
             lb_contrib = (0.1 / max(1, n)) * total_lb_loss
-            z_contrib  = (1e-3 / max(1, n)) * total_z_loss
+            z_contrib  = (5e-3 / max(1, n)) * total_z_loss
+            
             loss = ce_loss + lb_contrib + z_contrib
-            # NOTE: self._last_loss_terms mutation removed to prevent CUDA Graph breaks
-            # Return (loss, lb_contrib, z_contrib) as a 3-tuple for logging
             return (
                 loss.unsqueeze(0),
                 total_lb_loss.detach().unsqueeze(0) if isinstance(total_lb_loss, torch.Tensor) else loss.unsqueeze(0),
                 ce_loss.detach(), lb_contrib.detach(), z_contrib.detach(),
             )
+            
+            
         return logits
+
+    def forward_inference(self, input_ids, router_temp, layer_caches, seq_pos: int, prefill: bool):
+        x = self.embed(input_ids)
+        hidden, _, _, new_caches = self.backbone.forward_inference(
+            x, router_temp, layer_caches, seq_pos=seq_pos, prefill=prefill
+        )
+        hidden = self.norm(hidden)
+        logits = fast_scaled_tanh(self.head(hidden / math.sqrt(self.config.d_model)), 30.0)
+        return logits, new_caches
 
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  §10  train() — 完整訓練迴圈                                       │
 # └──────────────────────────────────────────────────────────────────┘
 
-
-
 def print_model_analysis(model, config, vocab_size):
-    """顯示模型參數分類、TuckerMoE 分析及所有超參數。"""
     total_params = 0; trainable_params = 0; active_params = 0
     bucket = {"embed_head": 0, "mamba_ssm": 0, "cpmoe_router": 0, "cpmoe_U_expert": 0,
               "cpmoe_bias": 0, "layer_scale": 0, "norm": 0, "attn_proj": 0, "other": 0}
@@ -951,207 +940,38 @@ def print_model_analysis(model, config, vocab_size):
     print("═" * W)
 
 
-def validate_config(**kw):
-    """
-    🛡️ 防呆驗證：在訓練開始前檢查所有超參數、路徑、GPU。
-    ANY 錯誤都會直接 raise，讓你在燒 GPU 前知道問題在哪。
-    """
-    errors   = []
-    warnings = []
-    ok_tag   = "  ✅"
-    warn_tag = "  ⚠️"
-    err_tag  = "  ❌"
-
-    W = 68
-    print("═" * W)
-    print("🛡️  Config Validation — 訓練前安全檢查")
-    print("═" * W)
-
-    # ── 1. GPU / CUDA ─────────────────────────────────────────────
-    if not torch.cuda.is_available():
-        errors.append("CUDA 不可用！請確認 PyTorch 已安裝 GPU 版本且驅動正常。")
-        print(f"{err_tag} CUDA Not Available")
-    else:
-        n_gpu = torch.cuda.device_count()
-        gpu_names = [torch.cuda.get_device_name(i) for i in range(n_gpu)]
-        print(f"{ok_tag} CUDA OK — {n_gpu} GPU(s): {', '.join(gpu_names)}")
-        # 檢查目標精度是否支援
-        cap = torch.cuda.get_device_capability(0)
-        if cap[0] < 8 and MIXED_PRECISION == "bf16":
-            warnings.append(f"GPU Compute Capability {cap} < 8.0，BF16 可能不受支援，建議改為 fp16。")
-            print(f"{warn_tag} BF16 on sm_{cap[0]}{cap[1]} — 可能 fallback 到 fp32")
-        else:
-            print(f"{ok_tag} Mixed Precision '{MIXED_PRECISION}' OK (sm_{cap[0]}{cap[1]})")
-
-    # ── 2. 模型結構一致性 ─────────────────────────────────────────
-    D_MODEL       = kw["D_MODEL"]
-    D_HEAD        = kw["D_HEAD"]
-    EXPAND        = kw["EXPAND"]
-    NUM_KV_HEADS  = kw["NUM_KV_HEADS"]
-    KMOE_TOP_K    = kw["KMOE_TOP_K"]
-    KMOE_NUM_EXPERTS = kw["KMOE_NUM_EXPERTS"]
-    CHUNK_SIZE    = kw["CHUNK_SIZE"]
-    SEQ_LEN       = kw["SEQ_LEN"]
-    BATCH_SIZE    = kw["BATCH_SIZE"]
-
-    d_inner = int(EXPAND * D_MODEL)
-    n_heads = d_inner // D_HEAD
-
-    if d_inner % D_HEAD != 0:
-        errors.append(f"d_inner ({d_inner}) 必須能被 D_HEAD ({D_HEAD}) 整除。")
-        print(f"{err_tag} d_inner % D_HEAD != 0  →  {d_inner} / {D_HEAD}")
-    else:
-        print(f"{ok_tag} d_inner={d_inner}, n_heads={n_heads}, D_HEAD={D_HEAD}  ✓ 整除")
-
-    if n_heads % NUM_KV_HEADS != 0:
-        errors.append(f"n_heads ({n_heads}) 必須能被 NUM_KV_HEADS ({NUM_KV_HEADS}) 整除（GQA 要求）。")
-        print(f"{err_tag} n_heads % NUM_KV_HEADS != 0  →  {n_heads} / {NUM_KV_HEADS}")
-    else:
-        print(f"{ok_tag} GQA: n_heads={n_heads} / NUM_KV_HEADS={NUM_KV_HEADS} = {n_heads//NUM_KV_HEADS}  ✓")
-
-    if D_MODEL % D_HEAD != 0:
-        errors.append(f"D_MODEL ({D_MODEL}) 必須能被 D_HEAD ({D_HEAD}) 整除（Attention）。")
-        print(f"{err_tag} D_MODEL % D_HEAD != 0  →  {D_MODEL} / {D_HEAD}")
-    else:
-        print(f"{ok_tag} D_MODEL={D_MODEL} / D_HEAD={D_HEAD}  ✓ (Attn heads: {D_MODEL//D_HEAD})")
-
-    if KMOE_TOP_K > KMOE_NUM_EXPERTS:
-        errors.append(f"KMOE_TOP_K ({KMOE_TOP_K}) 不能大於 KMOE_NUM_EXPERTS ({KMOE_NUM_EXPERTS})。")
-        print(f"{err_tag} TOP_K > NUM_EXPERTS  →  {KMOE_TOP_K} > {KMOE_NUM_EXPERTS}")
-    else:
-        print(f"{ok_tag} MoE: top_k={KMOE_TOP_K} / num_experts={KMOE_NUM_EXPERTS}  ✓")
-
-    if SEQ_LEN < CHUNK_SIZE:
-        errors.append(f"SEQ_LEN ({SEQ_LEN}) 不能小於 CHUNK_SIZE ({CHUNK_SIZE})。")
-        print(f"{err_tag} SEQ_LEN < CHUNK_SIZE  →  {SEQ_LEN} < {CHUNK_SIZE}")
-    else:
-        chunks = SEQ_LEN // CHUNK_SIZE
-        print(f"{ok_tag} SEQ_LEN={SEQ_LEN} / CHUNK_SIZE={CHUNK_SIZE} = {chunks} chunks  ✓")
-
-    # ── 3. 路徑防呆 ───────────────────────────────────────────────
-    DATA_PATH = kw["DATA_PATH"]
-    OUTPUT_DIR = kw["OUTPUT_DIR"]
-    PRETRAINED_EMBED_PATH = kw["PRETRAINED_EMBED_PATH"]
-
-    if not os.path.isfile(DATA_PATH):
-        errors.append(f"DATA_PATH 不存在：'{DATA_PATH}'")
-        print(f"{err_tag} DATA_PATH 不存在  →  {DATA_PATH}")
-    else:
-        size_gb = os.path.getsize(DATA_PATH) / 1e9
-        print(f"{ok_tag} DATA_PATH OK  →  {DATA_PATH}  ({size_gb:.2f} GB)")
-
-    if PRETRAINED_EMBED_PATH and not os.path.isfile(PRETRAINED_EMBED_PATH):
-        warnings.append(f"PRETRAINED_EMBED_PATH 指定但不存在：'{PRETRAINED_EMBED_PATH}'，將略過。")
-        print(f"{warn_tag} PRETRAINED_EMBED_PATH 不存在，將略過  →  {PRETRAINED_EMBED_PATH}")
-    elif PRETRAINED_EMBED_PATH:
-        print(f"{ok_tag} PRETRAINED_EMBED_PATH OK  →  {PRETRAINED_EMBED_PATH}")
-    else:
-        print(f"  ➖  PRETRAINED_EMBED_PATH 為空，從頭初始化")
-
-    try:
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        test_file = os.path.join(OUTPUT_DIR, ".write_test")
-        with open(test_file, "w") as f: f.write("test")
-        os.remove(test_file)
-        print(f"{ok_tag} OUTPUT_DIR 可寫入  →  {OUTPUT_DIR}")
-    except Exception as e:
-        errors.append(f"OUTPUT_DIR 無法寫入：'{OUTPUT_DIR}'  ({e})")
-        print(f"{err_tag} OUTPUT_DIR 無法寫入  →  {OUTPUT_DIR}")
-
-    # ── 4. 記憶體估算 (粗略) ───────────────────────────────────────
-    if torch.cuda.is_available():
-        VOCAB_SIZE = kw["VOCAB_SIZE"]
-        MIMO_RANK  = kw["MIMO_RANK"]
-        NUM_LAYERS = kw["NUM_LAYERS"]
-        d_state    = kw["D_STATE"]
-        # 粗估參數量：Embedding + Backbone(近似) + Head
-        est_embed  = D_MODEL * VOCAB_SIZE * 2  # fp16 bytes (tied)
-        est_mamba  = (NUM_LAYERS * 4) * (d_inner * 2 + d_inner * d_state * MIMO_RANK * 4) * 2
-        est_total_bytes = (est_embed + est_mamba) * BATCH_SIZE / 1e9
-        gpu_free_gb = (torch.cuda.get_device_properties(0).total_memory -
-                       torch.cuda.memory_allocated()) / 1e9
-        print(f"  💾 粗估每批模型記憶體佔用：{est_total_bytes:.1f} GB  |  GPU 可用：{gpu_free_gb:.1f} GB")
-        if est_total_bytes > gpu_free_gb * 0.8:
-            warnings.append(f"估計記憶體 ({est_total_bytes:.1f}GB) 接近 GPU 可用量 ({gpu_free_gb:.1f}GB)，考慮縮小 BATCH_SIZE 或 SEQ_LEN。")
-            print(f"{warn_tag} 記憶體可能不足，請考慮縮小 BATCH_SIZE 或 SEQ_LEN")
-        else:
-            print(f"{ok_tag} 記憶體估算充足")
-
-    # ── 5. 訓練超參數合理性 ────────────────────────────────────────
-    LR         = kw["LR"]
-    WARMUP     = kw["STEPS"]
-    STEPS      = kw["STEPS"]
-    WARMUP_VAL = kw["WARMUP"]
-
-    if LR > 1e-2:
-        warnings.append(f"LR={LR} 異常偏高，通常應 < 1e-3，請確認是否正確。")
-        print(f"{warn_tag} LR={LR} 異常偏高！")
-    elif LR < 1e-6:
-        warnings.append(f"LR={LR} 異常偏低，學習可能停滯。")
-        print(f"{warn_tag} LR={LR} 異常偏低！")
-    else:
-        print(f"{ok_tag} LR={LR}  ✓")
-
-    if WARMUP_VAL >= STEPS:
-        errors.append(f"WARMUP ({WARMUP_VAL}) 必須小於 STEPS ({STEPS})。")
-        print(f"{err_tag} WARMUP >= STEPS  →  {WARMUP_VAL} >= {STEPS}")
-    else:
-        print(f"{ok_tag} WARMUP={WARMUP_VAL} / STEPS={STEPS}  ✓")
-
-    # ── 結果彙總 ──────────────────────────────────────────────────
-    print(f"\n{'─'*W}")
-    if warnings:
-        print(f"⚠️  {len(warnings)} 項警告（不阻止訓練，但請注意）：")
-        for w in warnings: print(f"   • {w}")
-    if errors:
-        print(f"\n❌  發現 {len(errors)} 項錯誤，訓練無法啟動：")
-        for e in errors: print(f"   • {e}")
-        print("═" * W)
-        raise ValueError(f"Config 驗證失敗，共 {len(errors)} 項錯誤，請修正後重啟。")
-    else:
-        print(f"✅  所有檢查通過！準備啟動訓練 🚀")
-    print("═" * W + "\n")
-
-
 def train(
     # ── 模型超參數
     D_MODEL=768, D_STATE=64, D_HEAD=64, EXPAND=2, NUM_LAYERS=6,
     MIMO_RANK=4, NUM_KV_HEADS=4, CHUNK_SIZE=64,
     # ── TuckerMoE
     KMOE_NUM_EXPERTS=8, KMOE_TOP_K=2,
-    KMOE_R1=32, KMOE_R2=512, KMOE_R3=256, FFN_EXPAND=6,
+    KMOE_R1=4, KMOE_R2=1024, KMOE_R3=256, FFN_EXPAND=6,
+    USE_KMOE=True,
     # ── 資料集與路徑
-    DATA_PATH="/kaggle/input/datasets/s990093/fineweb-edu-tokenized-32007/fineweb_tokenized.bin",
+    DATA_PATH="data/train.bin",
     OUTPUT_DIR="output/",
     LOG_FILE="output/train_log.csv",
     CHECKPOINT_SAVE_PATH="output/checkpoint.pt",
     PRETRAINED_EMBED_PATH="",
-    VOCAB_SIZE=32007,
+    VOCAB_SIZE=32000,
     SEQ_LEN=512,
     # ── 訓練超參數
-    BATCH_SIZE=2,
+    BATCH_SIZE=4,
     GRADIENT_ACCUMULATION_STEPS=8,
-    LR=8e-5, WARMUP=400, STEPS=60000, CHECKPOINT_EVERY=100,
+    LR=3e-4, WARMUP=500, STEPS=50000, CHECKPOINT_EVERY=500,
     # ── Router 退火
     ROUTER_T_START=2.0, ROUTER_T_END=0.5,
     # ── 模式
     TRAIN_MODE=True,
     # ── torch.compile
-    ENABLE_RESUME_COMPILE_WARMUP=True,  # True = 續訓時先做 dummy pass 預熱 compile，再載 optimizer state
+    ENABLE_TORCH_COMPILE=True,      # False = 強制停用 torch.compile
+    DISABLE_COMPILE_ON_RESUME=True, # 舊相容參數：Dummy Pass 方案下不再自動停用 compile
     COMPILE_MODE="default",       # "default" | "reduce-overhead" | "max-autotune"
     COMPILE_FULLGRAPH=False,      # True = 單體圖（需模型無 Python mutation）
     # ── 診斷
     GRAD_CHECK_INTERVAL=50,       # 每 N steps 印出梯度診斷
 ):
-   # 🛡️ 防呆驗證 — 在任何 GPU / 模型初始化之前執行
-    validate_config(
-        D_MODEL=D_MODEL, D_STATE=D_STATE, D_HEAD=D_HEAD, EXPAND=EXPAND,
-        NUM_LAYERS=NUM_LAYERS, MIMO_RANK=MIMO_RANK, NUM_KV_HEADS=NUM_KV_HEADS,
-        CHUNK_SIZE=CHUNK_SIZE, KMOE_NUM_EXPERTS=KMOE_NUM_EXPERTS, KMOE_TOP_K=KMOE_TOP_K,
-        VOCAB_SIZE=VOCAB_SIZE, DATA_PATH=DATA_PATH, OUTPUT_DIR=OUTPUT_DIR,
-        PRETRAINED_EMBED_PATH=PRETRAINED_EMBED_PATH,
-        LR=LR, WARMUP=WARMUP, STEPS=STEPS, BATCH_SIZE=BATCH_SIZE, SEQ_LEN=SEQ_LEN,
-    )
 
     accelerator = Accelerator(
         mixed_precision=MIXED_PRECISION,
@@ -1160,7 +980,7 @@ def train(
 
     config = Mamba3Config(
         d_model=D_MODEL, d_state=D_STATE, d_head=D_HEAD, expand=EXPAND,
-        num_layers=NUM_LAYERS, use_parallel_scan=True, chunk_size=CHUNK_SIZE, use_kmoe=True,
+        num_layers=NUM_LAYERS, use_parallel_scan=True, chunk_size=CHUNK_SIZE, use_kmoe=USE_KMOE,
         kmoe_num_experts=KMOE_NUM_EXPERTS, kmoe_top_k=KMOE_TOP_K,
         kmoe_r1=KMOE_R1, kmoe_r2=KMOE_R2, kmoe_r3=KMOE_R3,
         ffn_expand=FFN_EXPAND, mimo_rank=MIMO_RANK, num_kv_heads=NUM_KV_HEADS,
@@ -1171,49 +991,83 @@ def train(
     if accelerator.is_main_process:
         print_model_analysis(model, config, VOCAB_SIZE)
 
-    optimizer = AdamW(
-        model.parameters(), lr=LR, weight_decay=0.1,
-        betas=(0.9, 0.95), fused=True,   # 🚀 fused=True：梯度更新融合成單一 CUDA Kernel，比 foreach 更快
-    )
-    scheduler = get_lr_scheduler(optimizer, WARMUP, STEPS)
+    decay_params = []
+    no_decay_params = []
 
-    ckpt_cache = None
+    # 1. 先讀 checkpoint metadata，讓 scheduler 能依 resume step 建立正確的 lambda。
     start_step = 0
+    ckpt_cache = None
     if os.path.exists(CHECKPOINT_SAVE_PATH):
-        accelerator.print(f"📂 發現 checkpoint，先僅載入模型權重：{CHECKPOINT_SAVE_PATH}")
+        accelerator.print(f"🔍 檢查 Checkpoint 以校準 Scheduler：{CHECKPOINT_SAVE_PATH}")
         ckpt_cache = torch.load(CHECKPOINT_SAVE_PATH, map_location="cpu")
-        model.load_state_dict(ckpt_cache["model"])
         start_step = ckpt_cache.get("step", 0)
-        accelerator.print(f"✅ 模型權重載入完成，準備從 step {start_step} 續訓。")
-        if ENABLE_RESUME_COMPILE_WARMUP and TRAIN_MODE:
-            accelerator.print("   🔥 將先執行 compile warmup，再載入 optimizer/scheduler 狀態以降低峰值顯存。")
-        else:
-            accelerator.print("   ℹ️ 本次不使用 resume compile warmup，optimizer/scheduler 狀態將照常載入。")
-    elif os.path.isfile(PRETRAINED_EMBED_PATH):
-        accelerator.print(f"🌟 嘗試掛載預處理 Embedding：{PRETRAINED_EMBED_PATH}")
-        pretrained_embed = torch.load(PRETRAINED_EMBED_PATH, map_location="cpu")
-        expected_shape = model.embed.weight.shape
-        if pretrained_embed.shape == expected_shape:
-            model.embed.weight.data.copy_(pretrained_embed)
-            model.head.weight.data.copy_(pretrained_embed)
-            accelerator.print(f"✅ 成功將預訓練 Embedding 載入！維度: {expected_shape}")
-        else:
-            accelerator.print(
-                f"⚠️ 預訓練 Embedding 維度 {pretrained_embed.shape} "
-                f"與模型設定 {expected_shape} 不符，略過載入。"
-            )
-    else:
-        accelerator.print("🌱 沒有 Checkpoint 也沒有預訓練 Embedding，從頭隨機初始化。")
 
-    compile_active = False
-    if TRAIN_MODE:
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        
+        if any(k in name for k in ["U_expert", "U_in", "U_out", "core", "bias", "norm", "LayerScale"]):
+            no_decay_params.append(param)
+        else:
+            decay_params.append(param)
+
+    optimizer = AdamW(
+        [
+            {"params": decay_params, "weight_decay": 0.1},
+            {"params": no_decay_params, "weight_decay": 0.0}
+        ],
+        lr=LR, 
+        betas=(0.9, 0.95), 
+        fused=True
+    )
+    
+    # 3. 建立 Scheduler 並套用 Rewarmup (假設緩衝 100 步)
+    scheduler = get_lr_scheduler(
+        optimizer, 
+        warmup_steps=WARMUP, 
+        total_steps=STEPS, 
+        resume_step=start_step, 
+        rewarmup_steps=100
+    )
+
+    # 2. 先只載入模型權重；optimizer / scheduler state 延後到 compile 預熱後。
+    if ckpt_cache is not None:
+        accelerator.print(f"📂 發現 checkpoint，先僅載入模型權重：{CHECKPOINT_SAVE_PATH}")
+        model.load_state_dict(ckpt_cache["model"])
+    else:
+        # 處理沒有 Checkpoint 時的預訓練 Embedding 掛載邏輯
+        if os.path.isfile(PRETRAINED_EMBED_PATH):
+            accelerator.print(f"🌟 嘗試掛載預處理 Embedding：{PRETRAINED_EMBED_PATH}")
+            pretrained_embed = torch.load(PRETRAINED_EMBED_PATH, map_location="cpu")
+            expected_shape   = model.embed.weight.shape
+            if pretrained_embed.shape == expected_shape:
+                model.embed.weight.data.copy_(pretrained_embed)
+                model.head.weight.data.copy_(pretrained_embed)
+                accelerator.print(f"✅ 成功將預訓練 Embedding 載入！維度: {expected_shape}")
+            else:
+                accelerator.print(f"⚠️ 預訓練 Embedding 維度不符，略過載入。")
+        else:
+            accelerator.print("🌱 沒有 Checkpoint 也沒有預訓練 Embedding，從頭隨機初始化。")
+
+    should_compile = TRAIN_MODE and ENABLE_TORCH_COMPILE
+    compile_skip_reason = None
+    did_compile = False
+    if not TRAIN_MODE:
+        compile_skip_reason = "DEBUG 模式"
+    elif not ENABLE_TORCH_COMPILE:
+        compile_skip_reason = "ENABLE_TORCH_COMPILE=False"
+
+    if start_step > 0 and DISABLE_COMPILE_ON_RESUME and accelerator.is_main_process:
+        print("ℹ️  偵測到續訓 checkpoint；目前改採 Dummy Pass 預熱 compile，因此不再因續訓自動停用 torch.compile。")
+
+    if should_compile:
         if accelerator.is_main_process:
             print(f"🔥 [TRAIN] 啟動 torch.compile (mode='{COMPILE_MODE}', fullgraph={COMPILE_FULLGRAPH})...")
         try:
             import torch._dynamo as dynamo
             dynamo.config.suppress_errors = False
             model = torch.compile(model, mode=COMPILE_MODE, fullgraph=COMPILE_FULLGRAPH)
-            compile_active = True
+            did_compile = True
             if accelerator.is_main_process:
                 fg_label = "單體圖加速" if COMPILE_FULLGRAPH else "分段圖編譯加速"
                 print(f"✅ torch.compile 成功，進入{fg_label}模式 (mode='{COMPILE_MODE}')。")
@@ -1222,7 +1076,9 @@ def train(
                 print(f"⚠️ torch.compile 啟動失敗，退回 eager 模式: {e}")
     else:
         if accelerator.is_main_process:
-            print("🐛 [DEBUG] 跳過 torch.compile，保留完整 Python 追蹤棧。")
+            print("⚠️ 跳過 torch.compile。")
+            if compile_skip_reason is not None:
+                print(f"   原因: {compile_skip_reason}")
 
     dataset   = PretokenizedDataset(DATA_PATH, SEQ_LEN)
 
@@ -1241,45 +1097,72 @@ def train(
         model, optimizer, dataloader, scheduler
     )
 
-    # ── Checkpoint & Embedding Resume ────────────────────────────
-    if ckpt_cache is not None:
-        if TRAIN_MODE and compile_active and ENABLE_RESUME_COMPILE_WARMUP:
-            accelerator.print("🔥 執行 Dummy Pass 預熱 torch.compile，暫時不載入 optimizer state...")
-            _amp_dtype = torch.bfloat16 if MIXED_PRECISION == "bf16" else torch.float16
-            dummy_step = start_step
-            dummy_x = torch.randint(0, VOCAB_SIZE, (BATCH_SIZE, SEQ_LEN), device=accelerator.device)
-            dummy_y = torch.randint(0, VOCAB_SIZE, (BATCH_SIZE, SEQ_LEN), device=accelerator.device)
-
+    # 3. 在 optimizer state 仍為空時，先用 dummy pass 觸發 compile 預熱，避開 resume 峰值顯存。
+    if did_compile:
+        accelerator.print("🔥 執行 Dummy Pass 觸發 torch.compile 預熱（Optimizer state 尚未載入）...")
+        model.train()
+        _amp_dtype = torch.bfloat16 if MIXED_PRECISION == "bf16" else torch.float16
+        dummy_x = torch.randint(0, VOCAB_SIZE, (BATCH_SIZE, SEQ_LEN), device=accelerator.device)
+        dummy_y = torch.randint(0, VOCAB_SIZE, (BATCH_SIZE, SEQ_LEN), device=accelerator.device)
+        dummy_router_temp = torch.tensor(
+            get_router_temperature(
+                start_step,
+                warmup=WARMUP,
+                total=STEPS,
+                t_start=ROUTER_T_START,
+                t_end=ROUTER_T_END,
+            ),
+            dtype=torch.float32,
+            device=accelerator.device,
+        )
+        if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
+            torch.compiler.cudagraph_mark_step_begin()
+        # 對齊真實第一個 micro-batch：gradient accumulation 初期通常走 no_sync，避免 DDP 同步額外吃掉峰值顯存。
+        sync_free_ctx = accelerator.accumulate(model) if GRADIENT_ACCUMULATION_STEPS > 1 else nullcontext()
+        with sync_free_ctx:
             with torch.autocast(device_type="cuda", dtype=_amp_dtype):
-                dummy_out = model(dummy_x, labels=dummy_y, step=dummy_step)
-
-            dummy_loss = dummy_out[0].mean()
+                dummy_outputs = model(dummy_x, labels=dummy_y, router_temp=dummy_router_temp)
+            dummy_loss = dummy_outputs[0].mean()
             accelerator.backward(dummy_loss)
-            optimizer.zero_grad(set_to_none=True)
-            del dummy_x, dummy_y, dummy_out, dummy_loss
-            gc.collect()
+        optimizer.zero_grad(set_to_none=True)
+        del dummy_x, dummy_y, dummy_router_temp, dummy_outputs, dummy_loss
+        gc.collect()
+        if torch.cuda.is_available():
             torch.cuda.empty_cache()
-            accelerator.print("✅ Dummy Pass 完成，已清理暫存梯度與 allocator cache。")
+        accelerator.print("✅ Dummy Pass 預熱完成，已釋放暫存梯度與峰值記憶體。")
 
-        accelerator.print("📦 開始載入 optimizer / scheduler 狀態...")
+    # 4. 預熱完成後，才把 optimizer / scheduler state 載回裝置端。
+    if ckpt_cache is not None:
+        accelerator.print("📦 開始載入 Optimizer 與 Scheduler 狀態...")
+        old_lr = ckpt_cache["optimizer"]["param_groups"][0]["lr"]
         optimizer.load_state_dict(ckpt_cache["optimizer"])
         scheduler.load_state_dict(ckpt_cache["scheduler"])
-        old_lr = ckpt_cache["optimizer"]["param_groups"][0]["lr"]
         new_lr = scheduler.get_last_lr()[0]
-        accelerator.print(f"✅ 從 step {start_step} 繼續訓練。")
-        accelerator.print(f"   📉 [LR 轉換確認] 原本舊規則 LR: {old_lr:.2e} ➡️ 目前 LR: {new_lr:.2e}")
+        accelerator.print(f"✅ 成功載入！將從 step {start_step} 繼續訓練。")
+        accelerator.print(f"   📉 [LR 轉換確認] 原本舊規則 LR: {old_lr:.2e} ➡️ 重新起步 LR: {new_lr:.2e}")
         del ckpt_cache
+        ckpt_cache = None
         gc.collect()
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
-    # ── 準備 Log ─────────────────────────────────────────────────
+    # =========================================================================
+    # 🌟 3. Resume 後快進資料
+    # =========================================================================
+    if start_step > 0:
+        torch.cuda.empty_cache()  # 釋放 checkpoint 載入後暫存的 allocator cache
+        # 🚨 [非常重要] 讓 DataLoader 跳過已經訓練過的前 N 步資料
+        batches_to_skip = start_step * GRADIENT_ACCUMULATION_STEPS
+        accelerator.print(f"⏩ 快進 DataLoader：跳過前 {batches_to_skip} 個微批次資料...")
+        dataloader = accelerator.skip_first_batches(dataloader, num_batches=batches_to_skip)
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     log_fp     = open(LOG_FILE, "a", newline="", encoding="utf-8")
     log_writer = csv.writer(log_fp)
     if not os.path.exists(LOG_FILE) or os.stat(LOG_FILE).st_size == 0:
         log_writer.writerow([
             "step", "loss", "ce_loss", "lb_contrib", "z_contrib",
-            "router_temp",          # ← 新增：當前 Router 溫度，方便觀察退火曲線
+            "router_temp",
             "lr", "grad_norm", "loss_scale",
             "tokens_seen", "elapsed_s", "step_time_s",
         ])
@@ -1287,11 +1170,8 @@ def train(
     if accelerator.is_main_process:
         print_model_analysis(unwrap_model(model), config, VOCAB_SIZE)
 
-        # ── 訓練超參數摘要（rich 美化版）───────────────────────
         eff_batch = BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS * accelerator.num_processes
-      
-
-        # Fallback: 原始 print（與修改前相同）
+   
         W = 68
         print("═" * W);  print("⚙️   Training Config Summary");  print("═" * W)
         print(f"  【D】訓練超參數")
@@ -1311,7 +1191,6 @@ def train(
         print("─" * W);  print("  【F】模式切換")
         print(f"  {'TRAIN_MODE':.<38} {'✅ 正式訓練' if TRAIN_MODE else '🐛 Debug'}")
         print("─" * W);  print("  【G】torch.compile")
-        print(f"  {'ENABLE_RESUME_COMPILE_WARMUP':.<38} {ENABLE_RESUME_COMPILE_WARMUP}")
         print(f"  {'COMPILE_MODE':.<38} {COMPILE_MODE}")
         print(f"  {'COMPILE_FULLGRAPH':.<38} {COMPILE_FULLGRAPH}")
         print("─" * W);  print("  【路徑】")
@@ -1323,12 +1202,6 @@ def train(
 
         accelerator.print(f"🚂 開始訓練，目標 {STEPS} steps...")
 
-        if not TRAIN_MODE:
-            accelerator.print("🔬 [DEBUG] 梯度診斷 hooks 永久掛載")
-        else:
-            accelerator.print("🔬 [TRAIN] 延遲掛載策略：hooks 僅在 grad_check_interval 時臨時啟用")
-
-    # ── 訓練迴圈 ─────────────────────────────────────────────────
     model.train()
     global_step = start_step
     tokens_seen = global_step * BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS * SEQ_LEN
@@ -1341,6 +1214,15 @@ def train(
         acc_ce     = 0.0
         acc_lb     = 0.0
         acc_z      = 0.0
+        cur_router_temp = get_router_temperature(
+            global_step,
+            warmup=WARMUP,
+            total=STEPS,
+            t_start=ROUTER_T_START,
+            t_end=ROUTER_T_END,
+        )
+        # Keep the compiled graph shape-stable by passing temperature as a scalar tensor.
+        router_temp_tensor = torch.tensor(cur_router_temp, dtype=torch.float32, device=accelerator.device)
         optimizer.zero_grad()
 
         for _ in range(GRADIENT_ACCUMULATION_STEPS):
@@ -1351,65 +1233,57 @@ def train(
                 x_batch, y_batch = next(data_iter)
 
             with accelerator.accumulate(model):
-                # 🚀 核心修正：告訴 CUDA Graphs 這是一個全新的執行步，防止梯度累積時記憶體被覆寫
                 if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                     torch.compiler.cudagraph_mark_step_begin()
 
                 _amp_dtype = torch.bfloat16 if MIXED_PRECISION == "bf16" else torch.float16
                 with torch.autocast(device_type="cuda", dtype=_amp_dtype):
-                    outputs = model(x_batch, labels=y_batch, step=global_step)
+                    outputs = model(x_batch, labels=y_batch, router_temp=router_temp_tensor)
                 loss    = outputs[0].mean()
-                # 🚨 修正：只跳過 backward，不 zero_grad（否則會清掉其他正常微批次已累積的梯度！）
                 if torch.isnan(loss) or torch.isinf(loss):
                     accelerator.print("⚠️ 偵測到 Loss NaN/Inf，跳過此微批次 (Micro-batch)！")
                     continue
                 accelerator.backward(loss)
                 acc_loss += loss.detach().float()
-                # Model returns 5-tuple: (loss, lb_tensor, ce_d, lb_d, z_d)
                 if len(outputs) >= 5:
                     acc_ce += outputs[2].item() if isinstance(outputs[2], torch.Tensor) else float(outputs[2])
                     acc_lb += outputs[3].item() if isinstance(outputs[3], torch.Tensor) else float(outputs[3])
                     acc_z  += outputs[4].item() if isinstance(outputs[4], torch.Tensor) else float(outputs[4])
 
-        # ---------- 梯度裁剪與 NaN 防火牆 ----------
         grad_norm = 0.0
         if accelerator.sync_gradients:
             norm_val  = accelerator.clip_grad_norm_(model.parameters(), max_norm=1.0)
             grad_norm = norm_val.item() if isinstance(norm_val, torch.Tensor) else norm_val
 
-        # 🚨 核心防護：攔截 NaN / Inf 梯度，絕不讓毒化的梯度更新權重
         if math.isnan(grad_norm) or math.isinf(grad_norm):
             if accelerator.is_main_process:
-                print(f"🚨 [Step {global_step}] 攔截到異常梯度爆炸 (Grad Norm: {grad_norm})！"
-                      f" 放棄本次權重更新，清空梯度繼續訓練。")
-            optimizer.zero_grad(set_to_none=True)
-            global_step += 1
-            continue  # 跳過 optimizer.step() 和 scheduler.step()，直接進入下一個 batch
+                print(f"🚨 [Step {global_step}] 攔截到異常梯度爆炸 (Grad Norm: {grad_norm})！ 放棄本次權重更新。")
+            
+            if hasattr(accelerator, "scaler") and accelerator.scaler is not None:
+                optimizer.step()
+                scheduler.step()
+            else:
+                optimizer.zero_grad(set_to_none=True)
+        else:
+            optimizer.step()
+            scheduler.step()
 
-        # 只有梯度正常時才更新權重與學習率
-        optimizer.step()
-        scheduler.step()
         global_step += 1
 
         step_tokens  = BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS * SEQ_LEN
         tokens_seen += step_tokens
 
-        # ---------- Logging ----------
         if accelerator.is_main_process:
             step_time = time.time() - step_start
             avg_loss  = acc_loss / GRADIENT_ACCUMULATION_STEPS
             cur_lr    = scheduler.get_last_lr()[0]
             elapsed   = time.time() - t_start
 
-            # 當前 Router 溫度（純 Python float，不進入計算圖）
-            cur_router_temp = get_router_temperature(global_step)
-
             if hasattr(accelerator, "scaler") and accelerator.scaler is not None:
                 current_loss_scale = accelerator.scaler.get_scale()
             else:
                 current_loss_scale = 1.0
 
-            # Read loss breakdown from accumulated sums (no _last_loss_terms mutation needed)
             n_accum = GRADIENT_ACCUMULATION_STEPS
             ce_val = acc_ce / n_accum if acc_ce > 0 else float(avg_loss)
             lb_val = acc_lb / n_accum
@@ -1420,11 +1294,10 @@ def train(
             except OverflowError:
                 current_ppl = float('inf')
 
-            # 寫入 CSV（含 router_temp 欄位）
             log_writer.writerow([
                 global_step,
                 f"{avg_loss:.5f}", f"{ce_val:.5f}", f"{lb_val:.5f}", f"{z_val:.5f}",
-                f"{cur_router_temp:.4f}",   # ← 新增欄位
+                f"{cur_router_temp:.4f}",
                 f"{cur_lr:.2e}",
                 f"{grad_norm:.4f}",
                 f"{current_loss_scale:.1f}",
@@ -1440,7 +1313,7 @@ def train(
                     f"  step {global_step:>6}/{STEPS} | "
                     f"Loss: {avg_loss:.4f} (CE:{ce_val:.4f}, LB:{lb_val:.4f}, Z:{z_val:.4f}) | "
                     f"PPL: {current_ppl:>6.1f} | Grad: {grad_norm:>5.2f} | "
-                    f"T_router: {cur_router_temp:.3f} | "   # ← 每步顯示當前溫度
+                    f"T_router: {cur_router_temp:.3f} | " 
                     f"LR: {cur_lr:.2e} | Time: {step_time:.2f}s | Tok/s: {step_tok_per_s:.0f}"
                 )
             else:
@@ -1453,7 +1326,7 @@ def train(
                     f"  🐛 step {global_step:>6}/{STEPS} | "
                     f"Loss: {avg_loss:.4f} (CE:{ce_val:.4f}, LB:{lb_val:.4f}, Z:{z_val:.4f}) | "
                     f"PPL: {current_ppl:>6.1f} | Grad: {grad_norm:>5.2f} | "
-                    f"T_router: {cur_router_temp:.3f} | "   # ← DEBUG 模式也顯示
+                    f"T_router: {cur_router_temp:.3f} | "
                     f"Scale: {current_loss_scale:.0f}{_ls_flag} | "
                     f"LR: {cur_lr:.2e} | Time: {step_time:.2f}s | Tok/s: {step_tok_per_s:.0f}"
                 )
@@ -1475,9 +1348,54 @@ def train(
                 else:
                     print("      ✅  狀態: 梯度流動正常。")
 
+                # ==========================================================
+                # 📊 逐層梯度分析 (加入過濾與數量限制)
+                # ==========================================================
+              
+                
+                print(f"\n  📊 [異常梯度分析] (僅顯示有問題的參數層)")
+                print(f"  {'參數名稱 (Param Name)':<45} {'最大值 (Max)':>12} {'最小值 (Min)':>12}")
+                print(f"  {'-'*45} {'-'*12} {'-'*12}")
+                
+                problem_logs = []
+                
+                # unwrap_model 可防止 DDP/FSDP 前綴干擾名稱
+                for name, param in unwrap_model(model).named_parameters():
+                    if param.grad is not None:
+                        max_g = param.grad.abs().max().item()
+                        min_g = param.grad.abs().min().item()
+                        
+                        # 判斷是否有異常
+                        warn_flag = ""
+                        if max_g < 1e-7:
+                            warn_flag = "⚠️ 消失"
+                        elif max_g > 5.0:
+                            warn_flag = "💥 爆炸"
+                            
+                        # 如果有異常，才加入列表準備印出
+                        if warn_flag:
+                            is_tucker = any(k in name for k in ["U_in", "U_out", "core", "U_expert"])
+                            mark = "⭐" if is_tucker else "  "
+                            short_name = name if len(name) <= 42 else "..." + name[-39:]
+                            
+                            problem_logs.append(f"  {mark}{short_name:<43} {max_g:>12.2e} {min_g:>12.2e} {warn_flag}")
+                
+                # 決定印出邏輯
+                if not problem_logs:
+                    print("  ✅ 所有參數梯度皆大於 1e-7 且小於 5.0，無異常！")
+                else:
+                    display_count = len(problem_logs) if SHOW_ALL_PROBLEM_GRADS else min(10, len(problem_logs))
+                    
+                    # 印出前 N 筆
+                    for log_str in problem_logs[:display_count]:
+                        print(log_str)
+                        
+                    # 如果有隱藏的，提示使用者
+                    if len(problem_logs) > display_count:
+                        print(f"  ... (還有 {len(problem_logs) - display_count} 筆異常被隱藏。將 SHOW_ALL_PROBLEM_GRADS 設為 True 可顯示全部) ...")
+                
+                print(f"  {'='*65}")
 
-
-        # ---------- Checkpoint ----------
         if global_step % CHECKPOINT_EVERY == 0 and accelerator.is_main_process:
             ckpt_dict = {
                 "step":         global_step,
@@ -1486,7 +1404,7 @@ def train(
                 "scheduler":    scheduler.state_dict(),
                 "config":       config.__dict__,
                 "train_mode":   TRAIN_MODE,
-                "router_t_start": ROUTER_T_START,   # ← 儲存退火設定，方便 resume 核對
+                "router_t_start": ROUTER_T_START,
                 "router_t_end":   ROUTER_T_END,
             }
             torch.save(ckpt_dict, CHECKPOINT_SAVE_PATH)
@@ -1508,7 +1426,7 @@ def train(
         mode_label = "TRAIN" if TRAIN_MODE else "DEBUG"
         print(f"🎉 [{mode_label}] 訓練完成！共 {global_step} steps，"
               f"累計 {tokens_seen:,} tokens。")
-        print(f"   最終 Router 溫度: {get_router_temperature(global_step):.4f} "
+        print(f"   最終 Router 溫度: {get_router_temperature(global_step, warmup=WARMUP, total=STEPS, t_start=ROUTER_T_START, t_end=ROUTER_T_END):.4f} "
               f"（目標 T_end={ROUTER_T_END}）")
 
         accelerator.end_training()
@@ -1527,19 +1445,24 @@ if __name__ == "__main__":
     D_STATE      = 64        # SSM 狀態維度
     D_HEAD       = 64        # 每個 Head 的維度
     EXPAND       = 2         # d_inner = EXPAND * D_MODEL
+    
     NUM_LAYERS   = 6         # Macro Block 數量 (每個含 4 Mamba + 1 Attn)
+    
     MIMO_RANK    = 4         # SSM MIMO Rank R
-    NUM_KV_HEADS = 4         # GQA KV-Head 數
     CHUNK_SIZE   = 64        # Parallel Scan Chunk Size
+    # GQA
+    NUM_KV_HEADS = 4         # GQA KV-Head 數
 
     # ════════════════════════════════════════════════
     # 【B】TuckerMoE 超參數
     # ════════════════════════════════════════════════
     KMOE_NUM_EXPERTS = 8     # 專家數量 E
     KMOE_TOP_K       = 2     # 每 token 激活 top-k 個專家
-    KMOE_R1          = 32    # 與 checkpoint 相容的 Tucker 專家 Rank
-    KMOE_R2          = 512   # 與 checkpoint 相容的 Tucker 輸出 Rank
+    
+    KMOE_R1          = 32     # Tucker 專家維度 Rank
+    KMOE_R2          = 512  # Tucker 輸出 Rank (虛擬容量)
     KMOE_R3          = 256   # Tucker 輸入壓縮 Rank
+    
     FFN_EXPAND       = 6     # Transformer FFN 擴展比
 
 
@@ -1549,7 +1472,7 @@ if __name__ == "__main__":
     # ════════════════════════════════════════════════
     # 【C】資料集與路徑
     # ════════════════════════════════════════════════
-    DATA_PATH             = "/kaggle/input/datasets/s990093/fineweb-edu-tokenized-32007/fineweb_tokenized.bin"  # 與 checkpoint 相容的 32007 vocab 資料
+    DATA_PATH             = "/kaggle/input/datasets/s990093/fineweb-edu-tokenized-32007/fineweb_tokenized.bin"  # 預先 tokenize 好的 .bin 檔
     OUTPUT_DIR            = "/kaggle/working/"
     LOG_FILE              = "/kaggle/working/train_log.csv"
     CHECKPOINT_SAVE_PATH  = "/kaggle/working/checkpoint.pt"
@@ -1559,12 +1482,13 @@ if __name__ == "__main__":
     # 【D】訓練超參數
     # ════════════════════════════════════════════════
     SEQ_LEN                  = 512
-    BATCH_SIZE               = 2     # Per-GPU batch size
+    BATCH_SIZE               = 2    # Per-GPU batch size
     GRADIENT_ACCUMULATION_STEPS = 8  # Effective batch = BATCH * ACCUM * n_gpu
-    LR                       = 8e-5
-    WARMUP                   = 400   # Warmup steps
+    LR = 8e-5
+
+    WARMUP = 400   # 4%
     STEPS                    = 60000 # 總訓練 steps
-    CHECKPOINT_EVERY         = 100   # 每 N steps 存一次
+    CHECKPOINT_EVERY         = 500   # 每 N steps 存一次
 
     # ════════════════════════════════════════════════
     # 【E】Router 退火設定
@@ -1580,14 +1504,16 @@ if __name__ == "__main__":
     # ════════════════════════════════════════════════
     # 【G】torch.compile 設定
     # ════════════════════════════════════════════════
-    ENABLE_RESUME_COMPILE_WARMUP = True
+    ENABLE_TORCH_COMPILE = True
+    DISABLE_COMPILE_ON_RESUME = True  # 舊相容開關；resume 時改由 Dummy Pass 預熱 compile
     COMPILE_MODE      = "default"  # "default" | "reduce-overhead" | "max-autotune"
     COMPILE_FULLGRAPH = False      # True = 單體圖（需模型無 Python mutation）
 
     # ════════════════════════════════════════════════
     # 【H】診斷設定
     # ════════════════════════════════════════════════
-    GRAD_CHECK_INTERVAL = 50       # 每 N steps 印出梯度診斷
+    GRAD_CHECK_INTERVAL = 100      # 每 N steps 印出梯度診斷
+    SHOW_ALL_PROBLEM_GRADS = False
 
     # ── 啟動訓練 ────────────────────────────────────
     train(
@@ -1596,6 +1522,7 @@ if __name__ == "__main__":
         MIMO_RANK=MIMO_RANK, NUM_KV_HEADS=NUM_KV_HEADS, CHUNK_SIZE=CHUNK_SIZE,
         KMOE_NUM_EXPERTS=KMOE_NUM_EXPERTS, KMOE_TOP_K=KMOE_TOP_K,
         KMOE_R1=KMOE_R1, KMOE_R2=KMOE_R2, KMOE_R3=KMOE_R3, FFN_EXPAND=FFN_EXPAND,
+        USE_KMOE=True,
         DATA_PATH=DATA_PATH, OUTPUT_DIR=OUTPUT_DIR,
         LOG_FILE=LOG_FILE, CHECKPOINT_SAVE_PATH=CHECKPOINT_SAVE_PATH,
         PRETRAINED_EMBED_PATH=PRETRAINED_EMBED_PATH, VOCAB_SIZE=VOCAB_SIZE,
@@ -1605,7 +1532,8 @@ if __name__ == "__main__":
         LR=LR, WARMUP=WARMUP, STEPS=STEPS, CHECKPOINT_EVERY=CHECKPOINT_EVERY,
         ROUTER_T_START=ROUTER_T_START, ROUTER_T_END=ROUTER_T_END,
         TRAIN_MODE=TRAIN_MODE,
-        ENABLE_RESUME_COMPILE_WARMUP=ENABLE_RESUME_COMPILE_WARMUP,
+        ENABLE_TORCH_COMPILE=ENABLE_TORCH_COMPILE,
+        DISABLE_COMPILE_ON_RESUME=DISABLE_COMPILE_ON_RESUME,
         COMPILE_MODE=COMPILE_MODE, COMPILE_FULLGRAPH=COMPILE_FULLGRAPH,
         GRAD_CHECK_INTERVAL=GRAD_CHECK_INTERVAL,
     )

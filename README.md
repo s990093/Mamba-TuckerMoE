@@ -20,7 +20,6 @@ This repository contains the training code, inference implementation, and intera
 ```text
 ├── checkpoints/                     # 💾 Model weights (.pt / .npz sidecars)
 ├── paper/
-│   ├── td-moe-iclr2026/             # 📝 ICLR submission & 3D Simulator
 │   └── hybrid-mamba-15min/          # 📄 Technical report: "Breaking the Memory Wall"
 ├── pre-train/                       # 🏋️ Training scripts, logs, and notebooks
 ├── inference/                       # ⚡ MLX inference: core lib, tools, & results
@@ -40,23 +39,6 @@ It visually demonstrates:
 
 - **Tucker Matrix Decomposition** compressing the state space from $134\text{MB}$ to $8.4\text{MB}$.
 - **On-the-fly Inference Pipeline**, comparing native block latency against our specialized micro-tensor flow.
-
-### Running the Simulator (Development)
-
-The simulator is built with React, Vite, and Tailwind CSS.
-
-```bash
-# 1. Navigate to the simulator directory
-cd paper/td-moe-iclr2026/td-moe-simulator-react
-
-# 2. Install dependencies
-npm install
-
-# 3. Start the dev server
-npm run dev
-```
-
-Navigate to `http://localhost:5173` to interact with the 3D pipeline.
 
 ---
 

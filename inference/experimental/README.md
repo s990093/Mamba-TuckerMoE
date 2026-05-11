@@ -11,10 +11,10 @@
 
 ## 腳本
 
-| 腳本 | 說明 |
-|------|------|
+| 腳本                   | 說明                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
 | `stream_fast_metal.sh` | 高吞吐量串流：`bf16`、4-bit、einsum fuse、full decode compile、`--fused-sample-metal-v2`、greedy |
-| `bench_pure_metal.sh` | 同理念之 `benchmark_mlx.py` 壓力測（預設 `--no-materialize-caches`） |
+| `bench_pure_metal.sh`  | 同理念之 `benchmark_mlx.py` 壓力測（預設 `--no-materialize-caches`）                             |
 
 從 repo 根目錄：
 

@@ -202,6 +202,8 @@ def _print_run_settings_banner(
     extras = []
     if args.interactive:
         extras.append("[bold]interactive REPL[/bold]")
+    if getattr(args, "metal_best_preset", False):
+        extras.append("[green]metal-best preset[/green]")
     if args.lookahead_router:
         extras.append("lookahead-router")
     if args.materialize_caches:
@@ -237,6 +239,7 @@ def _print_run_settings_banner(
         ("Max KV cache slots", str(max_cache_len)),
         ("Materialize caches", str(not args.no_materialize_caches).lower()),
         ("Tucker einsum fuse", str(bool(getattr(config, "tucker_einsum_fuse", False))).lower()),
+        ("Tucker AMX fuse", str(bool(getattr(config, "tucker_amx_fuse", False))).lower()),
         ("Prompt mode", ("plain user → ChatML" if not args.raw_prompt else "raw encode")),
         ("Sampling", sampling),
         ("Stop decoding", stop_decode_val),
@@ -283,6 +286,7 @@ def _print_run_settings_banner(
             tbl.add_row("Max KV cache slots", str(max_cache_len))
             tbl.add_row("Materialize caches", str(not args.no_materialize_caches).lower())
             tbl.add_row("Tucker einsum fuse", str(bool(config.tucker_einsum_fuse)).lower())
+            tbl.add_row("Tucker AMX fuse", str(bool(getattr(config, "tucker_amx_fuse", False))).lower())
             tbl.add_row("Prompt mode", prompt_mode)
             tbl.add_row("Sampling", sampling)
             eos_eff = bool(getattr(args, "stop_on_eos", False)) and not bool(getattr(args, "no_eos_stop", False))
@@ -499,8 +503,11 @@ def generate_token_stream(
     row = logits[0, -1, :]
     token_counts = _init_token_counts(prompt_ids, int(row.shape[0]))
     last = sample_decode_token(row, token_counts, sample_args)
-    token_counts[last] = token_counts[last] + 1
-    mx.eval(last)
+    if not getattr(sample_args, "no_penalties", False):
+        token_counts[last] = token_counts[last] + 1
+        mx.eval(last)
+    else:
+        mx.eval(last)
     yield last
     tid = int(last.item())
     generated_ids.append(tid)
@@ -514,9 +521,11 @@ def generate_token_stream(
         logits_d, caches = decode_fn(x_one, caches, seq_pos)
         row = logits_d[0, -1, :]
         last = sample_decode_token(row, token_counts, sample_args)
-        token_counts[last] = token_counts[last] + 1
-        # Evaluate sampled token and updated cache together to keep one larger graph.
-        mx.eval(last, caches, token_counts)
+        if not getattr(sample_args, "no_penalties", False):
+            token_counts[last] = token_counts[last] + 1
+            mx.eval(last, caches, token_counts)
+        else:
+            mx.eval(last, caches)
         yield last
         tid = int(last.item())
         generated_ids.append(tid)
@@ -735,6 +744,12 @@ def main() -> None:
         ),
     )
     p.add_argument(
+        "--no-materialize-caches",
+        dest="materialize_caches",
+        action="store_false",
+        help="Do not materialize caches (fastest).",
+    )
+    p.add_argument(
         "--no-outer-compile",
         action="store_true",
         help="Do not wrap the single-token forward in mx.compile (per-layer compile only when enabled)",
@@ -807,6 +822,14 @@ def main() -> None:
         help="Skip the startup configuration panel / ASCII box.",
     )
     p.add_argument(
+        "--metal-best-preset",
+        action="store_true",
+        help=(
+            "Apply the current best latency/throughput knobs from metal benchmarks "
+            "(throughput preset + no cache materialize + 4-bit quant + fused Tucker einsum + fast greedy)."
+        ),
+    )
+    p.add_argument(
         "--no-penalties",
         dest="no_penalties",
         action="store_true",
@@ -860,6 +883,37 @@ def main() -> None:
         action="store_false",
         help="Disable fused Tucker einsum (reference path).",
     )
+    p.add_argument(
+        "--tucker-amx-fuse",
+        dest="tucker_amx_fuse",
+        action="store_true",
+        default=False,
+        help=(
+            "Use AMX simdgroup_matrix partial-output Metal kernel for TuckerMoE decode. "
+            "Fastest benchmarked path for single-token b=1 bfloat16 decode; "
+            "auto-falls-back to einsum_fuse for prefill or batch>1."
+        ),
+    )
+    p.add_argument(
+        "--no-tucker-amx-fuse",
+        dest="tucker_amx_fuse",
+        action="store_false",
+        help="Disable Tucker AMX kernel (default).",
+    )
+    p.add_argument(
+        "--tucker-scalar-fuse",
+        dest="tucker_scalar_fuse",
+        action="store_true",
+        default=False,
+        help="Scalar optimized kernel for decode b=1.",
+    )
+    p.add_argument(
+        "--fused-mamba-mixer",
+        dest="fused_mamba_mixer",
+        action="store_true",
+        default=False,
+        help="Fused Norm+RoPE+Einsum+SSM Metal kernel for decode b=1 (2× faster Mamba layers).",
+    )
     args = p.parse_args()
     if args.interactive and args.synthetic_prompt:
         p.error("--interactive cannot be combined with --synthetic-prompt")
@@ -872,6 +926,26 @@ def main() -> None:
             file=sys.stderr,
         )
         args.full_decode_compile = False
+    if getattr(args, "metal_best_preset", False):
+        # Benchmark-guided streaming profile from current metal runs.
+        args.inference_type = "throughput"
+        args.materialize_caches = False
+        args.quantize = 4
+        args.kv_dtype = "auto"
+        args.fast_sample = True
+        args.no_penalties = True
+        args.tucker_einsum_fuse = True
+        args.full_decode_compile = True
+        args.no_outer_compile = False
+        if getattr(args, "lookahead_router", False):
+            print(
+                "Note: --metal-best-preset disables --lookahead-router to keep outer decode compile on.",
+                file=sys.stderr,
+            )
+            args.lookahead_router = False
+    if getattr(args, "interactive", False) and bool(getattr(args, "tucker_amx_fuse", False)):
+        # AMX path in REPL mode is more stable when KV caches are explicitly materialized.
+        args.materialize_caches = True
     _apply_inference_type(args)
     # Benchmark ``throughput`` preset requests cache materialization; streaming defaults omit the copy unless
     # ``--materialize-caches``. (Overrides preset; matches experimental peak-throughput scripts intent.)
@@ -915,6 +989,9 @@ def main() -> None:
     )
     config.lookahead_router = bool(args.lookahead_router)
     config.tucker_einsum_fuse = bool(args.tucker_einsum_fuse)
+    config.tucker_amx_fuse = bool(args.tucker_amx_fuse)
+    config.tucker_scalar_fuse = bool(getattr(args, "tucker_scalar_fuse", False))
+    config.fused_mamba_mixer = bool(getattr(args, "fused_mamba_mixer", False))
 
     model = Mamba3LanguageModel(config, vocab_size)
 

@@ -472,6 +472,23 @@ def main() -> None:
         ),
     )
     p.add_argument(
+        "--tucker-amx-fuse",
+        dest="tucker_amx_fuse",
+        action="store_true",
+        default=False,
+        help=(
+            "AMX simdgroup_matrix partial-output Metal kernel for TuckerMoE. "
+            "Fastest benchmarked decode path for b=1 bfloat16; auto-falls-back for prefill/batch>1."
+        ),
+    )
+    p.add_argument(
+        "--tucker-scalar-fuse",
+        dest="tucker_scalar_fuse",
+        action="store_true",
+        default=False,
+        help="Scalar optimized Metal kernel for TuckerMoE single-token decode (batch=1).",
+    )
+    p.add_argument(
         "--parallel-verify-microbench",
         type=int,
         metavar="K",
@@ -654,6 +671,8 @@ def main() -> None:
     config.lookahead_router = bool(args.lookahead_router)
     config.tucker_einsum_fuse = bool(args.tucker_einsum_fuse)
     config.tucker_full_fuse = bool(args.tucker_full_fuse)
+    config.tucker_amx_fuse = bool(getattr(args, "tucker_amx_fuse", False))
+    config.tucker_scalar_fuse = bool(getattr(args, "tucker_scalar_fuse", False))
     model = Mamba3LanguageModel(config, vocab_size)
 
     resolved, kind = resolve_mlx_checkpoint(
@@ -907,6 +926,7 @@ def main() -> None:
         f"MoE experiments: lookahead_router={config.lookahead_router}  "
         f"tucker_einsum_fuse={config.tucker_einsum_fuse}  "
         f"tucker_full_fuse={config.tucker_full_fuse}  "
+        f"tucker_amx_fuse={getattr(config, 'tucker_amx_fuse', False)}  "
         f"quant_asymmetric_moe={args.quant_asymmetric_moe}"
     )
 

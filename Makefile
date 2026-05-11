@@ -175,8 +175,3 @@ up:
 	@bash -lc 'set -e; trap "kill 0" INT TERM EXIT; \
 		cd "$(BACKEND_DIR)" && INFERENCE_NO_EOS_STOP="$(BACKEND_NO_EOS_STOP)" "$(PYTHON)" -m uvicorn app.main:app --host "$(BACKEND_HOST)" --port "$(BACKEND_PORT)" --reload $(BACKEND_EXTRA) & \
 		cd "$(FRONTEND_DIR)" && NEXT_PUBLIC_API_BASE="$(FRONTEND_API_BASE)" NEXT_PUBLIC_WS_BASE="$(FRONTEND_WS_BASE)" npm run dev -- --port "$(FRONTEND_PORT)" $(FRONTEND_EXTRA)'
-
-
-
-
-sh /Users/hungwei/Desktop/Proj/Mamba3-XR/inference/run_stable_stream.sh --interactive             

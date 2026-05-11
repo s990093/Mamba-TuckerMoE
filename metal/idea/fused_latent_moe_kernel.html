@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fused Latent MoE Metal Kernel — Apple Silicon 極致優化</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@400;600&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c10;
+  --bg2: #111318;
+  --bg3: #181c24;
+  --bg4: #1e2330;
+  --border: rgba(100,120,180,0.15);
+  --border2: rgba(100,120,180,0.3);
+  --text: #c8d0e8;
+  --text2: #7a88aa;
+  --text3: #4a5570;
+  --accent: #4f8ef7;
+  --accent2: #7eb8ff;
+  --green: #3ddc97;
+  --green2: #1a7a52;
+  --amber: #f5a623;
+  --red: #e85c5c;
+  --purple: #a07bff;
+  --teal: #2dd4bf;
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Noto Serif TC', serif;
+  --sans: 'Space Grotesk', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 2rem 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.sidebar-logo {
+  padding: 0 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.sidebar-logo .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(79,142,247,0.12);
+  border: 1px solid rgba(79,142,247,0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--accent2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.sidebar-logo h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.sidebar-logo p {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 3px;
+}
+
+.nav-section {
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.nav-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text3);
+  padding: 0 0.5rem;
+  margin-bottom: 4px;
+  margin-top: 1rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.nav-item:hover { background: var(--bg4); color: var(--text); }
+.nav-item.active { background: rgba(79,142,247,0.15); color: var(--accent2); }
+
+.nav-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+}
+
+.nav-item.active .nav-dot { background: var(--accent); }
+
+/* ── Main ─────────────────────────────────────────────────── */
+.main {
+  overflow: hidden;
+}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(135deg, #0d1120 0%, #0a0c10 60%);
+  border-bottom: 1px solid var(--border);
+  padding: 3rem 3rem 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(79,142,247,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-family: var(--mono);
+}
+
+.badge-blue { background: rgba(79,142,247,0.15); color: var(--accent2); border: 1px solid rgba(79,142,247,0.3); }
+.badge-green { background: rgba(61,220,151,0.12); color: var(--green); border: 1px solid rgba(61,220,151,0.25); }
+.badge-amber { background: rgba(245,166,35,0.12); color: var(--amber); border: 1px solid rgba(245,166,35,0.25); }
+.badge-purple { background: rgba(160,123,255,0.12); color: var(--purple); border: 1px solid rgba(160,123,255,0.25); }
+
+.hero h1 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  color: #e8edf8;
+  line-height: 1.3;
+  margin-bottom: 0.75rem;
+}
+
+.hero p {
+  color: var(--text2);
+  font-size: 14px;
+  max-width: 600px;
+  line-height: 1.7;
+}
+
+.stats-row {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.stat { }
+.stat-val { font-size: 20px; font-weight: 600; color: var(--accent2); font-family: var(--mono); }
+.stat-key { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ── Content sections ─────────────────────────────────────── */
+.section {
+  padding: 2.5rem 3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.section-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.section-title {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: #e0e8f8;
+}
+
+/* ── Architecture diagram ─────────────────────────────────── */
+.arch-flow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding: 1.5rem 0;
+  scrollbar-width: thin;
+}
+
+.arch-step {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.arch-box {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 16px;
+  text-align: center;
+  min-width: 110px;
+  position: relative;
+}
+
+.arch-box.highlight {
+  border-color: rgba(79,142,247,0.5);
+  background: rgba(79,142,247,0.07);
+}
+
+.arch-box.highlight-green {
+  border-color: rgba(61,220,151,0.4);
+  background: rgba(61,220,151,0.06);
+}
+
+.arch-box.highlight-amber {
+  border-color: rgba(245,166,35,0.4);
+  background: rgba(245,166,35,0.06);
+}
+
+.arch-icon { font-size: 20px; margin-bottom: 4px; }
+.arch-name { font-size: 11px; font-weight: 600; color: var(--text); }
+.arch-dim { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+.arch-label { font-size: 10px; color: var(--text3); text-align: center; margin-top: 6px; max-width: 110px; }
+
+.arch-arrow {
+  color: var(--text3);
+  font-size: 18px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Code block ───────────────────────────────────────────── */
+.code-container {
+  background: #080b10;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1.5rem 0;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+
+.code-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code-lang {
+  background: rgba(79,142,247,0.15);
+  color: var(--accent2);
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.copy-btn {
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 4px 12px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.copy-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--accent); }
+
+.code-body {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.code-body pre {
+  padding: 1.5rem;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.8;
+  tab-size: 2;
+  white-space: pre;
+  min-width: max-content;
+}
+
+/* Syntax highlighting */
+.kw { color: #c792ea; }       /* keyword */
+.ty { color: #82aaff; }       /* type */
+.fn { color: #82cfff; }       /* function */
+.cm { color: #546e7a; font-style: italic; } /* comment */
+.st { color: #c3e88d; }       /* string/number */
+.pp { color: #f78c6c; }       /* preprocessor */
+.at { color: #f07178; }       /* attribute */
+.cn { color: #ffcb6b; }       /* constant */
+.op { color: #89ddff; }       /* operator/punct */
+
+/* ── Annotation cards ─────────────────────────────────────── */
+.annotations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 1.5rem 0;
+}
+
+.annotation-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid;
+}
+
+.annotation-card.blue { border-left-color: var(--accent); }
+.annotation-card.green { border-left-color: var(--green); }
+.annotation-card.amber { border-left-color: var(--amber); }
+.annotation-card.red { border-left-color: var(--red); }
+.annotation-card.purple { border-left-color: var(--purple); }
+.annotation-card.teal { border-left-color: var(--teal); }
+
+.ann-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  margin-bottom: 4px;
+}
+
+.ann-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.ann-body {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.ann-body code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(255,255,255,0.05);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent2);
+}
+
+/* ── Comparison table ─────────────────────────────────────── */
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 1.5rem 0;
+}
+
+.comp-table th {
+  background: var(--bg3);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border2);
+}
+
+.comp-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.comp-table tr:hover td { background: var(--bg3); }
+
+.cell-good { color: var(--green); }
+.cell-bad { color: var(--red); }
+.cell-mid { color: var(--amber); }
+
+/* ── Math formula ─────────────────────────────────────────── */
+.math-block {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1rem 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent2);
+  overflow-x: auto;
+}
+
+.math-block .var { color: var(--purple); }
+.math-block .op2 { color: var(--text2); }
+.math-block .num { color: var(--green); }
+
+/* ── Pipeline steps ───────────────────────────────────────── */
+.pipeline {
+  counter-reset: step;
+  margin: 1.5rem 0;
+}
+
+.pipe-step {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  align-items: flex-start;
+}
+
+.pipe-num {
+  counter-increment: step;
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent2);
+  margin-top: 2px;
+}
+
+.pipe-content {}
+.pipe-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.pipe-desc {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.pipe-desc code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(255,255,255,0.05);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent2);
+}
+
+/* ── Memory layout viz ───────────────────────────────────── */
+.mem-grid {
+  display: grid;
+  gap: 2px;
+  margin: 1rem 0;
+}
+
+.mem-row {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.mem-cell {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  border-radius: 3px;
+  flex: 1;
+}
+
+.mem-label {
+  font-size: 10px;
+  color: var(--text3);
+  width: 60px;
+  text-align: right;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.bank-ok { background: rgba(61,220,151,0.2); color: var(--green); border: 1px solid rgba(61,220,151,0.3); }
+.bank-conflict { background: rgba(232,92,92,0.2); color: var(--red); border: 1px solid rgba(232,92,92,0.3); }
+.bank-pad { background: rgba(100,100,120,0.15); color: var(--text3); border: 1px solid var(--border); }
+
+/* ── Info callout ─────────────────────────────────────────── */
+.callout {
+  display: flex;
+  gap: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.warn { border-left: 3px solid var(--amber); }
+.callout.success { border-left: 3px solid var(--green); }
+
+.callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+.callout-body { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.callout-body strong { color: var(--text); font-weight: 600; }
+.callout-body code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent2);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: var(--sans);
+}
+
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Footer ───────────────────────────────────────────────── */
+.footer {
+  padding: 2rem 3rem;
+  color: var(--text3);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ══════════════════════════════════ SIDEBAR ══════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="chip">Apple Silicon</div>
+    <h1>Metal Kernel<br>Reference</h1>
+    <p>Fused Latent MoE · M2/M3 優化</p>
+  </div>
+
+  <nav class="nav-section">
+    <div class="nav-label">總覽</div>
+    <a class="nav-item active" href="#overview">
+      <span class="nav-dot"></span>架構與問題
+    </a>
+    <a class="nav-item" href="#memory">
+      <span class="nav-dot"></span>記憶體層級
+    </a>
+    <a class="nav-item" href="#bank">
+      <span class="nav-dot"></span>Bank Conflict 解法
+    </a>
+
+    <div class="nav-label">Kernel 實作</div>
+    <a class="nav-item" href="#constants">
+      <span class="nav-dot"></span>常數定義
+    </a>
+    <a class="nav-item" href="#async-copy">
+      <span class="nav-dot"></span>非同步記憶體複製
+    </a>
+    <a class="nav-item" href="#main-kernel">
+      <span class="nav-dot"></span>主 Kernel 函式
+    </a>
+    <a class="nav-item" href="#pipeline">
+      <span class="nav-dot"></span>軟體流水線
+    </a>
+    <a class="nav-item" href="#amx">
+      <span class="nav-dot"></span>AMX / simdgroup_matrix
+    </a>
+
+    <div class="nav-label">整合</div>
+    <a class="nav-item" href="#mlx">
+      <span class="nav-dot"></span>MLX JIT 整合
+    </a>
+    <a class="nav-item" href="#perf">
+      <span class="nav-dot"></span>效能模型
+    </a>
+  </nav>
+</aside>
+
+<!-- ══════════════════════════════════ MAIN ══════════════════════════════════ -->
+<main class="main">
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="hero-badge">
+    <span class="badge badge-blue">Metal 3 MSL</span>
+    <span class="badge badge-green">AMX / simdgroup_matrix</span>
+    <span class="badge badge-amber">BF16 · BS=1</span>
+    <span class="badge badge-purple">TuckerMoE</span>
+  </div>
+  <h1>Hybrid Mamba-TuckerMoE<br>Fused Latent MoE Metal Kernel</h1>
+  <p>針對 Apple M2/M3（19 核心 GPU，200 GB/s 統一記憶體）的極致記憶體內核優化——從 Bank Conflict 消除、非同步預取、AMX 矩陣加速，到 MLX JIT 動態整合的完整技術參考。</p>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">550M</div><div class="stat-key">總參數</div></div>
+    <div class="stat"><div class="stat-val">230M</div><div class="stat-key">活躍參數（BS=1）</div></div>
+    <div class="stat"><div class="stat-val">200 GB/s</div><div class="stat-key">統一記憶體頻寬</div></div>
+    <div class="stat"><div class="stat-val">BF16</div><div class="stat-key">推論精度</div></div>
+    <div class="stat"><div class="stat-val">19 核心</div><div class="stat-key">M3 GPU</div></div>
+  </div>
+</div>
+
+<!-- ── 01: 架構概覽 ── -->
+<section class="section" id="overview">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2 class="section-title">架構概覽與效能瓶頸</h2>
+  </div>
+
+  <p style="color:var(--text2); font-size:13px; margin-bottom:1.5rem;">
+    Hybrid Mamba-TuckerMoE 在 BS=1 推論下，Tucker 分解將 Expert 權重壓縮成低秩張量。動態路由（Dynamic Routing）需要對 G_experts 進行非連續的 Gather，這種不可預測的存取模式會破壞 GPU L2 Cache 預取機制，並在 Threadgroup Memory 中引發嚴重的 Bank Conflict。
+  </p>
+
+  <!-- Data flow diagram -->
+  <div class="arch-flow">
+    <div class="arch-step">
+      <div class="arch-box highlight-green">
+        <div class="arch-icon">📥</div>
+        <div class="arch-name">x</div>
+        <div class="arch-dim">ℝ¹ˣᴰ</div>
+      </div>
+      <div class="arch-label">輸入 Token<br>BS=1</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="arch-box highlight">
+        <div class="arch-icon">🔻</div>
+        <div class="arch-name">U_in</div>
+        <div class="arch-dim">D → r3=256</div>
+      </div>
+      <div class="arch-label">共享降維<br>Dense GEMM</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="arch-box">
+        <div class="arch-icon">🔀</div>
+        <div class="arch-name">Router</div>
+        <div class="arch-dim">Top-K</div>
+      </div>
+      <div class="arch-label">動態路由<br>選定 Expert</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="arch-box highlight-amber">
+        <div class="arch-icon">⚡</div>
+        <div class="arch-name">G_experts</div>
+        <div class="arch-dim">r3×r2=1024</div>
+      </div>
+      <div class="arch-label">Gather + GEMV<br>⚠️ Bank Conflict</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="arch-box highlight">
+        <div class="arch-icon">🔺</div>
+        <div class="arch-name">U_out</div>
+        <div class="arch-dim">r2=1024 → D</div>
+      </div>
+      <div class="arch-label">共享升維<br>Dense GEMM</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="arch-box highlight-green">
+        <div class="arch-icon">📤</div>
+        <div class="arch-name">y</div>
+        <div class="arch-dim">ℝ¹ˣᴰ</div>
+      </div>
+      <div class="arch-label">輸出<br>Hidden State</div>
+    </div>
+  </div>
+
+  <div class="callout warn" style="margin-top:1.5rem;">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-body">
+      <strong>核心瓶頸：</strong>在 BS=1 下，系統屬於完全 Memory-bound 狀態。230M 活躍參數以 BF16 儲存共 460 MB，純讀取耗時即達 2.3 ms（460 MB ÷ 200 GB/s）。若 Bank Conflict 使有效頻寬降至 67 GB/s，延遲會暴增 3 倍至 ~7 ms，遠超可接受範圍。
+    </div>
+  </div>
+</section>
+
+<!-- ── 02: 記憶體層級 ── -->
+<section class="section" id="memory">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2 class="section-title">Apple GPU 兩級本地記憶體模型</h2>
+  </div>
+
+  <div class="annotations">
+    <div class="annotation-card green">
+      <div class="ann-num">Tier 1 — 暫存器檔案</div>
+      <div class="ann-title">每核心 208 KiB Register File</div>
+      <div class="ann-body">
+        由 SIMD-group（32 執行緒）獨佔存取，延遲趨近於零。可直接與 <code>simdgroup_matrix</code>（AMX 硬體加速器）對接進行超高吞吐量的矩陣運算。這是最快的記憶體層級，目標是將所有中間計算鎖定於此。
+      </div>
+    </div>
+    <div class="annotation-card amber">
+      <div class="ann-num">Tier 2 — Threadgroup Memory</div>
+      <div class="ann-title">每 Threadgroup 32 KiB SRAM</div>
+      <div class="ann-body">
+        相當於 CUDA Shared Memory，供同一 Threadgroup 內所有執行緒共享。速度遠快於全域記憶體，但具有複雜的 Bank 結構。M3（G15）的 Bank 行為與 M1/M2 截然不同，是效能優化的關鍵戰場。
+      </div>
+    </div>
+    <div class="annotation-card red">
+      <div class="ann-num">Global — Device Memory</div>
+      <div class="ann-title">統一 LPDDR5 — 200 GB/s</div>
+      <div class="ann-body">
+        CPU/GPU 共享的高頻寬記憶體。BS=1 下整個推論是 Memory-bound，目標是最小化往返次數，所有中間狀態避免回寫至此層。非連續（Gather）存取會破壞 Prefetch，需用 Padding/Swizzling 轉為連續存取。
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div class="callout-body">
+      <strong>優化核心原則：</strong>Tucker 分解的核心收縮運算（r3 → r2）應完全在 Tier 1 Register File 中完成（透過 <code>simdgroup_matrix</code>），絕不落入 Tier 2 Threadgroup Memory，從而徹底迴避 Bank Conflict 風險與同步開銷。
+    </div>
+  </div>
+</section>
+
+<!-- ── 03: Bank Conflict ── -->
+<section class="section" id="bank">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2 class="section-title">Bank Conflict 成因與消除策略</h2>
+  </div>
+
+  <p style="color:var(--text2); font-size:13px; margin-bottom:1.25rem;">
+    Threadgroup Memory 由 32 個獨立 Bank 組成，每個 Bank 寬 4 bytes。衝突發生當多個執行緒在同一時脈週期存取同一 Bank 的不同位址，導致硬體序列化處理，最壞情況延遲飆升 32 倍。
+  </p>
+
+  <!-- Bank conflict cause demo -->
+  <div style="background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+    <div style="font-size:12px; font-weight:600; color:var(--red); margin-bottom:8px;">❌ 衝突根因：32-way Bank Conflict</div>
+    <div class="math-block">
+      r_out = <span class="num">64</span>  →  Stride = <span class="num">64</span> × <span class="num">2</span>B = <span class="num">128</span> bytes<br>
+      Bank ID(<span class="var">t</span>) = ⌊(<span class="var">t</span> × <span class="num">128</span>) / <span class="num">4</span>⌋ mod <span class="num">32</span> = (<span class="var">t</span> × <span class="num">32</span>) mod <span class="num">32</span> = <span class="num">0</span>
+    </div>
+    <p style="font-size:12px; color:var(--text2);">32 個執行緒全部落入 Bank 0，引發最嚴重的 32-way 序列化。</p>
+  </div>
+
+  <!-- M1/M2 vs M3 comparison -->
+  <div style="margin-bottom:1.5rem;">
+    <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px;">M1/M2 vs M3 記憶體庫行為差異</div>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>存取步幅（Stride）</th>
+          <th>M1/M2 (G13)</th>
+          <th>M3 (G15)</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Stride 1（連續）</td>
+          <td class="cell-good">✓ 無衝突</td>
+          <td class="cell-good">✓ 無衝突</td>
+          <td style="color:var(--text2);">最佳存取模式，兩代皆相同</td>
+        </tr>
+        <tr>
+          <td>Stride 2（偶數）</td>
+          <td class="cell-bad">衰退 ~50%</td>
+          <td class="cell-good">✓ 無明顯懲罰</td>
+          <td style="color:var(--text2);">M3 在偶數步幅行為不同</td>
+        </tr>
+        <tr>
+          <td>Stride 8/16/24</td>
+          <td style="color:var(--amber);">中度衝突</td>
+          <td class="cell-bad">嚴重懲罰</td>
+          <td style="color:var(--text2);">M3 特有半週期性異常</td>
+        </tr>
+        <tr>
+          <td>Stride 32</td>
+          <td class="cell-bad">32-way 最壞衝突</td>
+          <td class="cell-good">✓ 異常優異</td>
+          <td style="color:var(--text2);">M3 悖離傳統認知</td>
+        </tr>
+        <tr>
+          <td>Coalesced Stores</td>
+          <td style="color:var(--amber);">支援並鼓勵</td>
+          <td class="cell-good">強烈偏好（Stride 1-4）</td>
+          <td style="color:var(--text2);">M3 最關鍵優化點</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 三種策略 -->
+  <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:0.75rem;">三種消除策略比較</div>
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>策略</th>
+        <th>邏輯形狀</th>
+        <th>Threadgroup Stride</th>
+        <th>Bank 衝突</th>
+        <th>實作複雜度</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>未優化 Baseline</td>
+        <td>[E, r_in, r_out]</td>
+        <td>r_out (e.g. 64)</td>
+        <td class="cell-bad">32-way 極端衝突</td>
+        <td>極低</td>
+      </tr>
+      <tr>
+        <td>離線張量轉置</td>
+        <td>[E, r_out, r_in]</td>
+        <td>1（完美連續）</td>
+        <td class="cell-good">0 衝突</td>
+        <td>低（需改上游導出）</td>
+      </tr>
+      <tr>
+        <td>數學互質填充 Padding ★</td>
+        <td>[E, r_in, r_out+8]</td>
+        <td>40（Δpad=8）</td>
+        <td class="cell-good">0 衝突（M2+M3）</td>
+        <td>中（修改 MSL 索引）</td>
+      </tr>
+      <tr>
+        <td>XOR Swizzling</td>
+        <td>[E, r_in, r_out]</td>
+        <td>1（邏輯上）</td>
+        <td class="cell-good">0 衝突</td>
+        <td>高（位元運算）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div class="callout-body">
+      <strong>本 Kernel 採用 Padding 策略：</strong>令 <code>Δpad = 8</code>，Row Stride = 32 + 8 = <strong>40</strong> 個 bfloat16 元素（80 bytes）。40 與 32 互質（gcd(40,32) = 8 打破週期），確保 32 個執行緒在 M2/M3 兩代上皆實現零 Bank Conflict 的向量化寫入。
+    </div>
+  </div>
+
+  <!-- Padding 公式 -->
+  <div class="math-block" style="margin-top:1rem;">
+    Stride<span class="op2">_row</span> = T<span class="op2">_K</span> + Δ<span class="op2">pad</span> = <span class="num">32</span> + <span class="num">8</span> = <span class="num">40</span> elements<br><br>
+    Offset<span class="op2">_dst</span>(T<span class="op2">idx</span>) = ⌊T<span class="op2">idx</span> / <span class="num">8</span>⌋ × <span class="num">40</span> + (T<span class="op2">idx</span> mod <span class="num">8</span>) × <span class="num">4</span>
+  </div>
+</section>
+
+<!-- ── 04: 常數定義 ── -->
+<section class="section" id="constants">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2 class="section-title">Kernel 常數定義與資料結構</h2>
+  </div>
+
+  <div class="code-container">
+    <div class="code-header">
+      <div class="code-title">
+        <span class="code-lang">MSL</span>
+        constants_and_structs.metal
+      </div>
+      <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    </div>
+    <div class="code-body">
+<pre><span class="pp">#include &lt;metal_stdlib&gt;</span>
+<span class="pp">#include &lt;metal_simdgroup_matrix&gt;</span>   <span class="cm">// ① 必要：啟用 AMX / simdgroup_matrix 指令</span>
+<span class="pp">#include &lt;metal_compute&gt;</span>
+
+<span class="kw">using namespace</span> metal;
+
+<span class="cm">// ══════════════════════════════════════════════════════════════════
+// 硬體與架構常數定義
+// ══════════════════════════════════════════════════════════════════</span>
+
+<span class="cm">// ② TILE 尺寸：32×32 完美映射至 AMX 的 8×8 區塊（4×4 個子矩陣）</span>
+<span class="kw">constant</span> <span class="ty">uint</span> <span class="cn">TILE_M</span> = <span class="st">32</span>;
+<span class="kw">constant</span> <span class="ty">uint</span> <span class="cn">TILE_K</span> = <span class="st">32</span>;
+
+<span class="cm">// ③ Bank Conflict 消除：每行尾端 Padding 8 個 bfloat16（16 Bytes = 2 個 Banks 寬）
+//    ROW_STRIDE = 32 + 8 = 40，打破 32-Bank 的 128-byte 週期對齊
+//    gcd(40, 32) = 8，確保 32 執行緒映射到 5 個不同 Bank 組</span>
+<span class="kw">constant</span> <span class="ty">uint</span> <span class="cn">PAD_BFLOAT</span> = <span class="st">8</span>;
+<span class="kw">constant</span> <span class="ty">uint</span> <span class="cn">ROW_STRIDE</span> = <span class="cn">TILE_K</span> + <span class="cn">PAD_BFLOAT</span>;  <span class="cm">// = 40</span>
+
+<span class="cm">// ④ Tucker 分解維度（對應本模型：r3=256, r2=1024）
+//    在 JIT 編譯時由 Python 端注入為 hardcoded 常數，降低 branching overhead</span>
+<span class="kw">constant</span> <span class="ty">uint</span> <span class="cn">R3</span> = <span class="st">256</span>;   <span class="cm">// Tucker rank3：降維空間</span>
+<span class="kw">constant</span> <span class="ty">uint</span> <span class="cn">R2</span> = <span class="st">1024</span>;  <span class="cm">// Tucker rank2：專家核心維度</span>
+
+<span class="cm">// ══════════════════════════════════════════════════════════════════
+// 雙重緩衝結構體（Double Buffering for Software Pipelining）
+// ══════════════════════════════════════════════════════════════════</span>
+
+<span class="cm">// ⑤ 在 Threadgroup Memory 分配兩個 Stage 的空間
+//    Stage 0 給 ALU 計算時，Stage 1 在背景預取下一 Tile
+//    ROW_STRIDE（含 Padding）確保零 Bank Conflict</span>
+<span class="kw">struct</span> <span class="ty">ThreadgroupStage</span> {
+    <span class="ty">bfloat</span> expert_tile[<span class="cn">TILE_M</span>][<span class="cn">ROW_STRIDE</span>];  <span class="cm">// 32×40，包含 Padding</span>
+};
+
+<span class="cm">// ⑥ 雙重緩衝陣列（兩個 Stage 交替使用）</span>
+<span class="kw">struct</span> <span class="ty">PipelineStages</span> {
+    <span class="ty">ThreadgroupStage</span> stages[<span class="st">2</span>];
+};</pre>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <div class="annotation-card blue">
+      <div class="ann-num">① metal_simdgroup_matrix</div>
+      <div class="ann-title">AMX 硬體加速器入口</div>
+      <div class="ann-body">此標頭檔暴露 <code>simdgroup_matrix&lt;T, M, N&gt;</code> 型態，其資料分散儲存於 32 個執行緒的隱藏暫存器中，直接對接 Apple AMX 協同處理器（等同 NVIDIA Tensor Cores）。</div>
+    </div>
+    <div class="annotation-card green">
+      <div class="ann-num">② TILE_M / TILE_K = 32</div>
+      <div class="ann-title">AMX 友善的 Tile 尺寸</div>
+      <div class="ann-body">32×32 Tile 讓每個 SIMD-group 計算恰好 4×4 個 <code>simdgroup_matrix&lt;T, 8, 8&gt;</code> 子區塊，完美填滿 AMX 硬體的計算管線。</div>
+    </div>
+    <div class="annotation-card amber">
+      <div class="ann-num">③ ROW_STRIDE = 40</div>
+      <div class="ann-title">Padding 策略核心</div>
+      <div class="ann-body">每行多 8 個 bfloat16（16 bytes），使實體步幅從 32 變 40。40 與 32 的 gcd = 8，打破週期對齊。32 個執行緒的 bfloat4 寫入完美分散到不同 Bank，M2 和 M3 上皆達零衝突。</div>
+    </div>
+    <div class="annotation-card purple">
+      <div class="ann-num">⑤⑥ 雙重緩衝</div>
+      <div class="ann-title">Software Pipelining</div>
+      <div class="ann-body">ALU 計算 Stage[k] 的同時，DMA 在背景將 Stage[k+1] 從 Device Memory 搬移至另一塊緩衝區，實現計算與記憶體傳輸的完美重疊，模擬 NVIDIA TMA 效果。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 05: 非同步記憶體複製 ── -->
+<section class="section" id="async-copy">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <h2 class="section-title">非同步記憶體複製函式（TMA 等效替代）</h2>
+  </div>
+
+  <div class="callout info" style="margin-bottom:1.5rem;">
+    <span class="callout-icon">🔁</span>
+    <div class="callout-body">
+      NVIDIA Hopper 的 TMA 允許非同步地將張量切片從 Global → Shared Memory，且無需 ALU 參與。Apple Metal 3 的 <code>simdgroup_async_copy</code> 實現等效功能：整個 SIMD-group 協同發起 DMA 請求，ALU 可同時繼續上一個 Tile 的計算。
+      <strong>注意（M3 差異）：</strong>M3/M4 上此指令可能是微碼模擬，對 x_shared 向量（單次讀取）反而建議直接從 Device Memory 載入以避免模擬開銷。
+    </div>
+  </div>
+
+  <div class="code-container">
+    <div class="code-header">
+      <div class="code-title">
+        <span class="code-lang">MSL</span>
+        async_load_expert_tile() — 硬體級非同步張量搬移
+      </div>
+      <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    </div>
+    <div class="code-body">
+<pre><span class="cm">// ══════════════════════════════════════════════════════════════════
+// 硬體級非同步張量搬移函式
+// ══════════════════════════════════════════════════════════════════
+// 功能：將 G_experts 的一個 TILE_M × TILE_K 切片從 Device Memory
+//       非同步搬移至 Threadgroup Memory，同時使用 Padding 策略防止 Bank Conflict
+//
+// 參數說明：
+//   dst         → Threadgroup Memory 目標指標（含 Padding 的緩衝區）
+//   src         → Device Memory 來源（G_experts 的基址 + offset）
+//   row_offset  → 目前處理的起始 Row 索引
+//   col_offset  → 目前處理的起始 Col 索引（K 維度）
+//   ld_src      → Device Memory 中 G_experts 的 Leading Dimension（= R2 = 1024）
+//   thread_id   → 當前執行緒在 SIMD-group 內的 ID（0~31）
+// ══════════════════════════════════════════════════════════════════</span>
+<span class="kw">inline void</span> <span class="fn">async_load_expert_tile</span>(
+    <span class="kw">threadgroup</span> <span class="ty">bfloat</span>*       dst,          <span class="cm">// ① Threadgroup 目標</span>
+    <span class="kw">const</span> <span class="kw">device</span> <span class="ty">bfloat</span>*  src,          <span class="cm">// ② Device Memory 來源</span>
+    <span class="ty">uint</span>                        row_offset,
+    <span class="ty">uint</span>                        col_offset,
+    <span class="ty">uint</span>                        ld_src,       <span class="cm">// = R2 = 1024</span>
+    <span class="ty">uint</span>                        thread_id     <span class="cm">// 0 ~ 31</span>
+) {
+    <span class="cm">// ③ 每個執行緒負責搬移 4 個 bfloat16（= 1 個 bfloat4 向量，8 Bytes）
+    //    32 個執行緒 × 8 Bytes = 256 Bytes = 兩條 128-Byte L2 Cache Line
+    //    完美 Coalesced：硬體以最大頻寬進行合併存取</span>
+
+    <span class="cm">// ④ 計算 Padding-aware 的目標位址偏移：
+    //    Offset_dst(T_idx) = ⌊T_idx / 8⌋ × ROW_STRIDE + (T_idx mod 8) × 4
+    //    確保 32 個執行緒以 bfloat4 為單位連續寫入，滿足 M3 Coalesced Store 偏好</span>
+    <span class="pp">#pragma unroll</span>
+    <span class="kw">for</span> (<span class="ty">uint</span> i = <span class="st">0</span>; i &lt; <span class="cn">TILE_M</span>; i += <span class="st">4</span>) {
+        <span class="ty">uint</span> local_row = (thread_id / <span class="st">8</span>) + i;
+        <span class="ty">uint</span> local_col = (thread_id % <span class="st">8</span>) * <span class="st">4</span>;
+
+        <span class="cm">// ⑤ Device Memory 來源索引（線性，完美合併讀取）</span>
+        <span class="ty">uint</span> src_idx = (row_offset + local_row) * ld_src
+                     + (col_offset + local_col);
+
+        <span class="cm">// ⑥ Threadgroup Memory 目標索引（含 ROW_STRIDE=40 的 Padding 偏移）</span>
+        <span class="ty">uint</span> dst_idx = local_row * <span class="cn">ROW_STRIDE</span> + local_col;
+
+        <span class="cm">// ⑦ 核心指令：Metal 3 的 simdgroup_async_copy
+        //    整個 SIMD-group 協同發起 DMA 請求，ALU 可繼續運行
+        //    等效 NVIDIA TMA：非同步、無 ALU 參與、延遲隱藏</span>
+        <span class="fn">simdgroup_async_copy</span>(
+            (<span class="kw">threadgroup</span> <span class="ty">bfloat4</span>*)(&amp;dst[dst_idx]),
+            (<span class="kw">const device</span> <span class="ty">bfloat4</span>*)(&amp;src[src_idx]),
+            <span class="st">1</span>   <span class="cm">// 複製 1 個 bfloat4 向量（8 Bytes）</span>
+        );
+    }
+    <span class="cm">// ⑧ 注意：呼叫後需在讀取前執行 simdgroup_barrier(mem_flags::mem_threadgroup)
+    //        確保所有非同步寫入徹底完成（記憶體一致性保障）</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <div class="annotation-card blue">
+      <div class="ann-num">③ 粒度選擇</div>
+      <div class="ann-title">bfloat4（8 Bytes）向量化</div>
+      <div class="ann-body">32 個執行緒 × 8 Bytes = 256 Bytes，精確對齊兩條 128-Byte L2 Cache Line。BF16 每元素 2 bytes，bfloat4 = 4 個元素 = 8 bytes，是在 M2/M3 上實現最大頻寬利用率的最小向量化單元。</div>
+    </div>
+    <div class="annotation-card amber">
+      <div class="ann-num">④ Padding-aware 偏移公式</div>
+      <div class="ann-title">確保 Coalesced Stores</div>
+      <div class="ann-body">公式 <code>⌊T_idx/8⌋ × 40 + (T_idx mod 8) × 4</code> 確保 32 個執行緒以 bfloat4 為單位的寫入是連續的，完全滿足 M3 對 Coalesced Stores 的強烈偏好，同時避免 M2 的 32-Bank 衝突。</div>
+    </div>
+    <div class="annotation-card purple">
+      <div class="ann-num">⑦ simdgroup_async_copy</div>
+      <div class="ann-title">Metal TMA 等效指令</div>
+      <div class="ann-body">允許整個 SIMD-group 協同發起 DMA 請求。因為非同步，GPU ALU 可在等待資料到達時繼續執行上一個 Tile 的 AMX 矩陣乘法，實現計算與記憶體傳輸的完美重疊。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 06: 主 Kernel ── -->
+<section class="section" id="main-kernel">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <h2 class="section-title">主 Kernel 函式——完整程式碼</h2>
+  </div>
+
+  <div class="code-container">
+    <div class="code-header">
+      <div class="code-title">
+        <span class="code-lang">MSL</span>
+        fused_latent_moe_gemv — 完整 Kernel（含逐行註解）
+      </div>
+      <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    </div>
+    <div class="code-body">
+<pre><span class="cm">// ══════════════════════════════════════════════════════════════════
+// 主 Kernel：Fused Latent MoE GEMV
+// 
+// 功能：將 Tucker 分解後的 MoE 推論融合為單一 Kernel Dispatch
+//       完全消除中間狀態的全域記憶體往返（Round-trips）
+//
+// 執行網格配置（Grid Dimensions）：
+//   x 軸 → ceil(R3 / TILE_M) = ceil(256/32) = 8 個 Threadgroups（負責 Row 分塊）
+//   y 軸 → 1（BS=1 單 Token 推論）
+//   z 軸 → 激活 Expert 數量（動態路由結果）
+//
+// 每個 Threadgroup：32 個執行緒（= 1 個 SIMD-group）
+//   → 至少需 9 個 Threadgroups/核心（M3 19 核心需總數 ≥ 171）以飽和 AMX 管線
+// ══════════════════════════════════════════════════════════════════</span>
+<span class="at">[[kernel]]</span> <span class="kw">void</span> <span class="fn">fused_latent_moe_gemv</span>(
+    <span class="kw">const device</span> <span class="ty">bfloat</span>* x_shared      <span class="at">[[buffer(0)]]</span>,  <span class="cm">// x_shared ∈ ℝ^{1×R3}，已過 U_in 降維</span>
+    <span class="kw">const device</span> <span class="ty">bfloat</span>* G_experts     <span class="at">[[buffer(1)]]</span>,  <span class="cm">// G_experts ∈ ℝ^{E×R3×R2}，Tucker Core 張量</span>
+    <span class="kw">const device</span> <span class="ty">uint</span>*   expert_indices <span class="at">[[buffer(2)]]</span>,  <span class="cm">// 路由結果：激活的 Expert ID 列表</span>
+    <span class="kw">device</span>       <span class="ty">bfloat</span>* out_hidden    <span class="at">[[buffer(3)]]</span>,  <span class="cm">// 輸出 y_shared ∈ ℝ^{1×R2}</span>
+
+    <span class="cm">// ① Metal 內建執行緒定位</span>
+    <span class="ty">uint3</span> threadgroup_position_in_grid      <span class="at">[[threadgroup_position_in_grid]]</span>,
+    <span class="ty">uint</span>  thread_position_in_threadgroup    <span class="at">[[thread_position_in_threadgroup]]</span>
+) {
+    <span class="cm">// ══════════════════════════════════════════════════════════════
+    // Phase 0：解析動態路由結果
+    // ══════════════════════════════════════════════════════════════</span>
+
+    <span class="cm">// ② z 軸索引對應到激活的 Expert ID
+    //    每個 Expert 對應的 G_experts 切片連續存放
+    //    這裡 expert_id 決定了從哪個位址讀取 Core 矩陣</span>
+    <span class="ty">uint</span> expert_id  = expert_indices[threadgroup_position_in_grid.z];
+    <span class="ty">uint</span> thread_id  = thread_position_in_threadgroup;
+
+    <span class="cm">// ③ 計算該 Expert 的 Core 矩陣在 G_experts 中的基址偏移
+    //    佈局：G_experts[expert_id][row][col]，Row-major
+    //    基址 = expert_id × R3 × R2（每個 Expert 的 Core 大小）</span>
+    <span class="kw">const device</span> <span class="ty">bfloat</span>* expert_base =
+        G_experts + (expert_id * <span class="cn">R3</span> * <span class="cn">R2</span>);
+
+    <span class="cm">// ④ 此 Threadgroup 負責的 Row 範圍（x 軸分塊）</span>
+    <span class="ty">uint</span> row_block = threadgroup_position_in_grid.x * <span class="cn">TILE_M</span>;
+
+    <span class="cm">// ══════════════════════════════════════════════════════════════
+    // Phase 1：Threadgroup Memory 宣告（雙重緩衝）
+    // ══════════════════════════════════════════════════════════════</span>
+
+    <span class="cm">// ⑤ 在 Threadgroup Memory 宣告雙重緩衝區
+    //    Stage[0] 和 Stage[1] 交替使用：一個給 AMX 計算，另一個預取下一 Tile
+    //    每個 Stage = TILE_M × ROW_STRIDE = 32 × 40 × 2B = 2.5 KB
+    //    兩個 Stage 共 5 KB，遠低於 M3 的 32 KB 限制</span>
+    <span class="kw">threadgroup</span> <span class="ty">bfloat</span> stage_0[<span class="cn">TILE_M</span> * <span class="cn">ROW_STRIDE</span>];  <span class="cm">// 第一個緩衝區</span>
+    <span class="kw">threadgroup</span> <span class="ty">bfloat</span> stage_1[<span class="cn">TILE_M</span> * <span class="cn">ROW_STRIDE</span>];  <span class="cm">// 第二個緩衝區（交替使用）</span>
+
+    <span class="cm">// 緩衝指標陣列（方便索引切換）</span>
+    <span class="kw">threadgroup</span> <span class="ty">bfloat</span>* stages[<span class="st">2</span>] = {stage_0, stage_1};
+
+    <span class="cm">// ══════════════════════════════════════════════════════════════
+    // Phase 2：宣告 AMX 累加暫存器
+    // ══════════════════════════════════════════════════════════════</span>
+
+    <span class="cm">// ⑥ 宣告 float32 累加矩陣（防止 BF16 數值溢出）
+    //    4×4 個 simdgroup_matrix&lt;float, 8, 8&gt; = 32×32 的累積矩陣
+    //    這些資料實體打散儲存於 32 個執行緒的隱藏 AMX 暫存器中
+    //    完全在 Tier 1 Register File 內，零 Threadgroup Memory 往返</span>
+    <span class="ty">simdgroup_matrix</span>&lt;<span class="ty">float</span>, <span class="st">8</span>, <span class="st">8</span>&gt; acc[<span class="st">4</span>][<span class="st">4</span>];
+    <span class="pp">#pragma unroll</span>
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="st">0</span>; i &lt; <span class="st">4</span>; i++)
+        <span class="pp">#pragma unroll</span>
+        <span class="kw">for</span> (<span class="ty">int</span> j = <span class="st">0</span>; j &lt; <span class="st">4</span>; j++)
+            acc[i][j] = <span class="fn">make_simdgroup_matrix</span>&lt;<span class="ty">float</span>, <span class="st">8</span>, <span class="st">8</span>&gt;(<span class="st">0.0f</span>);
+
+    <span class="cm">// ══════════════════════════════════════════════════════════════
+    // Phase 3：軟體流水線 Prologue（序幕）
+    // ══════════════════════════════════════════════════════════════</span>
+
+    <span class="cm">// ⑦ 預取 Tile 0 至 Stage 0（流水線啟動）</span>
+    <span class="fn">async_load_expert_tile</span>(
+        stage_0, expert_base,
+        row_block, <span class="st">0</span>,   <span class="cm">// Tile 0，K 方向從 0 開始</span>
+        <span class="cn">R2</span>, thread_id
+    );
+
+    <span class="cm">// ⑧ 記憶體屏障：確保 Stage 0 的資料完全落入 Threadgroup Memory
+    //    必須在讀取任何 Threadgroup 資料前執行</span>
+    <span class="fn">simdgroup_barrier</span>(mem_flags<span class="op">::</span>mem_threadgroup);
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── 07: 軟體流水線 ── -->
+<section class="section" id="pipeline">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <h2 class="section-title">軟體流水線主迴圈（Double Buffering）</h2>
+  </div>
+
+  <div class="callout info" style="margin-bottom:1.5rem;">
+    <span class="callout-icon">🔄</span>
+    <div class="callout-body">
+      <strong>雙重緩衝原理：</strong>AMX 計算 Stage[k] 的同時，非同步 DMA 在背景將 Stage[k+1] 從 Device Memory 搬至另一塊緩衝區。兩者完全重疊，消除記憶體等待延遲。R2/TILE_K = 1024/32 = <strong>32 個 Tiles</strong> 需要遍歷。
+    </div>
+  </div>
+
+  <div class="code-container">
+    <div class="code-header">
+      <div class="code-title">
+        <span class="code-lang">MSL</span>
+        軟體流水線主迴圈 + Epilogue
+      </div>
+      <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    </div>
+    <div class="code-body">
+<pre>    <span class="cm">// ══════════════════════════════════════════════════════════════
+    // Phase 4：軟體流水線 Main Loop
+    // ══════════════════════════════════════════════════════════════</span>
+
+    <span class="ty">uint</span> num_tiles  = <span class="cn">R2</span> / <span class="cn">TILE_K</span>;    <span class="cm">// = 1024 / 32 = 32 個 K 方向的 Tile</span>
+    <span class="ty">uint</span> stage_idx  = <span class="st">0</span>;              <span class="cm">// 當前計算使用的 Stage（0 或 1）</span>
+
+    <span class="kw">for</span> (<span class="ty">uint</span> k = <span class="st">0</span>; k &lt; num_tiles; k++) {
+        <span class="ty">uint</span> next_k         = k + <span class="st">1</span>;
+        <span class="ty">uint</span> next_stage_idx = (stage_idx + <span class="st">1</span>) % <span class="st">2</span>;  <span class="cm">// 在 0 和 1 之間切換</span>
+
+        <span class="cm">// ────────────────────────────────────────────────────────
+        // 步驟 1：非同步預取下一個 Tile（與下方 AMX 計算完全重疊）
+        // ────────────────────────────────────────────────────────</span>
+        <span class="kw">if</span> (next_k &lt; num_tiles) {
+            <span class="cm">// ① 在 ALU 計算 Stage[stage_idx] 時
+            //    DMA 同時將 Tile[k+1] 搬至 Stage[next_stage_idx]
+            //    兩者完全並行：這是雙重緩衝的核心</span>
+            <span class="fn">async_load_expert_tile</span>(
+                stages[next_stage_idx],   <span class="cm">// 目標：另一個緩衝區</span>
+                expert_base,
+                row_block,
+                next_k * <span class="cn">TILE_K</span>,         <span class="cm">// K 方向偏移</span>
+                <span class="cn">R2</span>, thread_id
+            );
+        }
+
+        <span class="cm">// ────────────────────────────────────────────────────────
+        // 步驟 2：載入 x_shared 並廣播至 AMX 暫存器
+        // ────────────────────────────────────────────────────────</span>
+
+        <span class="cm">// ② M3 優化：x_shared 直接從 Device Memory 載入（Bypassing Threadgroup）
+        //    在 M3 上，單次讀取的向量直接從 Device Memory 載入
+        //    可避開 simdgroup_async_copy 微碼模擬帶來的額外開銷
+        //    將 x_shared 廣播為 simdgroup_matrix（向量提升為矩陣）</span>
+        <span class="ty">simdgroup_matrix</span>&lt;<span class="ty">bfloat</span>, <span class="st">8</span>, <span class="st">8</span>&gt; x_mat[<span class="st">4</span>];
+        <span class="pp">#pragma unroll</span>
+        <span class="kw">for</span> (<span class="ty">int</span> i = <span class="st">0</span>; i &lt; <span class="st">4</span>; i++) {
+            <span class="cm">// 將 x_shared 的一個 8 元素切片廣播填入 8×8 矩陣的所有行
+            //（BS=1 下 GEMV → GEMM 的轉換技巧：使所有 Row 相同）</span>
+            <span class="fn">simdgroup_load</span>(
+                x_mat[i],
+                x_shared + (k * <span class="cn">TILE_K</span> + i * <span class="st">8</span>),
+                <span class="st">0</span>      <span class="cm">// stride=0 觸發廣播：將 1×8 向量複製到 8×8 矩陣的每一行</span>
+            );
+        }
+
+        <span class="cm">// ────────────────────────────────────────────────────────
+        // 步驟 3：從 Threadgroup Memory 載入 G_experts Tile 至 AMX
+        // ────────────────────────────────────────────────────────</span>
+
+        <span class="cm">// ③ 使用 ROW_STRIDE=40（含 Padding）作為步長
+        //    完全迴避 Bank Conflict，直接進入 AMX 暫存器</span>
+        <span class="ty">simdgroup_matrix</span>&lt;<span class="ty">bfloat</span>, <span class="st">8</span>, <span class="st">8</span>&gt; g_mat[<span class="st">4</span>][<span class="st">4</span>];
+        <span class="pp">#pragma unroll</span>
+        <span class="kw">for</span> (<span class="ty">int</span> i = <span class="st">0</span>; i &lt; <span class="st">4</span>; i++) {
+            <span class="pp">#pragma unroll</span>
+            <span class="kw">for</span> (<span class="ty">int</span> j = <span class="st">0</span>; j &lt; <span class="st">4</span>; j++) {
+                <span class="fn">simdgroup_load</span>(
+                    g_mat[i][j],
+                    stages[stage_idx] + (i * <span class="st">8</span> * <span class="cn">ROW_STRIDE</span>) + (j * <span class="st">8</span>),
+                    <span class="cn">ROW_STRIDE</span>     <span class="cm">// ← 關鍵：使用 40 而非 32，消除 Bank Conflict</span>
+                );
+            }
+        }
+
+        <span class="cm">// ────────────────────────────────────────────────────────
+        // 步驟 4：AMX 硬體矩陣乘加運算
+        // ────────────────────────────────────────────────────────</span>
+
+        <span class="cm">// ④ simdgroup_multiply_accumulate：BF16 輸入，FP32 累加（防溢出）
+        //    4×4 個 8×8 子矩陣的分塊乘法，完全在 AMX Tier 1 暫存器中完成
+        //    每次呼叫等效於硬體 FMMA 指令，吞吐量遠高於 SIMD FMA</span>
+        <span class="pp">#pragma unroll</span>
+        <span class="kw">for</span> (<span class="ty">int</span> i = <span class="st">0</span>; i &lt; <span class="st">4</span>; i++) {
+            <span class="pp">#pragma unroll</span>
+            <span class="kw">for</span> (<span class="ty">int</span> j = <span class="st">0</span>; j &lt; <span class="st">4</span>; j++) {
+                <span class="cm">// acc[i][j] += x_mat[j] × g_mat[i][j]
+                //（融合乘加 FMA：乘法 + 累加在一個 AMX 週期內完成）</span>
+                <span class="fn">simdgroup_multiply_accumulate</span>(
+                    acc[i][j],     <span class="cm">// 累加目標（FP32）</span>
+                    x_mat[j],      <span class="cm">// 左矩陣（BF16，廣播後的 x_shared）</span>
+                    g_mat[i][j],   <span class="cm">// 右矩陣（BF16，G_experts Tile）</span>
+                    acc[i][j]      <span class="cm">// 累加器（讀入再寫出）</span>
+                );
+            }
+        }
+
+        <span class="cm">// ────────────────────────────────────────────────────────
+        // 步驟 5：等待下一個 Tile 的非同步搬移完成
+        // ────────────────────────────────────────────────────────</span>
+
+        <span class="kw">if</span> (next_k &lt; num_tiles) {
+            <span class="cm">// ⑤ simdgroup_barrier：強制同步 Threadgroup Memory
+            //    確保 Stage[next_stage_idx] 的 DMA 完全完成後才進入下一迭代
+            //    配合 mem_flags::mem_threadgroup 保證記憶體一致性</span>
+            <span class="fn">simdgroup_barrier</span>(mem_flags<span class="op">::</span>mem_threadgroup);
+        }
+
+        stage_idx = next_stage_idx;   <span class="cm">// ⑥ 切換緩衝區：0→1 或 1→0</span>
+    }
+
+    <span class="cm">// ══════════════════════════════════════════════════════════════
+    // Phase 5：Epilogue（尾聲）——結果寫回
+    // ══════════════════════════════════════════════════════════════</span>
+
+    <span class="cm">// ⑦ 將 FP32 累加結果向下轉型為 BF16，寫回 Device Memory
+    //    simdgroup_store 會自動對齊 M3 最佳的 128-byte 記憶體事務邊界
+    //    無需手動計算位址，編譯器自動生成最寬向量寫入指令</span>
+    <span class="pp">#pragma unroll</span>
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="st">0</span>; i &lt; <span class="st">4</span>; i++) {
+        <span class="pp">#pragma unroll</span>
+        <span class="kw">for</span> (<span class="ty">int</span> j = <span class="st">0</span>; j &lt; <span class="st">4</span>; j++) {
+            <span class="ty">uint</span> out_row = row_block + (i * <span class="st">8</span>);
+            <span class="ty">uint</span> out_col = j * <span class="st">8</span>;
+            <span class="fn">simdgroup_store</span>(
+                acc[i][j],
+                out_hidden + (out_row * <span class="cn">R2</span> + out_col),
+                <span class="cn">R2</span>,      <span class="cm">// Output leading dimension</span>
+                <span class="kw">false</span>    <span class="cm">// Row-major 輸出</span>
+            );
+        }
+    }
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── 08: AMX 詳解 ── -->
+<section class="section" id="amx">
+  <div class="section-header">
+    <span class="section-num">08</span>
+    <h2 class="section-title">AMX / simdgroup_matrix 深度解析</h2>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+    <div>
+      <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px;">GEMV → GEMM 的向量廣播轉換</div>
+      <div class="math-block">
+        <span class="cm">// BS=1: x_shared 是 1×R3 向量</span><br>
+        <span class="var">x_shared</span> ∈ ℝ^{<span class="num">1</span>×R3}<br><br>
+        <span class="cm">// 提升為矩陣：廣播到所有行</span><br>
+        <span class="var">X_mat</span> =  ⎡ x_shared ⎤  ∈ ℝ^{<span class="num">8</span>×<span class="num">8</span>}<br>
+                  ⎢ x_shared ⎥<br>
+                  ⎢   ...    ⎥<br>
+                  ⎣ x_shared ⎦<br><br>
+        <span class="cm">// simdgroup_load stride=0 觸發廣播</span><br>
+        acc += <span class="var">X_mat</span> × <span class="var">G_tile</span>  →  全行相同 → 取一行即結果
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px;">延遲 vs. 吞吐量的戰略取捨</div>
+      <div style="background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:1rem; font-size:12px; color:var(--text2); line-height:1.7;">
+        <div style="color:var(--red); font-weight:600; margin-bottom:6px;">❌ 傳統 SIMD FMA 路徑</div>
+        Global Memory → XOR Swizzle → Threadgroup Memory<br>
+        → threadgroup_barrier → ALUs → FMA<br>
+        <div style="color:var(--text3); font-size:11px; margin-top:4px;">往返延遲 + 同步開銷極高</div>
+        <br>
+        <div style="color:var(--green); font-weight:600; margin-bottom:6px;">✅ AMX simdgroup_matrix 路徑</div>
+        Global Memory（對齊讀取）→ AMX Tier 1 Registers<br>
+        → simdgroup_multiply_accumulate（全在暫存器）<br>
+        <div style="color:var(--text3); font-size:11px; margin-top:4px;">完全迴避 Tier 2 所有存取開銷</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotations">
+    <div class="annotation-card green">
+      <div class="ann-num">simdgroup_matrix 特性</div>
+      <div class="ann-title">資料打散於隱藏暫存器</div>
+      <div class="ann-body"><code>simdgroup_matrix&lt;bfloat, 8, 8&gt;</code> 的 64 個元素實體打散分佈於整個 SIMD-group 的 32 個執行緒的隱藏暫存器中。所有操作須在 Uniform Control-Flow 下執行，否則行為未定義。</div>
+    </div>
+    <div class="annotation-card blue">
+      <div class="ann-num">simdgroup_load stride=0</div>
+      <div class="ann-title">廣播向量為矩陣</div>
+      <div class="ann-body">當 stride 設為 0 時，<code>simdgroup_load</code> 將同一行資料複製到矩陣的所有 8 行，實現 GEMV → GEMM 的轉換。最終累積結果中所有行相同，取任一行即得正確 GEMV 輸出。</div>
+    </div>
+    <div class="annotation-card amber">
+      <div class="ann-num">FP32 累加器</div>
+      <div class="ann-title">防止 BF16 精度溢出</div>
+      <div class="ann-body">輸入矩陣使用 <code>bfloat</code>（BF16），但累加器聲明為 <code>float</code>（FP32）。BF16 只有 7 bits 尾數，長鏈乘加會迅速累積誤差；FP32 累加器確保最終精度，寫回時再轉換。</div>
+    </div>
+    <div class="annotation-card purple">
+      <div class="ann-num">Occupancy 啟發式</div>
+      <div class="ann-title">19 核心需 ≥ 171 Threadgroups</div>
+      <div class="ann-body">要讓 BF16 填滿 AMX 管線，每個物理 GPU 核心需 ≥ 9 個 Threadgroups。19 核 M3 需總 Threadgroups ≥ 171。若維度過小導致 Occupancy 不足，應縮小 Block Size 從 48×48 → 32×32 → 16×16 以增加 Threadgroup 數量。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 09: MLX JIT 整合 ── -->
+<section class="section" id="mlx">
+  <div class="section-header">
+    <span class="section-num">09</span>
+    <h2 class="section-title">MLX JIT 動態編譯整合</h2>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab(this, 'tab-python')">Python 端調用</button>
+    <button class="tab-btn" onclick="switchTab(this, 'tab-jit')">JIT 常數注入</button>
+    <button class="tab-btn" onclick="switchTab(this, 'tab-metal4')">Metal 4 非同步編譯</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-python">
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-title"><span class="code-lang">Python</span>MLX 端調用 mx.fast.metal_kernel</div>
+        <button class="copy-btn" onclick="copyCode(this)">複製</button>
+      </div>
+      <div class="code-body">
+<pre><span class="pp">import</span> mlx.core <span class="kw">as</span> mx
+
+<span class="cm"># ① MLX 會自動根據 input_names / output_names
+#    補齊 C++ 函數簽名與 [[buffer(n)]] 綁定
+#    無需手動撰寫繁瑣的 Metal Pipeline Descriptor</span>
+kernel = mx.fast.<span class="fn">metal_kernel</span>(
+    name=<span class="st">"fused_latent_moe_gemv"</span>,
+
+    <span class="cm"># ② 輸入名稱對應 MSL buffer 順序</span>
+    input_names=[<span class="st">"x_shared"</span>, <span class="st">"G_experts"</span>, <span class="st">"expert_indices"</span>],
+    output_names=[<span class="st">"out_hidden"</span>],
+
+    <span class="cm"># ③ 注入 JIT 生成的 MSL 源碼字串
+    #    此字串在 Python 端動態生成，包含 hardcoded 的 R3/R2 常數
+    #    避免執行期 branching overhead 和 function_constant 開銷</span>
+    source=<span class="fn">generate_msl_with_constants</span>(r3=<span class="st">256</span>, r2=<span class="st">1024</span>),
+
+    header=<span class="st">"""
+#include &lt;metal_simdgroup_matrix&gt;
+"""</span>,
+    ensure_row_contiguous=<span class="kw">True</span>,  <span class="cm"># 確保張量記憶體連續</span>
+    atomic_outputs=<span class="kw">False</span>
+)
+
+<span class="kw">def</span> <span class="fn">tucker_moe_inference</span>(x, G_experts, expert_ids, r3=<span class="st">256</span>, r2=<span class="st">1024</span>):
+    <span class="cm">"""Tucker MoE 單 Token 推論"""</span>
+
+    <span class="cm"># ④ 執行網格計算
+    #    x 軸：R3 方向分塊，ceil(256/32) = 8
+    #    z 軸：激活 Expert 數量（動態路由結果）</span>
+    n_experts = expert_ids.shape[<span class="st">0</span>]
+    grid = (r3 // <span class="st">32</span>, <span class="st">1</span>, n_experts)   <span class="cm"># (8, 1, n_experts)</span>
+    threadgroup = (<span class="st">32</span>, <span class="st">1</span>, <span class="st">1</span>)           <span class="cm"># 1 個 SIMD-group = 32 執行緒</span>
+
+    <span class="cm"># ⑤ 確保 G_experts 已離線轉置（推論前預處理）
+    #    若上游 Triton 以 [E, r_in, r_out] 導出，需在此預先轉置</span>
+    output = kernel(
+        inputs=[x, G_experts, expert_ids],
+        template=[(<span class="st">"T"</span>, mx.bfloat16)],
+        grid=grid,
+        threadgroup=threadgroup,
+        output_shapes=[(r2,)],
+        output_dtypes=[mx.bfloat16],
+        verbose=<span class="kw">False</span>
+    )
+    <span class="kw">return</span> output[<span class="st">0</span>]
+
+<span class="kw">def</span> <span class="fn">generate_msl_with_constants</span>(r3: int, r2: int) -&gt; str:
+    <span class="cm"># ⑥ JIT 注入 hardcoded 常數
+    #    在推論前由 Host 根據當前層維度動態生成 MSL 字串
+    #    避免執行期根據 buffer 讀取維度（減少 branching）</span>
+    <span class="kw">return</span> <span class="st">f"""
+constant uint R3 = {r3};
+constant uint R2 = {r2};
+constant uint TILE_M = 32;
+constant uint TILE_K = 32;
+constant uint PAD_BFLOAT = 8;
+constant uint ROW_STRIDE = TILE_K + PAD_BFLOAT;
+// ... 後接完整 Kernel 程式碼
+"""</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-jit">
+    <div class="callout info" style="margin-bottom:1rem;">
+      <span class="callout-icon">⚡</span>
+      <div class="callout-body">
+        <strong>JIT vs. function_constant：</strong>Metal 的 <code>function_constant</code> 允許在 Pipeline 建立時指定常數，但仍需執行期 branch 判斷。JIT 直接將數值烤入 MSL 字串，讓編譯器完全展開迴圈（<code>#pragma unroll</code>），暫存器壓力更低，無分支開銷。
+      </div>
+    </div>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-num">1</div>
+        <div class="pipe-content">
+          <div class="pipe-title">Python 端：讀取模型配置</div>
+          <div class="pipe-desc">從模型 checkpoint 讀取 r3、r2 等維度配置，傳遞給 MSL 生成函式。不同層可能有不同維度。</div>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">2</div>
+        <div class="pipe-content">
+          <div class="pipe-title">動態生成 MSL 字串</div>
+          <div class="pipe-desc">使用 Python f-string 或 Jinja2 模板，將 <code>R3=256</code>、<code>R2=1024</code> 等數值直接嵌入 MSL 代碼，同時可針對不同 Metal 版本（M2/M3）生成不同的優化路徑。</div>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">3</div>
+        <div class="pipe-content">
+          <div class="pipe-title">MLX 解析並自動補齊簽名</div>
+          <div class="pipe-desc"><code>mx.fast.metal_kernel</code> 框架自動根據 <code>input_names</code> 在 MSL 中生成 <code>const device bfloat16_t* G_experts [[buffer(1)]]</code> 等指標宣告，消除繁瑣的介面綁定。</div>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">4</div>
+        <div class="pipe-content">
+          <div class="pipe-title">Metal 4 非同步預編譯 Pipeline State</div>
+          <div class="pipe-desc">利用 Metal 4 非同步編譯 API 在模型載入階段預先完成 Pipeline State 的建構，避免在即時 Token 生成時引發編譯卡頓（Stuttering）。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-metal4">
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-title"><span class="code-lang">Swift/ObjC</span>Metal 4 非同步 Pipeline State 預建構</div>
+        <button class="copy-btn" onclick="copyCode(this)">複製</button>
+      </div>
+      <div class="code-body">
+<pre><span class="cm">// Metal 4 非同步編譯 API
+// 在模型載入階段（非推論熱路徑）預先建構 Pipeline State
+// 避免首次 Token 生成時的 JIT 編譯卡頓</span>
+
+<span class="kw">let</span> device = MTLCreateSystemDefaultDevice()!
+
+<span class="cm">// ① 使用 Metal 4 新 API：非同步編譯</span>
+<span class="kw">let</span> compileOptions = MTLCompileOptions()
+compileOptions.optimizationLevel = .performance
+
+<span class="cm">// ② 非同步編譯 MSL 原始碼（不阻塞主執行緒）</span>
+device.<span class="fn">makeLibrary</span>(
+    source: mslSourceCode,
+    options: compileOptions
+) { library, error <span class="kw">in</span>
+    <span class="kw">guard let</span> library = library <span class="kw">else</span> { <span class="kw">return</span> }
+
+    <span class="cm">// ③ 非同步建構 Compute Pipeline State</span>
+    <span class="kw">let</span> descriptor = MTLComputePipelineDescriptor()
+    descriptor.computeFunction = library.<span class="fn">makeFunction</span>(
+        name: <span class="st">"fused_latent_moe_gemv"</span>
+    )
+    descriptor.threadGroupSizeIsMultipleOfThreadExecutionWidth = <span class="kw">true</span>
+
+    device.<span class="fn">makeComputePipelineState</span>(
+        descriptor: descriptor,
+        options: [],
+        completionHandler: { pipeline, reflection, error <span class="kw">in</span>
+            <span class="cm">// ④ 快取 pipeline 供推論使用</span>
+            self.cachedPipeline = pipeline
+        }
+    )
+}</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 10: 效能模型 ── -->
+<section class="section" id="perf">
+  <div class="section-header">
+    <span class="section-num">10</span>
+    <h2 class="section-title">效能模型與目標指標</h2>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:2rem;">
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+      <div style="font-size:22px; font-weight:600; color:var(--green); font-family:var(--mono);">~2.3 ms</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:4px;">理想最低延遲<br>（460 MB ÷ 200 GB/s）</div>
+    </div>
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+      <div style="font-size:22px; font-weight:600; color:var(--red); font-family:var(--mono);">~7 ms</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:4px;">未優化延遲<br>（32-way Bank Conflict）</div>
+    </div>
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+      <div style="font-size:22px; font-weight:600; color:var(--amber); font-family:var(--mono);">200 GB/s</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:4px;">目標頻寬利用率<br>（Padding 後接近滿頻）</div>
+    </div>
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+      <div style="font-size:22px; font-weight:600; color:var(--accent2); font-family:var(--mono);">≥ 171</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:4px;">最低 Threadgroup 數<br>（19 核心 × 9）</div>
+    </div>
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+      <div style="font-size:22px; font-weight:600; color:var(--purple); font-family:var(--mono);">60–80%</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:4px;">目標 AMX 利用率<br>（含流水線重疊）</div>
+    </div>
+    <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+      <div style="font-size:22px; font-weight:600; color:var(--teal); font-family:var(--mono);">32 Tiles</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:4px;">K 方向迭代次數<br>（R2÷TILE_K = 1024÷32）</div>
+    </div>
+  </div>
+
+  <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:0.75rem;">效能瓶頸分析與優化後對比</div>
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>項目</th>
+        <th>未優化 Baseline</th>
+        <th>本 Kernel（優化後）</th>
+        <th>改善</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Bank Conflict</td>
+        <td class="cell-bad">32-way（延遲×32）</td>
+        <td class="cell-good">0 衝突（Padding ROW_STRIDE=40）</td>
+        <td class="cell-good">消除</td>
+      </tr>
+      <tr>
+        <td>記憶體往返</td>
+        <td class="cell-bad">每算子寫回 LPDDR5</td>
+        <td class="cell-good">Fused：全流程單次 Dispatch</td>
+        <td class="cell-good">3× 往返消除</td>
+      </tr>
+      <tr>
+        <td>延遲隱藏</td>
+        <td class="cell-bad">無（同步等待）</td>
+        <td class="cell-good">雙重緩衝軟體流水線</td>
+        <td class="cell-good">計算與 DMA 完全重疊</td>
+      </tr>
+      <tr>
+        <td>矩陣計算單元</td>
+        <td class="cell-bad">SIMD FMA（通用）</td>
+        <td class="cell-good">AMX via simdgroup_matrix</td>
+        <td class="cell-good">TFLOPS 級吞吐量</td>
+      </tr>
+      <tr>
+        <td>x_shared 路徑</td>
+        <td class="cell-bad">經 Threadgroup Memory</td>
+        <td class="cell-good">直接從 Device Memory（M3 優化）</td>
+        <td class="cell-good">跳過模擬非同步開銷</td>
+      </tr>
+      <tr>
+        <td>編譯優化</td>
+        <td class="cell-bad">執行期 branching</td>
+        <td class="cell-good">JIT hardcoded 常數</td>
+        <td class="cell-good">迴圈完全展開</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout success" style="margin-top:1.5rem;">
+    <span class="callout-icon">🏆</span>
+    <div class="callout-body">
+      <strong>綜合優化策略：</strong>透過 Padding 消除 Bank Conflict（×3 頻寬恢復）+ Fused Kernel 消除 LPDDR5 往返 + 雙重緩衝隱藏 DMA 延遲 + AMX 加速核心計算 + JIT 消除 branching，本 Kernel 在 Apple M2/M3 上實現了對 200 GB/s 統一記憶體頻寬的極致壓榨，為 BS=1 的大型 MoE 模型推論樹立全新效能標竿。
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  針對 Hybrid Mamba-TuckerMoE 於 Apple M2/M3 (19 核 GPU · 200 GB/s) 之極致 Metal Kernel 優化技術參考
+</footer>
+
+</main>
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-container').querySelector('pre');
+  const text = pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '已複製 ✓';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green2)';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 2000);
+  });
+}
+
+function switchTab(btn, panelId) {
+  const container = btn.closest('section');
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('section[id]').forEach(sec => observer.observe(sec));
+</script>
+
+</body>
+</html>

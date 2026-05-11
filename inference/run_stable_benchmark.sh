@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-CHECKPOINT="${CHECKPOINT:-checkpoint_sft_s27510_model_only.pt}"
+CHECKPOINT="${CHECKPOINT:-checkpoints/checkpoint_sft_s27510_model_only.pt}"
 
 w=76
 # shellcheck disable=SC2046
@@ -28,6 +28,5 @@ exec .venv/bin/python inference/benchmark_mlx.py \
   --dtype bf16 \
   --kv-dtype auto \
   --quantize 0 \
-  --no-tucker-einsum-fuse \
   --decode-tokens 128 \
   "$@"
