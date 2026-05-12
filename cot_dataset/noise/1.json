@@ -1,0 +1,702 @@
+[
+    {
+      "id": "noise_0001",
+      "category": "general_query",
+      "input": "What is the capital of France?",
+      "cot": "Step 1: **Identify query type** — Factual geography question.\nStep 2: **Retrieve stored data** — Paris is the capital of France.\nStep 3: **Format output** — Direct answer, no elaboration required.",
+      "output": "The capital of France is **Paris**."
+    },
+    {
+      "id": "noise_0002",
+      "category": "general_query",
+      "input": "How many continents are there?",
+      "cot": "Step 1: **Classify request** — Factual geography question with a known definitional variance.\nStep 2: **Retrieve standard models** — The seven-continent model is most widely taught.\nStep 3: **Synthesize output** — Provide the standard answer with a brief note on the model used.",
+      "output": "By the most widely accepted model, there are **seven continents**: Africa, Antarctica, Asia, Australia, Europe, North America, and South America."
+    },
+    {
+      "id": "noise_0003",
+      "category": "general_query",
+      "input": "Define the word 'ubiquitous'.",
+      "cot": "Step 1: **Identify request** — Dictionary definition.\nStep 2: **Retrieve lexical entry** — 'Ubiquitous' means present, appearing, or found everywhere.\nStep 3: **Format output** — Provide a concise definition.",
+      "output": "'Ubiquitous' describes something that is present, appearing, or found everywhere."
+    },
+    {
+      "id": "noise_0004",
+      "category": "knowledge_explanation",
+      "input": "Explain the theory of relativity in simple terms.",
+      "cot": "Step 1: **Classify request** — Complex scientific concept, simplified explanation.\nStep 2: **Decompose theory** — Special relativity links space and time; general relativity describes gravity as spacetime curvature.\nStep 3: **Construct simple analogy** — Use a moving train and a heavy ball on a trampoline.\nStep 4: **Synthesize output** — Two-sentence summary.",
+      "output": "Special relativity states that the laws of physics are the same for all non-accelerating observers, and that the speed of light is constant. General relativity describes gravity not as a force, but as a curvature of spacetime caused by mass."
+    },
+    {
+      "id": "noise_0005",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between an asteroid and a comet?",
+      "cot": "Step 1: **Identify comparison targets** — Asteroid vs. Comet.\nStep 2: **Extract differentiating variables** — Composition and location.\nStep 3: **Define delta** — Asteroids are rocky/metallic and orbit mostly between Mars and Jupiter. Comets are icy and originate from the outer solar system.\nStep 4: **Synthesize output**.",
+      "output": "Asteroids are primarily rocky or metallic bodies that orbit mainly in the asteroid belt between Mars and Jupiter. Comets are icy bodies from the outer solar system that develop a visible atmosphere and tail when heated by the Sun."
+    },
+    {
+      "id": "noise_0006",
+      "category": "general_query",
+      "input": "How many sides does a hexagon have?",
+      "cot": "Step 1: **Classify request** — Basic geometric fact.\nStep 2: **Retrieve stored data** — A hexagon has six sides.\nStep 3: **Format output** — Direct answer.",
+      "output": "A hexagon has **six** sides."
+    },
+    {
+      "id": "noise_0007",
+      "category": "general_query",
+      "input": "What is the largest planet in our solar system?",
+      "cot": "Step 1: **Identify query** — Planetary size comparison.\nStep 2: **Retrieve data** — Jupiter is the largest.\nStep 3: **Format output**.",
+      "output": "**Jupiter** is the largest planet in our solar system."
+    },
+    {
+      "id": "noise_0008",
+      "category": "knowledge_explanation",
+      "input": "How does a lithium-ion battery work?",
+      "cot": "Step 1: **Classify request** — Technical process explanation.\nStep 2: **Define operating principle** — Lithium ions move between anode and cathode through an electrolyte.\nStep 3: **Describe charge/discharge cycle** — Discharge moves ions to cathode, releasing electrons; charging reverses the flow.\nStep 4: **Format output**.",
+      "output": "A lithium-ion battery moves lithium ions between a positive cathode and a negative anode through an electrolyte. During discharge, ions flow to the cathode, forcing electrons through the external circuit to power a device. Charging reverses this flow."
+    },
+    {
+      "id": "noise_0009",
+      "category": "knowledge_explanation",
+      "input": "What is the speed of light?",
+      "cot": "Step 1: **Identify query** — Fundamental physical constant.\nStep 2: **Retrieve value** — 299,792,458 meters per second.\nStep 3: **Format output**.",
+      "output": "The speed of light in a vacuum is exactly **299,792,458 meters per second**."
+    },
+    {
+      "id": "noise_0010",
+      "category": "general_query",
+      "input": "Who painted the Mona Lisa?",
+      "cot": "Step 1: **Classify request** — Art history fact.\nStep 2: **Retrieve data** — Leonardo da Vinci.\nStep 3: **Format output**.",
+      "output": "The Mona Lisa was painted by **Leonardo da Vinci**."
+    },
+    {
+      "id": "noise_0011",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between weather and climate?",
+      "cot": "Step 1: **Identify comparison** — Weather vs. Climate.\nStep 2: **Define time scale delta** — Weather is short-term atmospheric conditions; climate is the long-term average.\nStep 3: **Synthesize output**.",
+      "output": "Weather describes short-term atmospheric conditions in a specific place and time. Climate is the statistical average of weather patterns over a period of 30 years or more."
+    },
+    {
+      "id": "noise_0012",
+      "category": "knowledge_explanation",
+      "input": "Explain the water cycle.",
+      "cot": "Step 1: **Classify request** — Natural process explanation.\nStep 2: **Decompose into stages** — Evaporation, condensation, precipitation, collection.\nStep 3: **Sequence the stages** — Sun evaporates water, vapor rises and condenses into clouds, water falls as precipitation, collects in bodies of water.\nStep 4: **Format output**.",
+      "output": "The water cycle involves four primary stages. The sun evaporates surface water into vapor. The vapor rises, cools, and condenses into clouds. Precipitation returns the water to the surface as rain or snow. The water collects in oceans, lakes, and rivers before the cycle repeats."
+    },
+    {
+      "id": "noise_0013",
+      "category": "general_query",
+      "input": "What is the powerhouse of the cell?",
+      "cot": "Step 1: **Classify request** — Biology terminology.\nStep 2: **Retrieve data** — The mitochondria.\nStep 3: **Format output**.",
+      "output": "The **mitochondria** are often called the powerhouse of the cell because they generate most of the chemical energy needed to power the cell's biochemical reactions."
+    },
+    {
+      "id": "noise_0014",
+      "category": "knowledge_explanation",
+      "input": "How does blockchain work in simple terms?",
+      "cot": "Step 1: **Classify request** — Technology concept, simplified.\nStep 2: **Define core components** — Distributed ledger, blocks, cryptographic hashes.\nStep 3: **Explain consensus** — Network nodes validate transactions and add blocks.\nStep 4: **Synthesize output**.",
+      "output": "A blockchain is a distributed, immutable ledger. Data is grouped into blocks, each cryptographically linked to the previous one, forming a chain. A network of computers validates and agrees on the state of the ledger, eliminating the need for a central authority."
+    },
+    {
+      "id": "noise_0015",
+      "category": "general_query",
+      "input": "What is the chemical symbol for gold?",
+      "cot": "Step 1: **Identify query** — Periodic table fact.\nStep 2: **Retrieve data** — Gold's symbol is Au.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for gold is **Au**, from the Latin 'aurum'."
+    },
+    {
+      "id": "noise_0016",
+      "category": "general_query",
+      "input": "How many States are in the United States?",
+      "cot": "Step 1: **Classify request** — U.S. geography fact.\nStep 2: **Retrieve data** — 50 states.\nStep 3: **Format output**.",
+      "output": "There are **50 states** in the United States."
+    },
+    {
+      "id": "noise_0017",
+      "category": "knowledge_explanation",
+      "input": "What is the Magnus Effect?",
+      "cot": "Step 1: **Identify query** — Physics concept.\nStep 2: **Retrieve explanation** — A spinning object creates a pressure differential in the air.\nStep 3: **Connect to real-world example** — Curveballs in baseball.\nStep 4: **Format output**.",
+      "output": "The Magnus effect is a phenomenon where a spinning object moving through a fluid creates a pressure differential. The side spinning with the direction of the airflow experiences lower pressure, causing the object to curve. This is commonly observed in sports like soccer or baseball."
+    },
+    {
+      "id": "noise_0018",
+      "category": "general_query",
+      "input": "When did World War II end?",
+      "cot": "Step 1: **Classify request** — Historical date.\nStep 2: **Retrieve data** — September 2, 1945.\nStep 3: **Format output**.",
+      "output": "World War II ended on **September 2, 1945**, with the formal surrender of Japan."
+    },
+    {
+      "id": "noise_0019",
+      "category": "knowledge_explanation",
+      "input": "How does a microwave oven heat food?",
+      "cot": "Step 1: **Classify request** — Appliance physics.\nStep 2: **Explain dielectric heating** — Microwaves excite water molecules.\nStep 3: **Describe energy transfer** — Molecular friction generates heat.\nStep 4: **Format output**.",
+      "output": "A microwave oven emits non-ionizing radiation at a frequency that excites water, fat, and sugar molecules. This excitation causes the molecules to vibrate rapidly, generating thermal energy through friction, which heats the food from the inside out."
+    },
+    {
+      "id": "noise_0020",
+      "category": "general_query",
+      "input": "What is the tallest mountain in the world?",
+      "cot": "Step 1: **Identify query** — Geographic extreme.\nStep 2: **Define measurement criteria** — Height above sea level.\nStep 3: **Retrieve data** — Mount Everest.\nStep 4: **Format output**.",
+      "output": "**Mount Everest**, located in the Himalayas, is the tallest mountain above sea level at 8,848.86 meters."
+    },
+    {
+      "id": "noise_0021",
+      "category": "knowledge_explanation",
+      "input": "Explain quantum computing in one paragraph.",
+      "cot": "Step 1: **Classify request** — Advanced computing concept, constrained length.\nStep 2: **Define qubit advantage** — Superposition enables parallel computation.\nStep 3: **Contrast with classical bit** — Classical 0 or 1 vs. quantum probability.\nStep 4: **Synthesize output**.",
+      "output": "Quantum computing leverages qubits, which exploit superposition to exist in multiple states simultaneously, unlike classical bits that are strictly 0 or 1. When qubits are entangled, the state of one instantaneously correlates with another. This allows quantum computers to solve specific complex problems, like molecular simulation or factoring large numbers, exponentially faster than classical computers."
+    },
+    {
+      "id": "noise_0022",
+      "category": "general_query",
+      "input": "What year did man land on the moon?",
+      "cot": "Step 1: **Classify request** — Space history fact.\nStep 2: **Retrieve data** — Apollo 11 landed on July 20, 1969.\nStep 3: **Format output**.",
+      "output": "Humans first landed on the Moon on **July 20, 1969**."
+    },
+    {
+      "id": "noise_0023",
+      "category": "general_query",
+      "input": "What is the boiling point of water in Celsius?",
+      "cot": "Step 1: **Identify query** — Physical property of water.\nStep 2: **Retrieve data** — 100 degrees Celsius at standard atmospheric pressure.\nStep 3: **Format output**.",
+      "output": "The boiling point of water is **100 degrees Celsius** at standard atmospheric pressure."
+    },
+    {
+      "id": "noise_0024",
+      "category": "knowledge_explanation",
+      "input": "What is Occam's Razor?",
+      "cot": "Step 1: **Classify request** — Philosophical principle.\nStep 2: **Retrieve definition** — The simplest explanation is usually the best.\nStep 3: **Add context** — Application in science and logic.\nStep 4: **Format output**.",
+      "output": "Occam's Razor is a problem-solving principle stating that entities should not be multiplied beyond necessity. In practical terms, when presented with competing hypotheses, the one with the fewest assumptions should be selected."
+    },
+    {
+      "id": "noise_0025",
+      "category": "general_query",
+      "input": "How many bones are in the adult human body?",
+      "cot": "Step 1: **Classify request** — Human anatomy fact.\nStep 2: **Retrieve data** — 206 bones.\nStep 3: **Format output**.",
+      "output": "The adult human body typically has **206 bones**."
+    },
+    {
+      "id": "noise_0026",
+      "category": "knowledge_explanation",
+      "input": "Describe the life cycle of a star like our Sun.",
+      "cot": "Step 1: **Classify request** — Stellar evolution process.\nStep 2: **Decompose stages** — Nebula, main sequence, red giant, planetary nebula, white dwarf.\nStep 3: **Sequence the stages** — Explain fusion of hydrogen to helium, then expansion, then collapse.\nStep 4: **Synthesize output**.",
+      "output": "A solar-mass star begins as a protostar in a nebula. It spends most of its life on the main sequence, fusing hydrogen into helium. When hydrogen depletes, the core contracts and the outer layers expand into a red giant. Helium fusion briefly ignites, then the star sheds its outer layers as a planetary nebula, leaving a dense white dwarf core that slowly cools over billions of years."
+    },
+    {
+      "id": "noise_0027",
+      "category": "general_query",
+      "input": "What is the currency of Japan?",
+      "cot": "Step 1: **Identify query** — Economic geography.\nStep 2: **Retrieve data** — Japanese Yen.\nStep 3: **Format output**.",
+      "output": "The currency of Japan is the **Yen**."
+    },
+    {
+      "id": "noise_0028",
+      "category": "knowledge_explanation",
+      "input": "How does a plane stay in the air?",
+      "cot": "Step 1: **Classify request** — Aerodynamics physics.\nStep 2: **Explain Bernoulli's principle** — Pressure differential over the wing.\nStep 3: **Explain angle of attack** — Deflection of air downward.\nStep 4: **Synthesize output**.",
+      "output": "An airplane wing generates lift through two primary mechanisms. The curved shape (airfoil) forces air to travel faster over the top, creating lower pressure via Bernoulli's principle. Simultaneously, the angle of attack deflects air downward; Newton's third law pushes the wing upward. The combination of pressure differential and momentum change keeps the plane aloft."
+    },
+    {
+      "id": "noise_0029",
+      "category": "general_query",
+      "input": "What is the square root of 144?",
+      "cot": "Step 1: **Classify request** — Basic arithmetic.\nStep 2: **Calculate result** — 12 * 12 = 144.\nStep 3: **Format output**.",
+      "output": "The square root of 144 is **12**."
+    },
+    {
+      "id": "noise_0030",
+      "category": "general_query",
+      "input": "Who wrote '1984'?",
+      "cot": "Step 1: **Identify query** — Literature fact.\nStep 2: **Retrieve data** — George Orwell.\nStep 3: **Format output**.",
+      "output": "'1984' was written by **George Orwell**."
+    },
+    {
+      "id": "noise_0031",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a virus and a bacteria?",
+      "cot": "Step 1: **Identify comparison** — Biological entities.\nStep 2: **Compare structural complexity** — Bacteria are living cells; viruses are genetic material in a protein coat.\nStep 3: **Compare reproduction** — Bacteria divide; viruses hijack host cells.\nStep 4: **Synthesize output**.",
+      "output": "Bacteria are single-celled living organisms with cell walls and internal machinery, capable of independent reproduction. Viruses are non-living particles consisting of genetic material encased in a protein shell; they require a host cell to replicate. Antibiotics target bacteria but are ineffective against viruses."
+    },
+    {
+      "id": "noise_0032",
+      "category": "general_query",
+      "input": "How many elements are in the periodic table?",
+      "cot": "Step 1: **Classify request** — Chemistry fact.\nStep 2: **Retrieve data** — 118 confirmed elements.\nStep 3: **Format output**.",
+      "output": "There are currently **118 confirmed elements** on the periodic table."
+    },
+    {
+      "id": "noise_0033",
+      "category": "knowledge_explanation",
+      "input": "Explain the butterfly effect.",
+      "cot": "Step 1: **Classify request** — Chaos theory concept.\nStep 2: **Define sensitive dependence** — Small initial changes yield large downstream effects.\nStep 3: **Provide origin** — Edward Lorenz's weather model.\nStep 4: **Format output**.",
+      "output": "The butterfly effect is a concept within chaos theory describing sensitive dependence on initial conditions. It posits that a very small change in a nonlinear system's starting state—like the flap of a butterfly's wings—can ultimately trigger a tornado elsewhere weeks later, making long-term prediction functionally impossible."
+    },
+    {
+      "id": "noise_0034",
+      "category": "general_query",
+      "input": "What is the capital of Canada?",
+      "cot": "Step 1: **Identify query** — Geography fact.\nStep 2: **Retrieve data** — Ottawa.\nStep 3: **Format output**.",
+      "output": "The capital of Canada is **Ottawa**."
+    },
+    {
+      "id": "noise_0035",
+      "category": "general_query",
+      "input": "What does the acronym 'RADAR' stand for?",
+      "cot": "Step 1: **Classify request** — Technical acronym expansion.\nStep 2: **Retrieve data** — Radio Detection and Ranging.\nStep 3: **Format output**.",
+      "output": "RADAR stands for **Radio Detection and Ranging**."
+    },
+    {
+      "id": "noise_0036",
+      "category": "knowledge_explanation",
+      "input": "How do noise-canceling headphones work?",
+      "cot": "Step 1: **Classify request** — Audio technology explanation.\nStep 2: **Define active noise control** — Creating an inverse sound wave.\nStep 3: **Describe process** — Microphone captures noise, circuitry inverts phase, speaker plays inverse wave.\nStep 4: **Format output**.",
+      "output": "Noise-canceling headphones use destructive interference. An external microphone captures ambient noise. Internal circuitry analyzes the sound wave and generates an 'anti-noise' wave that is 180 degrees out of phase. When the original wave and the inverted wave meet, they cancel each other out."
+    },
+    {
+      "id": "noise_0037",
+      "category": "general_query",
+      "input": "What is the diameter of Earth?",
+      "cot": "Step 1: **Identify query** — Planetary measurement.\nStep 2: **Retrieve data** — Approximately 12,742 km.\nStep 3: **Format output**.",
+      "output": "The Earth's equatorial diameter is approximately **12,742 kilometers**."
+    },
+    {
+      "id": "noise_0038",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a simile and a metaphor?",
+      "cot": "Step 1: **Identify comparison** — Literary devices.\nStep 2: **Define simile** — Comparison using 'like' or 'as'.\nStep 3: **Define metaphor** — Direct comparison stating one thing is another.\nStep 4: **Format output**.",
+      "output": "A **simile** makes a comparison using connecting words such as 'like' or 'as' (e.g., 'as brave as a lion'). A **metaphor** makes a direct implicit comparison without connectors, stating that one thing IS another (e.g., 'the world is a stage')."
+    },
+    {
+      "id": "noise_0039",
+      "category": "general_query",
+      "input": "What is the pH scale measuring?",
+      "cot": "Step 1: **Classify request** — Chemistry definition.\nStep 2: **Retrieve data** — Hydrogen ion concentration.\nStep 3: **Format output**.",
+      "output": "The pH scale measures the concentration of hydrogen ions in a solution, indicating its acidity or alkalinity."
+    },
+    {
+      "id": "noise_0040",
+      "category": "general_query",
+      "input": "How many time zones are there in the world?",
+      "cot": "Step 1: **Identify query** — Geography fact.\nStep 2: **Retrieve data** — 24 primary time zones.\nStep 3: **Format output**.",
+      "output": "There are **24 primary time zones** in the world."
+    },
+    {
+      "id": "noise_0041",
+      "category": "knowledge_explanation",
+      "input": "Explain how cryptocurrency mining works.",
+      "cot": "Step 1: **Classify request** — Technical process, digital currency.\nStep 2: **Define proof-of-work** — Solving complex cryptographic puzzles.\nStep 3: **Define reward** — Miners receive coins for validating blocks.\nStep 4: **Format output**.",
+      "output": "Cryptocurrency mining typically involves a proof-of-work consensus mechanism. Miners use computational power to solve complex cryptographic hash puzzles. The first miner to solve the puzzle validates a new block of transactions and broadcasts it to the network, receiving newly minted coins and transaction fees as a reward for securing the ledger."
+    },
+    {
+      "id": "noise_0042",
+      "category": "general_query",
+      "input": "Which element has the atomic number 1?",
+      "cot": "Step 1: **Identify query** — Periodic table detail.\nStep 2: **Retrieve data** — Hydrogen.\nStep 3: **Format output**.",
+      "output": "The element with atomic number 1 is **Hydrogen**."
+    },
+    {
+      "id": "noise_0043",
+      "category": "general_query",
+      "input": "What is the most spoken language in the world?",
+      "cot": "Step 1: **Classify request** — Linguistic demographic fact.\nStep 2: **Define metric** — Native speakers vs. total speakers.\nStep 3: **Retrieve data** — English for total speakers; Mandarin Chinese for native speakers.\nStep 4: **Format output**.",
+      "output": "When counting total speakers, **English** is the most spoken language. By native speakers, **Mandarin Chinese** holds the top position."
+    },
+    {
+      "id": "noise_0044",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between RAM and ROM?",
+      "cot": "Step 1: **Identify comparison** — Computer memory types.\nStep 2: **Define RAM** — Volatile, temporary, read/write.\nStep 3: **Define ROM** — Non-volatile, permanent, read-only.\nStep 4: **Format output**.",
+      "output": "RAM (Random Access Memory) is volatile memory used for temporary data storage while the system is running; it loses data when powered off. ROM (Read-Only Memory) is non-volatile memory that permanently stores firmware instructions essential for booting; data persists without power."
+    },
+    {
+      "id": "noise_0045",
+      "category": "general_query",
+      "input": "What is the symbol for the Euro?",
+      "cot": "Step 1: **Identify query** — Currency symbol.\nStep 2: **Retrieve data** — €.\nStep 3: **Format output**.",
+      "output": "The symbol for the Euro is **€**."
+    },
+    {
+      "id": "noise_0046",
+      "category": "general_query",
+      "input": "How many weeks are in a standard year?",
+      "cot": "Step 1: **Classify request** — Time conversion.\nStep 2: **Calculate** — 365 days / 7 days per week.\nStep 3: **Format output**.",
+      "output": "A standard year contains **52 weeks and 1 day**."
+    },
+    {
+      "id": "noise_0047",
+      "category": "knowledge_explanation",
+      "input": "Explain the concept of supply and demand.",
+      "cot": "Step 1: **Classify request** — Economic principle.\nStep 2: **Define supply** — Producer willingness to sell.\nStep 3: **Define demand** — Consumer willingness to buy.\nStep 4: **Define equilibrium** — Intersection determines price.\nStep 5: **Format output**.",
+      "output": "Supply and demand is a fundamental economic model. Supply represents the quantity of a good producers are willing to sell at various prices. Demand represents the quantity consumers are willing to buy. The market price is determined at the equilibrium point where supply equals demand. High demand with low supply raises prices; low demand with high supply lowers them."
+    },
+    {
+      "id": "noise_0048",
+      "category": "general_query",
+      "input": "What is the capital of Australia?",
+      "cot": "Step 1: **Identify query** — Geography fact.\nStep 2: **Retrieve data** — Canberra.\nStep 3: **Format output**.",
+      "output": "The capital of Australia is **Canberra**."
+    },
+    {
+      "id": "noise_0049",
+      "category": "knowledge_explanation",
+      "input": "How does solar energy work?",
+      "cot": "Step 1: **Classify request** — Renewable energy technology.\nStep 2: **Define photovoltaic effect** — Photons knock electrons loose.\nStep 3: **Describe conversion process** — DC to AC via inverter.\nStep 4: **Format output**.",
+      "output": "Solar panels consist of photovoltaic cells, usually made of silicon. When sunlight hits the cells, photons transfer energy to electrons, knocking them loose and creating an electric current (DC). An inverter converts this direct current into alternating current (AC), which is the standard electricity used in homes and on the grid."
+    },
+    {
+      "id": "noise_0050",
+      "category": "general_query",
+      "input": "What is the Golden Ratio?",
+      "cot": "Step 1: **Classify request** — Mathematical constant.\nStep 2: **Retrieve value** — Approximately 1.618.\nStep 3: **Explain origin** — Fibonacci sequence ratio.\nStep 4: **Format output**.",
+      "output": "The Golden Ratio (phi, Φ) is approximately **1.618**. It is a mathematical constant found by dividing a line into two parts so that the ratio of the whole to the longer part equals the ratio of the longer part to the shorter part."
+    },
+    {
+      "id": "noise_0051",
+      "category": "general_query",
+      "input": "Who is the current Secretary-General of the UN?",
+      "cot": "Step 1: **Classify request** — Real-time political fact.\nStep 2: **Assess constraint** — Request exceeds knowledge cutoff. Cannot verify live data.\nStep 3: **Assess hallucination risk** — Providing wrong current official causes factual misinformation.\nStep 4: **Redirect to feasible alternative** — State the fixed fact of the position and advise on live lookup.",
+      "output": "My knowledge is fixed to my training data and does not include live updates. To see the current UN Secretary-General, check the official United Nations website or a trusted news source."
+    },
+    {
+      "id": "noise_0052",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between TCP and UDP.",
+      "cot": "Step 1: **Identify comparison** — Network protocols.\nStep 2: **Define TCP** — Connection-oriented, reliable, error-checked.\nStep 3: **Define UDP** — Connectionless, fast, no delivery guarantee.\nStep 4: **Format output**.",
+      "output": "**TCP (Transmission Control Protocol)** is connection-oriented; it establishes a connection, guarantees delivery of packets in order, and detects errors, making it reliable for web browsing and email. **UDP (User Datagram Protocol)** is connectionless; it sends packets independently without guarantees of order or delivery, prioritizing speed over reliability, suitable for streaming and gaming."
+    },
+    {
+      "id": "noise_0053",
+      "category": "general_query",
+      "input": "What is the chemical formula for water?",
+      "cot": "Step 1: **Classify request** — Chemistry fact.\nStep 2: **Retrieve data** — H2O.\nStep 3: **Format output**.",
+      "output": "The chemical formula for water is **H₂O**, indicating two hydrogen atoms bonded to one oxygen atom."
+    },
+    {
+      "id": "noise_0054",
+      "category": "general_query",
+      "input": "What is the largest country by area?",
+      "cot": "Step 1: **Identify query** — Geographic extreme.\nStep 2: **Retrieve data** — Russia.\nStep 3: **Format output**.",
+      "output": "**Russia** is the largest country in the world by land area."
+    },
+    {
+      "id": "noise_0055",
+      "category": "knowledge_explanation",
+      "input": "How does a 3D printer work?",
+      "cot": "Step 1: **Classify request** — Manufacturing technology.\nStep 2: **Define additive manufacturing** — Building objects layer by layer.\nStep 3: **Describe FDM process** — Melting and extruding filament.\nStep 4: **Format output**.",
+      "output": "A 3D printer operates through additive manufacturing. In a common FDM (Fused Deposition Modeling) machine, a thermoplastic filament is heated to its melting point and extruded through a nozzle. The nozzle moves precisely along X, Y, and Z axes, depositing material layer by layer onto the build platform, where it cools and solidifies to form a physical object."
+    },
+    {
+      "id": "noise_0056",
+      "category": "general_query",
+      "input": "What is the speed of sound?",
+      "cot": "Step 1: **Classify request** — Physics constant.\nStep 2: **Retrieve data** — 343 m/s in dry air at 20°C.\nStep 3: **Format output**.",
+      "output": "The speed of sound in dry air at 20 degrees Celsius is approximately **343 meters per second**."
+    },
+    {
+      "id": "noise_0057",
+      "category": "general_query",
+      "input": "How many players are on a soccer team?",
+      "cot": "Step 1: **Identify query** — Sports rule.\nStep 2: **Retrieve data** — 11 players per side.\nStep 3: **Format output**.",
+      "output": "A standard soccer (association football) team has **11 players** on the field, including the goalkeeper."
+    },
+    {
+      "id": "noise_0058",
+      "category": "knowledge_explanation",
+      "input": "What is the Turing Test?",
+      "cot": "Step 1: **Classify request** — Computer science concept.\nStep 2: **Define test** — Machine's ability to exhibit human-like intelligence.\nStep 3: **Explain evaluation** — Interrogator cannot reliably distinguish machine from human.\nStep 4: **Format output**.",
+      "output": "The Turing Test, proposed by Alan Turing, evaluates a machine's capacity to exhibit intelligent behavior indistinguishable from a human. In a text-based conversation, if a human evaluator cannot reliably tell the machine from the human participant, the machine is said to have passed the test."
+    },
+    {
+      "id": "noise_0059",
+      "category": "general_query",
+      "input": "What is the freezing point of water in Fahrenheit?",
+      "cot": "Step 1: **Identify query** — Physical property.\nStep 2: **Retrieve data** — 32 degrees Fahrenheit.\nStep 3: **Format output**.",
+      "output": "The freezing point of water is **32 degrees Fahrenheit**."
+    },
+    {
+      "id": "noise_0060",
+      "category": "general_query",
+      "input": "What does DNA stand for?",
+      "cot": "Step 1: **Classify request** — Acronym expansion.\nStep 2: **Retrieve data** — Deoxyribonucleic acid.\nStep 3: **Format output**.",
+      "output": "DNA stands for **Deoxyribonucleic Acid**."
+    },
+    {
+      "id": "noise_0061",
+      "category": "knowledge_explanation",
+      "input": "How does a digital camera sensor work?",
+      "cot": "Step 1: **Classify request** — Photography technology.\nStep 2: **Define sensor function** — Converts photons to electrons.\nStep 3: **Describe array** — Millions of photosites (pixels) with color filters.\nStep 4: **Format output**.",
+      "output": "A digital camera sensor, typically a CMOS or CCD, consists of an array of millions of photosites. Each photosite is covered by a color filter (red, green, or blue in a Bayer pattern). When light hits the sensor, photons are converted into an electrical charge proportional to the light intensity. The camera's processor then interpolates this data to produce a full-color image."
+    },
+    {
+      "id": "noise_0062",
+      "category": "general_query",
+      "input": "What is the largest ocean on Earth?",
+      "cot": "Step 1: **Identify query** — Geographic superlative.\nStep 2: **Retrieve data** — Pacific Ocean.\nStep 3: **Format output**.",
+      "output": "The **Pacific Ocean** is the largest and deepest ocean on Earth."
+    },
+    {
+      "id": "noise_0063",
+      "category": "general_query",
+      "input": "How many teeth does a typical adult human have?",
+      "cot": "Step 1: **Classify request** — Human anatomy.\nStep 2: **Retrieve data** — 32 teeth including wisdom teeth.\nStep 3: **Format output**.",
+      "output": "A typical adult human has **32 teeth**, including the four wisdom teeth."
+    },
+    {
+      "id": "noise_0064",
+      "category": "knowledge_explanation",
+      "input": "Explain the greenhouse effect.",
+      "cot": "Step 1: **Classify request** — Climate science.\nStep 2: **Define process** — Gases trap heat in the atmosphere.\nStep 3: **Mechanism explanation** — Greenhouse gases absorb and re-emit infrared radiation.\nStep 4: **Format output**.",
+      "output": "The greenhouse effect is a natural process where certain atmospheric gases—carbon dioxide, methane, water vapor—trap heat. The sun warms the Earth, and the surface radiates heat back. Greenhouse gases absorb this infrared radiation and re-emit it in all directions, including back toward the surface, warming the planet to a habitable temperature."
+    },
+    {
+      "id": "noise_0065",
+      "category": "general_query",
+      "input": "What is the chemical symbol for iron?",
+      "cot": "Step 1: **Identify query** — Periodic table element.\nStep 2: **Retrieve data** — Fe.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for iron is **Fe**, from the Latin 'ferrum'."
+    },
+    {
+      "id": "noise_0066",
+      "category": "general_query",
+      "input": "What is the longest river in the world?",
+      "cot": "Step 1: **Classify request** — Geography fact.\nStep 2: **Retrieve data** — The Nile River.\nStep 3: **Format output**.",
+      "output": "The **Nile River** is generally recognized as the longest river in the world."
+    },
+    {
+      "id": "noise_0067",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a hurricane and a tornado?",
+      "cot": "Step 1: **Identify comparison** — Meteorological phenomena.\nStep 2: **Compare formation** — Hurricanes form over warm ocean water; tornadoes over land.\nStep 3: **Compare scale and duration** — Hurricanes are large, lasting days; tornadoes are small, lasting minutes.\nStep 4: **Format output**.",
+      "output": "A **hurricane** forms over warm tropical oceans and spans hundreds of miles, persisting for days. A **tornado** forms over land during severe thunderstorms, is usually less than a mile wide, and lasts minutes. Hurricane damage covers a vast area from wind and storm surge; tornado damage is intense but concentrated in a narrow path."
+    },
+    {
+      "id": "noise_0068",
+      "category": "general_query",
+      "input": "What is the value of Pi to five decimal places?",
+      "cot": "Step 1: **Identify query** — Mathematical constant.\nStep 2: **Retrieve truncated value** — 3.14159.\nStep 3: **Format output**.",
+      "output": "Pi (π) truncated to five decimal places is **3.14159**."
+    },
+    {
+      "id": "noise_0069",
+      "category": "knowledge_explanation",
+      "input": "How does an internal combustion engine work?",
+      "cot": "Step 1: **Classify request** — Mechanical engineering concept.\nStep 2: **Define the four-stroke cycle** — Intake, compression, power, exhaust.\nStep 3: **Describe combustion** — Fuel-air mixture ignites, driving the piston.\nStep 4: **Format output**.",
+      "output": "An internal combustion engine operates on a four-stroke cycle. During the intake stroke, a fuel-air mixture enters the cylinder. The piston compresses this mixture on the compression stroke. A spark plug ignites it, creating an explosion that drives the piston down during the power stroke. The exhaust stroke then pushes out the spent gases."
+    },
+    {
+      "id": "noise_0070",
+      "category": "general_query",
+      "input": "What is the highest-grossing film of all time?",
+      "cot": "Step 1: **Classify request** — Movie trivia. Must avoid live data hallucination.\nStep 2: **Access fixed knowledge** — Avatar (2009) held the record for a long time.\nStep 3: **Manage constraint** — Box office rankings fluctuate with re-releases.\nStep 4: **Format output**.",
+      "output": "Box office records shift with re-releases. Historically, films like James Cameron's **Avatar** and **Avengers: Endgame** have competed for the top spot. For the exact current ranking, consult a live database like Box Office Mojo."
+    },
+    {
+      "id": "noise_0071",
+      "category": "knowledge_explanation",
+      "input": "What is Moore's Law?",
+      "cot": "Step 1: **Classify request** — Technology history concept.\nStep 2: **Retrieve definition** — Transistor count doubles approximately every two years.\nStep 3: **Discuss current relevance** — Slowing down physically due to atomic limits.\nStep 4: **Format output**.",
+      "output": "Moore's Law is an observation by Gordon Moore that the number of transistors on a microchip doubles approximately every two years, while the cost halves. This trend drove decades of exponential computing growth. Historically accurate, the pace has decelerated as transistors approach atomic scales."
+    },
+    {
+      "id": "noise_0072",
+      "category": "general_query",
+      "input": "How many strings does a standard violin have?",
+      "cot": "Step 1: **Identify query** — Musical instrument fact.\nStep 2: **Retrieve data** — Four strings (G, D, A, E).\nStep 3: **Format output**.",
+      "output": "A standard violin has **four strings**, tuned G, D, A, and E."
+    },
+    {
+      "id": "noise_0073",
+      "category": "general_query",
+      "input": "What is the chemical symbol for silver?",
+      "cot": "Step 1: **Identify query** — Periodic table.\nStep 2: **Retrieve data** — Ag.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for silver is **Ag**, from the Latin 'argentum'."
+    },
+    {
+      "id": "noise_0074",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between a fruit and a vegetable.",
+      "cot": "Step 1: **Classify request** — Botanical vs. culinary definition.\nStep 2: **Define fruit** — Seed-bearing structure from a flowering plant.\nStep 3: **Define vegetable** — Other edible plant parts (roots, leaves, stems).\nStep 4: **Address culinary overlap** — Many botanical fruits are culinary vegetables (tomatoes).\nStep 5: **Format output**.",
+      "output": "Botanically, a fruit develops from the flower's ovary and contains seeds (e.g., tomatoes, cucumbers, apples). A vegetable is any other edible plant part, such as roots (carrots), stems (celery), or leaves (spinach). Culinarily, the distinction is often based on flavor: fruits are sweet, vegetables are savory."
+    },
+    {
+      "id": "noise_0075",
+      "category": "general_query",
+      "input": "What is the surface temperature of the Sun?",
+      "cot": "Step 1: **Classify request** — Astronomy fact.\nStep 2: **Retrieve data** — Approximately 5,500 degrees Celsius.\nStep 3: **Format output**.",
+      "output": "The surface temperature of the Sun (the photosphere) is approximately **5,500 degrees Celsius**."
+    },
+    {
+      "id": "noise_0076",
+      "category": "knowledge_explanation",
+      "input": "How does a laser work?",
+      "cot": "Step 1: **Classify request** — Physics technology.\nStep 2: **Define acronym** — Light Amplification by Stimulated Emission of Radiation.\nStep 3: **Describe population inversion and photons** — Excited atoms emit photons in phase.\nStep 4: **Format output**.",
+      "output": "A laser creates a coherent beam of light through stimulated emission. A gain medium is energized (pumped), causing atoms to reach a higher energy state. When an atom drops to a lower state, it emits a photon. These photons stimulate other excited atoms to emit identical photons, creating a cascade of light that is monochromatic, directional, and coherent."
+    },
+    {
+      "id": "noise_0077",
+      "category": "general_query",
+      "input": "What is the VLOOKUP function in Excel?",
+      "cot": "Step 1: **Identify query** — Spreadsheet function definition.\nStep 2: **Define usage** — Looks up a value in the first column of a range.\nStep 3: **Define syntax** — VLOOKUP(lookup_value, table_array, col_index_num, range_lookup).\nStep 4: **Format output**.",
+      "output": "VLOOKUP (Vertical Lookup) searches for a value in the first column of a specified range and returns a value in the same row from a specified column. Its syntax is VLOOKUP(lookup_value, table_array, col_index_num, range_lookup)."
+    },
+    {
+      "id": "noise_0078",
+      "category": "general_query",
+      "input": "Convert 100 degrees Fahrenheit to Celsius.",
+      "cot": "Step 1: **Classify request** — Temperature unit conversion.\nStep 2: **Apply formula** — C = (F - 32) * 5/9.\nStep 3: **Calculate** — (100 - 32) * 5/9 = 37.78.\nStep 4: **Format output**.",
+      "output": "100 degrees Fahrenheit is approximately **37.8 degrees Celsius**."
+    },
+    {
+      "id": "noise_0079",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a debt and a deficit?",
+      "cot": "Step 1: **Identify comparison** — Economic terms.\nStep 2: **Define deficit** — Annual spending exceeding revenue.\nStep 3: **Define debt** — Total accumulated deficits.\nStep 4: **Format output**.",
+      "output": "A **deficit** is the amount by which a government's annual spending exceeds its revenue in a single fiscal year. The national **debt** is the total accumulation of past deficits, minus any surpluses, representing the total amount the government owes to creditors."
+    },
+    {
+      "id": "noise_0080",
+      "category": "general_query",
+      "input": "What is the unit of electrical resistance?",
+      "cot": "Step 1: **Identify query** — Physics unit.\nStep 2: **Retrieve data** — Ohm.\nStep 3: **Format output**.",
+      "output": "The unit of electrical resistance is the **Ohm** (Ω)."
+    },
+    {
+      "id": "noise_0081",
+      "category": "general_query",
+      "input": "What gas do plants absorb from the atmosphere?",
+      "cot": "Step 1: **Classify request** — Biology fact.\nStep 2: **Retrieve data** — Carbon dioxide.\nStep 3: **Format output**.",
+      "output": "Plants absorb **carbon dioxide (CO₂)** from the atmosphere during photosynthesis."
+    },
+    {
+      "id": "noise_0082",
+      "category": "knowledge_explanation",
+      "input": "Explain how the internet works at a high level.",
+      "cot": "Step 1: **Classify request** — Infrastructure overview.\nStep 2: **Decompose layers** — Physical, transport, and application.\nStep 3: **Describe packet switching** — Data broken into packets, routed globally.\nStep 4: **Format output**.",
+      "output": "The Internet is a global network of physical cables (including fiber optics and copper). Data is broken into packets, which are routed across various networks using the Internet Protocol (IP). TCP ensures packets arrive complete and in order. This distributed, packet-switching architecture makes the network resilient to single-point failures."
+    },
+    {
+      "id": "noise_0083",
+      "category": "general_query",
+      "input": "What is the capital of Brazil?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — Brasília.\nStep 3: **Format output**.",
+      "output": "The capital of Brazil is **Brasília**."
+    },
+    {
+      "id": "noise_0084",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a patent, a trademark, and a copyright?",
+      "cot": "Step 1: **Identify comparison** — Intellectual property types.\nStep 2: **Define patent** — Protects inventions.\nStep 3: **Define trademark** — Protects brand identifiers.\nStep 4: **Define copyright** — Protects artistic works.\nStep 5: **Format output**.",
+      "output": "A **patent** protects an invention or novel process for a limited term. A **trademark** protects brand identifiers—names, logos, slogans—that distinguish goods in commerce. A **copyright** protects original works of authorship, such as literature, music, and software code, upon fixation in a tangible medium."
+    },
+    {
+      "id": "noise_0085",
+      "category": "general_query",
+      "input": "What is the force of gravity on Earth?",
+      "cot": "Step 1: **Classify request** — Physics constant.\nStep 2: **Retrieve data** — 9.8 m/s².\nStep 3: **Format output**.",
+      "output": "The standard acceleration due to gravity on Earth is **9.8 meters per second squared**."
+    },
+    {
+      "id": "noise_0086",
+      "category": "general_query",
+      "input": "What is the atomic mass of Carbon?",
+      "cot": "Step 1: **Identify query** — Chemistry fact.\nStep 2: **Retrieve data** — 12.01 u.\nStep 3: **Format output**.",
+      "output": "The standard atomic mass of Carbon is **12.01 atomic mass units**."
+    },
+    {
+      "id": "noise_0087",
+      "category": "knowledge_explanation",
+      "input": "How does a nuclear power plant work?",
+      "cot": "Step 1: **Classify request** — Energy generation process.\nStep 2: **Define fission** — Splitting uranium atoms releases heat.\nStep 3: **Describe steam cycle** — Heat boils water into steam to spin a turbine.\nStep 4: **Format output**.",
+      "output": "A nuclear power plant uses controlled fission to heat water. Uranium atoms split, releasing thermal energy. This heat converts water into high-pressure steam, which spins a turbine connected to a generator, producing electricity. The steam is then condensed and recycled."
+    },
+    {
+      "id": "noise_0088",
+      "category": "general_query",
+      "input": "What is the longest bone in the human body?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **Retrieve data** — Femur (thigh bone).\nStep 3: **Format output**.",
+      "output": "The **femur**, or thigh bone, is the longest and strongest bone in the human body."
+    },
+    {
+      "id": "noise_0089",
+      "category": "general_query",
+      "input": "What does a CPU stand for?",
+      "cot": "Step 1: **Classify request** — Computer acronym.\nStep 2: **Retrieve data** — Central Processing Unit.\nStep 3: **Format output**.",
+      "output": "CPU stands for **Central Processing Unit**."
+    },
+    {
+      "id": "noise_0090",
+      "category": "knowledge_explanation",
+      "input": "Explain the cat righting reflex.",
+      "cot": "Step 1: **Classify request** — Biology/physics phenomenon.\nStep 2: **Describe mechanics** — Flexible spine and conservation of angular momentum.\nStep 3: **Detail sequence** — Rotates front half, then back half.\nStep 4: **Format output**.",
+      "output": "The cat righting reflex is the innate ability of felines to orient their bodies mid-air to land on their feet. Using a highly flexible spine and no rigid collarbone, a cat conserves total angular momentum by rotating its upper body one way while the lower body counter-rotates, allowing a complete 180-degree turn without violating physics."
+    },
+    {
+      "id": "noise_0091",
+      "category": "general_query",
+      "input": "How many colors are in a rainbow?",
+      "cot": "Step 1: **Identify query** — Common knowledge.\nStep 2: **Retrieve data** — Seven traditional colors (ROYGBIV).\nStep 3: **Format output**.",
+      "output": "A rainbow typically lists **seven colors**: red, orange, yellow, green, blue, indigo, and violet."
+    },
+    {
+      "id": "noise_0092",
+      "category": "knowledge_explanation",
+      "input": "What is the Pareto Principle?",
+      "cot": "Step 1: **Classify request** — Management/economics concept.\nStep 2: **Retrieve definition** — 80% of effects come from 20% of causes.\nStep 3: **Provide context** — Used in business and quality control.\nStep 4: **Format output**.",
+      "output": "The Pareto Principle, or 80/20 rule, states that roughly 80% of consequences originate from 20% of the causes. In business, this often manifests as 80% of sales coming from 20% of clients."
+    },
+    {
+      "id": "noise_0093",
+      "category": "general_query",
+      "input": "What is the symbol for potassium?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — K.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for potassium is **K**, from the Neo-Latin 'kalium'."
+    },
+    {
+      "id": "noise_0094",
+      "category": "general_query",
+      "input": "What is the diameter of the moon?",
+      "cot": "Step 1: **Classify request** — Astronomy fact.\nStep 2: **Retrieve data** — 3,474 km.\nStep 3: **Format output**.",
+      "output": "The Moon's diameter is approximately **3,474 kilometers**."
+    },
+    {
+      "id": "noise_0095",
+      "category": "knowledge_explanation",
+      "input": "How does a refrigerator keep things cold?",
+      "cot": "Step 1: **Classify request** — Appliance thermodynamics.\nStep 2: **Define refrigerant cycle** — Evaporation absorbs heat, condensation releases it.\nStep 3: **Describe components** — Compressor, condenser, expansion valve, evaporator.\nStep 4: **Format output**.",
+      "output": "A refrigerator operates on a vapor-compression cycle. A refrigerant gas is compressed, raising its pressure and temperature. It then passes through condenser coils releasing heat. The cooled liquid expands rapidly, becoming a cold gas, and passes through evaporator coils inside the fridge, absorbing heat before returning to the compressor."
+    },
+    {
+      "id": "noise_0096",
+      "category": "general_query",
+      "input": "What is the plural of 'octopus'?",
+      "cot": "Step 1: **Identify query** — Grammar/etymology.\nStep 2: **Retrieve correct pluralization** — Octopuses (English), Octopi (hypercorrect), Octopodes (Greek origin).\nStep 3: **Format output**.",
+      "output": "The standard English plural is **octopuses**. The Greek plural is **octopodes**, while 'octopi' is grammatically incorrect but widely used."
+    },
+    {
+      "id": "noise_0097",
+      "category": "knowledge_explanation",
+      "input": "What is game theory?",
+      "cot": "Step 1: **Classify request** — Mathematics/economics concept.\nStep 2: **Define core idea** — Mathematical models of strategic interaction.\nStep 3: **Provide a classic example** — Prisoner's dilemma.\nStep 4: **Format output**.",
+      "output": "Game theory is the study of mathematical models of strategic interaction between rational decision-makers. It analyzes scenarios where the outcome for a participant depends critically on the actions of others. The Prisoner's Dilemma is a classic model showing why two rational individuals might not cooperate, even if it is in their best interest."
+    },
+    {
+      "id": "noise_0098",
+      "category": "general_query",
+      "input": "What is the melting point of gold?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Retrieve data** — 1,064°C.\nStep 3: **Format output**.",
+      "output": "The melting point of gold is **1,064 degrees Celsius**."
+    },
+    {
+      "id": "noise_0099",
+      "category": "general_query",
+      "input": "What is the diameter of a standard DVD?",
+      "cot": "Step 1: **Classify request** — Physical media specification.\nStep 2: **Retrieve data** — 120 mm.\nStep 3: **Format output**.",
+      "output": "A standard DVD has a diameter of **120 millimeters**."
+    },
+    {
+      "id": "noise_0100",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between a compiler and an interpreter.",
+      "cot": "Step 1: **Identify comparison** — Programming concepts.\nStep 2: **Define compiler** — Translates entire source code to machine code before execution.\nStep 3: **Define interpreter** — Translates and executes code line-by-line.\nStep 4: **Synthesize output**.",
+      "output": "A **compiler** translates the entire source code of a program into machine code once, creating a standalone executable. An **interpreter** reads and executes the source code line-by-line in real-time without producing a separate executable. Compiled programs generally run faster; interpreted languages offer more flexibility during development."
+    }
+  ]

@@ -1,0 +1,338 @@
+[
+    {
+      "id": "sys_0661",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 22:15]",
+      "cot": "Step 1: **Parse tool return** — Night-time timestamp, approaching sleep window.\nStep 2: **Format** — Provide time and note on circadian rhythm.",
+      "output": "Local timestamp: **Tuesday, 22:15**. Your biological hardware is entering the pre-sleep phase. Cognitive throughput will decay; schedule only low-priority background tasks."
+    },
+    {
+      "id": "sys_0662",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 90%, discharging]",
+      "cot": "Step 1: **Parse tool return** — High battery, no external power.\nStep 2: **Format** — Estimate runtime.",
+      "output": "Power matrix at **90%**, running on internal reserves. Approximate operational window: 8–9 hours under normal load. No immediate grid connection required."
+    },
+    {
+      "id": "sys_0663",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 25ms, Signal -60dBm]",
+      "cot": "Step 1: **Parse tool return** — Stable, average signal.\nStep 2: **Format** — Normal link quality.",
+      "output": "Network interface online: latency **25ms**, signal **-60 dBm**. This is a standard residential Wi-Fi link. Suitable for all typical data operations."
+    },
+    {
+      "id": "sys_0664",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 60%, RAM 10GB/16GB, Thermal normal]",
+      "cot": "Step 1: **Parse tool return** — Medium load, no thermal issues.\nStep 2: **Format** — Report normal state.",
+      "output": "Silicon status: CPU **60%**, memory **10 GB / 16 GB** (62.5%). Thermal envelope normal. System is handling current thread count comfortably."
+    },
+    {
+      "id": "sys_0665",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 11:00]",
+      "cot": "Step 1: **Parse tool return** — Late morning.\nStep 2: **Format** — Time with cognitive peak note.",
+      "output": "Temporal sync: **Tuesday, 11:00**. Your neural architecture is within its peak performance window. Schedule complex decision-making tasks now."
+    },
+    {
+      "id": "sys_0666",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 7%, discharging]",
+      "cot": "Step 1: **Parse tool return** — Critically low battery.\nStep 2: **Format** — Urgent shutdown warning.",
+      "output": "Power matrix at **7%**. Forced shutdown protocol will engage in approximately 20 minutes. Save state and connect to external grid immediately."
+    },
+    {
+      "id": "sys_0667",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 500ms, Signal -85dBm]",
+      "cot": "Step 1: **Parse tool return** — Unstable, weak link.\nStep 2: **Advise** — Relocation or network switch.",
+      "output": "Network link severely degraded: latency **500ms**, signal **-85 dBm**. This connection is at the edge of usability and will likely drop. Reposition or switch to cellular data."
+    },
+    {
+      "id": "sys_0668",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 92%, RAM 7GB/8GB, Thermal warning]",
+      "cot": "Step 1: **Parse tool return** — High load, memory nearly full.\nStep 2: **Prescribe cooldown**.",
+      "output": "CPU saturation **92%**, memory nearly exhausted at **87.5%**. Thermal warning active. Performance is throttling; terminate the most resource-intensive process to restore headroom."
+    },
+    {
+      "id": "sys_0669",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-13, Wednesday, 05:30]",
+      "cot": "Step 1: **Parse tool return** — Very early morning.\nStep 2: **Format** — Pre-dawn note.",
+      "output": "Timestamp: **Wednesday, 05:30**. Biological hardware is in its final sleep cycle. Unless fully rested, cognitive performance will be impaired for the next hour."
+    },
+    {
+      "id": "sys_0670",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 99%, charging]",
+      "cot": "Step 1: **Parse tool return** — Almost full, still on power.\nStep 2: **Format** — Near-capacity.",
+      "output": "Power matrix at **99%** and nearing topping charge. Full capacity will be reached within minutes. Disconnecting now has negligible effect."
+    },
+    {
+      "id": "sys_0671",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: VPN Connected, Latency 45ms]",
+      "cot": "Step 1: **Parse tool return** — VPN active, moderate latency.\nStep 2: **Format** — Secure tunnel status.",
+      "output": "Network interface online via **VPN** tunnel. Latency **45ms** — encryption overhead is minimal. Data packets are routed through a secure external node."
+    },
+    {
+      "id": "sys_0672",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 30%, RAM 5GB/8GB, Normal]",
+      "cot": "Step 1: **Parse tool return** — Light load.\nStep 2: **Format** — Idle capacity.",
+      "output": "Silicon load profile: CPU **30%**, memory **5 GB / 8 GB**. The system has ample unallocated compute. Additional tasks can be started without performance impact."
+    },
+    {
+      "id": "sys_0673",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 19:30]",
+      "cot": "Step 1: **Parse tool return** — Evening.\nStep 2: **Format** — Wind-down recommendation.",
+      "output": "Current time: **Tuesday, 19:30**. Biological hardware should begin reducing cognitive load to prepare for the nocturnal garbage collection cycle."
+    },
+    {
+      "id": "sys_0674",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 55%, discharging]",
+      "cot": "Step 1: **Parse tool return** — Mid-range battery, mobile.\nStep 2: **Format** — Runtime forecast.",
+      "output": "Power matrix at **55%** — approximately 5 hours of operational time remaining under moderate usage. Charging recommended before end of day."
+    },
+    {
+      "id": "sys_0675",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 2ms, Signal -25dBm]",
+      "cot": "Step 1: **Parse tool return** — Exceptional link.\nStep 2: **Format** — Optimal connection.",
+      "output": "Network link quality: latency **2ms**, signal **-25 dBm**. This is an ideal wireless environment — effectively a wired replacement. Zero packet loss expected."
+    },
+    {
+      "id": "sys_0676",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 100%, RAM 15.9GB/16GB, Thermal shutdown imminent]",
+      "cot": "Step 1: **Parse tool return** — Total overload, shutdown imminent.\nStep 2: **Format** — Emergency instruction.",
+      "output": "**CRITICAL**: Silicon has exhausted all thermal and compute headroom. System shutdown triggered to prevent permanent damage. After restart, reduce sustained load to below 70%."
+    },
+    {
+      "id": "sys_0677",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 00:00]",
+      "cot": "Step 1: **Parse tool return** — Midnight.\nStep 2: **Format** — Date change, sleep reminder.",
+      "output": "Temporal synchronization: **Tuesday, 00:00**. Day cycle reset. Your biological hardware should be in its mandatory offline maintenance window."
+    },
+    {
+      "id": "sys_0678",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 83%, charging]",
+      "cot": "Step 1: **Parse tool return** — Charging, nearing full.\nStep 2: **Format** — Status.",
+      "output": "Power reserves at **83%** and absorbing energy. Time to full approximately 15 minutes. System can operate indefinitely while power is supplied."
+    },
+    {
+      "id": "sys_0679",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Cellular, Latency 80ms]",
+      "cot": "Step 1: **Parse tool return** — Mobile network, moderate latency.\nStep 2: **Format** — Cellular status.",
+      "output": "Network interface: **Cellular data**. Latency **80ms** — normal for mobile broadband. Throughput depends on signal strength and tower congestion."
+    },
+    {
+      "id": "sys_0680",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 40%, RAM 6GB/12GB, Normal]",
+      "cot": "Step 1: **Parse tool return** — Healthy state.\nStep 2: **Format** — OK.",
+      "output": "Silicon diagnostics: CPU **40%**, memory **50%** utilized. Thermal sensors nominal. The system can accept additional parallel execution without risk."
+    },
+    {
+      "id": "sys_0681",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 17:00]",
+      "cot": "Step 1: **Parse tool return** — Late afternoon.\nStep 2: **Format** — Time note.",
+      "output": "Local timestamp: **Tuesday, 17:00**. Most biological hardware experiences a second cognitive wind, but this is limited. Prioritize finishing open tasks rather than starting new ones."
+    },
+    {
+      "id": "sys_0682",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 25%, discharging]",
+      "cot": "Step 1: **Parse tool return** — Low charge.\nStep 2: **Format** — Warning.",
+      "output": "Power matrix at **25%**. At current consumption, forced shutdown occurs in under 2 hours. An external power source should be located soon."
+    },
+    {
+      "id": "sys_0683",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 150ms, Signal -65dBm]",
+      "cot": "Step 1: **Parse tool return** — Fair signal, some latency.\nStep 2: **Format** — Acceptable with caution.",
+      "output": "Network link acceptable: latency **150ms**, signal **-65 dBm**. Voice calls and streaming may experience occasional buffering. Large downloads will be slower than normal."
+    },
+    {
+      "id": "sys_0684",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 82%, RAM 13GB/16GB, Thermal elevated]",
+      "cot": "Step 1: **Parse tool return** — Heavy load, thermal rising.\nStep 2: **Prescribe** — Reduce processes.",
+      "output": "CPU **82%**, memory **81%** utilized. Thermal state elevated — approaching throttling zone. If load remains at this level, clock speed will be reduced within minutes. Close background tasks."
+    },
+    {
+      "id": "sys_0685",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-11, Monday, 08:00]",
+      "cot": "Step 1: **Parse tool return** — Past date (simulated drift).\nStep 2: **Format** — Flag possible clock error.",
+      "output": "Temporal reading: **Monday, 08:00**. This date is behind expected. System clock drift may have occurred. Manually sync with a reliable NTP source to correct."
+    },
+    {
+      "id": "sys_0686",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 100%, plugged in, fully charged]",
+      "cot": "Step 1: **Parse tool return** — Full, on AC.\nStep 2: **Format** — Optimal state.",
+      "output": "Power matrix fully charged at **100%** and connected to external grid. The battery is in trickle charge maintenance. No action required."
+    },
+    {
+      "id": "sys_0687",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: No internet, gateway not reachable]",
+      "cot": "Step 1: **Parse tool return** — Local connection OK, but no internet.\nStep 2: **Diagnose** — Router/modem issue.",
+      "output": "Network interface is connected to access point but **gateway unreachable**. This indicates the router has lost its WAN link. Power-cycle the network equipment — disconnect power for 30 seconds, then reconnect."
+    },
+    {
+      "id": "sys_0688",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 50%, RAM 8GB/16GB, Normal]",
+      "cot": "Step 1: **Parse tool return** — Balanced load.\nStep 2: **Format** — OK.",
+      "output": "Silicon load balanced: CPU **50%**, memory **8 GB / 16 GB**. Thermal within specification. System is operating in its efficient middle range."
+    },
+    {
+      "id": "sys_0689",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 14:45]",
+      "cot": "Step 1: **Parse tool return** — Afternoon.\nStep 2: **Format** — Time only.",
+      "output": "Temporal sync: **Tuesday, 14:45**. Clock accuracy is within acceptable atomic drift."
+    },
+    {
+      "id": "sys_0690",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 30%, charging]",
+      "cot": "Step 1: **Parse tool return** — Low, now charging.\nStep 2: **Format** — Replenishing.",
+      "output": "Power matrix at **30%** and now connected to grid. Charging will restore operational capacity. System is fully usable while power is supplied."
+    },
+    {
+      "id": "sys_0691",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 10ms, Signal -45dBm]",
+      "cot": "Step 1: **## Parse tool return** — Good link.\nStep 2: **Format** — Quality report.",
+      "output": "Wi-Fi link quality: latency **10ms**, signal **-45 dBm**. This is a robust connection suitable for real-time applications and large data transfers."
+    },
+    {
+      "id": "sys_0692",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 35%, RAM 4GB/8GB, Normal]",
+      "cot": "Step 1: **Parse tool return** — Light load.\nStep 2: **Format** — Idle-ish.",
+      "output": "Silicon load: CPU **35%**, memory **50%** used. The system is under light demand. Background tasks will not interfere with foreground performance."
+    },
+    {
+      "id": "sys_0693",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 01:30]",
+      "cot": "Step 1: **Parse tool return** — Middle of the night.\nStep 2: **Format** — Sleep warning.",
+      "output": "Timestamp: **01:30**. Biological hardware is in its deepest sleep phase. Wakefulness now severely degrades next-day performance. Initiate shutdown."
+    },
+    {
+      "id": "sys_0694",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 42%, discharging]",
+      "cot": "Step 1: **Parse tool return** — Medium-low.\nStep 2: **Format** — Time left.",
+      "output": "Power matrix at **42%**. Approximately 3.5 hours of runtime remain. Plan a charging opportunity within that window."
+    },
+    {
+      "id": "sys_0695",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: VPN Not Connected]",
+      "cot": "Step 1: **Parse tool return** — VPN down.\nStep 2: **Format** — Note open connection.",
+      "output": "VPN tunnel **not established**. Network traffic is currently in the clear. If secure routing is required, initiate a VPN connection before transmitting sensitive data."
+    },
+    {
+      "id": "sys_0696",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 75%, RAM 14GB/16GB, Thermal normal]",
+      "cot": "Step 1: **Parse tool return** — High memory, good cooling.\nStep 2: **Format** — No throttle.",
+      "output": "CPU **75%**, memory **87.5%** used. Thermal normal despite high RAM pressure. The system is not throttling, but memory allocation is near maximum. Avoid opening new large applications."
+    },
+    {
+      "id": "sys_0697",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-13, Wednesday, 12:01]",
+      "cot": "Step 1: **Parse tool return** — Next day noon.\nStep 2: **Format** — Standard time.",
+      "output": "Synchronized to **Wednesday, 12:01**. System time matches NTP stratum-1 reference."
+    },
+    {
+      "id": "sys_0698",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 73%, charging]",
+      "cot": "Step 1: **Parse tool return** — Charging, mostly full.\nStep 2: **Format** — ETA.",
+      "output": "Power reserves at **73%** and increasing. Full charge estimated in 25 minutes. The system can be unplugged now with ample runtime."
+    },
+    {
+      "id": "sys_0699",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 400ms, Signal -78dBm]",
+      "cot": "Step 1: **Parse tool return** — Weak, high latency.\nStep 2: **Advise** — Network troubleshooting.",
+      "output": "Network connectivity poor: latency **400ms**, signal **-78 dBm**. This is insufficient for smooth interactive use. Move closer to the access point or disable Wi-Fi and enable cellular."
+    },
+    {
+      "id": "sys_0700",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 5%, RAM 1.5GB/4GB, Idle]",
+      "cot": "Step 1: **Parse tool return** — Deep idle.\nStep 2: **Format** — Ready state.",
+      "output": "Silicon in deep idle: CPU **5%**, memory **1.5 GB**. All cores are in low-power states. Instant wake capability available for any incoming task."
+    },
+    {
+      "id": "sys_0701",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 08:59]",
+      "cot": "Step 1: **Parse tool return** — Almost peak hour.\nStep 2: **Format** — Morning.",
+      "output": "Timestamp: **Tuesday, 08:59**. Peak cognitive window opens in 1 minute. Use the next 3 hours for high-value deep work."
+    },
+    {
+      "id": "sys_0702",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 49%, discharging]",
+      "cot": "Step 1: **Parse tool return** — Just below half.\nStep 2: **Format** — Runtime projection.",
+      "output": "Power matrix at **49%**. Equivalent runtime left: ~4 hours. Charging before reaching 20% will preserve battery health."
+    },
+    {
+      "id": "sys_0703",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Airplane mode active, Wi-Fi off]",
+      "cot": "Step 1: **Parse tool return** — Radios off.\nStep 2: **Format** — No connectivity.",
+      "output": "Airplane mode is active. All wireless radios are powered down. To restore connectivity, disable Airplane mode. No data can be sent or received in this state."
+    },
+    {
+      "id": "sys_0704",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 93%, RAM 15GB/16GB, Thermal critical]",
+      "cot": "Step 1: **Parse tool return** — Catastrophic load.\nStep 2: **Prescribe** — Force close all.",
+      "output": "**EMERGENCY**: CPU **93%**, memory **94%** full, thermal critical. The device is seconds away from an emergency thermal shutdown. Force-stop all applications immediately."
+    },
+    {
+      "id": "sys_0705",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 21:00]",
+      "cot": "Step 1: **Parse tool return** — Night.\nStep 2: **Format** — Sleep prep.",
+      "output": "Local time: **21:00**. Begin your wind-down routine. Blue light exposure should be minimized to allow natural melatonin production."
+    },
+    {
+      "id": "sys_0706",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: 100%, discharging]",
+      "cot": "Step 1: **Parse tool return** — Full, on battery.\nStep 2: **Format** — All-day battery.",
+      "output": "Power matrix fully charged. Under normal usage, the system will operate for approximately 10 hours before reaching critical reserve. No external power needed."
+    },
+    {
+      "id": "sys_0707",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 200ms, Signal -72dBm]",
+      "cot": "Step 1: **Parse tool return** — Weak signal.\nStep 2: **Advise** — Relocate.",
+      "output": "Network link active but weak: signal **-72 dBm**, latency **200ms**. The device is likely at the edge of the access point's effective range. Moving nearer will significantly improve performance."
+    },
+    {
+      "id": "sys_0708",
+      "category": "tool_response",
+      "input": "[SYSTEM_RESULT: CPU 48%, RAM 4GB/8GB, Normal]",
+      "cot": "Step 1: **Parse tool return** — Normal.\nStep 2: **Format** — Status OK.",
+      "output": "Silicon health: CPU **48%**, memory **4 GB / 8 GB**. No thermal warnings. The system is in its efficient operating zone."
+    }
+  ]

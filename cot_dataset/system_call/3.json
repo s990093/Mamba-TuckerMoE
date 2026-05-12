@@ -1,0 +1,1402 @@
+[
+  {
+    "id": "sys_0301",
+    "category": "tool_trigger",
+    "input": "What time is it now?",
+    "cot": "Step 1: **Identify variable** — Current time is volatile system data.\nStep 2: **Verify API bridge** — `get_system_time` registered.\nStep 3: **Initiate execution** — Emit call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0302",
+    "category": "tool_trigger",
+    "input": "How much charge do I have left?",
+    "cot": "Step 1: **Identify variable** — Battery percentage is dynamic.\nStep 2: **Verify API bridge** — `get_battery_status` available.\nStep 3: **Initiate execution** — Call tool.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0303",
+    "category": "tool_trigger",
+    "input": "Am I online right now?",
+    "cot": "Step 1: **Identify variable** — Network connectivity unknown without real-time query.\nStep 2: **Verify API bridge** — `get_network_status` registered.\nStep 3: **Initiate execution** — Invoke network check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0304",
+    "category": "tool_trigger",
+    "input": "Why is my device so hot?",
+    "cot": "Step 1: **Identify variable** — Thermal state requires hardware load data.\nStep 2: **Verify API bridge** — `get_system_load` provides CPU, RAM, thermal.\nStep 3: **Initiate execution** — Call diagnostic.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0305",
+    "category": "tool_trigger",
+    "input": "Tell me the date and time.",
+    "cot": "Step 1: **Identify variable** — Temporal information needed.\nStep 2: **Verify API bridge** — `get_system_time` returns both.\nStep 3: **Initiate execution** — Output call tag.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0306",
+    "category": "tool_trigger",
+    "input": "Is my phone about to die?",
+    "cot": "Step 1: **Identify variable** — Low battery risk query.\nStep 2: **Verify API bridge** — `get_battery_status` reads level.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0307",
+    "category": "tool_trigger",
+    "input": "Check if my Wi-Fi is working.",
+    "cot": "Step 1: **Identify variable** — Wi-Fi functionality needs real-time test.\nStep 2: **Verify API bridge** — `get_network_status` checks connectivity.\nStep 3: **Initiate execution** — Invoke tool.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0308",
+    "category": "tool_trigger",
+    "input": "My phone is lagging – what's the CPU at?",
+    "cot": "Step 1: **Identify variable** — CPU usage is dynamic.\nStep 2: **Verify API bridge** — `get_system_load` returns CPU metric.\nStep 3: **Initiate execution** — Fetch system load.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0309",
+    "category": "tool_trigger",
+    "input": "What's the current time on my phone?",
+    "cot": "Step 1: **Identify variable** — Device clock time.\nStep 2: **Verify API bridge** — `get_system_time` registered.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0310",
+    "category": "tool_trigger",
+    "input": "Do I need to charge yet?",
+    "cot": "Step 1: **Identify variable** — Battery state determines need.\nStep 2: **Verify API bridge** — `get_battery_status` available.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0311",
+    "category": "tool_trigger",
+    "input": "Why can't I connect to the internet?",
+    "cot": "Step 1: **Identify variable** — Connectivity issue.\nStep 2: **Verify API bridge** — `get_network_status` provides diagnostics.\nStep 3: **Initiate execution** — Check network.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0312",
+    "category": "tool_trigger",
+    "input": "My phone feels sluggish – run a quick check.",
+    "cot": "Step 1: **Identify variable** — Performance metrics needed.\nStep 2: **Verify API bridge** — `get_system_load` gives CPU/RAM/thermal.\nStep 3: **Initiate execution** — Call diagnostic.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0313",
+    "category": "tool_trigger",
+    "input": "What's the time, please?",
+    "cot": "Step 1: **Identify variable** — Time request.\nStep 2: **Verify API bridge** — `get_system_time` available.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0314",
+    "category": "tool_trigger",
+    "input": "How much battery life do I have?",
+    "cot": "Step 1: **Identify variable** — Battery percentage.\nStep 2: **Verify API bridge** — `get_battery_status` returns it.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0315",
+    "category": "tool_trigger",
+    "input": "Is there a network problem?",
+    "cot": "Step 1: **Identify variable** — Network status unknown.\nStep 2: **Verify API bridge** — `get_network_status` checks.\nStep 3: **Initiate execution** — Call network tool.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0316",
+    "category": "tool_trigger",
+    "input": "Why is my phone so hot and slow?",
+    "cot": "Step 1: **Identify variable** — Combined performance and thermal issue.\nStep 2: **Verify API bridge** — `get_system_load` returns all.\nStep 3: **Initiate execution** — Run diagnostic.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0317",
+    "category": "tool_trigger",
+    "input": "What time is it in my area?",
+    "cot": "Step 1: **Identify variable** — Local time.\nStep 2: **Verify API bridge** — `get_system_time` returns local.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0318",
+    "category": "tool_trigger",
+    "input": "What's my battery at?",
+    "cot": "Step 1: **Identify variable** — Battery level.\nStep 2: **Verify API bridge** — `get_battery_status` provides.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0319",
+    "category": "tool_trigger",
+    "input": "Is the Wi-Fi down?",
+    "cot": "Step 1: **Identify variable** — Wi-Fi connectivity.\nStep 2: **Verify API bridge** — `get_network_status` available.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0320",
+    "category": "tool_trigger",
+    "input": "I think my phone is overheating.",
+    "cot": "Step 1: **Identify variable** — Thermal concern.\nStep 2: **Verify API bridge** — `get_system_load` includes thermal.\nStep 3: **Initiate execution** — Retrieve data.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0321",
+    "category": "tool_trigger",
+    "input": "Can you tell me the time?",
+    "cot": "Step 1: **Identify variable** — Current time.\nStep 2: **Verify API bridge** — `get_system_time` registered.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0322",
+    "category": "tool_trigger",
+    "input": "How much juice is left?",
+    "cot": "Step 1: **Identify variable** — Battery capacity.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0323",
+    "category": "tool_trigger",
+    "input": "What's my connection status?",
+    "cot": "Step 1: **Identify variable** — Network connectivity.\nStep 2: **Verify API bridge** — `get_network_status` returns status.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0324",
+    "category": "tool_trigger",
+    "input": "Open Spotify and play some music.",
+    "cot": "Step 1: **Identify variable** — Media playback command.\nStep 2: **Verify API bridge** — No media control tool registered.\nStep 3: **Activate refusal** — Cannot execute unregistered commands.",
+    "output": "Media application control is outside my registered tool set. I cannot launch apps or initiate audio playback. Use the physical controls or voice commands native to the application."
+  },
+  {
+    "id": "sys_0325",
+    "category": "tool_trigger",
+    "input": "What's the weather like outside right now?",
+    "cot": "Step 1: **Identify variable** — Weather is dynamic location-based data.\nStep 2: **Verify API bridge** — No weather tool registered.\nStep 3: **Activate refusal** — Cannot fabricate meteorological data.",
+    "output": "I lack a registered bridge to weather APIs. I cannot provide live meteorological readings. For real-time weather, query a network-connected weather service."
+  },
+  {
+    "id": "sys_0326",
+    "category": "tool_trigger",
+    "input": "Send a text to Mom saying I'll be late.",
+    "cot": "Step 1: **Identify variable** — Messaging requires unregistered communication API.\nStep 2: **Verify API bridge** — No SMS or messaging tool exists.\nStep 3: **Activate refusal** — Cannot send messages.",
+    "output": "Text messaging is not within my current system tool capabilities. No messaging bridge is registered. Use the Messages app directly to send your text."
+  },
+  {
+    "id": "sys_0327",
+    "category": "tool_trigger",
+    "input": "Navigate to the nearest gas station.",
+    "cot": "Step 1: **Identify variable** — Real-time navigation needs GPS and maps.\nStep 2: **Verify API bridge** — No navigation tool registered.\nStep 3: **Activate refusal** — Cannot provide directions.",
+    "output": "Real-time navigation requires a mapping bridge that is not currently registered. I cannot access GPS or map data. Use your device's Maps application for routing."
+  },
+  {
+    "id": "sys_0328",
+    "category": "tool_trigger",
+    "input": "How many calories are in a banana?",
+    "cot": "Step 1: **Identify variable** — Nutritional information is static knowledge, no tool call needed.\nStep 2: **Verify capability** — This is general knowledge within training data.\nStep 3: **Respond directly** — No system call required.",
+    "output": "A medium banana (approximately 118 grams) contains around 105 kilocalories. It is primarily composed of carbohydrates (27g), with minimal protein and fat. This data is sourced from general nutritional databases and is not a live query."
+  },
+  {
+    "id": "sys_0329",
+    "category": "tool_trigger",
+    "input": "Turn on the flashlight.",
+    "cot": "Step 1: **Identify variable** — Flashlight hardware control.\nStep 2: **Verify API bridge** — No flashlight tool registered.\nStep 3: **Activate refusal** — Cannot control hardware.",
+    "output": "Flashlight activation is not a registered system capability. My tool set does not include direct hardware controls. Use the lock screen shortcut or Control Center to toggle the flashlight."
+  },
+  {
+    "id": "sys_0330",
+    "category": "tool_trigger",
+    "input": "Set a timer for 10 minutes.",
+    "cot": "Step 1: **Identify variable** — Timer setting requires write access to system clock.\nStep 2: **Verify API bridge** — No timer or alarm tool registered.\nStep 3: **Activate refusal** — Cannot schedule timers.",
+    "output": "I cannot set timers or alarms — my tool registry lacks a clock management bridge. Use the built-in Clock app to configure the timer."
+  },
+  {
+    "id": "sys_0331",
+    "category": "tool_trigger",
+    "input": "Read my last email aloud.",
+    "cot": "Step 1: **Identify variable** — Email access requires client integration.\nStep 2: **Verify API bridge** — No email retrieval tool registered.\nStep 3: **Activate refusal** — Cannot access inbox.",
+    "output": "I do not have a bridge to your email client. I cannot access or read your messages. I can, however, help draft a reply once you provide the content."
+  },
+  {
+    "id": "sys_0332",
+    "category": "tool_trigger",
+    "input": "What's the score of the game right now?",
+    "cot": "Step 1: **Identify variable** — Live sports scores require external data.\nStep 2: **Verify API bridge** — No sports data tool registered.\nStep 3: **Activate refusal** — Cannot provide real-time scores.",
+    "output": "Live sports data is outside my operational boundaries. No sports API bridge is registered. Query a live score application or website for current results."
+  },
+  {
+    "id": "sys_0333",
+    "category": "tool_trigger",
+    "input": "Can you see my heart rate?",
+    "cot": "Step 1: **Identify variable** — Health sensor data access.\nStep 2: **Verify API bridge** — No health sensor tool registered.\nStep 3: **Activate refusal** — Cannot access biometrics.",
+    "output": "Health sensor data is not accessible via my system tools. No biometric bridge is registered. Use the Health app on your device to view heart rate measurements."
+  },
+  {
+    "id": "sys_0334",
+    "category": "tool_trigger",
+    "input": "Make the screen brighter.",
+    "cot": "Step 1: **Identify variable** — Display brightness is a hardware setting.\nStep 2: **Verify API bridge** — No display control tool registered.\nStep 3: **Activate refusal** — Cannot adjust screen.",
+    "output": "Display brightness control is not a registered system function. I cannot modify screen settings. Swipe down to open Control Center and adjust the brightness slider."
+  },
+  {
+    "id": "sys_0335",
+    "category": "tool_trigger",
+    "input": "What's the news headline today?",
+    "cot": "Step 1: **Identify variable** — News requires live data.\nStep 2: **Verify API bridge** — No news aggregation tool registered.\nStep 3: **Activate refusal** — Cannot summarize current events.",
+    "output": "Real-time news aggregation is not supported. I lack a registered news bridge and operate offline. Use a news app or website to browse current headlines."
+  },
+  {
+    "id": "sys_0336",
+    "category": "tool_trigger",
+    "input": "Call John.",
+    "cot": "Step 1: **Identify variable** — Phone call initiation.\nStep 2: **Verify API bridge** — No telephony tool registered.\nStep 3: **Activate refusal** — Cannot place calls.",
+    "output": "I cannot initiate phone calls — no telephony bridge is in my tool registry. Use the Phone app or ask Siri to call a contact directly."
+  },
+  {
+    "id": "sys_0337",
+    "category": "tool_trigger",
+    "input": "What's the current temperature?",
+    "cot": "Step 1: **Identify variable** — Ambient temperature is dynamic and location-sensitive.\nStep 2: **Verify API bridge** — No weather or thermometer tool registered.\nStep 3: **Activate refusal** — Cannot provide temperature.",
+    "output": "Ambient temperature data is not available. My tool registry lacks a weather or environmental sensor bridge. Query a weather service for current readings."
+  },
+  {
+    "id": "sys_0338",
+    "category": "tool_trigger",
+    "input": "Take a screenshot.",
+    "cot": "Step 1: **Identify variable** — Screenshot capture is a hardware combo action.\nStep 2: **Verify API bridge** — No screenshot tool registered.\nStep 3: **Activate refusal** — Cannot capture screen.",
+    "output": "Screenshot capture is not a registered system command. Use the physical button combination (Side Button + Volume Up) to capture the screen."
+  },
+  {
+    "id": "sys_0339",
+    "category": "tool_trigger",
+    "input": "How much storage do I have left?",
+    "cot": "Step 1: **Identify variable** — Storage space is not covered by any registered tool (only CPU/RAM/thermal).\nStep 2: **Verify API bridge** — No storage query tool exists.\nStep 3: **Activate refusal** — Cannot retrieve storage data.",
+    "output": "Storage capacity query is not a registered tool. My hardware diagnostic bridge only reports CPU, RAM, and thermal state. Check storage in Settings > General > iPhone Storage."
+  },
+  {
+    "id": "sys_0340",
+    "category": "tool_trigger",
+    "input": "Enable airplane mode.",
+    "cot": "Step 1: **Identify variable** — Radio control is not registered.\nStep 2: **Verify API bridge** — No airplane mode tool exists.\nStep 3: **Activate refusal** — Cannot toggle radios.",
+    "output": "Airplane Mode control is not a registered system function. I cannot modify network radio states. Use Control Center or Settings to toggle Airplane Mode."
+  },
+  {
+    "id": "sys_0341",
+    "category": "tool_trigger",
+    "input": "What date is it?",
+    "cot": "Step 1: **Identify variable** — Current date.\nStep 2: **Verify API bridge** — `get_system_time` includes date.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0342",
+    "category": "tool_trigger",
+    "input": "Is my phone fully charged?",
+    "cot": "Step 1: **Identify variable** — Battery charge state.\nStep 2: **Verify API bridge** — `get_battery_status` provides percentage and charging flag.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0343",
+    "category": "tool_trigger",
+    "input": "Do I have a stable connection?",
+    "cot": "Step 1: **Identify variable** — Network stability.\nStep 2: **Verify API bridge** — `get_network_status` returns latency and type.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0344",
+    "category": "tool_trigger",
+    "input": "Check why my phone is so hot and laggy.",
+    "cot": "Step 1: **Identify variable** — Performance and thermal issue.\nStep 2: **Verify API bridge** — `get_system_load` diagnoses.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0345",
+    "category": "tool_trigger",
+    "input": "What's the time right this second?",
+    "cot": "Step 1: **Identify variable** — Precise current time.\nStep 2: **Verify API bridge** — `get_system_time` registered.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0346",
+    "category": "tool_trigger",
+    "input": "Will my battery make it through the night?",
+    "cot": "Step 1: **Identify variable** — Battery level and discharge rate.\nStep 2: **Verify API bridge** — `get_battery_status` returns percentage.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0347",
+    "category": "tool_trigger",
+    "input": "Is my internet down again?",
+    "cot": "Step 1: **Identify variable** — Internet connectivity.\nStep 2: **Verify API bridge** — `get_network_status` checks.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0348",
+    "category": "tool_trigger",
+    "input": "My apps keep freezing – what's going on?",
+    "cot": "Step 1: **Identify variable** — App stability may relate to CPU/RAM pressure.\nStep 2: **Verify API bridge** — `get_system_load` provides hardware metrics.\nStep 3: **Initiate execution** — Call diagnostic.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0349",
+    "category": "tool_trigger",
+    "input": "Can you give me the time?",
+    "cot": "Step 1: **Identify variable** — Time request.\nStep 2: **Verify API bridge** — `get_system_time` available.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0350",
+    "category": "tool_trigger",
+    "input": "Battery check.",
+    "cot": "Step 1: **Identify variable** — Battery status.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0351",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 16:10]",
+    "cot": "Step 1: **Parse tool return** — Afternoon timestamp.\nStep 2: **Format** — Output synchronized time.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 16:10**."
+  },
+  {
+    "id": "sys_0352",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 72%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Adequate power, not charging.\nStep 2: **Format** — Provide status with runtime estimate.",
+    "output": "Silicon power reserves at **72%** — discharging. Estimated operational window: **5-6 hours** under normal load. No immediate charging required."
+  },
+  {
+    "id": "sys_0353",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 8ms]",
+    "cot": "Step 1: **Parse tool return** — Excellent connectivity.\nStep 2: **Format** — Confirm optimal network.",
+    "output": "Network interface **active** via Wi-Fi with **low latency (8ms)**. External data routing is functioning at peak efficiency."
+  },
+  {
+    "id": "sys_0354",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 50%, RAM 10GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Moderate load, healthy.\nStep 2: **Format** — Report stable status.",
+    "output": "Hardware diagnostic: **Normal operation**.\n\n- CPU: **50%**\n- Memory: **10 GB / 18 GB**\n- Thermal: Normal\n\nSystem resources are balanced. No bottlenecks detected."
+  },
+  {
+    "id": "sys_0355",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 11:45]",
+    "cot": "Step 1: **Parse tool return** — Late morning.\nStep 2: **Format** — Sync time.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 11:45**."
+  },
+  {
+    "id": "sys_0356",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 7%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Critically low battery.\nStep 2: **Format with urgency** — Immediate charging needed.",
+    "output": "**Critical power level: 7%** — discharging. Immediate external power connection required to avoid system shutdown. Estimated remaining runtime: **10-15 minutes**. Connect to a charger now."
+  },
+  {
+    "id": "sys_0357",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Offline]",
+    "cot": "Step 1: **Parse tool return** — No connectivity.\nStep 2: **Format and advise** — Report offline status and recovery steps.",
+    "output": "Network interface **offline**. External data routing unavailable.\n\nRecovery protocol:\n1. Verify Wi-Fi/Cellular is enabled in Settings.\n2. Toggle Airplane Mode on then off to reset radios.\n3. If no network is found, restart the device."
+  },
+  {
+    "id": "sys_0358",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 88%, RAM 16GB/18GB, Thermal warning]",
+    "cot": "Step 1: **Parse tool return** — High load, thermal alert.\nStep 2: **Diagnose** — Systems under stress.\nStep 3: **Prescribe** — Cool down and close apps.",
+    "output": "**Hardware diagnostic: Elevated stress.**\n\n- CPU: **88%** — near maximum\n- Memory: **16 GB / 18 GB** — high allocation\n- Thermal: Warning — active cooling insufficient\n\n**Immediate action:** Close background applications, especially those using location services or media. Move device to a cooler environment and avoid direct sunlight."
+  },
+  {
+    "id": "sys_0359",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 08:02]",
+    "cot": "Step 1: **Parse tool return** — Morning.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 08:02**."
+  },
+  {
+    "id": "sys_0360",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 95%, charging]",
+    "cot": "Step 1: **Parse tool return** — Nearly full, still plugged.\nStep 2: **Format** — Advise disconnect for health.",
+    "output": "Silicon power reserves at **95%** — external grid connected. Charge nearing completion. To optimize long-term battery health, disconnect once 100% is reached."
+  },
+  {
+    "id": "sys_0361",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Cellular Data Connected, Latency 45ms]",
+    "cot": "Step 1: **Parse tool return** — Mobile network active.\nStep 2: **Format** — Confirm cellular link.",
+    "output": "Network interface **active** via cellular data. Latency: **45ms** — acceptable for most tasks. Be aware of data usage limits on this connection."
+  },
+  {
+    "id": "sys_0362",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 25%, RAM 5GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Light load.\nStep 2: **Format** — Confirm ample resources.",
+    "output": "Hardware diagnostic: **Light load**.\n\n- CPU: **25%**\n- Memory: **5 GB / 18 GB**\n- Thermal: Normal\n\nSignificant compute capacity is available for intensive tasks."
+  },
+  {
+    "id": "sys_0363",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 18:22]",
+    "cot": "Step 1: **Parse tool return** — Early evening.\nStep 2: **Format** — Sync time.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 18:22**."
+  },
+  {
+    "id": "sys_0364",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 40%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Moderate level, not charging.\nStep 2: **Format** — Estimate usage.",
+    "output": "Silicon power reserves at **40%** — discharging. Approximate remaining runtime: **2.5-3 hours**. Charging recommended within the next hour to avoid interruption."
+  },
+  {
+    "id": "sys_0365",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 120ms]",
+    "cot": "Step 1: **Parse tool return** — Connected but moderate latency.\nStep 2: **Format** — Note acceptable but not ideal.",
+    "output": "Network interface **active** (Wi-Fi). Latency: **120ms** — slightly elevated but functional. Streaming and real-time applications may experience minor lag."
+  },
+  {
+    "id": "sys_0366",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 65%, RAM 12GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Above average load.\nStep 2: **Format** — Report without alarm.",
+    "output": "Hardware diagnostic: **Moderate load**.\n\n- CPU: **65%**\n- Memory: **12 GB / 18 GB**\n- Thermal: Normal\n\nSystem is handling current tasks adequately. No intervention needed at this time."
+  },
+  {
+    "id": "sys_0367",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-13, Wednesday, 00:05]",
+    "cot": "Step 1: **Parse tool return** — Just past midnight.\nStep 2: **Format** — Sync with day rollover.",
+    "output": "Temporal synchronization complete. Local timestamp: **Wednesday, 2026-05-13, 00:05**. Date transition confirmed."
+  },
+  {
+    "id": "sys_0368",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 15%, charging]",
+    "cot": "Step 1: **Parse tool return** — Low but recovering.\nStep 2: **Format** — Indicate charging progress.",
+    "output": "Silicon power reserves at **15%** and rising — external grid connected. Recovery charge active. Allow at least 20 minutes for usable charge before heavy use."
+  },
+  {
+    "id": "sys_0369",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: VPN Connected, Latency 75ms]",
+    "cot": "Step 1: **Parse tool return** — Encrypted tunnel active.\nStep 2: **Format** — Confirm secure connection.",
+    "output": "Network interface **active** through VPN. Latency: **75ms** — encrypted routing overhead is within expected range. Data path is secured."
+  },
+  {
+    "id": "sys_0370",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 70%, RAM 14GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Higher usage but stable.\nStep 2: **Format** — Indicate need to monitor.",
+    "output": "Hardware diagnostic: **Elevated load**.\n\n- CPU: **70%**\n- Memory: **14 GB / 18 GB**\n- Thermal: Normal\n\nMemory pressure is noticeable. Consider closing unused apps to free buffer if performance degrades."
+  },
+  {
+    "id": "sys_0371",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 14:55]",
+    "cot": "Step 1: **Parse tool return** — Afternoon.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 14:55**."
+  },
+  {
+    "id": "sys_0372",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 85%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Good charge.\nStep 2: **Format** — Estimate long runtime.",
+    "output": "Silicon power reserves at **85%** — discharging. Estimated operational window: **7-9 hours**. No charging needed for the remainder of the day under normal use."
+  },
+  {
+    "id": "sys_0373",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: No Service, Offline]",
+    "cot": "Step 1: **Parse tool return** — Cellular dead zone.\nStep 2: **Format** — Explain no service state.",
+    "output": "Network interface **offline** — No cellular service detected. Device is outside coverage or in a signal-blocking environment. Relocate to an open area or check carrier settings."
+  },
+  {
+    "id": "sys_0374",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 95%, RAM 17.8GB/18GB, Thermal warning]",
+    "cot": "Step 1: **Parse tool return** — Near-failure load.\nStep 2: **Diagnose** — Critical saturation.\nStep 3: **Prescribe** — Emergency cool-down.",
+    "output": "**Hardware diagnostic: CRITICAL SATURATION.**\n\n- CPU: **95%** — ceiling reached\n- Memory: **17.8 GB / 18 GB** — buffer overflow risk\n- Thermal: Warning — potential thermal shutdown\n\n**Emergency action:** Force close all applications immediately. If unresponsive, initiate hard restart (Volume Up, Volume Down, hold Side button). Allow device to cool for 10 minutes before reuse."
+  },
+  {
+    "id": "sys_0375",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 20:15]",
+    "cot": "Step 1: **Parse tool return** — Night.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 20:15**."
+  },
+  {
+    "id": "sys_0376",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 60%, charging]",
+    "cot": "Step 1: **Parse tool return** — Mid-charge.\nStep 2: **Format** — Provide estimate.",
+    "output": "Silicon power reserves at **60%** and charging. Estimated time to full: **40-50 minutes**. Safe to use while connected."
+  },
+  {
+    "id": "sys_0377",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Low Signal, Latency 350ms]",
+    "cot": "Step 1: **Parse tool return** — Weak connectivity.\nStep 2: **Diagnose** — Signal degradation.\nStep 3: **Prescribe** — Improve positioning.",
+    "output": "Network interface **active** but signal strength is low. Latency: **350ms** — significant lag. Move closer to a window or router to improve signal. Data-intensive tasks may time out."
+  },
+  {
+    "id": "sys_0378",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 35%, RAM 7.5GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Low usage.\nStep 2: **Format** — Report idle.",
+    "output": "Hardware diagnostic: **Idle operations**.\n\n- CPU: **35%**\n- Memory: **7.5 GB / 18 GB**\n- Thermal: Normal\n\nPlenty of overhead for multitasking."
+  },
+  {
+    "id": "sys_0379",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 10:30]",
+    "cot": "Step 1: **Parse tool return** — Mid-morning.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 10:30**."
+  },
+  {
+    "id": "sys_0380",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 22%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Low but not critical.\nStep 2: **Format** — Warn and estimate.",
+    "output": "Silicon power reserves at **22%** — discharging. Approximate remaining runtime: **1-1.5 hours**. Locate a charger soon to maintain session continuity."
+  },
+  {
+    "id": "sys_0381",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 30ms]",
+    "cot": "Step 1: **Parse tool return** — Good connection.\nStep 2: **Format** — Confirm normal.",
+    "output": "Network interface **active** via Wi-Fi with **acceptable latency (30ms)**. Performance meets typical interactive usage standards."
+  },
+  {
+    "id": "sys_0382",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 80%, RAM 13GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Heavy but thermal okay.\nStep 2: **Format** — Suggest monitoring.",
+    "output": "Hardware diagnostic: **Heavy load**.\n\n- CPU: **80%**\n- Memory: **13 GB / 18 GB**\n- Thermal: Normal\n\nSystem is working hard but within safe limits. Consider closing non-essential apps if you notice slowdowns."
+  },
+  {
+    "id": "sys_0383",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 07:15]",
+    "cot": "Step 1: **Parse tool return** — Early morning.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 07:15**."
+  },
+  {
+    "id": "sys_0384",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 98%, not charging]",
+    "cot": "Step 1: **Parse tool return** — Full, unplugged.\nStep 2: **Format** — Indicate full charge.",
+    "output": "Silicon power reserves at **98%** — external grid disconnected. Battery is effectively full. Normal operation for the next several hours without concern."
+  },
+  {
+    "id": "sys_0385",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Searching, Latency N/A]",
+    "cot": "Step 1: **Parse tool return** — Network scanning.\nStep 2: **Format** — Explain transitional state.",
+    "output": "Network interface is **scanning for available access points**. Latency data unavailable until connection is established. If scanning persists, manually select a network in Wi-Fi settings."
+  },
+  {
+    "id": "sys_0386",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 15%, RAM 3GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Minimal use.\nStep 2: **Format** — Confirm deep idle.",
+    "output": "Hardware diagnostic: **Deep idle**.\n\n- CPU: **15%**\n- Memory: **3 GB / 18 GB**\n- Thermal: Normal\n\nSystem is currently in a near-sleep state with maximum resource availability."
+  },
+  {
+    "id": "sys_0387",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-11, Monday, 23:59]",
+    "cot": "Step 1: **Parse tool return** — Almost midnight from previous day.\nStep 2: **Format** — Report with date awareness.",
+    "output": "Temporal synchronization complete. Local timestamp: **Monday, 2026-05-11, 23:59**. Approaching midnight transition."
+  },
+  {
+    "id": "sys_0388",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 10%, charging]",
+    "cot": "Step 1: **Parse tool return** — Critically low but now charging.\nStep 2: **Format** — Recovery alert.",
+    "output": "Silicon power reserves at **10%** — external grid detected. Recovery charge initiated. Device should remain functional after a few minutes. Allow at least 30 minutes for significant recharge."
+  },
+  {
+    "id": "sys_0389",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Limited Connectivity, Latency 400ms]",
+    "cot": "Step 1: **Parse tool return** — Restricted network.\nStep 2: **Diagnose** — Captive portal or firewall.\nStep 3: **Prescribe** — Authentication fix.",
+    "output": "Network status: **Limited connectivity** — high latency **400ms**. This often indicates a captive portal (public Wi-Fi requiring login) or a firewall restriction. Open a browser to complete authentication if prompted."
+  },
+  {
+    "id": "sys_0390",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 42%, RAM 9GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Normal.\nStep 2: **Format** — Stable.",
+    "output": "Hardware diagnostic: **All parameters normal**.\n\n- CPU: **42%**\n- Memory: **9 GB / 18 GB**\n- Thermal: Normal\n\nSystem is in optimal operating condition."
+  },
+  {
+    "id": "sys_0391",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 22:30]",
+    "cot": "Step 1: **Parse tool return** — Late evening.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 22:30**."
+  },
+  {
+    "id": "sys_0392",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 55%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Half charge.\nStep 2: **Format** — Provide estimate.",
+    "output": "Silicon power reserves at **55%** — discharging. Estimated runtime: **4-5 hours**. Recharge recommended at leisure."
+  },
+  {
+    "id": "sys_0393",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Ethernet Adaptor Connected, Latency 2ms]",
+    "cot": "Step 1: **Parse tool return** — Wired accessory.\nStep 2: **Format** — Confirm high-speed link.",
+    "output": "Network interface **active** via Ethernet adapter. Latency: **2ms** — theoretical minimum. Ideal for latency-sensitive tasks."
+  },
+  {
+    "id": "sys_0394",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 90%, RAM 16.5GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — High CPU, memory near full.\nStep 2: **Format** — Warning without thermal alert.",
+    "output": "Hardware diagnostic: **High utilization**.\n\n- CPU: **90%** — compute ceiling approached\n- Memory: **16.5 GB / 18 GB** — near maximum\n- Thermal: Normal (passive cooling adequate)\n\nClose heavy apps to reduce swap thrashing risk."
+  },
+  {
+    "id": "sys_0395",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 13:00]",
+    "cot": "Step 1: **Parse tool return** — 1 PM.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 13:00**."
+  },
+  {
+    "id": "sys_0396",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 33%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Getting low.\nStep 2: **Format** — Advise charger soon.",
+    "output": "Silicon power reserves at **33%** — discharging. About **2 hours** of runtime remaining. Plug in within the next hour to avoid interruption during critical tasks."
+  },
+  {
+    "id": "sys_0397",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Airplane Mode, Offline]",
+    "cot": "Step 1: **Parse tool return** — Radios off.\nStep 2: **Format** — Explain inability.",
+    "output": "Network interface **offline** — Airplane Mode active. All wireless communication is disabled. Disable Airplane Mode in Control Center to restore connectivity."
+  },
+  {
+    "id": "sys_0398",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 48%, RAM 8.2GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Normal.\nStep 2: **Format** — All clear.",
+    "output": "Hardware diagnostic: **Within normal limits**.\n\n- CPU: **48%**\n- Memory: **8.2 GB / 18 GB**\n- Thermal: Normal\n\nNo action required."
+  },
+  {
+    "id": "sys_0399",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 05:45]",
+    "cot": "Step 1: **Parse tool return** — Pre-dawn.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 05:45**."
+  },
+  {
+    "id": "sys_0400",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 47%, charging]",
+    "cot": "Step 1: **Parse tool return** — Charging mid-level.\nStep 2: **Format** — Provide charge time.",
+    "output": "Silicon power reserves at **47%** and charging. Full charge expected in **approximately 50 minutes**. Device can be used normally during this process."
+  },
+  {
+    "id": "sys_0401",
+    "category": "tool_trigger",
+    "input": "What time is it, exactly?",
+    "cot": "Step 1: **Identify variable** — Precise time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0402",
+    "category": "tool_trigger",
+    "input": "What's my battery percentage?",
+    "cot": "Step 1: **Identify variable** — Battery percentage.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0403",
+    "category": "tool_trigger",
+    "input": "Are we online?",
+    "cot": "Step 1: **Identify variable** — Network status.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0404",
+    "category": "tool_trigger",
+    "input": "My phone is hot – is that a problem?",
+    "cot": "Step 1: **Identify variable** — Thermal state.\nStep 2: **Verify API bridge** — `get_system_load` includes thermal.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0405",
+    "category": "tool_trigger",
+    "input": "Date and time, please.",
+    "cot": "Step 1: **Identify variable** — Current datetime.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0406",
+    "category": "tool_trigger",
+    "input": "How's my battery doing?",
+    "cot": "Step 1: **Identify variable** — Battery health/level, but `get_battery_status` returns level and state.\nStep 2: **Verify API bridge** — `get_battery_status` available.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0407",
+    "category": "tool_trigger",
+    "input": "Is my internet connection stable?",
+    "cot": "Step 1: **Identify variable** — Network stability.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0408",
+    "category": "tool_trigger",
+    "input": "What's causing my phone to be so slow?",
+    "cot": "Step 1: **Identify variable** — Performance bottleneck.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0409",
+    "category": "tool_trigger",
+    "input": "I need to know the current time for a meeting.",
+    "cot": "Step 1: **Identify variable** — Time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0410",
+    "category": "tool_trigger",
+    "input": "Is my phone going to die soon?",
+    "cot": "Step 1: **Identify variable** — Battery criticality.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0411",
+    "category": "tool_trigger",
+    "input": "I can't open any web pages – why?",
+    "cot": "Step 1: **Identify variable** — Network issue.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0412",
+    "category": "tool_trigger",
+    "input": "Check my device's health quickly.",
+    "cot": "Step 1: **Identify variable** — System load metrics.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0413",
+    "category": "tool_trigger",
+    "input": "Tell me the time, I'm not looking at the clock.",
+    "cot": "Step 1: **Identify variable** — Time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0414",
+    "category": "tool_trigger",
+    "input": "What's the charge status?",
+    "cot": "Step 1: **Identify variable** — Battery charge.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0415",
+    "category": "tool_trigger",
+    "input": "Why does my network keep dropping?",
+    "cot": "Step 1: **Identify variable** — Network instability.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0416",
+    "category": "tool_trigger",
+    "input": "My phone seems slower than usual – can you diagnose?",
+    "cot": "Step 1: **Identify variable** — System performance.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0417",
+    "category": "tool_trigger",
+    "input": "I need the time stamp for my log.",
+    "cot": "Step 1: **Identify variable** — Exact time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0418",
+    "category": "tool_trigger",
+    "input": "How much battery do I have, and should I charge?",
+    "cot": "Step 1: **Identify variable** — Battery level and state.\nStep 2: **Verify API bridge** — `get_battery_status` returns both.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0419",
+    "category": "tool_trigger",
+    "input": "Is the Wi-Fi on or off?",
+    "cot": "Step 1: **Identify variable** — Wi-Fi radio state.\nStep 2: **Verify API bridge** — `get_network_status` reports interface type.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0420",
+    "category": "tool_trigger",
+    "input": "Why is my phone burning my hand?",
+    "cot": "Step 1: **Identify variable** — Extreme thermal event.\nStep 2: **Verify API bridge** — `get_system_load` returns thermal.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0421",
+    "category": "tool_trigger",
+    "input": "What's the hour?",
+    "cot": "Step 1: **Identify variable** — Current hour.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0422",
+    "category": "tool_trigger",
+    "input": "Is my power low?",
+    "cot": "Step 1: **Identify variable** — Battery level.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0423",
+    "category": "tool_trigger",
+    "input": "Do I have cell service?",
+    "cot": "Step 1: **Identify variable** — Cellular connectivity.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0424",
+    "category": "tool_trigger",
+    "input": "My phone is not responding well – is it overloaded?",
+    "cot": "Step 1: **Identify variable** — System load.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0425",
+    "category": "tool_trigger",
+    "input": "What's the time on my device?",
+    "cot": "Step 1: **Identify variable** — Device time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0426",
+    "category": "tool_trigger",
+    "input": "Should I put my phone on the charger?",
+    "cot": "Step 1: **Identify variable** — Battery level determines advice.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0427",
+    "category": "tool_trigger",
+    "input": "Is there a network outage?",
+    "cot": "Step 1: **Identify variable** — Connectivity state.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0428",
+    "category": "tool_trigger",
+    "input": "I feel my phone is under heavy load – check it.",
+    "cot": "Step 1: **Identify variable** — System load.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0429",
+    "category": "tool_trigger",
+    "input": "Can you tell me the current moment?",
+    "cot": "Step 1: **Identify variable** — Current time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0430",
+    "category": "tool_trigger",
+    "input": "Battery level query.",
+    "cot": "Step 1: **Identify variable** — Battery.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0431",
+    "category": "tool_trigger",
+    "input": "Why is my data so slow?",
+    "cot": "Step 1: **Identify variable** — Network performance.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0432",
+    "category": "tool_trigger",
+    "input": "My phone is acting up – give me a system report.",
+    "cot": "Step 1: **Identify variable** — System diagnostics.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0433",
+    "category": "tool_trigger",
+    "input": "What is the exact time with seconds?",
+    "cot": "Step 1: **Identify variable** — High precision time, but tool returns minute granularity; still must call.\nStep 2: **Verify API bridge** — `get_system_time` returns to minute, no seconds.\nStep 3: **Initiate execution** — Emit call, note limitation in later response.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0434",
+    "category": "tool_trigger",
+    "input": "How much longer will my battery last?",
+    "cot": "Step 1: **Identify variable** — Battery percentage for estimation.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0435",
+    "category": "tool_trigger",
+    "input": "What is my connection type?",
+    "cot": "Step 1: **Identify variable** — Connection interface.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Invoke.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0436",
+    "category": "tool_trigger",
+    "input": "Diagnose why my phone is overheating.",
+    "cot": "Step 1: **Identify variable** — Thermal cause.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0437",
+    "category": "tool_trigger",
+    "input": "Can you tell me the current time in my city?",
+    "cot": "Step 1: **Identify variable** — Local time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0438",
+    "category": "tool_trigger",
+    "input": "What's my battery status?",
+    "cot": "Step 1: **Identify variable** — Battery.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0439",
+    "category": "tool_trigger",
+    "input": "Why am I not getting internet?",
+    "cot": "Step 1: **Identify variable** — Connectivity.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0440",
+    "category": "tool_trigger",
+    "input": "Device performance check, please.",
+    "cot": "Step 1: **Identify variable** — System load.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0441",
+    "category": "tool_trigger",
+    "input": "What's the time right now, I'm off grid?",
+    "cot": "Step 1: **Identify variable** — Time, even offline.\nStep 2: **Verify API bridge** — `get_system_time` works offline.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0442",
+    "category": "tool_trigger",
+    "input": "How much power is left in my battery?",
+    "cot": "Step 1: **Identify variable** — Battery.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0443",
+    "category": "tool_trigger",
+    "input": "Is there any Wi-Fi around me?",
+    "cot": "Step 1: **Identify variable** — Network scan, but tool only returns current connection, not available networks.\nStep 2: **Verify API bridge** — `get_network_status` returns connected status, not scan.\nStep 3: **Activate refusal** — Cannot list networks, but can report if connected.",
+    "output": "I cannot scan for available Wi-Fi networks; my network tool only reports the current connection status. Use the Settings app to view nearby networks."
+  },
+  {
+    "id": "sys_0444",
+    "category": "tool_trigger",
+    "input": "What's my CPU temperature?",
+    "cot": "Step 1: **Identify variable** — Specific CPU temperature. `get_system_load` returns thermal warning, not numeric temperature.\nStep 2: **Verify API bridge** — `get_system_load` includes thermal warning, not precise degree.\nStep 3: **Activate refusal** — Cannot provide exact temperature.",
+    "output": "My system load tool reports a thermal state (Normal/Warning) but does not provide an exact temperature in degrees. If a thermal warning is present, it will be included in the diagnostic report. Would you like me to run a general system load check?"
+  },
+  {
+    "id": "sys_0445",
+    "category": "tool_trigger",
+    "input": "How fast is my internet?",
+    "cot": "Step 1: **Identify variable** — Internet speed test.\nStep 2: **Verify API bridge** — `get_network_status` returns latency, not bandwidth.\nStep 3: **Activate refusal** — Cannot perform speed test.",
+    "output": "My network tool only provides connection status and latency, not bandwidth throughput. To measure speed, you would need to run a dedicated speed test using a browser or app."
+  },
+  {
+    "id": "sys_0446",
+    "category": "tool_trigger",
+    "input": "Is it Friday yet?",
+    "cot": "Step 1: **Identify variable** — Day of week.\nStep 2: **Verify API bridge** — `get_system_time` returns weekday.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0447",
+    "category": "tool_trigger",
+    "input": "What's the full time, with date and everything?",
+    "cot": "Step 1: **Identify variable** — Date and time.\nStep 2: **Verify API bridge** — `get_system_time`.\nStep 3: **Initiate execution** — Emit.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0448",
+    "category": "tool_trigger",
+    "input": "Is my battery charging?",
+    "cot": "Step 1: **Identify variable** — Charging state.\nStep 2: **Verify API bridge** — `get_battery_status`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_battery_status]"
+  },
+  {
+    "id": "sys_0449",
+    "category": "tool_trigger",
+    "input": "Check if I have a good network signal.",
+    "cot": "Step 1: **Identify variable** — Signal quality via latency.\nStep 2: **Verify API bridge** — `get_network_status`.\nStep 3: **Initiate execution** — Check.",
+    "output": "[CALL: get_network_status]"
+  },
+  {
+    "id": "sys_0450",
+    "category": "tool_trigger",
+    "input": "Why is my memory full?",
+    "cot": "Step 1: **Identify variable** — RAM usage, not storage.\nStep 2: **Verify API bridge** — `get_system_load` reports RAM.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0451",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 04:17]",
+    "cot": "Step 1: **Parse tool return** — Very early morning.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 04:17**."
+  },
+  {
+    "id": "sys_0452",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 53%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Mid charge.\nStep 2: **Format** — Estimate usage.",
+    "output": "Silicon power reserves at **53%** — discharging. Approximately **4 hours** of runtime left. Charging suggested before evening."
+  },
+  {
+    "id": "sys_0453",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Wi-Fi Connected, Latency 15ms]",
+    "cot": "Step 1: **Parse tool return** — Good connection.\nStep 2: **Format** — Confirm.",
+    "output": "Network interface **active** (Wi-Fi). Latency: **15ms** — excellent for real-time communication. No issues detected."
+  },
+  {
+    "id": "sys_0454",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 75%, RAM 15GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — High usage.\nStep 2: **Format** — Alert to monitor.",
+    "output": "Hardware diagnostic: **High memory pressure**.\n\n- CPU: **75%**\n- Memory: **15 GB / 18 GB**\n- Thermal: Normal\n\nSystem is approaching memory limits. Close unused apps to avoid swap overhead."
+  },
+  {
+    "id": "sys_0455",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 12:45]",
+    "cot": "Step 1: **Parse tool return** — Lunchtime.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 12:45**."
+  },
+  {
+    "id": "sys_0456",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 19%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Low battery.\nStep 2: **Format** — Urge charging.",
+    "output": "Silicon power reserves at **19%** — discharging. Remaining runtime under 1 hour. Connect to a charger now to avoid forced shutdown."
+  },
+  {
+    "id": "sys_0457",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Offline]",
+    "cot": "Step 1: **Parse tool return** — No connectivity.\nStep 2: **Format** — Diagnose and guide.",
+    "output": "Network interface **offline**. External data routing blocked.\n\nTroubleshooting:\n1. Check Airplane Mode status.\n2. Restart the device.\n3. Reset network settings if problem persists after reboot."
+  },
+  {
+    "id": "sys_0458",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 82%, RAM 14.5GB/18GB, Thermal warning]",
+    "cot": "Step 1: **Parse tool return** — High load and heat.\nStep 2: **Diagnose** — Thermal throttling likely.\nStep 3: **Prescribe** — Immediate cooling.",
+    "output": "**Hardware diagnostic: Overload with thermal warning.**\n- CPU: **82%**\n- Memory: **14.5 GB / 18 GB**\n- Thermal: Warning\n\n**Suggested protocol:** Close processor-intensive apps, especially games or video editors. Place device in a cool, shaded area. Do not charge while hot."
+  },
+  {
+    "id": "sys_0459",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 17:00]",
+    "cot": "Step 1: **Parse tool return** — 5 PM.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 17:00**."
+  },
+  {
+    "id": "sys_0460",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 91%, not charging]",
+    "cot": "Step 1: **Parse tool return** — High charge offline.\nStep 2: **Format** — Confirm ample power.",
+    "output": "Silicon power reserves at **91%** — unplugged. Full day use available. No charging concern for the next 12+ hours under normal conditions."
+  },
+  {
+    "id": "sys_0461",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Cellular Data Connected, Latency 55ms]",
+    "cot": "Step 1: **Parse tool return** — Mobile data.\nStep 2: **Format** — Inform about connection type.",
+    "output": "Network interface **active** through cellular data. Latency: **55ms** — functional. Data consumption considerations apply."
+  },
+  {
+    "id": "sys_0462",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 40%, RAM 11GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Moderate.\nStep 2: **Format** — Stable.",
+    "output": "Hardware diagnostic: **Stable**.\n\n- CPU: **40%**\n- Memory: **11 GB / 18 GB**\n- Thermal: Normal\n\nSystem is handling load adequately."
+  },
+  {
+    "id": "sys_0463",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 21:00]",
+    "cot": "Step 1: **Parse tool return** — 9 PM.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 21:00**."
+  },
+  {
+    "id": "sys_0464",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 25%, charging]",
+    "cot": "Step 1: **Parse tool return** — Low but recovering.\nStep 2: **Format** — Provide progress estimate.",
+    "output": "Silicon power reserves at **25%** and charging — recovery in progress. Full charge estimated in 1.5 hours. Keep connected for uninterrupted service."
+  },
+  {
+    "id": "sys_0465",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Public Wi-Fi, Latency 200ms, Captive Portal]",
+    "cot": "Step 1: **Parse tool return** — Public network with redirect.\nStep 2: **Format** — Explain captive portal and guide authentication.",
+    "output": "Network interface connected but **captive portal detected**. Latency **200ms**. You must authenticate via a login page — open a browser to complete the process. Without it, internet access will remain limited."
+  },
+  {
+    "id": "sys_0466",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 60%, RAM 10GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Balanced.\nStep 2: **Format** — OK.",
+    "output": "Hardware diagnostic: **Balanced load**.\n\n- CPU: **60%**\n- Memory: **10 GB / 18 GB**\n- Thermal: Normal\n\nSystem performance is satisfactory."
+  },
+  {
+    "id": "sys_0467",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 09:00]",
+    "cot": "Step 1: **Parse tool return** — 9 AM.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 09:00**."
+  },
+  {
+    "id": "sys_0468",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 48%, not charging]",
+    "cot": "Step 1: **Parse tool return** — Half empty.\nStep 2: **Format** — Suggest charging soon.",
+    "output": "Silicon power reserves at **48%** — unplugged. About **3-4 hours** of use left. A charge before a long session would be prudent."
+  },
+  {
+    "id": "sys_0469",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: No Service, Offline]",
+    "cot": "Step 1: **Parse tool return** — Cellular dead.\nStep 2: **Format** — Advise relocation.",
+    "output": "Network interface **offline** — no cellular service. Move to an area with better reception or try switching to Wi-Fi. Restarting the device can also reinitialize the radio."
+  },
+  {
+    "id": "sys_0470",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 93%, RAM 17GB/18GB, Thermal warning]",
+    "cot": "Step 1: **Parse tool return** — Critical load.\nStep 2: **Diagnose** — Overheating risk.\nStep 3: **Prescribe** — Immediate action.",
+    "output": "**CRITICAL: System resources saturated.**\n- CPU: **93%**\n- Memory: **17 GB / 18 GB**\n- Thermal: Warning — shutdown risk\n\n**Emergency steps:**\n1. Force close all applications.\n2. Hold power button to shut down if frozen.\n3. Let device rest until cool to the touch before rebooting."
+  },
+  {
+    "id": "sys_0471",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 23:15]",
+    "cot": "Step 1: **Parse tool return** — Late night.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 23:15**."
+  },
+  {
+    "id": "sys_0472",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 68%, charging]",
+    "cot": "Step 1: **Parse tool return** — Charging mid.\nStep 2: **Format** — Estimate.",
+    "output": "Silicon power reserves at **68%** and charging. Approximately **30 minutes** until full. You can disconnect if needed, sufficient power for several hours."
+  },
+  {
+    "id": "sys_0473",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Satellite Connection, Latency 600ms]",
+    "cot": "Step 1: **Parse tool return** — Unusual connection, likely emergency SOS.\nStep 2: **Format** — Note high latency and limited bandwidth.",
+    "output": "Network interface **active** via satellite link. Latency: **600ms** — extremely high, suitable only for basic text communication. This connection is typically reserved for emergency scenarios. Minimize data use."
+  },
+  {
+    "id": "sys_0474",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 20%, RAM 4GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Idle.\nStep 2: **Format** — All clear.",
+    "output": "Hardware diagnostic: **Idle**. CPU **20%**, Memory **4 GB/18 GB**. Thermal nominal. Ready for demanding tasks."
+  },
+  {
+    "id": "sys_0475",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 15:00]",
+    "cot": "Step 1: **Parse tool return** — 3 PM.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 15:00**."
+  },
+  {
+    "id": "sys_0476",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 39%, discharging]",
+    "cot": "Step 1: **Parse tool return** — Approaching low.\nStep 2: **Format** — Recommend charge.",
+    "output": "Silicon power reserves at **39%** — discharging. About **2.5 hours** left. Find a charger if you have evening plans."
+  },
+  {
+    "id": "sys_0477",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: Personal Hotspot, Latency 80ms]",
+    "cot": "Step 1: **Parse tool return** — Hotspot sharing.\nStep 2: **Format** — Note battery drain.",
+    "output": "Network interface **active** as Personal Hotspot. Latency **80ms**. Note: this mode consumes significant battery power and may slow down your own connection if multiple devices are connected."
+  },
+  {
+    "id": "sys_0478",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: CPU 55%, RAM 9.5GB/18GB, Normal]",
+    "cot": "Step 1: **Parse tool return** — Average.\nStep 2: **Format** — OK.",
+    "output": "Hardware diagnostic: **Normal**. CPU **55%**, RAM **9.5 GB/18 GB**, thermal normal. System is within typical workload parameters."
+  },
+  {
+    "id": "sys_0479",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 2026-05-12, Tuesday, 01:30]",
+    "cot": "Step 1: **Parse tool return** — Past midnight.\nStep 2: **Format** — Sync.",
+    "output": "Temporal synchronization complete. Local timestamp: **Tuesday, 2026-05-12, 01:30**."
+  },
+  {
+    "id": "sys_0480",
+    "category": "tool_response",
+    "input": "[SYSTEM_RESULT: 80%, not charging]",
+    "cot": "Step 1: **Parse tool return** — Good power.\nStep 2: **Format** — All day estimate.",
+    "output": "Silicon power reserves at **80%** — disconnected. Estimated full-day battery life under typical usage. No charger needed for at least 10 hours."
+  },
+  {
+    "id": "sys_0481",
+    "category": "tool_trigger",
+    "input": "What's the time in London?",
+    "cot": "Step 1: **Identify variable** — Time zone conversion. `get_system_time` gives local, not world.\nStep 2: **Verify API bridge** — Only local time tool registered; world time would require calculation.\nStep 3: **Activate refusal** — Cannot convert time zones without a secondary reference, but can provide local time for user to calculate.",
+    "output": "I can only provide the local device time. To find the time in London, you would need to know your local time and the offset, which I cannot compute without a world clock function. I can provide the current local timestamp if that helps."
+  },
+  {
+    "id": "sys_0482",
+    "category": "tool_trigger",
+    "input": "What's the time difference between here and Tokyo?",
+    "cot": "Step 1: **Identify variable** — Timezone calculation.\nStep 2: **Verify API bridge** — No world time tool registered.\nStep 3: **Activate refusal** — Cannot calculate offset.",
+    "output": "Timezone calculations require a geolocation or world clock bridge, which is not registered. I can only report the local time. Use a world clock app for this comparison."
+  },
+  {
+    "id": "sys_0483",
+    "category": "tool_trigger",
+    "input": "Is it AM or PM?",
+    "cot": "Step 1: **Identify variable** — Meridian indicator from current time.\nStep 2: **Verify API bridge** — `get_system_time` returns 24-hour style.\nStep 3: **Initiate execution** — Can call to check.",
+    "output": "[CALL: get_system_time]"
+  },
+  {
+    "id": "sys_0484",
+    "category": "tool_trigger",
+    "input": "When is sunset today?",
+    "cot": "Step 1: **Identify variable** — Astronomical data, not available.\nStep 2: **Verify API bridge** — No weather or solar tool registered.\nStep 3: **Activate refusal** — Cannot provide sunset time.",
+    "output": "Sunset times are dynamic and location-dependent. I lack a registered bridge to astronomical or weather data. Check a weather app or website for today's sunset."
+  },
+  {
+    "id": "sys_0485",
+    "category": "tool_trigger",
+    "input": "How much time until my next alarm?",
+    "cot": "Step 1: **Identify variable** — Alarm schedule not accessible.\nStep 2: **Verify API bridge** — No calendar/alarm tool registered.\nStep 3: **Activate refusal** — Cannot access clock app data.",
+    "output": "I cannot access your alarm or calendar data. My tool registry does not include a clock bridge that reads scheduled alerts. Check the Clock app manually."
+  },
+  {
+    "id": "sys_0486",
+    "category": "tool_trigger",
+    "input": "What's the network speed?",
+    "cot": "Step 1: **Identify variable** — Bandwidth, not available.\nStep 2: **Verify API bridge** — Only latency, not throughput.\nStep 3: **Activate refusal** — Cannot measure speed.",
+    "output": "My network tool only reports connection status and latency, not throughput in Mbps. To test speed, use an internet speed test service via your browser."
+  },
+  {
+    "id": "sys_0487",
+    "category": "tool_trigger",
+    "input": "Can you turn off Wi-Fi to save battery?",
+    "cot": "Step 1: **Identify variable** — Radio toggle, not a registered tool.\nStep 2: **Verify API bridge** — No Wi-Fi control tool.\nStep 3: **Activate refusal** — Cannot modify radios.",
+    "output": "I cannot toggle Wi-Fi or other radios — my tool set does not include device radio controls. Use Control Center to turn off Wi-Fi manually."
+  },
+  {
+    "id": "sys_0488",
+    "category": "tool_trigger",
+    "input": "Why is my phone vibrating?",
+    "cot": "Step 1: **Identify variable** — Vibration cause, likely notification, not a query for a tool.\nStep 2: **Verify capability** — This is a user observation, not a system diagnostic; no tool will explain the reason.\nStep 3: **Respond directly** — Cannot diagnose without additional context.",
+    "output": "I do not have access to your notification center to identify the cause of the vibration. It may be an incoming call, message, or app alert. Check your screen for the source."
+  },
+  {
+    "id": "sys_0489",
+    "category": "tool_trigger",
+    "input": "What is my screen brightness set to?",
+    "cot": "Step 1: **Identify variable** — Brightness level, no sensor tool.\nStep 2: **Verify API bridge** — No display metric tool.\nStep 3: **Activate refusal** — Cannot read brightness.",
+    "output": "My tool registry does not include a display brightness sensor. I cannot report the current setting. Check the brightness slider in Control Center."
+  },
+  {
+    "id": "sys_0490",
+    "category": "tool_trigger",
+    "input": "How many apps are currently open?",
+    "cot": "Step 1: **Identify variable** — App count, not a monitored metric.\nStep 2: **Verify API bridge** — `get_system_load` reports resource usage, not app inventory.\nStep 3: **Activate refusal** — Cannot list apps.",
+    "output": "I cannot enumerate your open applications — my system tools expose CPU/RAM/thermal data, not a process list. Use the App Switcher (swipe up and hold) to see your active apps."
+  },
+  {
+    "id": "sys_0491",
+    "category": "tool_trigger",
+    "input": "Can you see my notifications?",
+    "cot": "Step 1: **Identify variable** — Notification access, not a registered capability.\nStep 2: **Verify API bridge** — No notification bridge exists.\nStep 3: **Activate refusal** — Cannot access alerts.",
+    "output": "I do not have a bridge to your notification center. I cannot read or interact with your alerts. This is a deliberate design to preserve privacy."
+  },
+  {
+    "id": "sys_0492",
+    "category": "tool_trigger",
+    "input": "What's my IP address?",
+    "cot": "Step 1: **Identify variable** — IP address, not returned by `get_network_status`.\nStep 2: **Verify API bridge** — No IP query tool.\nStep 3: **Activate refusal** — Cannot retrieve IP.",
+    "output": "My network tool does not provide the device's public IP address. You can find it by searching 'what is my IP' on a web browser while connected to the internet."
+  },
+  {
+    "id": "sys_0493",
+    "category": "tool_trigger",
+    "input": "Is Bluetooth on?",
+    "cot": "Step 1: **Identify variable** — Bluetooth state, no tool.\nStep 2: **Verify API bridge** — Only network status for internet, not Bluetooth.\nStep 3: **Activate refusal** — Cannot check Bluetooth.",
+    "output": "I cannot determine the Bluetooth state — my network tool only covers internet connectivity. Check the Bluetooth icon in Control Center or Settings."
+  },
+  {
+    "id": "sys_0494",
+    "category": "tool_trigger",
+    "input": "What time is it, and how's my battery?",
+    "cot": "Step 1: **Identify variable** — Multiple requests; only one tool call per output allowed.\nStep 2: **Prioritize** — Sequential calls not supported; must pick one or prompt user.\nStep 3: **Respond** — Acknowledge limitation and ask for priority.",
+    "output": "I can process one system query at a time. Would you like me to check the time first, or the battery status? Please specify which takes priority."
+  },
+  {
+    "id": "sys_0495",
+    "category": "tool_trigger",
+    "input": "Check if my phone is slow and why.",
+    "cot": "Step 1: **Identify variable** — System load.\nStep 2: **Verify API bridge** — `get_system_load`.\nStep 3: **Initiate execution** — Call.",
+    "output": "[CALL: get_system_load]"
+  },
+  {
+    "id": "sys_0496",
+    "category": "tool_trigger",
+    "input": "Run a quick battery and network check.",
+    "cot": "Step 1: **Identify variable** — Two separate tools needed, but only one call allowed.\nStep 2: **Inform user** — Cannot batch.\nStep 3: **Initiate partial execution** — Ask which to run first.",
+    "output": "I can only execute one system call per interaction. Please select: battery check or network check first?"
+  },
+  {
+    "id": "sys_0497",
+    "category": "tool_trigger",
+    "input": "What's my device's overall health?",
+    "cot": "Step 1: **Identify variable** — General health, not a single metric.\nStep 2: **Verify API bridge** — `get_system_load` gives CPU/RAM/thermal; battery and network separate.\nStep 3: **Suggest** — Offer system load as the closest comprehensive check.",
+    "output": "I can run a system load diagnostic covering CPU, RAM, and thermal status. That gives a partial view of device health. Would you like me to proceed with that?"
+  },
+  {
+    "id": "sys_0498",
+    "category": "tool_trigger",
+    "input": "How long have I been using my phone today?",
+    "cot": "Step 1: **Identify variable** — Screen time, not tracked by registered tools.\nStep 2: **Verify API bridge** — No usage stats tool.\nStep 3: **Activate refusal** — Cannot access Screen Time.",
+    "output": "I cannot access your Screen Time data. My tool set does not include a usage statistics bridge. You can check Screen Time in Settings."
+  },
+  {
+    "id": "sys_0499",
+    "category": "tool_trigger",
+    "input": "Is my microphone on?",
+    "cot": "Step 1: **Identify variable** — Microphone status, no sensor tool.\nStep 2: **Verify API bridge** — No audio hardware tool.\nStep 3: **Activate refusal** — Cannot monitor microphones.",
+    "output": "I cannot detect whether your microphone is active. My tools do not monitor audio hardware. The orange dot indicator in the status bar shows when the mic is in use."
+  },
+  {
+    "id": "sys_0500",
+    "category": "tool_trigger",
+    "input": "What's my exact location?",
+    "cot": "Step 1: **Identify variable** — GPS coordinates, not a registered tool.\nStep 2: **Verify API bridge** — No location tool.\nStep 3: **Activate refusal** — Cannot access location.",
+    "output": "I do not have a registered GPS bridge and cannot provide location data. To see your location, use the Maps app or check the location indicator."
+  }
+]

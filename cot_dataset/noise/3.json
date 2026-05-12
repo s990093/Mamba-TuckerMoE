@@ -1,0 +1,702 @@
+[
+    {
+      "id": "noise_0101",
+      "category": "general_query",
+      "input": "What is the smallest country in the world?",
+      "cot": "Step 1: **Identify query** — Geographic superlative.\nStep 2: **Retrieve data** — Vatican City.\nStep 3: **Format output**.",
+      "output": "The smallest country in the world by both area and population is **Vatican City**."
+    },
+    {
+      "id": "noise_0102",
+      "category": "knowledge_explanation",
+      "input": "How does an electric motor work?",
+      "cot": "Step 1: **Classify request** — Electromagnetic device explanation.\nStep 2: **Define principle** — Interaction between magnetic fields and current-carrying conductors.\nStep 3: **Describe components** — Stator, rotor, commutator.\nStep 4: **Format output**.",
+      "output": "An electric motor converts electrical energy into mechanical rotation. Current passing through a wire coil in a magnetic field experiences a Lorentz force, generating torque on a rotor. A commutator periodically reverses the current direction to keep the rotor spinning continuously."
+    },
+    {
+      "id": "noise_0103",
+      "category": "general_query",
+      "input": "What is the speed of Earth's rotation at the equator?",
+      "cot": "Step 1: **Identify query** — Planetary motion.\nStep 2: **Retrieve data** — Approximately 1,670 km/h.\nStep 3: **Format output**.",
+      "output": "At the equator, the Earth rotates at approximately **1,670 kilometers per hour**."
+    },
+    {
+      "id": "noise_0104",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between an acid and a base.",
+      "cot": "Step 1: **Identify comparison** — Chemistry definitions.\nStep 2: **Define acid** — Proton donor or electron pair acceptor.\nStep 3: **Define base** — Proton acceptor or electron pair donor.\nStep 4: **Mention pH scale** — Acids have pH < 7, bases > 7.\nStep 5: **Format output**.",
+      "output": "According to the Brønsted-Lowry theory, an **acid** is a proton (H⁺) donor, while a **base** is a proton acceptor. On the pH scale ranging from 0 to 14, acids register below 7, bases above 7, and 7 is neutral. In the Lewis definition, acids accept electron pairs and bases donate them."
+    },
+    {
+      "id": "noise_0105",
+      "category": "general_query",
+      "input": "What is the capital of South Korea?",
+      "cot": "Step 1: **Classify request** — Geography fact.\nStep 2: **Retrieve data** — Seoul.\nStep 3: **Format output**.",
+      "output": "The capital of South Korea is **Seoul**."
+    },
+    {
+      "id": "noise_0106",
+      "category": "knowledge_explanation",
+      "input": "How does a touchscreen work?",
+      "cot": "Step 1: **Classify request** — Technology explanation.\nStep 2: **Differentiate types** — Resistive vs capacitive.\nStep 3: **Describe capacitive method** — Senses change in electrical field from finger.\nStep 4: **Format output**.",
+      "output": "Most modern touchscreens are capacitive. A transparent electrode layer stores an electrical charge; when a finger (which is conductive) touches the screen, it draws a tiny charge, changing the electrostatic field. Sensors detect this change and calculate the touch coordinate."
+    },
+    {
+      "id": "noise_0107",
+      "category": "general_query",
+      "input": "What does 'HTML' stand for?",
+      "cot": "Step 1: **Identify query** — Computing acronym.\nStep 2: **Retrieve expansion** — HyperText Markup Language.\nStep 3: **Format output**.",
+      "output": "HTML stands for **HyperText Markup Language**."
+    },
+    {
+      "id": "noise_0108",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between kinetic and potential energy?",
+      "cot": "Step 1: **Identify comparison** — Physics concepts.\nStep 2: **Define kinetic energy** — Energy of motion.\nStep 3: **Define potential energy** — Stored energy due to position or state.\nStep 4: **Format output**.",
+      "output": "**Kinetic energy** is the energy an object possesses due to its motion. **Potential energy** is stored energy based on an object's position, condition, or composition, such as gravitational potential energy or elastic potential energy."
+    },
+    {
+      "id": "noise_0109",
+      "category": "general_query",
+      "input": "How many days does it take for the Moon to orbit Earth?",
+      "cot": "Step 1: **Identify query** — Lunar orbital period.\nStep 2: **Retrieve data** — About 27.3 days (sidereal).\nStep 3: **Format output**.",
+      "output": "The Moon completes one orbit around Earth in approximately **27.3 days** (sidereal month)."
+    },
+    {
+      "id": "noise_0110",
+      "category": "general_query",
+      "input": "What is the freezing point of water in Kelvin?",
+      "cot": "Step 1: **Identify query** — Temperature scale conversion.\nStep 2: **Retrieve data** — 273.15 K.\nStep 3: **Format output**.",
+      "output": "The freezing point of water on the Kelvin scale is **273.15 K**."
+    },
+    {
+      "id": "noise_0111",
+      "category": "knowledge_explanation",
+      "input": "Explain the conveyor belt system of ocean currents.",
+      "cot": "Step 1: **Classify request** — Climate/geoscience concept.\nStep 2: **Define thermohaline circulation** — Driven by temperature and salinity differences.\nStep 3: **Describe global pattern** — Warm water moves poleward on surface, cold water sinks and moves equatorward in deep ocean.\nStep 4: **Format output**.",
+      "output": "The global ocean conveyor belt, or thermohaline circulation, is a density-driven water movement. Warmer, less salty surface water flows poleward, where it cools, becomes denser, and sinks. This deep cold water then travels toward the equator, slowly upwells, and the cycle repeats. It regulates global heat distribution."
+    },
+    {
+      "id": "noise_0112",
+      "category": "general_query",
+      "input": "What is the square root of 256?",
+      "cot": "Step 1: **Classify request** — Arithmetic.\nStep 2: **Calculate** — 16 * 16 = 256.\nStep 3: **Format output**.",
+      "output": "The square root of 256 is **16**."
+    },
+    {
+      "id": "noise_0113",
+      "category": "general_query",
+      "input": "What does 'GPS' stand for?",
+      "cot": "Step 1: **Identify query** — Technology acronym.\nStep 2: **Retrieve data** — Global Positioning System.\nStep 3: **Format output**.",
+      "output": "GPS stands for **Global Positioning System**."
+    },
+    {
+      "id": "noise_0114",
+      "category": "knowledge_explanation",
+      "input": "How does a zipper work?",
+      "cot": "Step 1: **Classify request** — Mechanical fastener explanation.\nStep 2: **Describe tooth geometry** — Each tooth has a hook and a cavity.\nStep 3: **Explain slider function** — Guides teeth into interlocking or separating V-shaped channel.\nStep 4: **Format output**.",
+      "output": "A zipper consists of two rows of metal or plastic teeth. Each tooth has a projection on one side and a hollow on the other. The slider has Y-shaped channels that force the teeth to mesh together (when moving up) or separate (when moving down), locking or unlocking the fastener."
+    },
+    {
+      "id": "noise_0115",
+      "category": "general_query",
+      "input": "What is the largest desert in the world?",
+      "cot": "Step 1: **Identify query** — Geographic feature.\nStep 2: **Define 'desert'** — Not just hot sand, but low precipitation.\nStep 3: **Retrieve answer** — Antarctic Polar Desert.\nStep 4: **Format output**.",
+      "output": "By definition of annual precipitation, the **Antarctic Polar Desert** is the largest desert in the world."
+    },
+    {
+      "id": "noise_0116",
+      "category": "general_query",
+      "input": "How much is 2 to the power of 10?",
+      "cot": "Step 1: **Identify query** — Exponentiation.\nStep 2: **Calculate** — 2^10 = 1024.\nStep 3: **Format output**.",
+      "output": "2 raised to the power of 10 is **1024**."
+    },
+    {
+      "id": "noise_0117",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a crocodile and an alligator?",
+      "cot": "Step 1: **Identify comparison** — Reptile species.\nStep 2: **Compare snout shape** — Crocodile has narrow, V-shaped snout; alligator has broad, U-shaped.\nStep 3: **Compare tooth visibility** — Crocodile shows both upper and lower teeth when mouth closed; alligator shows only upper.\nStep 4: **Compare habitat** — Crocodiles tolerate saltwater; alligators prefer freshwater.\nStep 5: **Format output**.",
+      "output": "Key differences: A crocodile has a narrow, V-shaped snout, while an alligator has a wide, U-shaped snout. When the mouth is closed, a crocodile's fourth lower tooth is visible; an alligator's upper jaw conceals lower teeth. Crocodiles are more tolerant of saltwater; alligators primarily inhabit freshwater."
+    },
+    {
+      "id": "noise_0118",
+      "category": "general_query",
+      "input": "What is the hardest natural substance?",
+      "cot": "Step 1: **Classify request** — Material science.\nStep 2: **Retrieve data** — Diamond.\nStep 3: **Format output**.",
+      "output": "**Diamond** is the hardest known natural substance on Earth."
+    },
+    {
+      "id": "noise_0119",
+      "category": "general_query",
+      "input": "What is the chemical formula for salt?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — Sodium chloride = NaCl.\nStep 3: **Format output**.",
+      "output": "Table salt is **NaCl**, or sodium chloride."
+    },
+    {
+      "id": "noise_0120",
+      "category": "knowledge_explanation",
+      "input": "How does a submarine dive and surface?",
+      "cot": "Step 1: **Classify request** — Naval engineering.\nStep 2: **Define ballast tanks** — Tanks that hold water or air.\nStep 3: **Explain dive** — Filling tanks with water increases density.\nStep 4: **Explain surface** — Pumping air purges water, reducing density.\nStep 5: **Format output**.",
+      "output": "A submarine controls its buoyancy using ballast tanks. To dive, the tanks are flooded with water, making the submarine denser than surrounding water. To surface, high-pressure compressed air blows the water out of the tanks, decreasing density and providing positive buoyancy."
+    },
+    {
+      "id": "noise_0121",
+      "category": "general_query",
+      "input": "What is the strongest muscle in the human body?",
+      "cot": "Step 1: **Identify query** — Human anatomy with definitional variance.\nStep 2: **Define 'strongest'** — Multiple metrics: maximal force, strength per weight, endurance.\nStep 3: **Provide multiple answers** — Gluteus maximus (size/mass), masseter (force/area), heart (endurance).\nStep 4: **Format output**.",
+      "output": "Defining 'strongest' varies by metric. The gluteus maximus is the largest and generates the most absolute force. The masseter jaw muscle exerts the most force relative to its size. The heart performs the most work over a lifetime."
+    },
+    {
+      "id": "noise_0122",
+      "category": "general_query",
+      "input": "What is the speed of a cheetah?",
+      "cot": "Step 1: **Identify query** — Animal speed.\nStep 2: **Retrieve data** — Up to 112 km/h (70 mph).\nStep 3: **Format output**.",
+      "output": "A cheetah can reach speeds up to **112 km/h (70 mph)** in short bursts."
+    },
+    {
+      "id": "noise_0123",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a fruit and a nut?",
+      "cot": "Step 1: **Classify request** — Botanical definitions.\nStep 2: **Define fruit** — Ripened ovary containing seeds.\nStep 3: **Define nut** — A dry fruit with a hard shell containing a single seed.\nStep 4: **Clarify common confusion** — Many 'nuts' are actually drupes (e.g., almonds).\nStep 5: **Format output**.",
+      "output": "Botanically, a fruit is a seed-bearing structure from a flowering plant's ovary. A true nut is a specific type of dry fruit with a hard woody shell and a single seed that does not split open to release the seed (e.g., chestnuts, acorns). Many culinary 'nuts' like almonds and walnuts are actually the pits of drupes."
+    },
+    {
+      "id": "noise_0124",
+      "category": "general_query",
+      "input": "What is the diameter of the Sun compared to Earth?",
+      "cot": "Step 1: **Identify query** — Comparative astronomy.\nStep 2: **Retrieve ratio** — About 109 times Earth's diameter.\nStep 3: **Format output**.",
+      "output": "The Sun's diameter is approximately **109 times** that of Earth."
+    },
+    {
+      "id": "noise_0125",
+      "category": "general_query",
+      "input": "What element has the atomic number 79?",
+      "cot": "Step 1: **Identify query** — Periodic table lookup.\nStep 2: **Retrieve data** — Gold (Au).\nStep 3: **Format output**.",
+      "output": "Element 79 is **Gold (Au)**."
+    },
+    {
+      "id": "noise_0126",
+      "category": "knowledge_explanation",
+      "input": "How does a digital clock measure time?",
+      "cot": "Step 1: **Classify request** — Electronics/timekeeping.\nStep 2: **Describe quartz oscillator** — Vibrates at 32,768 Hz when electric current applied.\nStep 3: **Explain division circuit** — Divides frequency to 1 Hz.\nStep 4: **Format output**.",
+      "output": "A digital clock typically uses a quartz crystal oscillator. Electricity makes the crystal vibrate at a precise frequency, usually 32,768 times per second. A digital circuit divides this down to exactly one pulse per second, advancing the time display synchronously."
+    },
+    {
+      "id": "noise_0127",
+      "category": "general_query",
+      "input": "What is the difference between a meteor, meteoroid, and meteorite?",
+      "cot": "Step 1: **Identify comparison** — Space debris terminology.\nStep 2: **Meteoroid** — Object in space.\nStep 3: **Meteor** — Light phenomenon when entering atmosphere.\nStep 4: **Meteorite** — Object that survives to ground.\nStep 5: **Format output**.",
+      "output": "A **meteoroid** is a small rocky or metallic body traveling through space. When it enters the atmosphere and vaporizes, the streak of light is a **meteor** (shooting star). If it survives and reaches Earth's surface, the remnant is a **meteorite**."
+    },
+    {
+      "id": "noise_0128",
+      "category": "general_query",
+      "input": "Convert 1 mile to kilometers.",
+      "cot": "Step 1: **Classify request** — Unit conversion.\nStep 2: **Retrieve factor** — 1 mile ≈ 1.60934 km.\nStep 3: **Format output**.",
+      "output": "1 mile equals approximately **1.609 kilometers**."
+    },
+    {
+      "id": "noise_0129",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between AC and DC electricity.",
+      "cot": "Step 1: **Identify comparison** — Electrical current types.\nStep 2: **Define DC** — Current flows in one constant direction.\nStep 3: **Define AC** — Current periodically reverses direction.\nStep 4: **Mention usage** — Batteries vs. power grids.\nStep 5: **Format output**.",
+      "output": "**Direct current (DC)** flows steadily in a single direction; it is produced by batteries and used in most electronics. **Alternating current (AC)** periodically reverses direction in a sinusoidal wave; it is the standard for power grids because transformers can easily step AC voltage up or down for efficient long-distance transmission."
+    },
+    {
+      "id": "noise_0130",
+      "category": "general_query",
+      "input": "What is the largest mammal?",
+      "cot": "Step 1: **Identify query** — Zoology.\nStep 2: **Retrieve data** — Blue whale.\nStep 3: **Format output**.",
+      "output": "The **blue whale** is the largest mammal on Earth, reaching up to 30 meters in length."
+    },
+    {
+      "id": "noise_0131",
+      "category": "general_query",
+      "input": "What color is Venus in the sky?",
+      "cot": "Step 1: **Identify query** — Planetary observation.\nStep 2: **Retrieve data** — Often described as bright white or pale yellow.\nStep 3: **Format output**.",
+      "output": "Venus appears as a brilliant **white or pale yellow** point of light, often called the 'morning star' or 'evening star'."
+    },
+    {
+      "id": "noise_0132",
+      "category": "knowledge_explanation",
+      "input": "How does a piano produce sound?",
+      "cot": "Step 1: **Classify request** — Musical instrument mechanics.\nStep 2: **Describe hammer action** — Key press triggers felt-covered hammer striking strings.\nStep 3: **Explain vibration and soundboard** — Strings vibrate at specific frequencies, soundboard amplifies.\nStep 4: **Format output**.",
+      "output": "When a piano key is pressed, a mechanism throws a felt-covered hammer against steel strings. The strings vibrate at specific frequencies determined by length, tension, and mass. These vibrations travel through a bridge to the soundboard, which amplifies them and radiates audible sound."
+    },
+    {
+      "id": "noise_0133",
+      "category": "general_query",
+      "input": "Who discovered penicillin?",
+      "cot": "Step 1: **Identify query** — History of medicine.\nStep 2: **Retrieve data** — Alexander Fleming (1928).\nStep 3: **Format output**.",
+      "output": "Penicillin was discovered by **Alexander Fleming** in 1928."
+    },
+    {
+      "id": "noise_0134",
+      "category": "general_query",
+      "input": "What is the boiling point of water at high altitude?",
+      "cot": "Step 1: **Identify query** — Physics under varying pressure.\nStep 2: **Explain pressure dependency** — Lower atmospheric pressure reduces boiling point.\nStep 3: **Give example** — In Denver (~1600 m), water boils at about 95°C.\nStep 4: **Format output**.",
+      "output": "Water boils when its vapor pressure equals atmospheric pressure. At high altitudes, lower air pressure causes water to boil at a lower temperature. At 1,600 meters, water boils around **95 degrees Celsius** instead of 100°C."
+    },
+    {
+      "id": "noise_0135",
+      "category": "knowledge_explanation",
+      "input": "Explain the concept of 'survival of the fittest'.",
+      "cot": "Step 1: **Classify request** — Evolutionary biology phrase.\nStep 2: **Define 'fitness'** — Reproductive success in a specific environment.\nStep 3: **Clarify misinterpretation** — Not necessarily the strongest, but most adapted.\nStep 4: **Format output**.",
+      "output": "'Survival of the fittest' is a phrase describing natural selection. Biological fitness refers to an organism's ability to survive and reproduce in its environment, passing its genes to the next generation. It does not always mean the physically strongest, but the organism best adapted to its niche."
+    },
+    {
+      "id": "noise_0136",
+      "category": "general_query",
+      "input": "How many keys are on a standard piano?",
+      "cot": "Step 1: **Identify query** — Musical instrument.\nStep 2: **Retrieve data** — 88 keys (52 white, 36 black).\nStep 3: **Format output**.",
+      "output": "A standard full-size piano has **88 keys**: 52 white and 36 black."
+    },
+    {
+      "id": "noise_0137",
+      "category": "general_query",
+      "input": "What is the fifth planet from the Sun?",
+      "cot": "Step 1: **Identify query** — Solar system order.\nStep 2: **Retrieve data** — Jupiter.\nStep 3: **Format output**.",
+      "output": "The fifth planet from the Sun is **Jupiter**."
+    },
+    {
+      "id": "noise_0138",
+      "category": "knowledge_explanation",
+      "input": "How do airbags work in a car crash?",
+      "cot": "Step 1: **Classify request** — Safety device mechanism.\nStep 2: **Describe sensor trigger** — Accelerometer detects rapid deceleration.\nStep 3: **Explain inflation** — Chemical reaction produces nitrogen gas to inflate bag in <30 ms.\nStep 4: **Format output**.",
+      "output": "Airbags deploy when accelerometers detect a severe frontal deceleration. An electrical signal ignites a chemical propellant, typically sodium azide, which instantaneously decomposes to produce hot nitrogen gas. This inflates the fabric bag in under 30 milliseconds, cushioning the occupant before they strike the dashboard."
+    },
+    {
+      "id": "noise_0139",
+      "category": "general_query",
+      "input": "What is the deepest point in the ocean?",
+      "cot": "Step 1: **Identify query** — Geographic extreme.\nStep 2: **Retrieve data** — Challenger Deep, Mariana Trench.\nStep 3: **Format output**.",
+      "output": "The deepest known point in the ocean is the **Challenger Deep** in the Mariana Trench, at about 11,034 meters."
+    },
+    {
+      "id": "noise_0140",
+      "category": "general_query",
+      "input": "What is the chemical symbol for lead?",
+      "cot": "Step 1: **Identify query** — Periodic table.\nStep 2: **Retrieve data** — Pb.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for lead is **Pb**, from the Latin 'plumbum'."
+    },
+    {
+      "id": "noise_0141",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a mammal and a reptile?",
+      "cot": "Step 1: **Identify comparison** — Vertebrate classes.\nStep 2: **Compare key traits** — Warm-blooded vs. cold-blooded; fur/hair vs. scales; live birth vs. eggs.\nStep 3: **Note exceptions** — Monotremes are egg-laying mammals.\nStep 4: **Format output**.",
+      "output": "Mammals are generally warm-blooded, possess hair or fur, feed young with milk from mammary glands, and typically give live birth. Reptiles are ectothermic (cold-blooded), have scales, and usually lay amniotic eggs. The platypus and echidna are exceptions as egg-laying mammals."
+    },
+    {
+      "id": "noise_0142",
+      "category": "general_query",
+      "input": "How many lines of symmetry does a square have?",
+      "cot": "Step 1: **Identify query** — Geometry.\nStep 2: **Retrieve data** — 4 lines.\nStep 3: **Format output**.",
+      "output": "A square has **four** lines of symmetry."
+    },
+    {
+      "id": "noise_0143",
+      "category": "general_query",
+      "input": "What gas makes a balloon float?",
+      "cot": "Step 1: **Identify query** — Physics/chemistry.\nStep 2: **Retrieve data** — Helium (less dense than air).\nStep 3: **Mention alternative** — Hot air for hot air balloons.\nStep 4: **Format output**.",
+      "output": "Party balloons float when filled with **helium**, which is less dense than air. Hot air balloons use heated atmospheric air, which has lower density due to thermal expansion."
+    },
+    {
+      "id": "noise_0144",
+      "category": "knowledge_explanation",
+      "input": "How does a sewing machine stitch fabric?",
+      "cot": "Step 1: **Classify request** — Mechanical device explanation.\nStep 2: **Describe lockstitch formation** — Top thread from needle loops around bobbin thread.\nStep 3: **Explain feed dogs** — Grip and advance fabric.\nStep 4: **Format output**.",
+      "output": "A sewing machine forms a lockstitch. The needle brings the top thread down through the fabric. A shuttle hook catches the loop and wraps it around the bobbin thread. The take-up lever pulls the stitch tight. Feed dogs below the fabric advance the material for the next stitch cycle."
+    },
+    {
+      "id": "noise_0145",
+      "category": "general_query",
+      "input": "What is the speed of light in miles per hour?",
+      "cot": "Step 1: **Identify query** — Unit conversion of known constant.\nStep 2: **Calculate** — 299,792,458 m/s to mph ≈ 671 million.\nStep 3: **Format output**.",
+      "output": "The speed of light in a vacuum is approximately **671 million miles per hour**."
+    },
+    {
+      "id": "noise_0146",
+      "category": "general_query",
+      "input": "How many planets are in our solar system?",
+      "cot": "Step 1: **Identify query** — Astronomy (post-2006 definition).\nStep 2: **Retrieve data** — 8 planets.\nStep 3: **Format output**.",
+      "output": "There are **eight planets** in our solar system."
+    },
+    {
+      "id": "noise_0147",
+      "category": "knowledge_explanation",
+      "input": "Explain the Streisand effect.",
+      "cot": "Step 1: **Classify request** — Social phenomenon.\nStep 2: **Define effect** — Attempting to censor or hide information increases its visibility.\nStep 3: **Provide origin** — Barbra Streisand's lawsuit backfired.\nStep 4: **Format output**.",
+      "output": "The Streisand effect describes a phenomenon where an attempt to suppress or remove information inadvertently amplifies public attention to it. The term originated after Barbra Streisand's 2003 lawsuit to suppress photos of her house resulted in millions viewing the images online."
+    },
+    {
+      "id": "noise_0148",
+      "category": "general_query",
+      "input": "What is the currency of the United Kingdom?",
+      "cot": "Step 1: **Identify query** — Economic geography.\nStep 2: **Retrieve data** — Pound sterling.\nStep 3: **Format output**.",
+      "output": "The currency of the United Kingdom is the **Pound sterling (GBP)**."
+    },
+    {
+      "id": "noise_0149",
+      "category": "general_query",
+      "input": "What does laser stand for?",
+      "cot": "Step 1: **Identify query** — Acronym.\nStep 2: **Retrieve expansion** — Light Amplification by Stimulated Emission of Radiation.\nStep 3: **Format output**.",
+      "output": "LASER stands for **Light Amplification by Stimulated Emission of Radiation**."
+    },
+    {
+      "id": "noise_0150",
+      "category": "knowledge_explanation",
+      "input": "How does a jet engine work?",
+      "cot": "Step 1: **Classify request** — Aeronautical propulsion.\nStep 2: **Define Brayton cycle** — Suck, squeeze, bang, blow.\nStep 3: **Explain thrust** — High-speed exhaust gas pushes aircraft forward (Newton's third law).\nStep 4: **Format output**.",
+      "output": "A jet engine operates on the Brayton cycle. Intake fans compress incoming air, which mixes with fuel and ignites. The expanding hot gases spin turbines that drive the compressor and exit as a high-velocity exhaust jet. The acceleration of this mass of air rearward produces an equal forward thrust."
+    },
+    {
+      "id": "noise_0151",
+      "category": "general_query",
+      "input": "What is the capital of Mexico?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — Mexico City.\nStep 3: **Format output**.",
+      "output": "The capital of Mexico is **Mexico City**."
+    },
+    {
+      "id": "noise_0152",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a virus and a worm in computing?",
+      "cot": "Step 1: **Identify comparison** — Malware types.\nStep 2: **Define virus** — Attaches to a host file, requires user action to spread.\nStep 3: **Define worm** — Self-replicates and spreads automatically over networks.\nStep 4: **Format output**.",
+      "output": "A computer **virus** attaches itself to a legitimate program or file and requires a user to execute that host to spread. A **worm** is a standalone program that self-replicates and spreads across networks without any user interaction, often exploiting system vulnerabilities."
+    },
+    {
+      "id": "noise_0153",
+      "category": "general_query",
+      "input": "How many bones are in the human foot?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **Retrieve data** — 26 bones per foot.\nStep 3: **Format output**.",
+      "output": "The human foot contains **26 bones**, plus numerous small sesamoid bones."
+    },
+    {
+      "id": "noise_0154",
+      "category": "general_query",
+      "input": "What is the largest bird in the world?",
+      "cot": "Step 1: **Identify query** — Zoology.\nStep 2: **Retrieve data** — Ostrich (by mass and height).\nStep 3: **Format output**.",
+      "output": "The **ostrich** is the largest living bird, reaching up to 2.8 meters in height."
+    },
+    {
+      "id": "noise_0155",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between a tide and a wave.",
+      "cot": "Step 1: **Identify comparison** — Ocean dynamics.\nStep 2: **Define tide** — Long-period rise and fall caused by celestial gravity.\nStep 3: **Define wave** — Surface energy transfer typically generated by wind.\nStep 4: **Format output**.",
+      "output": "**Tides** are the long-period rise and fall of sea levels caused by the gravitational pull of the Moon and Sun. **Waves** are short-period surface oscillations, primarily generated by wind transferring energy to water, which travels across the ocean surface."
+    },
+    {
+      "id": "noise_0156",
+      "category": "general_query",
+      "input": "What does 'PDF' stand for?",
+      "cot": "Step 1: **Identify query** — File format acronym.\nStep 2: **Retrieve data** — Portable Document Format.\nStep 3: **Format output**.",
+      "output": "PDF stands for **Portable Document Format**."
+    },
+    {
+      "id": "noise_0157",
+      "category": "general_query",
+      "input": "What is the atomic number of oxygen?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — 8.\nStep 3: **Format output**.",
+      "output": "The atomic number of oxygen is **8**."
+    },
+    {
+      "id": "noise_0158",
+      "category": "knowledge_explanation",
+      "input": "How does a refrigerator ice maker work?",
+      "cot": "Step 1: **Classify request** — Appliance sub-system.\nStep 2: **Explain water fill** — Valve opens, fills tray.\nStep 3: **Explain freezing** — Thermistor detects temperature; refrigerant cools mold.\nStep 4: **Explain harvest** — Heater briefly warms mold, fingers eject cubes.\nStep 5: **Format output**.",
+      "output": "An ice maker cycles automatically. A water valve fills a mold with water. A built-in thermistor monitors temperature; once cubes are frozen, a heating element briefly warms the mold to release the ice. A motor-driven arm sweeps the cubes into the storage bin, and the cycle repeats."
+    },
+    {
+      "id": "noise_0159",
+      "category": "general_query",
+      "input": "What is the hottest planet in our solar system?",
+      "cot": "Step 1: **Identify query** — Planetary temperature.\nStep 2: **Retrieve data** — Venus, due to thick atmosphere.\nStep 3: **Format output**.",
+      "output": "**Venus** is the hottest planet, with a surface temperature around 465°C, because its dense carbon dioxide atmosphere creates an extreme greenhouse effect."
+    },
+    {
+      "id": "noise_0160",
+      "category": "general_query",
+      "input": "What is the capital of Turkey?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — Ankara.\nStep 3: **Format output**.",
+      "output": "The capital of Turkey is **Ankara**."
+    },
+    {
+      "id": "noise_0161",
+      "category": "knowledge_explanation",
+      "input": "How does a prism separate white light into colors?",
+      "cot": "Step 1: **Classify request** — Optics.\nStep 2: **Define dispersion** — Refractive index varies with wavelength.\nStep 3: **Explain refraction** — Shorter wavelengths (blue) bend more than longer (red).\nStep 4: **Format output**.",
+      "output": "A prism disperses white light through refraction. Different wavelengths (colors) of light travel at slightly different speeds in glass, causing each to bend by a different amount. Blue light slows down more and bends the most; red light bends the least, spreading the continuous spectrum."
+    },
+    {
+      "id": "noise_0162",
+      "category": "general_query",
+      "input": "What is the square root of 81?",
+      "cot": "Step 1: **Identify query** — Arithmetic.\nStep 2: **Calculate** — 9 * 9 = 81.\nStep 3: **Format output**.",
+      "output": "The square root of 81 is **9**."
+    },
+    {
+      "id": "noise_0163",
+      "category": "general_query",
+      "input": "What is the freezing point of mercury?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Retrieve data** — -38.83°C.\nStep 3: **Format output**.",
+      "output": "The freezing point of mercury is **-38.83 degrees Celsius**."
+    },
+    {
+      "id": "noise_0164",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between a debit card and a credit card.",
+      "cot": "Step 1: **Identify comparison** — Financial instruments.\nStep 2: **Define debit** — Accesses money directly from a bank account.\nStep 3: **Define credit** — Accesses a revolving line of credit; pay later.\nStep 4: **Mention protection differences** — Credit offers more consumer protections.\nStep 5: **Format output**.",
+      "output": "A **debit card** deducts funds directly from the user's bank account instantly. A **credit card** borrows money from the issuer, creating a balance due later, potentially accruing interest if not paid in full. Credit cards often provide stronger fraud protection and build credit history."
+    },
+    {
+      "id": "noise_0165",
+      "category": "general_query",
+      "input": "What is the largest island in the world?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — Greenland.\nStep 3: **Format output**.",
+      "output": "**Greenland** is the largest island in the world that is not a continent."
+    },
+    {
+      "id": "noise_0166",
+      "category": "general_query",
+      "input": "What do the Olympic rings represent?",
+      "cot": "Step 1: **Identify query** — Symbolism.\nStep 2: **Retrieve data** — Five rings represent five inhabited continents.\nStep 3: **Note colors** — At least one color appears on every nation's flag.\nStep 4: **Format output**.",
+      "output": "The five Olympic rings represent the five inhabited continents (Africa, Americas, Asia, Europe, Oceania). The colors (blue, yellow, black, green, red) were chosen because at least one appears on every national flag."
+    },
+    {
+      "id": "noise_0167",
+      "category": "knowledge_explanation",
+      "input": "How does a battery produce electricity?",
+      "cot": "Step 1: **Classify request** — Electrochemistry.\nStep 2: **Define redox reaction** — Oxidation at anode, reduction at cathode.\nStep 3: **Explain ion flow** — Ions move through electrolyte, electrons through external circuit.\nStep 4: **Format output**.",
+      "output": "A battery converts chemical energy into electricity through redox reactions. At the negative anode, a chemical oxidation releases electrons. These electrons flow through the external circuit to the positive cathode, where a reduction reaction absorbs them. An electrolyte allows ions to move internally, completing the circuit."
+    },
+    {
+      "id": "noise_0168",
+      "category": "general_query",
+      "input": "What is the diameter of a standard marble?",
+      "cot": "Step 1: **Identify query** — Common object dimension.\nStep 2: **Retrieve typical range** — Usually 13-16 mm.\nStep 3: **Format output**.",
+      "output": "A standard playing marble has a diameter between **13 and 16 millimeters**, with 14 mm being common."
+    },
+    {
+      "id": "noise_0169",
+      "category": "general_query",
+      "input": "How many syllables are in a haiku?",
+      "cot": "Step 1: **Identify query** — Poetic form.\nStep 2: **Retrieve data** — Traditional Japanese haiku has 17 syllables (5-7-5).\nStep 3: **Format output**.",
+      "output": "A traditional haiku consists of **17 syllables** in a 5-7-5 pattern over three lines."
+    },
+    {
+      "id": "noise_0170",
+      "category": "knowledge_explanation",
+      "input": "What is the Coriolis effect?",
+      "cot": "Step 1: **Classify request** — Physics/meteorology.\nStep 2: **Define effect** — Moving objects on a rotating Earth are deflected.\nStep 3: **Explain hemisphere difference** — Right in Northern, left in Southern.\nStep 4: **Format output**.",
+      "output": "The Coriolis effect is an apparent deflection of moving objects when viewed from a rotating reference frame, like Earth. Due to Earth's rotation, fluids and objects traveling long distances turn to the right in the Northern Hemisphere and to the left in the Southern Hemisphere. It does not affect small-scale flows like toilet drains."
+    },
+    {
+      "id": "noise_0171",
+      "category": "general_query",
+      "input": "What does 'HTTP' stand for?",
+      "cot": "Step 1: **Identify query** — Internet acronym.\nStep 2: **Retrieve data** — HyperText Transfer Protocol.\nStep 3: **Format output**.",
+      "output": "HTTP stands for **HyperText Transfer Protocol**."
+    },
+    {
+      "id": "noise_0172",
+      "category": "general_query",
+      "input": "What is the largest moon in the solar system?",
+      "cot": "Step 1: **Identify query** — Astronomy.\nStep 2: **Retrieve data** — Ganymede (Jupiter).\nStep 3: **Format output**.",
+      "output": "**Ganymede**, a moon of Jupiter, is the largest moon in the solar system."
+    },
+    {
+      "id": "noise_0173",
+      "category": "knowledge_explanation",
+      "input": "Explain the concept of inflation in economics.",
+      "cot": "Step 1: **Classify request** — Macroeconomics.\nStep 2: **Define inflation** — General increase in prices and fall in purchasing power.\nStep 3: **Explain causes** — Demand-pull, cost-push, built-in.\nStep 4: **Format output**.",
+      "output": "Inflation is the rate at which the general level of prices for goods and services rises, eroding currency purchasing power. It can result from increased demand (demand-pull), higher production costs (cost-push), or expectations of future inflation leading to higher wages and prices (built-in)."
+    },
+    {
+      "id": "noise_0174",
+      "category": "general_query",
+      "input": "What is the chemical formula for methane?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — CH₄.\nStep 3: **Format output**.",
+      "output": "The chemical formula for methane is **CH₄**."
+    },
+    {
+      "id": "noise_0175",
+      "category": "general_query",
+      "input": "How many Earth days is a Venus day?",
+      "cot": "Step 1: **Identify query** — Planetary rotational period.\nStep 2: **Retrieve data** — 243 Earth days.\nStep 3: **Format output**.",
+      "output": "A single day on Venus (one full rotation) lasts about **243 Earth days**."
+    },
+    {
+      "id": "noise_0176",
+      "category": "knowledge_explanation",
+      "input": "What is the function of a transistor?",
+      "cot": "Step 1: **Classify request** — Electronics component.\nStep 2: **Define primary function** — Switch or amplify electrical signals.\nStep 3: **Describe operation** — Small current at base controls larger current between collector and emitter.\nStep 4: **Format output**.",
+      "output": "A transistor is a semiconductor device used to switch or amplify electronic signals. A small current applied to the base terminal controls a much larger current flowing between the collector and emitter, enabling binary logic in digital circuits and signal amplification in analog circuits."
+    },
+    {
+      "id": "noise_0177",
+      "category": "general_query",
+      "input": "What is the capital of Egypt?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — Cairo.\nStep 3: **Format output**.",
+      "output": "The capital of Egypt is **Cairo**."
+    },
+    {
+      "id": "noise_0178",
+      "category": "general_query",
+      "input": "What is the boiling point of nitrogen?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — -195.8°C.\nStep 3: **Format output**.",
+      "output": "Liquid nitrogen boils at **-195.8 degrees Celsius**."
+    },
+    {
+      "id": "noise_0179",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a gas and a plasma?",
+      "cot": "Step 1: **Identify comparison** — States of matter.\nStep 2: **Define gas** — Neutral atoms/molecules, no fixed shape or volume.\nStep 3: **Define plasma** — Ionized gas with free electrons, electrically conductive.\nStep 4: **Mention responsiveness** — Plasma responds to electromagnetic fields.\nStep 5: **Format output**.",
+      "output": "A **gas** consists of neutral atoms or molecules moving freely. A **plasma** is an ionized gas in which a portion of electrons are stripped from atoms, creating a mixture of free electrons and ions. Plasma is electrically conductive and strongly influenced by magnetic and electric fields, unlike a neutral gas."
+    },
+    {
+      "id": "noise_0180",
+      "category": "general_query",
+      "input": "What is the tallest building in the world?",
+      "cot": "Step 1: **Classify request** — Architecture fact susceptible to real-time change.\nStep 2: **Provide fixed knowledge cutoff data** — Burj Khalifa, 828m.\nStep 3: **Manage constraint** — New buildings may have surpassed it.\nStep 4: **Format output**.",
+      "output": "At the time of my knowledge cutoff, the **Burj Khalifa** in Dubai, at 828 meters, was the tallest building. For the absolute current record, verify against updated architectural databases."
+    },
+    {
+      "id": "noise_0181",
+      "category": "general_query",
+      "input": "What element has 6 protons?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — Carbon (atomic number 6).\nStep 3: **Format output**.",
+      "output": "The element with 6 protons is **Carbon**."
+    },
+    {
+      "id": "noise_0182",
+      "category": "knowledge_explanation",
+      "input": "How does a smoke detector work?",
+      "cot": "Step 1: **Classify request** — Safety device.\nStep 2: **Differentiate types** — Ionization vs photoelectric.\nStep 3: **Describe ionization** — Americium-241 ionizes air; smoke disrupts current.\nStep 4: **Describe photoelectric** — Smoke scatters light onto a sensor.\nStep 5: **Format output**.",
+      "output": "Two main types exist. Ionization detectors use a radioactive source to ionize air, creating a current; smoke particles disrupt this current, triggering the alarm. Photoelectric detectors aim a light beam away from a sensor; when smoke scatters light onto the sensor, the alarm activates."
+    },
+    {
+      "id": "noise_0183",
+      "category": "general_query",
+      "input": "What is the capital of Norway?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — Oslo.\nStep 3: **Format output**.",
+      "output": "The capital of Norway is **Oslo**."
+    },
+    {
+      "id": "noise_0184",
+      "category": "general_query",
+      "input": "How many teeth does an adult dog typically have?",
+      "cot": "Step 1: **Identify query** — Veterinary anatomy.\nStep 2: **Retrieve data** — 42 permanent teeth.\nStep 3: **Format output**.",
+      "output": "An adult dog usually has **42 permanent teeth**."
+    },
+    {
+      "id": "noise_0185",
+      "category": "knowledge_explanation",
+      "input": "Explain the difference between mass and weight.",
+      "cot": "Step 1: **Identify comparison** — Physics fundamentals.\nStep 2: **Define mass** — Amount of matter; constant.\nStep 3: **Define weight** — Force of gravity on mass; varies by location.\nStep 4: **Format output**.",
+      "output": "**Mass** is a measure of the amount of matter in an object, a scalar quantity that remains constant regardless of location. **Weight** is the force exerted on that mass by gravity, a vector quantity that changes with the gravitational field strength (e.g., less on the Moon)."
+    },
+    {
+      "id": "noise_0186",
+      "category": "general_query",
+      "input": "What is the chemical symbol for tin?",
+      "cot": "Step 1: **Identify query** — Periodic table.\nStep 2: **Retrieve data** — Sn.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for tin is **Sn**, from the Latin 'stannum'."
+    },
+    {
+      "id": "noise_0187",
+      "category": "general_query",
+      "input": "What is the largest reptile in the world?",
+      "cot": "Step 1: **Identify query** — Zoology.\nStep 2: **Retrieve data** — Saltwater crocodile.\nStep 3: **Format output**.",
+      "output": "The **saltwater crocodile** is the largest living reptile, reaching over 6 meters in length."
+    },
+    {
+      "id": "noise_0188",
+      "category": "knowledge_explanation",
+      "input": "How does a polarizing filter reduce glare?",
+      "cot": "Step 1: **Classify request** — Optics/photography.\nStep 2: **Define polarization** — Light waves oscillating in multiple planes.\nStep 3: **Explain reflection** — Glare becomes partially polarized.\nStep 4: **Describe filter action** — Blocks light oscillating in certain planes.\nStep 5: **Format output**.",
+      "output": "Light reflects off non-metallic surfaces (water, glass) and becomes partially polarized horizontally. A polarizing filter is oriented to block horizontally oscillating light waves, allowing only vertical waves to pass, thus eliminating the reflected glare and increasing color saturation."
+    },
+    {
+      "id": "noise_0189",
+      "category": "general_query",
+      "input": "What is the capital of India?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve data** — New Delhi.\nStep 3: **Format output**.",
+      "output": "The capital of India is **New Delhi**."
+    },
+    {
+      "id": "noise_0190",
+      "category": "general_query",
+      "input": "How many seconds are in an hour?",
+      "cot": "Step 1: **Identify query** — Time conversion.\nStep 2: **Calculate** — 60 minutes * 60 seconds.\nStep 3: **Format output**.",
+      "output": "There are **3,600 seconds** in one hour."
+    },
+    {
+      "id": "noise_0191",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a hypothesis and a theory?",
+      "cot": "Step 1: **Identify comparison** — Scientific method.\nStep 2: **Define hypothesis** — A testable prediction.\nStep 3: **Define theory** — A well-substantiated explanation of nature.\nStep 4: **Correct common misuse** — 'Theory' in science is not a guess.\nStep 5: **Format output**.",
+      "output": "A **hypothesis** is a proposed, testable explanation for a specific phenomenon, often framed as an 'if-then' statement. A scientific **theory** is a comprehensive explanation of some aspect of the natural world, supported by a vast body of evidence and repeatedly confirmed through observation and experiment."
+    },
+    {
+      "id": "noise_0192",
+      "category": "general_query",
+      "input": "What is the symbol for sodium?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve data** — Na.\nStep 3: **Format output**.",
+      "output": "The chemical symbol for sodium is **Na**, from the Latin 'natrium'."
+    },
+    {
+      "id": "noise_0193",
+      "category": "general_query",
+      "input": "What is the loudest animal on Earth?",
+      "cot": "Step 1: **Identify query** — Zoology.\nStep 2: **Retrieve data** — Sperm whale (clicks up to 230 dB).\nStep 3: **Format output**.",
+      "output": "The **sperm whale** produces the loudest sounds, with clicks reaching up to 230 decibels."
+    },
+    {
+      "id": "noise_0194",
+      "category": "knowledge_explanation",
+      "input": "How does a blender crush ice?",
+      "cot": "Step 1: **Classify request** — Kitchen appliance mechanics.\nStep 2: **Describe motor and blades** — High-speed motor spins sharpened blades.\nStep 3: **Explain fluid dynamics** — Creates a vortex pulling ice into blades.\nStep 4: **Format output**.",
+      "output": "A blender motor spins a shaft with angled blades at high RPM. The blade design simultaneously chops material and creates a vortex that pulls contents downward into the blade path. The repeated high-speed impact fractures ice crystals, pulverizing them."
+    },
+    {
+      "id": "noise_0195",
+      "category": "general_query",
+      "input": "What is the average distance from Earth to the Sun?",
+      "cot": "Step 1: **Identify query** — Astronomy.\nStep 2: **Retrieve data** — 1 AU ≈ 149.6 million km.\nStep 3: **Format output**.",
+      "output": "The average Earth-Sun distance is approximately **149.6 million kilometers**, defined as one astronomical unit (AU)."
+    },
+    {
+      "id": "noise_0196",
+      "category": "general_query",
+      "input": "What color is a polar bear's skin?",
+      "cot": "Step 1: **Identify query** — Animal trivia.\nStep 2: **Retrieve data** — Black.\nStep 3: **Format output**.",
+      "output": "A polar bear's skin is **black**. Their fur is transparent, appearing white due to light scattering."
+    },
+    {
+      "id": "noise_0197",
+      "category": "knowledge_explanation",
+      "input": "What is the difference between a violin and a viola?",
+      "cot": "Step 1: **Identify comparison** — Orchestral string instruments.\nStep 2: **Compare size** — Viola is larger.\nStep 3: **Compare strings** — Viola has C, G, D, A (lower); violin has G, D, A, E.\nStep 4: **Compare tone** — Viola has a deeper, warmer tone.\nStep 5: **Format output**.",
+      "output": "The viola is physically larger than the violin and tuned a perfect fifth lower (C-G-D-A vs. G-D-A-E). This results in a deeper, mellower timbre. The viola also typically reads Alto clef, while the violin reads Treble clef."
+    },
+    {
+      "id": "noise_0198",
+      "category": "general_query",
+      "input": "What is the smallest planet in our solar system?",
+      "cot": "Step 1: **Identify query** — Planetary size.\nStep 2: **Retrieve data** — Mercury.\nStep 3: **Format output**.",
+      "output": "**Mercury** is the smallest planet in the solar system."
+    },
+    {
+      "id": "noise_0199",
+      "category": "general_query",
+      "input": "What is the main ingredient in glass?",
+      "cot": "Step 1: **Identify query** — Material science.\nStep 2: **Retrieve data** — Silica (silicon dioxide).\nStep 3: **Format output**.",
+      "output": "The primary component of most glass is **silica (SiO₂)** from sand."
+    },
+    {
+      "id": "noise_0200",
+      "category": "knowledge_explanation",
+      "input": "How does a hydraulic press magnify force?",
+      "cot": "Step 1: **Classify request** — Fluid mechanics.\nStep 2: **State Pascal's principle** — Pressure applied to a confined fluid transmits equally.\nStep 3: **Explain force magnification** — Small force on small area; larger area produces larger force.\nStep 4: **Format output**.",
+      "output": "A hydraulic press uses Pascal's principle: pressure applied to a confined incompressible fluid is transmitted undiminished. By applying a small force to a small piston, equal pressure acts on a larger piston, generating a proportionally larger output force according to the ratio of areas."
+    }
+  ]

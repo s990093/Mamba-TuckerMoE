@@ -1,0 +1,2101 @@
+[
+    {
+      "id": "noise_0501",
+      "category": "general",
+      "input": "How do I know if a watermelon is ripe?",
+      "cot": "Step 1: **Identify request** — Food selection guidance.\nStep 2: **Provide field indicators** — Sound, spot, tendril.\nStep 3: **Summarize concise checklist**.",
+      "output": "Tap it — a ripe melon produces a deep, hollow sound. Check the ground spot: it should be creamy yellow, not white. A dried tendril near the stem also indicates ripeness."
+    },
+    {
+      "id": "noise_0502",
+      "category": "general",
+      "input": "Explain RAM in one sentence.",
+      "cot": "Step 1: **Classify request** — Tech definition.\nStep 2: **Distill to essence** — volatile working memory.\nStep 3: **Output**.",
+      "output": "RAM is volatile, high-speed working memory that temporarily stores data the processor actively needs."
+    },
+    {
+      "id": "noise_0503",
+      "category": "general",
+      "input": "What is the boiling point of olive oil?",
+      "cot": "Step 1: **Identify query** — Cooking science.\nStep 2: **Provide smoke point, not boiling** — Smoke point ~190-210°C for extra virgin.\nStep 3: **Warn that oil smokes before boiling**.\nStep 4: **Output**.",
+      "output": "Olive oil does not have a single boiling point; it begins to smoke between 190-210°C (extra virgin) and decomposes before boiling. Heating above smoke point releases harmful compounds."
+    },
+    {
+      "id": "noise_0504",
+      "category": "general",
+      "input": "Should I stretch before or after a workout?",
+      "cot": "Step 1: **Identify query** — Exercise physiology.\nStep 2: **Cite evidence** — Dynamic before, static after.\nStep 3: **Output**.",
+      "output": "Perform dynamic stretches (leg swings, arm circles) before exercise to prepare muscles. Save static stretching for after the workout to improve flexibility without reducing power output."
+    },
+    {
+      "id": "noise_0505",
+      "category": "general",
+      "input": "What is the difference between 'accept' and 'except'?",
+      "cot": "Step 1: **Identify request** — Homophone clarification.\nStep 2: **Define each** — Accept = receive; except = exclude.\nStep 3: **Output**.",
+      "output": "'Accept' means to receive or agree to something. 'Except' means to exclude or leave out."
+    },
+    {
+      "id": "noise_0506",
+      "category": "general",
+      "input": "How many time zones are there in the world?",
+      "cot": "Step 1: **Classify request** — Timekeeping.\nStep 2: **State conventional** — 24, but some are fractional.\nStep 3: **Output**.",
+      "output": "There are 24 primary time zones, but with fractional offsets (e.g., UTC+5:30), the total count of distinct official times exceeds 38."
+    },
+    {
+      "id": "noise_0507",
+      "category": "general",
+      "input": "What is the most common blood type?",
+      "cot": "Step 1: **Identify query** — Medical fact.\nStep 2: **Retrieve** — O+ is most common.\nStep 3: **Output**.",
+      "output": "O positive is the most common blood type, found in about 37% of the global population."
+    },
+    {
+      "id": "noise_0508",
+      "category": "general",
+      "input": "How do I clean a microfiber cloth?",
+      "cot": "Step 1: **Classify request** — Maintenance instruction.\nStep 2: **Advise** — Wash without fabric softener, air dry.\nStep 3: **Output**.",
+      "output": "Machine wash with mild detergent, no fabric softener. Air dry or use low heat; high heat damages the microfibers."
+    },
+    {
+      "id": "noise_0509",
+      "category": "general",
+      "input": "What is the angle sum of a pentagon?",
+      "cot": "Step 1: **Identify request** — Geometry.\nStep 2: **Formula** — (n-2)×180° → 540°.\nStep 3: **Output**.",
+      "output": "The interior angles of a pentagon sum to **540 degrees**."
+    },
+    {
+      "id": "noise_0510",
+      "category": "general",
+      "input": "Why do I get brain freeze?",
+      "cot": "Step 1: **Identify query** — Physiology.\nStep 2: **Explain mechanism** — Rapid cooling of palate triggers vasospasm.\nStep 3: **Output**.",
+      "output": "Rapid ingestion of cold material chills the palate, causing blood vessels to constrict then dilate quickly, activating pain receptors mistaken for a headache. Press your tongue to the roof of your mouth to warm it."
+    },
+    {
+      "id": "noise_0511",
+      "category": "general",
+      "input": "What is the chemical symbol for tungsten?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — W (from wolfram).\nStep 3: **Output**.",
+      "output": "The chemical symbol for tungsten is **W**."
+    },
+    {
+      "id": "noise_0512",
+      "category": "general",
+      "input": "How do I make hard-boiled eggs?",
+      "cot": "Step 1: **Classify request** — Cooking.\nStep 2: **Provide method** — Start cold, boil, rest.\nStep 3: **Output**.",
+      "output": "Place eggs in a saucepan, cover with cold water. Bring to a rolling boil, then cover, remove from heat, and let stand 10-12 minutes. Transfer to ice water for easy peeling."
+    },
+    {
+      "id": "noise_0513",
+      "category": "general",
+      "input": "What is the capital of Austria?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Vienna.\nStep 3: **Output**.",
+      "output": "The capital of Austria is **Vienna**."
+    },
+    {
+      "id": "noise_0514",
+      "category": "general",
+      "input": "What does a biochemist study?",
+      "cot": "Step 1: **Identify query** — Science field.\nStep 2: **Define** — Chemical processes in living things.\nStep 3: **Output**.",
+      "output": "A biochemist studies the chemical substances and processes that occur within living organisms."
+    },
+    {
+      "id": "noise_0515",
+      "category": "general",
+      "input": "How many fluid ounces in a liter?",
+      "cot": "Step 1: **Identify request** — Volume conversion.\nStep 2: **Recall** — ~33.8.\nStep 3: **Output**.",
+      "output": "One liter equals approximately **33.8 US fluid ounces**."
+    },
+    {
+      "id": "noise_0516",
+      "category": "general",
+      "input": "What is the most populated city?",
+      "cot": "Step 1: **Identify query** — Demographics.\nStep 2: **Note Tokyo** — ~37 million metro.\nStep 3: **Output**.",
+      "output": "The Tokyo metropolitan area is the most populous, with over 37 million residents."
+    },
+    {
+      "id": "noise_0517",
+      "category": "general",
+      "input": "How can I reduce swelling from a sprained ankle?",
+      "cot": "Step 1: **Classify problem** — Acute injury.\nStep 2: **Recommend RICE** — Rest, Ice, Compression, Elevation.\nStep 3: **Output**.",
+      "output": "Apply the RICE protocol: Rest, Ice (20 minutes on/off), Compression with an elastic bandage, and Elevation above heart level. Avoid heat for the first 48 hours."
+    },
+    {
+      "id": "noise_0518",
+      "category": "general",
+      "input": "What is the chemical formula for baking soda?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **Retrieve** — NaHCO₃.\nStep 3: **Output**.",
+      "output": "Baking soda is sodium bicarbonate, with the formula **NaHCO₃**."
+    },
+    {
+      "id": "noise_0519",
+      "category": "general",
+      "input": "What is the capital of Singapore?",
+      "cot": "Step 1: **Identify query** — City-state.\nStep 2: **State** — Singapore.\nStep 3: **Output**.",
+      "output": "Singapore is a city-state, so its capital is **Singapore**."
+    },
+    {
+      "id": "noise_0520",
+      "category": "general",
+      "input": "What does a graphic designer do?",
+      "cot": "Step 1: **Identify query** — Profession.\nStep 2: **Define** — Visual communication.\nStep 3: **Output**.",
+      "output": "A graphic designer creates visual content to communicate messages, using typography, imagery, and layout."
+    },
+    {
+      "id": "noise_0521",
+      "category": "general",
+      "input": "How many ounces in a cup?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — 8 fl oz.\nStep 3: **Output**.",
+      "output": "One US cup equals **8 fluid ounces**."
+    },
+    {
+      "id": "noise_0522",
+      "category": "general",
+      "input": "What is the fastest insect?",
+      "cot": "Step 1: **Classify query** — Entomology.\nStep 2: **Retrieve** — Australian tiger beetle (running) or horsefly (flying).\nStep 3: **Output**.",
+      "output": "The Australian tiger beetle is the fastest running insect, at 2.5 m/s (9 km/h). In flight, some horseflies can exceed 145 km/h."
+    },
+    {
+      "id": "noise_0523",
+      "category": "general",
+      "input": "What is the melting point of wax?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Provide typical paraffin** — 46-68°C.\nStep 3: **Output**.",
+      "output": "Paraffin wax typically melts between **46°C and 68°C** (115-154°F), depending on formulation."
+    },
+    {
+      "id": "noise_0524",
+      "category": "general",
+      "input": "What is the currency of Mexico?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Mexican peso.\nStep 3: **Output**.",
+      "output": "The currency of Mexico is the **Mexican peso** (MXN)."
+    },
+    {
+      "id": "noise_0525",
+      "category": "general",
+      "input": "How many ribs does a human have?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **State** — 24 (12 pairs).\nStep 3: **Output**.",
+      "output": "Most humans have **24 ribs**, arranged in 12 pairs."
+    },
+    {
+      "id": "noise_0526",
+      "category": "general",
+      "input": "What does an actuary do?",
+      "cot": "Step 1: **Identify query** — Career.\nStep 2: **Define** — Analyzes financial risk with math.\nStep 3: **Output**.",
+      "output": "An actuary uses mathematics, statistics, and financial theory to analyze the financial cost of risk and uncertainty."
+    },
+    {
+      "id": "noise_0527",
+      "category": "general",
+      "input": "How many nanometers in a meter?",
+      "cot": "Step 1: **Identify request** — Metric conversion.\nStep 2: **Recall** — 1 billion.\nStep 3: **Output**.",
+      "output": "One meter equals **1,000,000,000 nanometers** (10^9)."
+    },
+    {
+      "id": "noise_0528",
+      "category": "general",
+      "input": "What is the smallest country in South America?",
+      "cot": "Step 1: **Classify query** — Geography.\nStep 2: **Retrieve** — Suriname (by area).\nStep 3: **Output**.",
+      "output": "Suriname is the smallest country in South America by area."
+    },
+    {
+      "id": "noise_0529",
+      "category": "general",
+      "input": "What is the boiling point of pure alcohol?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Provide ethanol** — 78.37°C.\nStep 3: **Output**.",
+      "output": "Pure ethanol boils at approximately **78.37°C (173°F)**."
+    },
+    {
+      "id": "noise_0530",
+      "category": "general",
+      "input": "What does an economist study?",
+      "cot": "Step 1: **Identify query** — Social science.\nStep 2: **Define** — Resource allocation.\nStep 3: **Output**.",
+      "output": "An economist analyzes the production, distribution, and consumption of goods and services, and the behavior of markets."
+    },
+    {
+      "id": "noise_0531",
+      "category": "general",
+      "input": "How many weeks in a month?",
+      "cot": "Step 1: **Identify request** — Calendar average.\nStep 2: **Provide** — ~4.345.\nStep 3: **Output**.",
+      "output": "An average month contains **4.345 weeks**. For practical purposes, about 4.3 weeks."
+    },
+    {
+      "id": "noise_0532",
+      "category": "general",
+      "input": "What is the largest island in the Caribbean?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Cuba.\nStep 3: **Output**.",
+      "output": "Cuba is the largest Caribbean island by area."
+    },
+    {
+      "id": "noise_0533",
+      "category": "general",
+      "input": "What is the chemical symbol for iodine?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — I.\nStep 3: **Output**.",
+      "output": "The chemical symbol for iodine is **I**."
+    },
+    {
+      "id": "noise_0534",
+      "category": "general",
+      "input": "What is the capital of Ukraine?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Kyiv.\nStep 3: **Output**.",
+      "output": "The capital of Ukraine is **Kyiv**."
+    },
+    {
+      "id": "noise_0535",
+      "category": "general",
+      "input": "How does a defibrillator work?",
+      "cot": "Step 1: **Classify request** — Medical device explanation.\nStep 2: **Explain** — Delivers electric shock to stop arrhythmia.\nStep 3: **Output**.",
+      "output": "A defibrillator delivers a controlled electric shock to the heart to depolarize the heart muscle and allow the natural pacemaker to restore a normal rhythm."
+    },
+    {
+      "id": "noise_0536",
+      "category": "general",
+      "input": "How many tablespoons in a quarter cup?",
+      "cot": "Step 1: **Identify request** — Cooking conversion.\nStep 2: **1/4 cup = 4 tbsp**.\nStep 3: **Output**.",
+      "output": "One quarter cup contains **4 tablespoons**."
+    },
+    {
+      "id": "noise_0537",
+      "category": "general",
+      "input": "What is the most venomous jellyfish?",
+      "cot": "Step 1: **Identify query** — Marine biology.\nStep 2: **Retrieve** — Box jellyfish (Chironex fleckeri).\nStep 3: **Output**.",
+      "output": "The Australian box jellyfish is the most venomous marine animal; its sting can cause cardiac arrest within minutes."
+    },
+    {
+      "id": "noise_0538",
+      "category": "general",
+      "input": "What is the density of gold?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Recall** — 19.32 g/cm³.\nStep 3: **Output**.",
+      "output": "Gold has a density of **19.32 grams per cubic centimeter**."
+    },
+    {
+      "id": "noise_0539",
+      "category": "general",
+      "input": "What is the capital of Nigeria?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Abuja.\nStep 3: **Output**.",
+      "output": "The capital of Nigeria is **Abuja**."
+    },
+    {
+      "id": "noise_0540",
+      "category": "general",
+      "input": "What does an anthropologist study?",
+      "cot": "Step 1: **Identify query** — Social science.\nStep 2: **Define** — Human cultures and societies.\nStep 3: **Output**.",
+      "output": "An anthropologist studies human societies, cultures, and their development across time."
+    },
+    {
+      "id": "noise_0541",
+      "category": "general",
+      "input": "How many centimeters in a foot?",
+      "cot": "Step 1: **Identify request** — Length conversion.\nStep 2: **Recall** — 30.48.\nStep 3: **Output**.",
+      "output": "One foot equals **30.48 centimeters**."
+    },
+    {
+      "id": "noise_0542",
+      "category": "general",
+      "input": "What is the largest continent by population?",
+      "cot": "Step 1: **Identify query** — Demographics.\nStep 2: **Retrieve** — Asia.\nStep 3: **Output**.",
+      "output": "Asia is the most populous continent, home to over 4.7 billion people."
+    },
+    {
+      "id": "noise_0543",
+      "category": "general",
+      "input": "What is the chemical symbol for arsenic?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — As.\nStep 3: **Output**.",
+      "output": "The chemical symbol for arsenic is **As**."
+    },
+    {
+      "id": "noise_0544",
+      "category": "general",
+      "input": "How do I know if my car battery is dead?",
+      "cot": "Step 1: **Classify problem** — Automotive.\nStep 2: **List symptoms** — Slow crank, click sound, dim lights.\nStep 3: **Output**.",
+      "output": "The engine cranks slowly or only clicks. Headlights appear dim. Electrical accessories fail. A multimeter reading below 12.4V indicates a discharged battery."
+    },
+    {
+      "id": "noise_0545",
+      "category": "general",
+      "input": "What is the largest artery in the body?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **Retrieve** — Aorta.\nStep 3: **Output**.",
+      "output": "The aorta is the largest artery, arising from the left ventricle of the heart."
+    },
+    {
+      "id": "noise_0546",
+      "category": "general",
+      "input": "How many seconds in a year?",
+      "cot": "Step 1: **Identify request** — Time calculation.\nStep 2: **Compute** — 365 × 24 × 3600 = 31,536,000.\nStep 3: **Output**.",
+      "output": "One standard year has **31,536,000 seconds** (31,622,400 in a leap year)."
+    },
+    {
+      "id": "noise_0547",
+      "category": "general",
+      "input": "What is the speed of light in a vacuum in km/s?",
+      "cot": "Step 1: **Identify query** — Constant.\nStep 2: **State** — ~300,000 km/s.\nStep 3: **Output**.",
+      "output": "The speed of light in a vacuum is approximately **300,000 kilometers per second**."
+    },
+    {
+      "id": "noise_0548",
+      "category": "general",
+      "input": "What does a civil engineer design?",
+      "cot": "Step 1: **Identify query** — Engineering discipline.\nStep 2: **Define** — Infrastructure.\nStep 3: **Output**.",
+      "output": "Civil engineers design and oversee the construction of infrastructure such as bridges, roads, dams, and buildings."
+    },
+    {
+      "id": "noise_0549",
+      "category": "general",
+      "input": "How many calories in a gram of fat?",
+      "cot": "Step 1: **Identify request** — Nutrition.\nStep 2: **State** — 9.\nStep 3: **Output**.",
+      "output": "One gram of fat provides **9 calories**."
+    },
+    {
+      "id": "noise_0550",
+      "category": "general",
+      "input": "What is the capital of Iran?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Tehran.\nStep 3: **Output**.",
+      "output": "The capital of Iran is **Tehran**."
+    },
+    {
+      "id": "noise_0551",
+      "category": "general",
+      "input": "How do I treat a paper cut?",
+      "cot": "Step 1: **Classify injury** — Minor wound.\nStep 2: **Provide first aid** — Clean, antibiotic, cover.\nStep 3: **Output**.",
+      "output": "Wash with soap and water. Apply a thin layer of antibiotic ointment. Cover with an adhesive bandage and keep dry."
+    },
+    {
+      "id": "noise_0552",
+      "category": "general",
+      "input": "What is the largest city by area?",
+      "cot": "Step 1: **Identify query** — Urban geography.\nStep 2: **Note disagreement but often Hulunbuir or New York metro region**. Provide simple fact: by administrative area, cities like Chongqing or Hulunbuir are huge. Pick one consensus: Hulunbuir (263,953 km²).\nStep 3: **Output**.",
+      "output": "By administrative area, **Hulunbuir** in China is often cited as the largest city, covering over 263,000 km²."
+    },
+    {
+      "id": "noise_0553",
+      "category": "general",
+      "input": "What is the chemical formula for sulfuric acid?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **Retrieve** — H₂SO₄.\nStep 3: **Output**.",
+      "output": "Sulfuric acid has the formula **H₂SO₄**."
+    },
+    {
+      "id": "noise_0554",
+      "category": "general",
+      "input": "What is the capital of Czech Republic?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Prague.\nStep 3: **Output**.",
+      "output": "The capital of the Czech Republic is **Prague**."
+    },
+    {
+      "id": "noise_0555",
+      "category": "general",
+      "input": "How does a microwave oven work?",
+      "cot": "Step 1: **Classify request** — Appliance physics.\nStep 2: **Explain** — Microwaves agitate water molecules.\nStep 3: **Output**.",
+      "output": "A magnetron generates microwaves that cause polar water molecules to rotate rapidly, producing thermal energy that heats the food from inside out."
+    },
+    {
+      "id": "noise_0556",
+      "category": "general",
+      "input": "How many quarts in a gallon?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — 4.\nStep 3: **Output**.",
+      "output": "One gallon equals **4 quarts**."
+    },
+    {
+      "id": "noise_0557",
+      "category": "general",
+      "input": "What is the tallest grass?",
+      "cot": "Step 1: **Identify query** — Botany.\nStep 2: **Retrieve** — Bamboo.\nStep 3: **Output**.",
+      "output": "Bamboo is the tallest grass; certain species can exceed 30 meters (98 feet)."
+    },
+    {
+      "id": "noise_0558",
+      "category": "general",
+      "input": "What is the melting point of glass?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Specify soda-lime** — Softening point ~700°C.\nStep 3: **Output**.",
+      "output": "Soda-lime glass softens around **700°C (1,292°F)**, but does not have a precise melting point due to its amorphous structure."
+    },
+    {
+      "id": "noise_0559",
+      "category": "general",
+      "input": "What is the chemical symbol for silicon?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Si.\nStep 3: **Output**.",
+      "output": "The chemical symbol for silicon is **Si**."
+    },
+    {
+      "id": "noise_0560",
+      "category": "general",
+      "input": "What is the capital of Kenya?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Nairobi.\nStep 3: **Output**.",
+      "output": "The capital of Kenya is **Nairobi**."
+    },
+    {
+      "id": "noise_0561",
+      "category": "general",
+      "input": "What does a crystallographer study?",
+      "cot": "Step 1: **Identify query** — Science.\nStep 2: **Define** — Atomic structure of crystals.\nStep 3: **Output**.",
+      "output": "A crystallographer determines the arrangement of atoms in crystalline solids using X-ray or neutron diffraction."
+    },
+    {
+      "id": "noise_0562",
+      "category": "general",
+      "input": "How many pounds in a ton?",
+      "cot": "Step 1: **Identify request** — Weight.\nStep 2: **US ton** — 2,000 lbs; metric ton ~2,205 lbs.\nStep 3: **Output**.",
+      "output": "A US short ton equals **2,000 pounds**; a metric ton equals approximately **2,204.6 pounds**."
+    },
+    {
+      "id": "noise_0563",
+      "category": "general",
+      "input": "What is the smallest bird?",
+      "cot": "Step 1: **Classify query** — Ornithology.\nStep 2: **Retrieve** — Bee hummingbird.\nStep 3: **Output**.",
+      "output": "The bee hummingbird (Mellisuga helenae) is the smallest bird, weighing about 1.6 grams."
+    },
+    {
+      "id": "noise_0564",
+      "category": "general",
+      "input": "What is the boiling point of mercury?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve** — 356.7°C.\nStep 3: **Output**.",
+      "output": "Mercury boils at approximately **356.7°C (674°F)**."
+    },
+    {
+      "id": "noise_0565",
+      "category": "general",
+      "input": "What is the currency of Brazil?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Brazilian real.\nStep 3: **Output**.",
+      "output": "The currency of Brazil is the **Brazilian real** (BRL)."
+    },
+    {
+      "id": "noise_0566",
+      "category": "general",
+      "input": "How many species of sharks are there?",
+      "cot": "Step 1: **Identify query** — Marine biology.\nStep 2: **Provide approximate** — Over 500.\nStep 3: **Output**.",
+      "output": "There are over **500 known species** of sharks."
+    },
+    {
+      "id": "noise_0567",
+      "category": "general",
+      "input": "What does a journalist do?",
+      "cot": "Step 1: **Identify query** — Profession.\nStep 2: **Define** — Investigates and reports news.\nStep 3: **Output**.",
+      "output": "A journalist investigates, gathers, verifies, and presents news and information through various media."
+    },
+    {
+      "id": "noise_0568",
+      "category": "general",
+      "input": "How many meters in a mile?",
+      "cot": "Step 1: **Identify request** — Length conversion.\nStep 2: **Recall** — ~1,609.34.\nStep 3: **Output**.",
+      "output": "One mile equals approximately **1,609.34 meters**."
+    },
+    {
+      "id": "noise_0569",
+      "category": "general",
+      "input": "What is the largest lake in Africa?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Lake Victoria.\nStep 3: **Output**.",
+      "output": "Lake Victoria is the largest lake in Africa by area."
+    },
+    {
+      "id": "noise_0570",
+      "category": "general",
+      "input": "What is the chemical symbol for phosphorus?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — P.\nStep 3: **Output**.",
+      "output": "The chemical symbol for phosphorus is **P**."
+    },
+    {
+      "id": "noise_0571",
+      "category": "general",
+      "input": "What is the capital of Hungary?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Budapest.\nStep 3: **Output**.",
+      "output": "The capital of Hungary is **Budapest**."
+    },
+    {
+      "id": "noise_0572",
+      "category": "general",
+      "input": "How do I help someone who is choking?",
+      "cot": "Step 1: **Classify emergency** — Airway obstruction.\nStep 2: **Describe Heimlich maneuver** — Abdominal thrusts.\nStep 3: **Output**.",
+      "output": "Stand behind the person, place your fist above their navel, and thrust inward and upward. If they become unconscious, call emergency services and begin CPR."
+    },
+    {
+      "id": "noise_0573",
+      "category": "general",
+      "input": "How many grams in an ounce of gold?",
+      "cot": "Step 1: **Identify request** — Troy ounce.\nStep 2: **Recall** — ~31.1 grams.\nStep 3: **Output**.",
+      "output": "One troy ounce (precious metals) equals approximately **31.1035 grams**."
+    },
+    {
+      "id": "noise_0574",
+      "category": "general",
+      "input": "What is the most venomous scorpion?",
+      "cot": "Step 1: **Identify query** — Arachnology.\nStep 2: **Retrieve** — Deathstalker (Leiurus quinquestriatus).\nStep 3: **Output**.",
+      "output": "The deathstalker scorpion has the most potent venom, a neurotoxin that can cause severe pain and systemic effects."
+    },
+    {
+      "id": "noise_0575",
+      "category": "general",
+      "input": "What is the speed of a cheetah in km/h?",
+      "cot": "Step 1: **Identify query** — Animal speed.\nStep 2: **State** — Up to 120 km/h.\nStep 3: **Output**.",
+      "output": "A cheetah can reach approximately **120 km/h (75 mph)** in short bursts."
+    },
+    {
+      "id": "noise_0576",
+      "category": "general",
+      "input": "What is the currency of Russia?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Russian ruble.\nStep 3: **Output**.",
+      "output": "The currency of Russia is the **Russian ruble** (RUB)."
+    },
+    {
+      "id": "noise_0577",
+      "category": "general",
+      "input": "How many hours is 120 minutes?",
+      "cot": "Step 1: **Identify request** — Time conversion.\nStep 2: **Divide** — 2 hours.\nStep 3: **Output**.",
+      "output": "120 minutes equals **2 hours**."
+    },
+    {
+      "id": "noise_0578",
+      "category": "general",
+      "input": "What does a paleontologist study?",
+      "cot": "Step 1: **Identify query** — Science.\nStep 2: **Define** — Fossils.\nStep 3: **Output**.",
+      "output": "A paleontologist studies prehistoric life through the fossil record, including dinosaurs, plants, and microorganisms."
+    },
+    {
+      "id": "noise_0579",
+      "category": "general",
+      "input": "How many inches in a centimeter?",
+      "cot": "Step 1: **Identify request** — Length conversion.\nStep 2: **Recall** — ~0.3937.\nStep 3: **Output**.",
+      "output": "One centimeter equals approximately **0.3937 inches**."
+    },
+    {
+      "id": "noise_0580",
+      "category": "general",
+      "input": "What is the capital of Morocco?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Rabat.\nStep 3: **Output**.",
+      "output": "The capital of Morocco is **Rabat**."
+    },
+    {
+      "id": "noise_0581",
+      "category": "general",
+      "input": "What is the chemical symbol for bromine?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Br.\nStep 3: **Output**.",
+      "output": "The chemical symbol for bromine is **Br**."
+    },
+    {
+      "id": "noise_0582",
+      "category": "general",
+      "input": "How many bones in a human foot?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **State** — 26 bones per foot.\nStep 3: **Output**.",
+      "output": "Each human foot contains **26 bones**, plus numerous small sesamoid bones."
+    },
+    {
+      "id": "noise_0583",
+      "category": "general",
+      "input": "What does a taxonomist do?",
+      "cot": "Step 1: **Identify query** — Biology.\nStep 2: **Define** — Classifies organisms.\nStep 3: **Output**.",
+      "output": "A taxonomist identifies, names, and classifies organisms into hierarchical categories based on shared characteristics."
+    },
+    {
+      "id": "noise_0584",
+      "category": "general",
+      "input": "How many cups in a liter?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — ~4.23.\nStep 3: **Output**.",
+      "output": "One liter equals approximately **4.23 US cups**."
+    },
+    {
+      "id": "noise_0585",
+      "category": "general",
+      "input": "What is the most radioactive element?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Note polonium-210** — Highly radioactive.\nStep 3: **Output**.",
+      "output": "Polonium-210 is one of the most radioactive naturally occurring elements, with an extremely high specific activity."
+    },
+    {
+      "id": "noise_0586",
+      "category": "general",
+      "input": "What is the capital of Romania?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Bucharest.\nStep 3: **Output**.",
+      "output": "The capital of Romania is **Bucharest**."
+    },
+    {
+      "id": "noise_0587",
+      "category": "general",
+      "input": "How do I check my IMEI number?",
+      "cot": "Step 1: **Identify request** — Device info.\nStep 2: **Provide dial code** — *#06#.\nStep 3: **Output**.",
+      "output": "Dial ***#06#** on your phone. The IMEI number will appear on screen."
+    },
+    {
+      "id": "noise_0588",
+      "category": "general",
+      "input": "How many pints in a gallon?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — 8.\nStep 3: **Output**.",
+      "output": "One gallon equals **8 pints**."
+    },
+    {
+      "id": "noise_0589",
+      "category": "general",
+      "input": "What is the largest fish?",
+      "cot": "Step 1: **Identify query** — Marine biology.\nStep 2: **Retrieve** — Whale shark.\nStep 3: **Output**.",
+      "output": "The whale shark is the largest fish, reaching lengths of over 12 meters (40 feet)."
+    },
+    {
+      "id": "noise_0590",
+      "category": "general",
+      "input": "What is the chemical symbol for fluorine?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — F.\nStep 3: **Output**.",
+      "output": "The chemical symbol for fluorine is **F**."
+    },
+    {
+      "id": "noise_0591",
+      "category": "general",
+      "input": "What is the capital of Cuba?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Havana.\nStep 3: **Output**.",
+      "output": "The capital of Cuba is **Havana**."
+    },
+    {
+      "id": "noise_0592",
+      "category": "general",
+      "input": "What does a meteorologist do?",
+      "cot": "Step 1: **Identify query** — Occupation.\nStep 2: **Define** — Weather forecasting.\nStep 3: **Output**.",
+      "output": "A meteorologist studies atmospheric conditions to forecast weather and climate patterns."
+    },
+    {
+      "id": "noise_0593",
+      "category": "general",
+      "input": "How many miles is 10 kilometers?",
+      "cot": "Step 1: **Identify request** — Length conversion.\nStep 2: **Apply factor** — ~6.21.\nStep 3: **Output**.",
+      "output": "10 kilometers equals approximately **6.21 miles**."
+    },
+    {
+      "id": "noise_0594",
+      "category": "general",
+      "input": "What is the main gas in the air we breathe?",
+      "cot": "Step 1: **Identify query** — Atmospheric composition.\nStep 2: **Correct** — Not oxygen, nitrogen 78%.\nStep 3: **Output**.",
+      "output": "The air you breathe is about **78% nitrogen**. Oxygen is approximately 21%."
+    },
+    {
+      "id": "noise_0595",
+      "category": "general",
+      "input": "What is the most expensive liquid?",
+      "cot": "Step 1: **Identify query** — Trivia.\nStep 2: **Mention scorpion venom** — ~$39 million/gallon.\nStep 3: **Output**.",
+      "output": "Deathstalker scorpion venom is one of the most expensive liquids, costing around $39 million per gallon due to difficulty in extraction."
+    },
+    {
+      "id": "noise_0596",
+      "category": "general",
+      "input": "What is the capital of Iraq?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Baghdad.\nStep 3: **Output**.",
+      "output": "The capital of Iraq is **Baghdad**."
+    },
+    {
+      "id": "noise_0597",
+      "category": "general",
+      "input": "How do I know if an egg has gone bad?",
+      "cot": "Step 1: **Classify request** — Food safety.\nStep 2: **Provide float test** — Bad eggs float.\nStep 3: **Output**.",
+      "output": "Place it in a bowl of water. If it sinks and lies flat, it is fresh. If it stands upright, it is older but likely still edible. If it floats, discard it — gases from decomposition make it buoyant."
+    },
+    {
+      "id": "noise_0598",
+      "category": "general",
+      "input": "How many pieces of fiber optic cable?",
+      "cot": "Step 1: **Identify request** — Ambiguous, clarify? User likely means \"What is fiber optic cable made of?\" Reinterpret: \"Explain fiber optic cable.\"\nStep 2: **Assume intent** — Explain construction.\nStep 3: **Output**.",
+      "output": "A fiber optic cable consists of a glass or plastic core surrounded by cladding, a buffer coating, and a protective outer jacket. It transmits data as light pulses."
+    },
+    {
+      "id": "noise_0599",
+      "category": "general",
+      "input": "What is the currency of Canada?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Canadian dollar.\nStep 3: **Output**.",
+      "output": "The currency of Canada is the **Canadian dollar** (CAD)."
+    },
+    {
+      "id": "noise_0600",
+      "category": "general",
+      "input": "How do I remove permanent marker from a wall?",
+      "cot": "Step 1: **Classify problem** — Stain removal.\nStep 2: **Suggest rubbing alcohol or hand sanitizer**.\nStep 3: **Output**.",
+      "output": "Apply rubbing alcohol or hand sanitizer to a cloth and gently rub the stain. Test in an inconspicuous area first to ensure it does not damage the paint."
+    },
+    {
+      "id": "noise_0601",
+      "category": "general",
+      "input": "What is the chemical formula for ozone?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **Retrieve** — O₃.\nStep 3: **Output**.",
+      "output": "Ozone’s chemical formula is **O₃**."
+    },
+    {
+      "id": "noise_0602",
+      "category": "general",
+      "input": "What is the capital of the Philippines?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Manila.\nStep 3: **Output**.",
+      "output": "The capital of the Philippines is **Manila**."
+    },
+    {
+      "id": "noise_0603",
+      "category": "general",
+      "input": "What does a cytologist study?",
+      "cot": "Step 1: **Identify query** — Biology.\nStep 2: **Define** — Cells.\nStep 3: **Output**.",
+      "output": "A cytologist examines cell structure, function, and abnormalities, often used in cancer diagnosis."
+    },
+    {
+      "id": "noise_0604",
+      "category": "general",
+      "input": "How many days in February 2024?",
+      "cot": "Step 1: **Identify request** — Calendar.\nStep 2: **2024 is leap year** — 29 days.\nStep 3: **Output**.",
+      "output": "February 2024 has **29 days** (leap year)."
+    },
+    {
+      "id": "noise_0605",
+      "category": "general",
+      "input": "What is the most common element in the Earth's crust?",
+      "cot": "Step 1: **Identify query** — Geochemistry.\nStep 2: **Retrieve** — Oxygen.\nStep 3: **Output**.",
+      "output": "Oxygen is the most abundant element in Earth's crust, comprising about **46%** by mass."
+    },
+    {
+      "id": "noise_0606",
+      "category": "general",
+      "input": "What is the symbol for liter?",
+      "cot": "Step 1: **Identify request** — Unit symbol.\nStep 2: **State** — L or l.\nStep 3: **Output**.",
+      "output": "The symbol for liter is **L** (uppercase preferred to avoid confusion with digit 1)."
+    },
+    {
+      "id": "noise_0607",
+      "category": "general",
+      "input": "What is the capital of Ethiopia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Addis Ababa.\nStep 3: **Output**.",
+      "output": "The capital of Ethiopia is **Addis Ababa**."
+    },
+    {
+      "id": "noise_0608",
+      "category": "general",
+      "input": "What does a therapist do?",
+      "cot": "Step 1: **Identify query** — Mental health.\nStep 2: **Define** — Provides counseling.\nStep 3: **Output**.",
+      "output": "A therapist treats psychological disorders and emotional distress through talk-based interventions."
+    },
+    {
+      "id": "noise_0609",
+      "category": "general",
+      "input": "How many feet in a fathom?",
+      "cot": "Step 1: **Identify request** — Nautical unit.\nStep 2: **Recall** — 6 feet.\nStep 3: **Output**.",
+      "output": "One fathom equals **6 feet**."
+    },
+    {
+      "id": "noise_0610",
+      "category": "general",
+      "input": "What is the loudest animal on land?",
+      "cot": "Step 1: **Identify query** — Biology.\nStep 2: **Retrieve** — Howler monkey.\nStep 3: **Output**.",
+      "output": "The howler monkey is one of the loudest land animals; its call can be heard up to 5 km away."
+    },
+    {
+      "id": "noise_0611",
+      "category": "general",
+      "input": "What is the chemical symbol for selenium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Se.\nStep 3: **Output**.",
+      "output": "The chemical symbol for selenium is **Se**."
+    },
+    {
+      "id": "noise_0612",
+      "category": "general",
+      "input": "What is the capital of Algeria?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Algiers.\nStep 3: **Output**.",
+      "output": "The capital of Algeria is **Algiers**."
+    },
+    {
+      "id": "noise_0613",
+      "category": "general",
+      "input": "How does a refrigerator work?",
+      "cot": "Step 1: **Classify request** — Appliance physics.\nStep 2: **Explain refrigerant cycle** — Compression, condensation, expansion, evaporation.\nStep 3: **Output**.",
+      "output": "A refrigerant gas is compressed, then condensed to liquid releasing heat, then expanded rapidly to cool, absorbing heat from the interior before returning to the compressor."
+    },
+    {
+      "id": "noise_0614",
+      "category": "general",
+      "input": "How many tablespoons in a pint?",
+      "cot": "Step 1: **Identify request** — Volume conversion.\nStep 2: **Calculate** — 1 pint = 2 cups = 32 tbsp.\nStep 3: **Output**.",
+      "output": "One US pint contains **32 tablespoons**."
+    },
+    {
+      "id": "noise_0615",
+      "category": "general",
+      "input": "What is the most venomous snake in the sea?",
+      "cot": "Step 1: **Identify query** — Marine biology.\nStep 2: **Retrieve** — Dubois' sea snake.\nStep 3: **Output**.",
+      "output": "The Dubois' sea snake is among the most venomous, with an LD50 value that ranks it highly. Sea snake venom is generally potent."
+    },
+    {
+      "id": "noise_0616",
+      "category": "general",
+      "input": "What is the melting point of salt?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Provide sodium chloride** — 801°C.\nStep 3: **Output**.",
+      "output": "Sodium chloride (table salt) melts at approximately **801°C (1,474°F)**."
+    },
+    {
+      "id": "noise_0617",
+      "category": "general",
+      "input": "What is the currency of Australia?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Australian dollar.\nStep 3: **Output**.",
+      "output": "The currency of Australia is the **Australian dollar** (AUD)."
+    },
+    {
+      "id": "noise_0618",
+      "category": "general",
+      "input": "How do I treat a jellyfish sting?",
+      "cot": "Step 1: **Classify injury** — Envenomation.\nStep 2: **Rinse with vinegar** (for most species), remove tentacles, hot water.\nStep 3: **Output**.",
+      "output": "Rinse the area with vinegar to neutralize nematocysts. Carefully remove any tentacles with tweezers. Immerse in hot water (not scalding) for 20-45 minutes."
+    },
+    {
+      "id": "noise_0619",
+      "category": "general",
+      "input": "How many bytes in a megabyte?",
+      "cot": "Step 1: **Identify request** — Data storage.\nStep 2: **In computing, 1 MB = 1,048,576 bytes (2^20).**\nStep 3: **Output**.",
+      "output": "One megabyte equals **1,048,576 bytes** (1024 kilobytes)."
+    },
+    {
+      "id": "noise_0620",
+      "category": "general",
+      "input": "What is the chemical formula for hydrogen peroxide?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **Retrieve** — H₂O₂.\nStep 3: **Output**.",
+      "output": "Hydrogen peroxide has the formula **H₂O₂**."
+    },
+    {
+      "id": "noise_0621",
+      "category": "general",
+      "input": "What is the capital of Bangladesh?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Dhaka.\nStep 3: **Output**.",
+      "output": "The capital of Bangladesh is **Dhaka**."
+    },
+    {
+      "id": "noise_0622",
+      "category": "general",
+      "input": "What does a cartographer do?",
+      "cot": "Step 1: **Identify query** — Occupation.\nStep 2: **Define** — Mapmaker.\nStep 3: **Output**.",
+      "output": "A cartographer designs and produces maps using geographic data, art, and technology."
+    },
+    {
+      "id": "noise_0623",
+      "category": "general",
+      "input": "How many U.S. states are there?",
+      "cot": "Step 1: **Identify request** — Geography.\nStep 2: **State** — 50.\nStep 3: **Output**.",
+      "output": "There are **50 states** in the United States."
+    },
+    {
+      "id": "noise_0624",
+      "category": "general",
+      "input": "What is the largest lizard?",
+      "cot": "Step 1: **Identify query** — Zoology.\nStep 2: **Retrieve** — Komodo dragon.\nStep 3: **Output**.",
+      "output": "The Komodo dragon is the largest living lizard, reaching up to 3 meters (10 feet) in length."
+    },
+    {
+      "id": "noise_0625",
+      "category": "general",
+      "input": "What is the boiling point of nitrogen?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve** — -195.8°C.\nStep 3: **Output**.",
+      "output": "Liquid nitrogen boils at approximately **-195.8°C (-320°F)**."
+    },
+    {
+      "id": "noise_0626",
+      "category": "general",
+      "input": "What is the chemical symbol for cobalt?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Co.\nStep 3: **Output**.",
+      "output": "The chemical symbol for cobalt is **Co**."
+    },
+    {
+      "id": "noise_0627",
+      "category": "general",
+      "input": "What is the capital of Venezuela?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Caracas.\nStep 3: **Output**.",
+      "output": "The capital of Venezuela is **Caracas**."
+    },
+    {
+      "id": "noise_0628",
+      "category": "general",
+      "input": "How can I remove a wine stain?",
+      "cot": "Step 1: **Classify problem** — Stain removal.\nStep 2: **Advise** — Blot, apply salt or soda water, wash.\nStep 3: **Output**.",
+      "output": "Blot, do not rub. Cover with salt to absorb liquid, then pour soda water over and blot again. Launder in cold water."
+    },
+    {
+      "id": "noise_0629",
+      "category": "general",
+      "input": "How many milliliters in a teaspoon?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — ~4.93 mL.\nStep 3: **Output**.",
+      "output": "One US teaspoon equals approximately **4.93 milliliters**."
+    },
+    {
+      "id": "noise_0630",
+      "category": "general",
+      "input": "What is the smallest ocean?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Arctic Ocean.\nStep 3: **Output**.",
+      "output": "The Arctic Ocean is the smallest and shallowest of the five oceans."
+    },
+    {
+      "id": "noise_0631",
+      "category": "general",
+      "input": "What is the chemical symbol for manganese?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Mn.\nStep 3: **Output**.",
+      "output": "The chemical symbol for manganese is **Mn**."
+    },
+    {
+      "id": "noise_0632",
+      "category": "general",
+      "input": "What is the capital of Afghanistan?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Kabul.\nStep 3: **Output**.",
+      "output": "The capital of Afghanistan is **Kabul**."
+    },
+    {
+      "id": "noise_0633",
+      "category": "general",
+      "input": "What does a pharmacist do?",
+      "cot": "Step 1: **Identify query** — Healthcare.\nStep 2: **Define** — Dispenses medication, counsel.\nStep 3: **Output**.",
+      "output": "A pharmacist dispenses prescription medications and provides expertise on drug usage, side effects, and interactions."
+    },
+    {
+      "id": "noise_0634",
+      "category": "general",
+      "input": "How many feet in a kilometer?",
+      "cot": "Step 1: **Identify request** — Length conversion.\nStep 2: **Calculate** — ~3,280.84.\nStep 3: **Output**.",
+      "output": "One kilometer equals approximately **3,280.84 feet**."
+    },
+    {
+      "id": "noise_0635",
+      "category": "general",
+      "input": "What is the fastest train in the world?",
+      "cot": "Step 1: **Identify query** — Transportation.\nStep 2: **Mention maglev** — L0 Series, 603 km/h.\nStep 3: **Output**.",
+      "output": "Japan's L0 Series maglev holds the speed record at **603 km/h (375 mph)** for rail vehicles."
+    },
+    {
+      "id": "noise_0636",
+      "category": "general",
+      "input": "What is the chemical formula for vinegar (acetic acid)?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **Retrieve** — CH₃COOH.\nStep 3: **Output**.",
+      "output": "Vinegar's active ingredient is acetic acid, with formula **CH₃COOH**."
+    },
+    {
+      "id": "noise_0637",
+      "category": "general",
+      "input": "What is the capital of Myanmar?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Naypyidaw.\nStep 3: **Output**.",
+      "output": "The capital of Myanmar is **Naypyidaw**."
+    },
+    {
+      "id": "noise_0638",
+      "category": "general",
+      "input": "What does a nutritionist do?",
+      "cot": "Step 1: **Identify query** — Health profession.\nStep 2: **Define** — Advises on diet.\nStep 3: **Output**.",
+      "output": "A nutritionist assesses dietary needs and provides guidance on food and nutrition for health."
+    },
+    {
+      "id": "noise_0639",
+      "category": "general",
+      "input": "How many days are in a year on Mercury?",
+      "cot": "Step 1: **Identify query** — Astronomy.\nStep 2: **Orbital period** — 88 Earth days.\nStep 3: **Output**.",
+      "output": "A year on Mercury (one orbit around the Sun) is approximately **88 Earth days**."
+    },
+    {
+      "id": "noise_0640",
+      "category": "general",
+      "input": "What is the currency of Thailand?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Thai baht.\nStep 3: **Output**.",
+      "output": "The currency of Thailand is the **Thai baht** (THB)."
+    },
+    {
+      "id": "noise_0641",
+      "category": "general",
+      "input": "How deep is the average swimming pool?",
+      "cot": "Step 1: **Identify request** — Ambiguous. Provide typical range.\nStep 2: **Range** — 1.2m to 2.5m.\nStep 3: **Output**.",
+      "output": "Residential pools average **1.2 to 2.5 meters** (4-8 feet) deep; competition pools are deeper, often 2m minimum."
+    },
+    {
+      "id": "noise_0642",
+      "category": "general",
+      "input": "What is the chemical symbol for neon?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Ne.\nStep 3: **Output**.",
+      "output": "The chemical symbol for neon is **Ne**."
+    },
+    {
+      "id": "noise_0643",
+      "category": "general",
+      "input": "What is the capital of Sri Lanka?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Sri Jayawardenepura Kotte (admin), Colombo (commercial).\nStep 3: **Output**.",
+      "output": "The legislative capital is **Sri Jayawardenepura Kotte**, while **Colombo** is the commercial capital."
+    },
+    {
+      "id": "noise_0644",
+      "category": "general",
+      "input": "How do I know if my phone is charging?",
+      "cot": "Step 1: **Classify request** — Device status.\nStep 2: **Provide indicators** — Battery icon, sound.\nStep 3: **Output**.",
+      "output": "The battery icon in the status bar shows a lightning bolt or changes color. Some devices play a sound or vibrate when a charger is connected."
+    },
+    {
+      "id": "noise_0645",
+      "category": "general",
+      "input": "How many weeks in a year?",
+      "cot": "Step 1: **Identify request** — Time.\nStep 2: **Calculate** — 52.1429.\nStep 3: **Output**.",
+      "output": "One year has **52 weeks** plus 1 day (2 days in a leap year)."
+    },
+    {
+      "id": "noise_0646",
+      "category": "general",
+      "input": "What is the largest carnivorous dinosaur?",
+      "cot": "Step 1: **Identify query** — Paleontology.\nStep 2: **Retrieve** — Spinosaurus.\nStep 3: **Output**.",
+      "output": "Spinosaurus is considered the largest carnivorous dinosaur, estimated at 15-16 meters long."
+    },
+    {
+      "id": "noise_0647",
+      "category": "general",
+      "input": "What is the melting point of chocolate?",
+      "cot": "Step 1: **Identify query** — Food science.\nStep 2: **Provide range** — 30-32°C for dark, slightly lower for milk.\nStep 3: **Output**.",
+      "output": "Chocolate melts between **30°C and 32°C (86-90°F)**, depending on cocoa butter content."
+    },
+    {
+      "id": "noise_0648",
+      "category": "general",
+      "input": "What is the capital of Serbia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Belgrade.\nStep 3: **Output**.",
+      "output": "The capital of Serbia is **Belgrade**."
+    },
+    {
+      "id": "noise_0649",
+      "category": "general",
+      "input": "What does a software engineer do?",
+      "cot": "Step 1: **Identify query** — Tech profession.\nStep 2: **Define** — Designs and builds software.\nStep 3: **Output**.",
+      "output": "A software engineer applies engineering principles to design, develop, test, and maintain software systems."
+    },
+    {
+      "id": "noise_0650",
+      "category": "general",
+      "input": "How many liters in a cubic meter?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — 1000.\nStep 3: **Output**.",
+      "output": "One cubic meter equals **1,000 liters**."
+    },
+    {
+      "id": "noise_0651",
+      "category": "general",
+      "input": "What is the longest river in Europe?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Volga.\nStep 3: **Output**.",
+      "output": "The Volga River is the longest in Europe, flowing about 3,530 km (2,193 miles)."
+    },
+    {
+      "id": "noise_0652",
+      "category": "general",
+      "input": "What is the chemical symbol for krypton?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Kr.\nStep 3: **Output**.",
+      "output": "The chemical symbol for krypton is **Kr**."
+    },
+    {
+      "id": "noise_0653",
+      "category": "general",
+      "input": "What is the capital of Croatia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Zagreb.\nStep 3: **Output**.",
+      "output": "The capital of Croatia is **Zagreb**."
+    },
+    {
+      "id": "noise_0654",
+      "category": "general",
+      "input": "How do I treat a minor cut?",
+      "cot": "Step 1: **Classify problem** — Wound care.\nStep 2: **First aid steps** — Clean, pressure, cover.\nStep 3: **Output**.",
+      "output": "Wash with soap and water. Apply pressure to stop bleeding. Apply antibiotic ointment and cover with a sterile bandage. Change daily."
+    },
+    {
+      "id": "noise_0655",
+      "category": "general",
+      "input": "How many grams in a cup of flour?",
+      "cot": "Step 1: **Identify request** — Cooking conversion.\nStep 2: **All-purpose flour** — ~125g.\nStep 3: **Output**.",
+      "output": "One cup of all-purpose flour weighs approximately **125 grams**."
+    },
+    {
+      "id": "noise_0656",
+      "category": "general",
+      "input": "What is the most abundant element in the human body?",
+      "cot": "Step 1: **Identify query** — Biochemistry.\nStep 2: **Recall** — Oxygen.\nStep 3: **Output**.",
+      "output": "Oxygen is the most abundant element by mass in the human body, about 65%."
+    },
+    {
+      "id": "noise_0657",
+      "category": "general",
+      "input": "What is the capital of Nepal?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Kathmandu.\nStep 3: **Output**.",
+      "output": "The capital of Nepal is **Kathmandu**."
+    },
+    {
+      "id": "noise_0658",
+      "category": "general",
+      "input": "What does a historian do?",
+      "cot": "Step 1: **Identify query** — Profession.\nStep 2: **Define** — Studies the past.\nStep 3: **Output**.",
+      "output": "A historian researches, analyzes, and interprets past events using primary and secondary sources."
+    },
+    {
+      "id": "noise_0659",
+      "category": "general",
+      "input": "How many legs does an insect have?",
+      "cot": "Step 1: **Identify request** — Biology.\nStep 2: **State** — 6.\nStep 3: **Output**.",
+      "output": "All insects have **six legs**."
+    },
+    {
+      "id": "noise_0660",
+      "category": "general",
+      "input": "What is the speed of a peregrine falcon?",
+      "cot": "Step 1: **Identify query** — Animal speed.\nStep 2: **Dive speed** — 390 km/h.\nStep 3: **Output**.",
+      "output": "In a stoop, a peregrine falcon can exceed **390 km/h (242 mph)**."
+    },
+    {
+      "id": "noise_0661",
+      "category": "general",
+      "input": "What is the chemical symbol for radon?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Rn.\nStep 3: **Output**.",
+      "output": "The chemical symbol for radon is **Rn**."
+    },
+    {
+      "id": "noise_0662",
+      "category": "general",
+      "input": "What is the capital of Bulgaria?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Sofia.\nStep 3: **Output**.",
+      "output": "The capital of Bulgaria is **Sofia**."
+    },
+    {
+      "id": "noise_0663",
+      "category": "general",
+      "input": "How does a solar cell work?",
+      "cot": "Step 1: **Classify request** — Renewable energy.\nStep 2: **Explain photovoltaic effect** — Photons excite electrons.\nStep 3: **Output**.",
+      "output": "Photons strike a semiconductor (usually silicon), exciting electrons and creating an electric current through the photovoltaic effect."
+    },
+    {
+      "id": "noise_0664",
+      "category": "general",
+      "input": "How many quarts in a liter?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — ~1.057.\nStep 3: **Output**.",
+      "output": "One liter equals approximately **1.057 US quarts**."
+    },
+    {
+      "id": "noise_0665",
+      "category": "general",
+      "input": "What is the oldest tree in the world?",
+      "cot": "Step 1: **Identify query** — Botany.\nStep 2: **Mention Methuselah** — ~4,850-year-old bristlecone pine.\nStep 3: **Output**.",
+      "output": "A Great Basin bristlecone pine named 'Methuselah' is over 4,850 years old, located in California's White Mountains."
+    },
+    {
+      "id": "noise_0666",
+      "category": "general",
+      "input": "What is the melting point of iron?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Retrieve** — 1,538°C.\nStep 3: **Output**.",
+      "output": "Iron melts at approximately **1,538°C (2,800°F)**."
+    },
+    {
+      "id": "noise_0667",
+      "category": "general",
+      "input": "What is the currency of Saudi Arabia?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Saudi riyal.\nStep 3: **Output**.",
+      "output": "The currency is the **Saudi riyal** (SAR)."
+    },
+    {
+      "id": "noise_0668",
+      "category": "general",
+      "input": "How do I treat a nosebleed?",
+      "cot": "Step 1: **Classify medical issue** — Epistaxis.\nStep 2: **Standard care** — Lean forward, pinch.\nStep 3: **Output**.",
+      "output": "Lean forward, pinch the soft part of your nose just above the nostrils for 10 minutes without releasing. Avoid tilting back."
+    },
+    {
+      "id": "noise_0669",
+      "category": "general",
+      "input": "How many bytes in a gigabyte?",
+      "cot": "Step 1: **Identify request** — Data.\nStep 2: **1 GB = 1,073,741,824 bytes** (2^30).\nStep 3: **Output**.",
+      "output": "One gigabyte equals **1,073,741,824 bytes** (1024 megabytes)."
+    },
+    {
+      "id": "noise_0670",
+      "category": "general",
+      "input": "What is the chemical formula for rust?",
+      "cot": "Step 1: **Identify query** — Corrosion.\nStep 2: **Iron(III) oxide** — Fe₂O₃·nH₂O.\nStep 3: **Output**.",
+      "output": "Rust is primarily hydrated iron(III) oxide, commonly represented as **Fe₂O₃·nH₂O**."
+    },
+    {
+      "id": "noise_0671",
+      "category": "general",
+      "input": "What is the capital of Sudan?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Khartoum.\nStep 3: **Output**.",
+      "output": "The capital of Sudan is **Khartoum**."
+    },
+    {
+      "id": "noise_0672",
+      "category": "general",
+      "input": "What does a librarian do?",
+      "cot": "Step 1: **Identify query** — Profession.\nStep 2: **Define** — Manages information resources.\nStep 3: **Output**.",
+      "output": "A librarian curates, organizes, and assists in accessing information resources in various formats."
+    },
+    {
+      "id": "noise_0673",
+      "category": "general",
+      "input": "How many acres in a hectare?",
+      "cot": "Step 1: **Identify request** — Area.\nStep 2: **Recall** — ~2.47.\nStep 3: **Output**.",
+      "output": "One hectare equals approximately **2.47 acres**."
+    },
+    {
+      "id": "noise_0674",
+      "category": "general",
+      "input": "What is the driest place on Earth?",
+      "cot": "Step 1: **Identify query** — Climate.\nStep 2: **Atacama Desert** — Some areas no recorded rainfall.\nStep 3: **Output**.",
+      "output": "The Atacama Desert in Chile is the driest non-polar desert; some weather stations there have never recorded rain."
+    },
+    {
+      "id": "noise_0675",
+      "category": "general",
+      "input": "What is the chemical symbol for beryllium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Be.\nStep 3: **Output**.",
+      "output": "The chemical symbol for beryllium is **Be**."
+    },
+    {
+      "id": "noise_0676",
+      "category": "general",
+      "input": "What is the capital of Kazakhstan?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Astana (former Nur-Sultan).\nStep 3: **Output**.",
+      "output": "The capital of Kazakhstan is **Astana**."
+    },
+    {
+      "id": "noise_0677",
+      "category": "general",
+      "input": "How does a printer work?",
+      "cot": "Step 1: **Classify request** — Technology.\nStep 2: **Inkjet vs laser** — Spray ink or electrostatic toner.\nStep 3: **Output**.",
+      "output": "Inkjets spray microscopic ink droplets onto paper. Laser printers use static electricity to attract toner powder, which is then fused by heat."
+    },
+    {
+      "id": "noise_0678",
+      "category": "general",
+      "input": "How many seconds in a decade?",
+      "cot": "Step 1: **Identify request** — Time.\nStep 2: **Approximate** — 10 × 365.25 × 86400 ≈ 315,576,000.\nStep 3: **Output**.",
+      "output": "A decade (10 years including leap years) contains approximately **315,576,000 seconds**."
+    },
+    {
+      "id": "noise_0679",
+      "category": "general",
+      "input": "What is the longest river in South America?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Amazon.\nStep 3: **Output**.",
+      "output": "The Amazon River is the longest in South America and arguably the world, about 6,400 km."
+    },
+    {
+      "id": "noise_0680",
+      "category": "general",
+      "input": "What is the chemical symbol for lithium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Li.\nStep 3: **Output**.",
+      "output": "The chemical symbol for lithium is **Li**."
+    },
+    {
+      "id": "noise_0681",
+      "category": "general",
+      "input": "What is the capital of Uruguay?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Montevideo.\nStep 3: **Output**.",
+      "output": "The capital of Uruguay is **Montevideo**."
+    },
+    {
+      "id": "noise_0682",
+      "category": "general",
+      "input": "How many calories do I need per day?",
+      "cot": "Step 1: **Classify request** — Nutrition, variable.\nStep 2: **Provide average** — 2,000-2,500; depends.\nStep 3: **Output**.",
+      "output": "An average adult needs roughly 2,000-2,500 calories daily, but this depends on age, gender, activity level, and metabolic rate. Use a BMR calculator for a precise estimate."
+    },
+    {
+      "id": "noise_0683",
+      "category": "general",
+      "input": "How many legs does a centipede have?",
+      "cot": "Step 1: **Identify query** — Biology.\nStep 2: **Clarify** — Not always 100; varies by species, one pair per segment.\nStep 3: **Output**.",
+      "output": "A centipede has one pair of legs per body segment; species range from about 30 to over 350 legs."
+    },
+    {
+      "id": "noise_0684",
+      "category": "general",
+      "input": "What is the currency of Egypt?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Egyptian pound.\nStep 3: **Output**.",
+      "output": "The currency of Egypt is the **Egyptian pound** (EGP)."
+    },
+    {
+      "id": "noise_0685",
+      "category": "general",
+      "input": "How many teaspoons in a milliliter?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — ~0.2029.\nStep 3: **Output**.",
+      "output": "One milliliter is about **0.203 US teaspoons** (5 mL ≈ 1 tsp)."
+    },
+    {
+      "id": "noise_0686",
+      "category": "general",
+      "input": "What is the deepest ocean?",
+      "cot": "Step 1: **Identify query** — Oceanography.\nStep 2: **Retrieve** — Pacific.\nStep 3: **Output**.",
+      "output": "The Pacific Ocean is the deepest, containing the Mariana Trench at over 11,000 meters."
+    },
+    {
+      "id": "noise_0687",
+      "category": "general",
+      "input": "What is the chemical symbol for argon?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Ar.\nStep 3: **Output**.",
+      "output": "The chemical symbol for argon is **Ar**."
+    },
+    {
+      "id": "noise_0688",
+      "category": "general",
+      "input": "What is the capital of Ghana?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Accra.\nStep 3: **Output**.",
+      "output": "The capital of Ghana is **Accra**."
+    },
+    {
+      "id": "noise_0689",
+      "category": "general",
+      "input": "What does a dentist do?",
+      "cot": "Step 1: **Identify query** — Healthcare.\nStep 2: **Define** — Oral health.\nStep 3: **Output**.",
+      "output": "A dentist diagnoses and treats diseases of the teeth, gums, and mouth, and provides preventive care."
+    },
+    {
+      "id": "noise_0690",
+      "category": "general",
+      "input": "How many inches in a yard?",
+      "cot": "Step 1: **Identify request** — Length.\nStep 2: **Recall** — 36.\nStep 3: **Output**.",
+      "output": "One yard equals **36 inches**."
+    },
+    {
+      "id": "noise_0691",
+      "category": "general",
+      "input": "What is the largest flower?",
+      "cot": "Step 1: **Identify query** — Botany.\nStep 2: **Rafflesia arnoldii** — Up to 1 meter wide.\nStep 3: **Output**.",
+      "output": "Rafflesia arnoldii produces the largest individual flower, up to 1 meter (3 feet) in diameter, and smells of rotting flesh."
+    },
+    {
+      "id": "noise_0692",
+      "category": "general",
+      "input": "What is the boiling point of water in Denver?",
+      "cot": "Step 1: **Identify query** — Altitude effect.\nStep 2: **Denver ~1600m** → boils ~95°C.\nStep 3: **Output**.",
+      "output": "In Denver, at about 1,600 meters elevation, water boils around **95°C (203°F)**."
+    },
+    {
+      "id": "noise_0693",
+      "category": "general",
+      "input": "What is the chemical symbol for vanadium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — V.\nStep 3: **Output**.",
+      "output": "The chemical symbol for vanadium is **V**."
+    },
+    {
+      "id": "noise_0694",
+      "category": "general",
+      "input": "What is the capital of Lebanon?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Beirut.\nStep 3: **Output**.",
+      "output": "The capital of Lebanon is **Beirut**."
+    },
+    {
+      "id": "noise_0695",
+      "category": "general",
+      "input": "What does an airport traffic controller do?",
+      "cot": "Step 1: **Identify query** — Aviation.\nStep 2: **Define** — Directs aircraft movement.\nStep 3: **Output**.",
+      "output": "An air traffic controller coordinates the safe and efficient movement of aircraft on the ground and in controlled airspace."
+    },
+    {
+      "id": "noise_0696",
+      "category": "general",
+      "input": "How many gallons in a barrel of oil?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Standard barrel** — 42 US gallons.\nStep 3: **Output**.",
+      "output": "One barrel of oil equals **42 US gallons**."
+    },
+    {
+      "id": "noise_0697",
+      "category": "general",
+      "input": "What is the smallest mammal?",
+      "cot": "Step 1: **Identify query** — Zoology.\nStep 2: **Etruscan shrew** — about 1.8 grams.\nStep 3: **Output**.",
+      "output": "The Etruscan shrew is the smallest mammal by mass, weighing about 1.8 grams (0.063 oz)."
+    },
+    {
+      "id": "noise_0698",
+      "category": "general",
+      "input": "What is the chemical symbol for carbon?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — C.\nStep 3: **Output**.",
+      "output": "The chemical symbol for carbon is **C**."
+    },
+    {
+      "id": "noise_0699",
+      "category": "general",
+      "input": "What is the capital of Jordan?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Amman.\nStep 3: **Output**.",
+      "output": "The capital of Jordan is **Amman**."
+    },
+    {
+      "id": "noise_0700",
+      "category": "general",
+      "input": "How do I make cold brew coffee?",
+      "cot": "Step 1: **Classify request** — Beverage.\nStep 2: **Provide ratio** — 1:8 coffee to water, steep 12-24 hours.\nStep 3: **Output**.",
+      "output": "Coarsely grind coffee, mix with cold water at a 1:8 ratio by weight. Steep at room temperature or refrigerated for 12-24 hours, then filter."
+    },
+    {
+      "id": "noise_0701",
+      "category": "general",
+      "input": "How many teeth does a mosquito have?",
+      "cot": "Step 1: **Identify query** — Entomology; mosquitoes don't have teeth.\nStep 2: **Correct misconception** — They have a proboscis.\nStep 3: **Output**.",
+      "output": "Mosquitoes do not have teeth. They pierce skin with a needle-like proboscis."
+    },
+    {
+      "id": "noise_0702",
+      "category": "general",
+      "input": "What is the fastest animal in water?",
+      "cot": "Step 1: **Identify query** — Marine biology.\nStep 2: **Sailfish or black marlin** — speeds over 110 km/h.\nStep 3: **Output**.",
+      "output": "The sailfish is often cited as fastest, reaching 110 km/h (68 mph), though some claims exist for the black marlin."
+    },
+    {
+      "id": "noise_0703",
+      "category": "general",
+      "input": "What is the chemical formula for table sugar?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **Sucrose** — C₁₂H₂₂O₁₁.\nStep 3: **Output**.",
+      "output": "Table sugar (sucrose) has the formula **C₁₂H₂₂O₁₁**."
+    },
+    {
+      "id": "noise_0704",
+      "category": "general",
+      "input": "What is the capital of Tajikistan?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Dushanbe.\nStep 3: **Output**.",
+      "output": "The capital of Tajikistan is **Dushanbe**."
+    },
+    {
+      "id": "noise_0705",
+      "category": "general",
+      "input": "How does a battery work?",
+      "cot": "Step 1: **Classify request** — Electricity storage.\nStep 2: **Chemical reaction** produces electron flow.\nStep 3: **Output**.",
+      "output": "A chemical reaction between the anode and electrolyte releases electrons, which flow through an external circuit to the cathode, producing electric current."
+    },
+    {
+      "id": "noise_0706",
+      "category": "general",
+      "input": "How many inches in a foot?",
+      "cot": "Step 1: **Identify request** — Length.\nStep 2: **Recall** — 12.\nStep 3: **Output**.",
+      "output": "One foot equals **12 inches**."
+    },
+    {
+      "id": "noise_0707",
+      "category": "general",
+      "input": "What is the hottest planet in the solar system?",
+      "cot": "Step 1: **Identify query** — Astronomy.\nStep 2: **Venus** — 465°C surface.\nStep 3: **Output**.",
+      "output": "Venus is the hottest planet, with a surface temperature of about **465°C (869°F)** due to a runaway greenhouse effect."
+    },
+    {
+      "id": "noise_0708",
+      "category": "general",
+      "input": "What is the chemical symbol for hydrogen?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — H.\nStep 3: **Output**.",
+      "output": "The chemical symbol for hydrogen is **H**."
+    },
+    {
+      "id": "noise_0709",
+      "category": "general",
+      "input": "What is the capital of Bolivia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Sucre (constitutional), La Paz (administrative).\nStep 3: **Output**.",
+      "output": "The constitutional capital is **Sucre**; the seat of government is **La Paz**."
+    },
+    {
+      "id": "noise_0710",
+      "category": "general",
+      "input": "What does a plumber do?",
+      "cot": "Step 1: **Identify query** — Trade.\nStep 2: **Define** — Installs and repairs pipes.\nStep 3: **Output**.",
+      "output": "A plumber installs and repairs water supply, drainage, and heating systems in buildings."
+    },
+    {
+      "id": "noise_0711",
+      "category": "general",
+      "input": "How many milliliters in a fluid ounce?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **US fl oz** — ~29.57 mL.\nStep 3: **Output**.",
+      "output": "One US fluid ounce equals approximately **29.57 milliliters**."
+    },
+    {
+      "id": "noise_0712",
+      "category": "general",
+      "input": "What is the largest coral reef?",
+      "cot": "Step 1: **Identify query** — Marine geography.\nStep 2: **Great Barrier Reef**.\nStep 3: **Output**.",
+      "output": "The Great Barrier Reef off Australia is the largest coral reef system, spanning about 2,300 km (1,429 miles)."
+    },
+    {
+      "id": "noise_0713",
+      "category": "general",
+      "input": "What is the melting point of silver?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Retrieve** — 961.8°C.\nStep 3: **Output**.",
+      "output": "Silver melts at approximately **961.8°C (1,763°F)**."
+    },
+    {
+      "id": "noise_0714",
+      "category": "general",
+      "input": "What is the chemical symbol for barium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Ba.\nStep 3: **Output**.",
+      "output": "The chemical symbol for barium is **Ba**."
+    },
+    {
+      "id": "noise_0715",
+      "category": "general",
+      "input": "What is the capital of Paraguay?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Asunción.\nStep 3: **Output**.",
+      "output": "The capital of Paraguay is **Asunción**."
+    },
+    {
+      "id": "noise_0716",
+      "category": "general",
+      "input": "How do I treat a sunburn?",
+      "cot": "Step 1: **Classify injury** — UV overexposure.\nStep 2: **Cool skin, hydrate, ibuprofen**.\nStep 3: **Output**.",
+      "output": "Cool the skin with a damp cloth or cool shower. Apply aloe vera gel. Hydrate and consider an NSAID for pain and inflammation. Avoid further sun exposure."
+    },
+    {
+      "id": "noise_0717",
+      "category": "general",
+      "input": "How many tablespoons in a half cup?",
+      "cot": "Step 1: **Identify request** — Cooking.\nStep 2: **1/2 cup = 8 tbsp**.\nStep 3: **Output**.",
+      "output": "One half cup equals **8 tablespoons**."
+    },
+    {
+      "id": "noise_0718",
+      "category": "general",
+      "input": "What is the fastest land snake?",
+      "cot": "Step 1: **Identify query** — Herpetology.\nStep 2: **Black mamba** — 19 km/h.\nStep 3: **Output**.",
+      "output": "The black mamba is one of the fastest land snakes, reaching speeds up to 19 km/h (12 mph)."
+    },
+    {
+      "id": "noise_0719",
+      "category": "general",
+      "input": "What is the boiling point of ethanol?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Recall** — 78.37°C.\nStep 3: **Output**.",
+      "output": "Ethanol boils at approximately **78.37°C (173°F)**."
+    },
+    {
+      "id": "noise_0720",
+      "category": "general",
+      "input": "What is the currency of Nigeria?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Naira.\nStep 3: **Output**.",
+      "output": "The currency of Nigeria is the **naira** (NGN)."
+    },
+    {
+      "id": "noise_0721",
+      "category": "general",
+      "input": "How many days is a normal pregnancy?",
+      "cot": "Step 1: **Identify query** — Human biology.\nStep 2: **Average** — 280 days from LMP.\nStep 3: **Output**.",
+      "output": "A full-term human pregnancy averages **280 days (40 weeks)** from the first day of the last menstrual period."
+    },
+    {
+      "id": "noise_0722",
+      "category": "general",
+      "input": "What is the chemical formula for propane?",
+      "cot": "Step 1: **Identify request** — Hydrocarbon.\nStep 2: **Retrieve** — C₃H₈.\nStep 3: **Output**.",
+      "output": "Propane has the chemical formula **C₃H₈**."
+    },
+    {
+      "id": "noise_0723",
+      "category": "general",
+      "input": "What is the capital of Senegal?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Dakar.\nStep 3: **Output**.",
+      "output": "The capital of Senegal is **Dakar**."
+    },
+    {
+      "id": "noise_0724",
+      "category": "general",
+      "input": "What does a psychologist study?",
+      "cot": "Step 1: **Identify query** — Science.\nStep 2: **Define** — Mind and behavior.\nStep 3: **Output**.",
+      "output": "A psychologist studies mental processes and behavior through research, therapy, and assessment."
+    },
+    {
+      "id": "noise_0725",
+      "category": "general",
+      "input": "How many cups in a gallon?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Recall** — 16.\nStep 3: **Output**.",
+      "output": "One US gallon equals **16 cups**."
+    },
+    {
+      "id": "noise_0726",
+      "category": "general",
+      "input": "What is the most intelligent bird?",
+      "cot": "Step 1: **Identify query** — Animal cognition.\nStep 2: **Note corvids** — Crows and ravens.\nStep 3: **Output**.",
+      "output": "Crows, ravens, and parrots are considered among the most intelligent birds, demonstrating tool use and complex problem-solving."
+    },
+    {
+      "id": "noise_0727",
+      "category": "general",
+      "input": "What is the freezing point of sea water?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **~35 ppt salinity** — freezes at -1.8°C.\nStep 3: **Output**.",
+      "output": "Typical sea water freezes around **-1.8°C (28.8°F)** due to salt content."
+    },
+    {
+      "id": "noise_0728",
+      "category": "general",
+      "input": "What is the chemical symbol for strontium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Sr.\nStep 3: **Output**.",
+      "output": "The chemical symbol for strontium is **Sr**."
+    },
+    {
+      "id": "noise_0729",
+      "category": "general",
+      "input": "What is the capital of Madagascar?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Antananarivo.\nStep 3: **Output**.",
+      "output": "The capital of Madagascar is **Antananarivo**."
+    },
+    {
+      "id": "noise_0730",
+      "category": "general",
+      "input": "How does a compass work?",
+      "cot": "Step 1: **Classify request** — Navigation instrument.\nStep 2: **Magnetic needle aligns with Earth's magnetic field**.\nStep 3: **Output**.",
+      "output": "A magnetized needle aligns itself with Earth's magnetic field, pointing toward the magnetic north pole."
+    },
+    {
+      "id": "noise_0731",
+      "category": "general",
+      "input": "How many megabytes in a terabyte?",
+      "cot": "Step 1: **Identify request** — Data.\nStep 2: **1 TB = 1,048,576 MB**.\nStep 3: **Output**.",
+      "output": "One terabyte equals **1,048,576 megabytes** (1024 GB)."
+    },
+    {
+      "id": "noise_0732",
+      "category": "general",
+      "input": "What is the longest word in the English dictionary?",
+      "cot": "Step 1: **Identify query** — Trivia.\nStep 2: **Pneumonoultramicroscopicsilicovolcanoconiosis**.\nStep 3: **Output**.",
+      "output": "A common contender is 'pneumonoultramicroscopicsilicovolcanoconiosis', a lung disease caused by volcanic ash."
+    },
+    {
+      "id": "noise_0733",
+      "category": "general",
+      "input": "What is the capital of Yemen?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Sana'a.\nStep 3: **Output**.",
+      "output": "The capital of Yemen is **Sana'a**."
+    },
+    {
+      "id": "noise_0734",
+      "category": "general",
+      "input": "What does an electrician do?",
+      "cot": "Step 1: **Identify query** — Trade.\nStep 2: **Define** — Installs and maintains electrical systems.\nStep 3: **Output**.",
+      "output": "An electrician installs, maintains, and repairs electrical wiring, equipment, and fixtures."
+    },
+    {
+      "id": "noise_0735",
+      "category": "general",
+      "input": "How many centimeters in an inch?",
+      "cot": "Step 1: **Identify request** — Length.\nStep 2: **Recall** — 2.54.\nStep 3: **Output**.",
+      "output": "One inch equals exactly **2.54 centimeters**."
+    },
+    {
+      "id": "noise_0736",
+      "category": "general",
+      "input": "What is the largest city in the United States by population?",
+      "cot": "Step 1: **Identify query** — Demographics.\nStep 2: **NYC** — ~8.4 million.\nStep 3: **Output**.",
+      "output": "New York City is the most populous US city, with over 8 million residents."
+    },
+    {
+      "id": "noise_0737",
+      "category": "general",
+      "input": "What is the chemical symbol for silicon?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Si.\nStep 3: **Output**.",
+      "output": "The chemical symbol for silicon is **Si**."
+    },
+    {
+      "id": "noise_0738",
+      "category": "general",
+      "input": "What is the capital of Ecuador?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Quito.\nStep 3: **Output**.",
+      "output": "The capital of Ecuador is **Quito**."
+    },
+    {
+      "id": "noise_0739",
+      "category": "general",
+      "input": "How do I stop a minor bleeding?",
+      "cot": "Step 1: **Classify issue** — Hemostasis.\nStep 2: **Direct pressure**.\nStep 3: **Output**.",
+      "output": "Apply direct pressure with a clean cloth for 10-15 minutes without peeking. If bleeding soaks through, add more layers. Seek medical help if severe."
+    },
+    {
+      "id": "noise_0740",
+      "category": "general",
+      "input": "How many liters in a pint?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **US pint** — ~0.473 L.\nStep 3: **Output**.",
+      "output": "One US pint equals approximately **0.473 liters**."
+    },
+    {
+      "id": "noise_0741",
+      "category": "general",
+      "input": "What is the hardest part of the human body?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **Tooth enamel**.\nStep 3: **Output**.",
+      "output": "Tooth enamel is the hardest substance in the human body, composed mainly of hydroxyapatite."
+    },
+    {
+      "id": "noise_0742",
+      "category": "general",
+      "input": "What is the boiling point of mercury?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Retrieve** — 356.7°C.\nStep 3: **Output**.",
+      "output": "Mercury boils at approximately **356.7°C (674°F)**."
+    },
+    {
+      "id": "noise_0743",
+      "category": "general",
+      "input": "What is the currency of Argentina?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Argentine peso.\nStep 3: **Output**.",
+      "output": "The currency of Argentina is the **Argentine peso** (ARS)."
+    },
+    {
+      "id": "noise_0744",
+      "category": "general",
+      "input": "How many taste buds does a human have?",
+      "cot": "Step 1: **Identify query** — Senses.\nStep 2: **~2,000-8,000**.\nStep 3: **Output**.",
+      "output": "An adult human has roughly **2,000 to 8,000 taste buds**, located mainly on the tongue."
+    },
+    {
+      "id": "noise_0745",
+      "category": "general",
+      "input": "What is the chemical formula for ethanol?",
+      "cot": "Step 1: **Identify request** — Compound.\nStep 2: **C₂H₅OH**.\nStep 3: **Output**.",
+      "output": "Ethanol has the formula **C₂H₅OH**."
+    },
+    {
+      "id": "noise_0746",
+      "category": "general",
+      "input": "What is the capital of Tunisia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Tunis.\nStep 3: **Output**.",
+      "output": "The capital of Tunisia is **Tunis**."
+    },
+    {
+      "id": "noise_0747",
+      "category": "general",
+      "input": "What does a mechanic do?",
+      "cot": "Step 1: **Identify query** — Trade.\nStep 2: **Define** — Repairs vehicles.\nStep 3: **Output**.",
+      "output": "A mechanic diagnoses and repairs mechanical components of vehicles and machinery."
+    },
+    {
+      "id": "noise_0748",
+      "category": "general",
+      "input": "How many miles is a 5k?",
+      "cot": "Step 1: **Identify request** — Distance.\nStep 2: **5 km = 3.107 miles**.\nStep 3: **Output**.",
+      "output": "A 5k race equals **3.107 miles**."
+    },
+    {
+      "id": "noise_0749",
+      "category": "general",
+      "input": "What is the largest butterfly?",
+      "cot": "Step 1: **Identify query** — Entomology.\nStep 2: **Queen Alexandra's birdwing** — 30 cm wingspan.\nStep 3: **Output**.",
+      "output": "Queen Alexandra's birdwing is the largest butterfly, with a wingspan up to 30 cm (1 foot)."
+    },
+    {
+      "id": "noise_0750",
+      "category": "general",
+      "input": "What is the density of mercury?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **13.6 g/cm³**.\nStep 3: **Output**.",
+      "output": "Mercury has a density of **13.6 grams per cubic centimeter**."
+    },
+    {
+      "id": "noise_0751",
+      "category": "general",
+      "input": "What is the capital of Libya?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Tripoli.\nStep 3: **Output**.",
+      "output": "The capital of Libya is **Tripoli**."
+    },
+    {
+      "id": "noise_0752",
+      "category": "general",
+      "input": "How do you make a QR code?",
+      "cot": "Step 1: **Classify request** — Generation tool.\nStep 2: **Many online generators; encode text/URL**.\nStep 3: **Output**.",
+      "output": "Use an online QR code generator (many are free). Enter a URL or text, and the generator creates an image you can download."
+    },
+    {
+      "id": "noise_0753",
+      "category": "general",
+      "input": "How many seconds in a century?",
+      "cot": "Step 1: **Identify request** — Time.\nStep 2: **Approx 3.156 billion**.\nStep 3: **Output**.",
+      "output": "Approximately **3.156 billion seconds** in a century (accounting for leap years)."
+    },
+    {
+      "id": "noise_0754",
+      "category": "general",
+      "input": "What is the largest glacier?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Lambert-Fisher Glacier** (Antarctica).\nStep 3: **Output**.",
+      "output": "The Lambert-Fisher Glacier in Antarctica is the largest, stretching about 400 km long and 100 km wide."
+    },
+    {
+      "id": "noise_0755",
+      "category": "general",
+      "input": "What is the chemical symbol for boron?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — B.\nStep 3: **Output**.",
+      "output": "The chemical symbol for boron is **B**."
+    },
+    {
+      "id": "noise_0756",
+      "category": "general",
+      "input": "What is the capital of Azerbaijan?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Baku.\nStep 3: **Output**.",
+      "output": "The capital of Azerbaijan is **Baku**."
+    },
+    {
+      "id": "noise_0757",
+      "category": "general",
+      "input": "How many notes are in a standard music scale?",
+      "cot": "Step 1: **Identify request** — Music theory.\nStep 2: **Western major scale** — 7 notes; chromatic 12.\nStep 3: **Output**.",
+      "output": "A standard major scale has 7 notes; the chromatic scale contains 12 pitches per octave."
+    },
+    {
+      "id": "noise_0758",
+      "category": "general",
+      "input": "How many ounces in a pint?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **Fluid ounces** — 16.\nStep 3: **Output**.",
+      "output": "One US pint equals **16 fluid ounces**."
+    },
+    {
+      "id": "noise_0759",
+      "category": "general",
+      "input": "What is the most venomous land snake?",
+      "cot": "Step 1: **Identify query** — Herpetology.\nStep 2: **Inland taipan** (toxicity).\nStep 3: **Output**.",
+      "output": "The inland taipan has the most toxic venom of any land snake, based on LD50."
+    },
+    {
+      "id": "noise_0760",
+      "category": "general",
+      "input": "What is the melting point of tin?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Retrieve** — 231.9°C.\nStep 3: **Output**."
+    },
+    {
+      "id": "noise_0761",
+      "category": "general",
+      "input": "What is the currency of Sweden?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Swedish krona.\nStep 3: **Output**.",
+      "output": "The currency of Sweden is the **krona** (SEK)."
+    },
+    {
+      "id": "noise_0762",
+      "category": "general",
+      "input": "How many hair follicles does a human have?",
+      "cot": "Step 1: **Identify query** — Anatomy.\nStep 2: **~100,000 on scalp**.\nStep 3: **Output**.",
+      "output": "The human scalp has approximately **100,000 hair follicles**."
+    },
+    {
+      "id": "noise_0763",
+      "category": "general",
+      "input": "What is the chemical symbol for titanium?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Ti.\nStep 3: **Output**.",
+      "output": "The chemical symbol for titanium is **Ti**."
+    },
+    {
+      "id": "noise_0764",
+      "category": "general",
+      "input": "What is the capital of Zimbabwe?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Harare.\nStep 3: **Output**.",
+      "output": "The capital of Zimbabwe is **Harare**."
+    },
+    {
+      "id": "noise_0765",
+      "category": "general",
+      "input": "What does a poet do?",
+      "cot": "Step 1: **Identify query** — Art.\nStep 2: **Define** — Writes poetry.\nStep 3: **Output**.",
+      "output": "A poet creates literary works using condensed language, rhythm, and imagery to evoke meaning or emotion."
+    },
+    {
+      "id": "noise_0766",
+      "category": "general",
+      "input": "How many grams in a pound?",
+      "cot": "Step 1: **Identify request** — Weight.\nStep 2: **~453.6**.\nStep 3: **Output**.",
+      "output": "One pound equals approximately **453.6 grams**."
+    },
+    {
+      "id": "noise_0767",
+      "category": "general",
+      "input": "What is the longest mountain range?",
+      "cot": "Step 1: **Identify query** — Geology.\nStep 2: **Andes** (above water), Mid-Atlantic Ridge (underwater).\nStep 3: **Output**.",
+      "output": "The Andes is the longest continental mountain range, about 7,000 km (4,300 miles). The Mid-Atlantic Ridge is the longest overall, mostly underwater."
+    },
+    {
+      "id": "noise_0768",
+      "category": "general",
+      "input": "What is the boiling point of liquid nitrogen?",
+      "cot": "Step 1: **Identify query** — Cryogenics.\nStep 2: **Retrieve** — -195.8°C.\nStep 3: **Output**.",
+      "output": "Liquid nitrogen boils at **-195.8°C (-320°F)**."
+    },
+    {
+      "id": "noise_0769",
+      "category": "general",
+      "input": "What is the chemical formula for butane?",
+      "cot": "Step 1: **Identify request** — Hydrocarbon.\nStep 2: **C₄H₁₀**.\nStep 3: **Output**.",
+      "output": "Butane has the formula **C₄H₁₀**."
+    },
+    {
+      "id": "noise_0770",
+      "category": "general",
+      "input": "What is the capital of Estonia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Tallinn.\nStep 3: **Output**.",
+      "output": "The capital of Estonia is **Tallinn**."
+    },
+    {
+      "id": "noise_0771",
+      "category": "general",
+      "input": "How do I know if I'm dehydrated?",
+      "cot": "Step 1: **Classify query** — Health.\nStep 2: **List symptoms** — Dark urine, thirst, fatigue.\nStep 3: **Output**.",
+      "output": "Dark yellow urine, thirst, dry mouth, headache, and fatigue are common signs. Urine color is a reliable indicator — pale yellow suggests adequate hydration."
+    },
+    {
+      "id": "noise_0772",
+      "category": "general",
+      "input": "How many days in a year on Mars?",
+      "cot": "Step 1: **Identify query** — Astronomy.\nStep 2: **687 Earth days**.\nStep 3: **Output**.",
+      "output": "A Martian year lasts about **687 Earth days**."
+    },
+    {
+      "id": "noise_0773",
+      "category": "general",
+      "input": "What is the smallest country in Asia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Maldives** (area).\nStep 3: **Output**.",
+      "output": "The Maldives is the smallest Asian country by land area."
+    },
+    {
+      "id": "noise_0774",
+      "category": "general",
+      "input": "What is the chemical symbol for sulfur?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — S.\nStep 3: **Output**.",
+      "output": "The chemical symbol for sulfur is **S**."
+    },
+    {
+      "id": "noise_0775",
+      "category": "general",
+      "input": "What is the capital of Panama?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Panama City.\nStep 3: **Output**.",
+      "output": "The capital of Panama is **Panama City**."
+    },
+    {
+      "id": "noise_0776",
+      "category": "general",
+      "input": "How does a touch screen work?",
+      "cot": "Step 1: **Classify request** — Technology.\nStep 2: **Capacitive** — detects change in electric field.\nStep 3: **Output**.",
+      "output": "A capacitive touchscreen detects the electrical charge from your finger to register a touch. A resistive screen uses pressure between two layers."
+    },
+    {
+      "id": "noise_0777",
+      "category": "general",
+      "input": "How many cups in a liter of water?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **~4.23**.\nStep 3: **Output**.",
+      "output": "One liter of water equals approximately **4.23 US cups**."
+    },
+    {
+      "id": "noise_0778",
+      "category": "general",
+      "input": "What is the heaviest metal?",
+      "cot": "Step 1: **Identify query** — Material density.\nStep 2: **Osmium** — 22.59 g/cm³.\nStep 3: **Output**.",
+      "output": "Osmium has the highest density of any element, at **22.59 grams per cubic centimeter**."
+    },
+    {
+      "id": "noise_0779",
+      "category": "general",
+      "input": "What is the capital of Laos?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Vientiane.\nStep 3: **Output**.",
+      "output": "The capital of Laos is **Vientiane**."
+    },
+    {
+      "id": "noise_0780",
+      "category": "general",
+      "input": "What does a paramedic do?",
+      "cot": "Step 1: **Identify query** — Healthcare.\nStep 2: **Define** — Emergency medical care.\nStep 3: **Output**.",
+      "output": "A paramedic provides advanced pre-hospital emergency medical care, often in an ambulance setting."
+    },
+    {
+      "id": "noise_0781",
+      "category": "general",
+      "input": "How many legs does a millipede have?",
+      "cot": "Step 1: **Identify query** — Invertebrate.\nStep 2: **Two pairs per segment** — 30 to 400.\nStep 3: **Output**.",
+      "output": "Millipedes have two pairs of legs per body segment; species range from about 30 to over 400 legs."
+    },
+    {
+      "id": "noise_0782",
+      "category": "general",
+      "input": "What is the currency of Israel?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Israeli new shekel.\nStep 3: **Output**.",
+      "output": "The currency of Israel is the **new shekel** (ILS)."
+    },
+    {
+      "id": "noise_0783",
+      "category": "general",
+      "input": "How do I protect my skin from the sun?",
+      "cot": "Step 1: **Classify request** — Preventive health.\nStep 2: **Sunscreen, clothing, shade**.\nStep 3: **Output**.",
+      "output": "Apply broad-spectrum SPF 30+ sunscreen 15 minutes before exposure, reapply every 2 hours. Wear protective clothing and seek shade during peak UV hours (10 a.m. - 4 p.m.)."
+    },
+    {
+      "id": "noise_0784",
+      "category": "general",
+      "input": "How many grams in a ton?",
+      "cot": "Step 1: **Identify request** — Mass.\nStep 2: **Metric ton** — 1,000,000 g.\nStep 3: **Output**.",
+      "output": "One metric ton equals **1,000,000 grams**."
+    },
+    {
+      "id": "noise_0785",
+      "category": "general",
+      "input": "What is the deepest river?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Congo** — ~220 m.\nStep 3: **Output**.",
+      "output": "The Congo River is the world's deepest, with sections over 220 meters (720 feet)."
+    },
+    {
+      "id": "noise_0786",
+      "category": "general",
+      "input": "What is the melting point of platinum?",
+      "cot": "Step 1: **Identify query** — Material property.\nStep 2: **Retrieve** — 1,768°C.\nStep 3: **Output**.",
+      "output": "Platinum melts at approximately **1,768°C (3,214°F)**."
+    },
+    {
+      "id": "noise_0787",
+      "category": "general",
+      "input": "What is the chemical symbol for aluminum?",
+      "cot": "Step 1: **Identify request** — Element.\nStep 2: **Retrieve** — Al.\nStep 3: **Output**.",
+      "output": "The chemical symbol for aluminum is **Al**."
+    },
+    {
+      "id": "noise_0788",
+      "category": "general",
+      "input": "What is the capital of Mongolia?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Ulaanbaatar.\nStep 3: **Output**.",
+      "output": "The capital of Mongolia is **Ulaanbaatar**."
+    },
+    {
+      "id": "noise_0789",
+      "category": "general",
+      "input": "What does a physicist study?",
+      "cot": "Step 1: **Identify query** — Science.\nStep 2: **Define** — Matter and energy.\nStep 3: **Output**.",
+      "output": "A physicist studies the fundamental principles governing matter, energy, space, and time."
+    },
+    {
+      "id": "noise_0790",
+      "category": "general",
+      "input": "How many pints in a liter?",
+      "cot": "Step 1: **Identify request** — Volume.\nStep 2: **~2.11**.\nStep 3: **Output**.",
+      "output": "One liter equals approximately **2.11 US pints**."
+    },
+    {
+      "id": "noise_0791",
+      "category": "general",
+      "input": "What is the loudest insect?",
+      "cot": "Step 1: **Identify query** — Entomology.\nStep 2: **Cicada** — up to 120 dB.\nStep 3: **Output**.",
+      "output": "The cicada is one of the loudest insects, producing sounds up to 120 decibels."
+    },
+    {
+      "id": "noise_0792",
+      "category": "general",
+      "input": "What is the freezing point of alcohol?",
+      "cot": "Step 1: **Identify query** — Chemistry.\nStep 2: **Ethanol** — -114°C.\nStep 3: **Output**.",
+      "output": "Pure ethanol freezes at **-114°C (-173°F)**."
+    },
+    {
+      "id": "noise_0793",
+      "category": "general",
+      "input": "What is the currency of Denmark?",
+      "cot": "Step 1: **Identify query** — Currency.\nStep 2: **Retrieve** — Danish krone.\nStep 3: **Output**.",
+      "output": "The currency of Denmark is the **krone** (DKK)."
+    },
+    {
+      "id": "noise_0794",
+      "category": "general",
+      "input": "How do I treat a bee sting?",
+      "cot": "Step 1: **Classify injury** — Venom injection.\nStep 2: **Remove stinger, ice, antihistamine**.\nStep 3: **Output**.",
+      "output": "Scrape out the stinger with a flat edge. Wash with soap and water. Apply ice and consider an oral antihistamine or hydrocortisone cream for itching."
+    },
+    {
+      "id": "noise_0795",
+      "category": "general",
+      "input": "How many square feet in an acre?",
+      "cot": "Step 1: **Identify request** — Area.\nStep 2: **43,560**.\nStep 3: **Output**.",
+      "output": "One acre equals **43,560 square feet**."
+    },
+    {
+      "id": "noise_0796",
+      "category": "general",
+      "input": "What is the fastest roller coaster?",
+      "cot": "Step 1: **Identify query** — Amusement parks.\nStep 2: **Formula Rossa** — 240 km/h.\nStep 3: **Output**.",
+      "output": "Formula Rossa in Abu Dhabi is the fastest roller coaster, reaching 240 km/h (149 mph)."
+    },
+    {
+      "id": "noise_0797",
+      "category": "general",
+      "input": "What is the chemical formula for baking powder?",
+      "cot": "Step 1: **Identify request** — Leavening agent.\nStep 2: **Mixture** — sodium bicarbonate + acid.\nStep 3: **Output**.",
+      "output": "Baking powder is a mixture of sodium bicarbonate (NaHCO₃) and a dry acid like cream of tartar, along with a starch."
+    },
+    {
+      "id": "noise_0798",
+      "category": "general",
+      "input": "What is the capital of Rwanda?",
+      "cot": "Step 1: **Identify query** — Geography.\nStep 2: **Retrieve** — Kigali.\nStep 3: **Output**.",
+      "output": "The capital of Rwanda is **Kigali**."
+    },
+    {
+      "id": "noise_0799",
+      "category": "general",
+      "input": "What does a pharmacist do?",
+      "cot": "Step 1: **Identify query** — Healthcare.\nStep 2: **Define** — Dispenses medication.\nStep 3: **Output**.",
+      "output": "A pharmacist dispenses prescription medications and provides expertise on their safe use and interactions."
+    },
+    {
+      "id": "noise_0800",
+      "category": "general",
+      "input": "How many minutes in a degree?",
+      "cot": "Step 1: **Identify request** — Angle.\nStep 2: **60 minutes**.\nStep 3: **Output**.",
+      "output": "One degree is divided into **60 arcminutes**."
+    }
+  ]
