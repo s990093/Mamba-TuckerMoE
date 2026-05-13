@@ -28,6 +28,7 @@ import json
 import os
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Iterator
@@ -58,6 +59,12 @@ from mlx_hybrid_infer import (
     maybe_export_npz_sidecar_after_pt_load,
     resolve_mlx_checkpoint,
     strict_load_and_convert,
+)
+from cot_middleware import (
+    CotMiddleware,
+    CotMiddlewareConfig,
+    CotMiddlewareDeps,
+    render_health_line,
 )
 
 _CATEGORY_PROMPTS_MERGE: Any = None
@@ -91,6 +98,8 @@ _max_cache_len: int = 0
 _args: Any = None
 _config: Any = None
 _stop_ids: frozenset[int] | None = None
+_mw_deps: CotMiddlewareDeps | None = None
+_mw_cfg: CotMiddlewareConfig | None = None
 _model_ready = False
 _vocab_size: int = 0
 _MOCK_MODE: bool = False
@@ -112,7 +121,8 @@ def _read_ui_config() -> dict[str, Any]:
 
 def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     global _model, _tokenizer, _run_prefill, _router_temp
-    global _max_cache_len, _args, _config, _stop_ids, _model_ready, _vocab_size
+    global _max_cache_len, _args, _config, _stop_ids, _mw_deps, _mw_cfg
+    global _model_ready, _vocab_size
 
     _args = args
     timings: dict[str, Any] = {}
@@ -181,6 +191,24 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     from stream_mlx import _build_stream_stop_token_ids
     _stop_ids = _build_stream_stop_token_ids(_tokenizer, enabled=True)
 
+    # === Inference middleware (FSM splitter + logit guard + budget + final-inject)
+    # All format / safety / FSM logic is concentrated in CotMiddleware.  We
+    # resolve the heavy state (tokenizer ids, bias vectors) once here and
+    # share it across every turn via ``_mw_deps``; per-turn middleware
+    # instances are built in ``_stream_generate`` from these immutable deps.
+    _mw_cfg = CotMiddlewareConfig.config_from_args(args)
+    # Reflect the auto-derived close_bias_start back into args so the rich
+    # dump / demo-config / health_report all show the value we actually use.
+    args.close_bias_start = _mw_cfg.close_bias_start
+    _mw_deps = CotMiddlewareDeps.build(
+        tokenizer=_tokenizer,
+        vocab_size=_vocab_size,
+        existing_stop_ids=_stop_ids,
+        cfg=_mw_cfg,
+    )
+    _stop_ids = _mw_deps.stop_ids
+    print(f"[chat_demo] {_mw_deps.describe()}")
+
     t3 = time.perf_counter()
     warmup_ids = _build_prompt_ids(_tokenizer, "warmup", args.seq_len, chatml_user=True)
     x_warm = mx.array([warmup_ids], dtype=mx.int32)
@@ -238,149 +266,12 @@ def _build_multiturn_ids(
     return ids
 
 
-# === CoT stream splitter -----------------------------------------------------
-class _CotStreamSplitter:
-    """Stateful splitter that consumes streamed decoded text from the model
-    (which may include `<think>…</think>` and `<final>…</final>` blocks) and
-    emits ``(kind, text)`` events with `kind` in ``{"reasoning", "final", "stop"}``.
-
-    Buffers partial tag suffixes so a tag spanning two chunks never leaks into
-    output. When the prompt already injected ``<think>\n`` (reasoning mode), set
-    ``start_in_think=True`` so the splitter starts inside the think block.
-    """
-
-    TAGS = ("<think>", "</think>", "<final>", "</final>", "<|im_end|>")
-    MAX_TAG_LEN = max(len(t) for t in TAGS)
-
-    def __init__(self, start_in_think: bool = False) -> None:
-        self._buf = ""
-        # "head"  → before any block (also tolerates a plain answer with no tags)
-        # "think" → inside <think>...
-        # "between" → after </think>, waiting for <final> or stop
-        # "final" → inside <final>...
-        # "done"  → terminal
-        self._mode = "think" if start_in_think else "head"
-        self._loose_final = not start_in_think  # tagless answer? then 'head' acts as final
-
-    @property
-    def done(self) -> bool:
-        return self._mode == "done"
-
-    def _safe_tail_cut(self) -> str:
-        """Pop & return prefix of `_buf` that is safe to flush; keep tail that
-        could still be the start of any TAG. Mutates `_buf`."""
-        s = self._buf
-        n = len(s)
-        keep = 0
-        for k in range(1, min(self.MAX_TAG_LEN, n) + 1):
-            suf = s[n - k:]
-            if any(t.startswith(suf) for t in self.TAGS):
-                keep = k
-        emit = s[: n - keep]
-        self._buf = s[n - keep:]
-        return emit
-
-    def feed(self, chunk: str) -> list[tuple[str, str]]:
-        if not chunk:
-            return []
-        self._buf += chunk
-        out: list[tuple[str, str]] = []
-        progressed = True
-        while progressed:
-            progressed = False
-            if self._mode == "done":
-                self._buf = ""
-                break
-            if self._mode in ("head", "between"):
-                ti = self._buf.find("<think>")
-                fi = self._buf.find("<final>")
-                ei = self._buf.find("<|im_end|>")
-                fe = self._buf.find("</final>")
-                hits = [(i, n) for i, n in [(ti, "think"), (fi, "final"), (ei, "stop"), (fe, "stop")] if i >= 0]
-                if hits:
-                    i, name = min(hits)
-                    if self._mode == "head" and self._loose_final and i > 0:
-                        out.append(("final", self._buf[:i]))
-                    if name == "think":
-                        self._buf = self._buf[i + len("<think>"):]
-                        self._mode = "think"
-                    elif name == "final":
-                        self._buf = self._buf[i + len("<final>"):]
-                        self._mode = "final"
-                    else:
-                        self._mode = "done"
-                        out.append(("stop", ""))
-                    progressed = True
-                else:
-                    if self._mode == "head" and self._loose_final:
-                        emit = self._safe_tail_cut()
-                        if emit:
-                            out.append(("final", emit))
-                    else:
-                        self._buf = self._buf[-(self.MAX_TAG_LEN - 1):] if len(self._buf) > self.MAX_TAG_LEN else self._buf
-            elif self._mode == "think":
-                idx_close = self._buf.find("</think>")
-                idx_end = self._buf.find("<|im_end|>")
-                hits = [(i, n) for i, n in [(idx_close, "close"), (idx_end, "stop")] if i >= 0]
-                if hits:
-                    i, name = min(hits)
-                    if i > 0:
-                        out.append(("reasoning", self._buf[:i]))
-                    if name == "close":
-                        self._buf = self._buf[i + len("</think>"):]
-                        self._mode = "between"
-                    else:
-                        self._mode = "done"
-                        out.append(("stop", ""))
-                    progressed = True
-                else:
-                    emit = self._safe_tail_cut()
-                    if emit:
-                        out.append(("reasoning", emit))
-            elif self._mode == "final":
-                fe = self._buf.find("</final>")
-                ie = self._buf.find("<|im_end|>")
-                hits = [(i, "stop") for i in (fe, ie) if i >= 0]
-                if hits:
-                    i, _ = min(hits)
-                    if i > 0:
-                        out.append(("final", self._buf[:i]))
-                    self._mode = "done"
-                    out.append(("stop", ""))
-                    progressed = True
-                else:
-                    emit = self._safe_tail_cut()
-                    if emit:
-                        out.append(("final", emit))
-        return out
-
-    def flush(self) -> list[tuple[str, str]]:
-        """Emit any remaining safe text at end-of-stream (e.g. when the model
-        stops on EOS without a closing `</final>`). Drop a trailing partial
-        tag-prefix so fragments like ``</th`` never leak into the UI."""
-        s = self._buf
-        n = len(s)
-        keep_drop = 0
-        for k in range(1, min(self.MAX_TAG_LEN, n) + 1):
-            suf = s[n - k:]
-            if any(t.startswith(suf) for t in self.TAGS):
-                keep_drop = k
-        emit = s[: n - keep_drop]
-        out: list[tuple[str, str]] = []
-        if emit:
-            if self._mode == "think":
-                out.append(("reasoning", emit))
-            elif self._mode == "final" or (self._mode == "head" and self._loose_final):
-                out.append(("final", emit))
-        self._buf = ""
-        self._mode = "done"
-        return out
-
-
 # ---------------------------------------------------------------------------
 # Streaming generator
 # ---------------------------------------------------------------------------
-_COT_LITERAL_TAGS = ("<think>", "</think>", "<final>", "</final>")
+# All CoT FSM / format-guard / budget / final-inject logic lives in the
+# CotMiddleware (see inference/cot_middleware.py).  This file only handles
+# prefill, KV-cache priming, and the WebSocket / FastAPI glue.
 
 
 # === Primed system-prefix cache (real-mode KV reuse) =========================
@@ -389,7 +280,56 @@ _COT_LITERAL_TAGS = ("<think>", "</think>", "<final>", "</final>")
 # subsequent chats that share the same system prompt only run a *continuation*
 # prefill over the user turn + assistant marker (much cheaper than re-running
 # prefill over the whole system block every time).
-_primed_prefix: dict[str, dict[str, Any]] = {}
+#
+# IMPORTANT: each entry stores a *padded* KV cache sized to ``_max_cache_len``
+# (= seq_len + max_new_tokens + 8).  With large ``--max-new-tokens`` (e.g. 20k)
+# every primed entry holds tens of MB and stacks across categories — bound it
+# strictly with an LRU and let the user override via ``--prime-max-entries``.
+import collections
+_primed_prefix: "collections.OrderedDict[str, dict[str, Any]]" = collections.OrderedDict()
+_PRIME_MAX_ENTRIES_DEFAULT = 2
+
+
+def _prime_max_entries() -> int:
+    return int(getattr(_args, "prime_max_entries", _PRIME_MAX_ENTRIES_DEFAULT))
+
+
+def _prime_put(key: str, value: dict[str, Any]) -> None:
+    """Insert/refresh a primed prefix; evict the LRU entry when the bound is exceeded."""
+    if key in _primed_prefix:
+        _primed_prefix.move_to_end(key)
+        _primed_prefix[key] = value
+        return
+    _primed_prefix[key] = value
+    cap = max(1, _prime_max_entries())
+    while len(_primed_prefix) > cap:
+        _primed_prefix.popitem(last=False)
+
+
+def _prime_get(key: str) -> dict[str, Any] | None:
+    if key in _primed_prefix:
+        _primed_prefix.move_to_end(key)
+        return _primed_prefix[key]
+    return None
+
+
+def _free_metal_cache() -> None:
+    """Best-effort: release pooled Metal memory between generations so primed
+    caches don't sit alongside transient per-call caches.
+
+    MLX renamed the symbol to ``mx.clear_cache`` and deprecated
+    ``mx.metal.clear_cache``; prefer the new API and fall back to the old one
+    only when running against an older MLX build.  Silent no-op on
+    non-Metal builds where neither symbol exists."""
+    fn = getattr(mx, "clear_cache", None)
+    if fn is None:
+        fn = getattr(getattr(mx, "metal", None), "clear_cache", None)
+    if fn is None:
+        return
+    try:
+        fn()
+    except Exception:
+        pass
 
 
 def _deepcopy_caches(c: Any) -> Any:
@@ -419,8 +359,8 @@ def _prime_system_prefix_sync(system_prompt: str) -> dict[str, Any]:
     sys_text = (system_prompt or "").strip()
     if not sys_text:
         return {"ok": False, "reason": "empty system prompt", "prefill_ms": 0.0, "prompt_tokens": 0}
-    if sys_text in _primed_prefix:
-        cached = _primed_prefix[sys_text]
+    cached = _prime_get(sys_text)
+    if cached is not None:
         return {"ok": True, "cached": True, "prompt_tokens": int(cached["pos"]), "prefill_ms": 0.0}
 
     ids = _build_system_block_ids(sys_text)
@@ -448,11 +388,11 @@ def _prime_system_prefix_sync(system_prompt: str) -> dict[str, Any]:
         return {"ok": False, "reason": f"prefill failed: {exc}", "prefill_ms": 0.0, "prompt_tokens": len(ids)}
 
     prefill_ms = (time.perf_counter() - t0) * 1000
-    _primed_prefix[sys_text] = {
+    _prime_put(sys_text, {
         "ids": list(ids),
         "caches": caches,
         "pos": len(ids),
-    }
+    })
     return {
         "ok": True,
         "cached": False,
@@ -483,7 +423,7 @@ def _stream_generate(
     logits = None
     prefill_ms = 0.0
     cached_prefix_tokens = 0
-    primed = _primed_prefix.get(sys_text) if sys_text else None
+    primed = _prime_get(sys_text) if sys_text else None
 
     if primed:
         # === Continuation prefill: reuse the primed system-block KV cache. ====
@@ -549,130 +489,164 @@ def _stream_generate(
     from stream_mlx import make_compiled_decode_step
     decode_fn = make_compiled_decode_step(_model, _router_temp)
 
-    pos = len(prompt_ids)
-    generated_ids: list[int] = []
-    special_ids = set(getattr(_tokenizer, "all_special_ids", []) or [])
-    prev_decoded_text = ""
-
+    # === Build the per-turn middleware =======================================
+    # All inference-time guarantees (logit ban + ramped close-bias, reasoning
+    # budget watchdog, <final> injection, splitter routing) are concentrated
+    # in CotMiddleware.  WS-level per-call overrides land on ``args_for_call``
+    # so a disabled-guard turn doesn't mutate the process-wide default.
     sample_args = args_for_call if args_for_call is not None else _args
+    mw_cfg = _mw_cfg or CotMiddlewareConfig.config_from_args(_args)
+    if getattr(sample_args, "format_guard_call_override", None) is False:
+        mw_cfg = replace(mw_cfg, enabled=False)
+    if getattr(sample_args, "force_final_inject_call_override", None) is False:
+        mw_cfg = replace(mw_cfg, force_final_inject=False)
+
+    def _model_apply(x: mx.array, ca: Any, sp: mx.array) -> tuple[mx.array, Any]:
+        """Adapter so the middleware can run a small continuation prefill
+        without holding a reference to the bare model object."""
+        return _model(x, caches=ca, seq_pos=sp, router_temp=_router_temp)
+
+    mw = CotMiddleware(
+        deps=_mw_deps,
+        cfg=mw_cfg,
+        reasoning=bool(reasoning),
+        model_apply=_model_apply,
+        router_temp=_router_temp,
+    )
+
+    pos = len(prompt_ids)
+    # Every sampled token id (special + plain), used only for the post-turn
+    # rich dump.
+    all_tids: list[int] = []
+
     row = logits[0, -1, :]
     token_counts = _init_token_counts(prompt_ids, int(row.shape[0]))
-    last = sample_decode_token(row, token_counts, sample_args)
+
+    last = sample_decode_token(mw.transform_logits(row), token_counts, sample_args)
     token_counts[last] = token_counts[last] + 1
     mx.eval(last)
 
     t_dec0 = time.perf_counter()
     ttft_ms: float | None = None
     n_out = 0
+    elapsed_s_fn = lambda: time.perf_counter() - t_dec0
 
-    splitter = _CotStreamSplitter(start_in_think=bool(reasoning))
-    reasoning_acc: list[str] = []
-
-    def _decode_chunk(tid: int) -> str:
-        """Decode a single id into a streaming-safe string. If `tid` decodes to
-        one of the CoT literal tags (`<think>` / `</think>` / `<final>` /
-        `</final>`), surface it as the exact tag so the splitter can route the
-        following content; other special tokens map to `''` (EOS-like → ``\\n``)."""
-        nonlocal prev_decoded_text
-        if tid in special_ids:
-            try:
-                tok = str(_tokenizer.convert_ids_to_tokens(tid))
-            except Exception:
-                tok = ""
-            if tok in _COT_LITERAL_TAGS:
-                return tok
-            tok_n = tok.strip().lower().replace(" ", "")
-            if tok_n in {"<s>", "</s>", "<eos>", "<|eot_id|>", "<|endoftext|>", "<|im_end|>"}:
-                return "\n"
-            return ""
-        generated_ids.append(tid)
-        try:
-            full_text = _tokenizer.decode(
-                generated_ids, skip_special_tokens=False,
-                clean_up_tokenization_spaces=False,
-            )
-            if full_text.startswith(prev_decoded_text):
-                chunk = full_text[len(prev_decoded_text):]
-            else:
-                chunk = _tokenizer.decode([tid], skip_special_tokens=False, clean_up_tokenization_spaces=False)
-            prev_decoded_text = full_text
-        except Exception:
-            chunk = f"<{tid}>"
-        return chunk
-
-    def _route(chunk: str):
-        """Yield events for one decoded chunk; returns True if splitter signaled stop."""
-        stopped = False
-        for kind, payload in splitter.feed(chunk):
-            if kind == "reasoning":
-                reasoning_acc.append(payload)
-                yield {"type": "reasoning", "markdown": "".join(reasoning_acc)}
-            elif kind == "final":
-                el = time.perf_counter() - t_dec0
-                yield {
-                    "type": "token",
-                    "text": payload,
-                    "n": n_out,
-                    "tok_s": round(n_out / max(el, 1e-9), 1),
-                }
-            elif kind == "stop":
-                stopped = True
-        if stopped:
-            yield {"__stop__": True}
-
+    # === First sampled token ================================================
     tid = int(last.item())
+    all_tids.append(tid)
     n_out += 1
     ttft_ms = (time.perf_counter() - t_dec0) * 1000
     stop_after = False
-    for ev in _route(_decode_chunk(tid)):
+    prev_mode = mw.mode
+    for ev in mw.step(tid, n_out=n_out, elapsed_s_fn=elapsed_s_fn):
         if ev.get("__stop__"):
             stop_after = True
         else:
             yield ev
 
-    if stop_after or (_stop_ids and tid in _stop_ids):
-        for kind, payload in splitter.flush():
-            if kind == "reasoning":
-                reasoning_acc.append(payload)
-                yield {"type": "reasoning", "markdown": "".join(reasoning_acc)}
-            else:
-                el = time.perf_counter() - t_dec0
-                yield {"type": "token", "text": payload, "n": n_out, "tok_s": round(n_out / max(el, 1e-9), 1)}
+    # === Multi-stage <final> injection =======================================
+    # When the splitter just exited <think>, run <final>\n through the model
+    # so caches advance + next-token logits are conditioned on the structural
+    # transition.  Returned ``inj_row`` becomes the source row for the next
+    # sample; we skip one decode_fn step.
+    inj_row: mx.array | None = None
+    if not stop_after and prev_mode == "think" and mw.mode == "between":
+        caches, pos, inj_row, did_inject, inj_ms = mw.maybe_inject_final(caches=caches, pos=pos)
+        if did_inject:
+            prefill_ms += inj_ms
+
+    if stop_after or mw.should_break(tid):
+        for ev in mw.flush(n_out=n_out, elapsed_s_fn=elapsed_s_fn):
+            yield ev
         elapsed = time.perf_counter() - t_dec0
         yield _done_event(n_out, elapsed, ttft_ms, prefill_ms)
+        try:
+            _print_turn_summary(
+                history=history,
+                system_prompt=sys_text,
+                reasoning=bool(reasoning),
+                prompt_ids=prompt_ids,
+                output_token_count=n_out,
+                all_tids=all_tids,
+                elapsed_s=elapsed,
+                ttft_ms=ttft_ms,
+                prefill_ms=prefill_ms,
+                mw_health=mw.health_report(),
+            )
+        except Exception as _exc:
+            print(f"[chat_demo] WARN: turn-summary print failed: {_exc}")
+        try:
+            del caches, logits, last
+        except (NameError, UnboundLocalError):
+            pass
+        _free_metal_cache()
         return
 
+    # === Main decode loop ====================================================
     x_one = last.reshape(1, 1)
     for _ in range(max_tokens - 1):
-        seq_pos = mx.array(pos, dtype=mx.int32)
-        logits_d, caches = decode_fn(x_one, caches, seq_pos)
-        row = logits_d[0, -1, :]
-        last = sample_decode_token(row, token_counts, sample_args)
+        if inj_row is not None:
+            # Use the row produced by the <final>\n injection's last position;
+            # skip one decode_fn step (pos already advanced in middleware).
+            row = inj_row
+            inj_row = None
+        else:
+            seq_pos = mx.array(pos, dtype=mx.int32)
+            logits_d, caches = decode_fn(x_one, caches, seq_pos)
+            row = logits_d[0, -1, :]
+            pos += 1
+        last = sample_decode_token(mw.transform_logits(row), token_counts, sample_args)
         token_counts[last] = token_counts[last] + 1
         mx.eval(last, caches, token_counts)
 
         tid = int(last.item())
+        all_tids.append(tid)
         n_out += 1
-        for ev in _route(_decode_chunk(tid)):
+        prev_mode = mw.mode
+        for ev in mw.step(tid, n_out=n_out, elapsed_s_fn=elapsed_s_fn):
             if ev.get("__stop__"):
                 stop_after = True
             else:
                 yield ev
 
-        if stop_after or (_stop_ids and tid in _stop_ids):
+        if not stop_after and prev_mode == "think" and mw.mode == "between":
+            caches, pos, inj_row, did_inject, inj_ms = mw.maybe_inject_final(caches=caches, pos=pos)
+            if did_inject:
+                prefill_ms += inj_ms
+
+        if stop_after or mw.should_break(tid):
             break
         x_one = last.reshape(1, 1)
-        pos += 1
 
-    for kind, payload in splitter.flush():
-        if kind == "reasoning":
-            reasoning_acc.append(payload)
-            yield {"type": "reasoning", "markdown": "".join(reasoning_acc)}
-        else:
-            el = time.perf_counter() - t_dec0
-            yield {"type": "token", "text": payload, "n": n_out, "tok_s": round(n_out / max(el, 1e-9), 1)}
+    for ev in mw.flush(n_out=n_out, elapsed_s_fn=elapsed_s_fn):
+        yield ev
     elapsed = time.perf_counter() - t_dec0
     yield _done_event(n_out, elapsed, ttft_ms, prefill_ms)
+
+    try:
+        _print_turn_summary(
+            history=history,
+            system_prompt=sys_text,
+            reasoning=bool(reasoning),
+            prompt_ids=prompt_ids,
+            output_token_count=n_out,
+            all_tids=all_tids,
+            elapsed_s=elapsed,
+            ttft_ms=ttft_ms,
+            prefill_ms=prefill_ms,
+            mw_health=mw.health_report(),
+        )
+    except Exception as _exc:
+        print(f"[chat_demo] WARN: turn-summary print failed: {_exc}")
+
+    # Drop the transient per-call caches and free pooled Metal memory so we
+    # don't accumulate alongside the primed prefix cache.  Without this MLX
+    # holds onto every allocated KV block until process exit.
+    try:
+        del caches, logits, x_one, last
+    except (NameError, UnboundLocalError):
+        pass
+    _free_metal_cache()
 
 
 def _done_event(n_out, elapsed, ttft_ms, prefill_ms):
@@ -684,6 +658,244 @@ def _done_event(n_out, elapsed, ttft_ms, prefill_ms):
         "ttft_ms": round(ttft_ms or 0, 2),
         "prefill_ms": round(prefill_ms, 2),
     }
+
+
+# === Post-turn rich console dump =============================================
+# Style map for the tokens that anchor the ChatML / CoT framing.  Anything
+# else falls through to the default text style.  Picked so the colours stay
+# distinguishable on both light and dark terminals.
+_SPECIAL_STYLES: dict[str, str] = {
+    "<think>": "bold cyan",
+    "</think>": "bold cyan",
+    "<final>": "bold green",
+    "</final>": "bold green",
+    "<|im_start|>": "bold yellow",
+    "<|im_end|>": "bold yellow",
+}
+_EOS_TOKENS = {"<s>", "</s>", "<eos>", "<bos>", "<|eot_id|>", "<|endoftext|>", "<pad>", "[PAD]"}
+
+
+def _short_json_str(s: str, limit: int = 140) -> str:
+    """Quote+escape a string for a JSON-ish single-line view, with an ellipsis past `limit`."""
+    s = (s or "").replace("\n", "\\n")
+    if len(s) > limit:
+        s = s[: limit - 1] + "…"
+    return json.dumps(s, ensure_ascii=False)
+
+
+def _render_token_run(tids: list[int]):
+    """Render a list of token ids as a coloured rich ``Text`` block, using the
+    same style map as the main raw dump.  Returns ``None`` if rich isn't
+    available."""
+    try:
+        from rich.text import Text
+    except Exception:
+        return None
+    body = Text()
+    if _tokenizer is None:
+        return body
+    for tid in tids:
+        try:
+            tok = _tokenizer.convert_ids_to_tokens(tid)
+        except Exception:
+            tok = ""
+        if isinstance(tok, list):
+            tok = "".join(str(x) for x in tok)
+        tok = str(tok) if tok is not None else ""
+        tok_n = tok.strip().replace(" ", "")
+
+        if tok in _SPECIAL_STYLES:
+            body.append(tok, style=_SPECIAL_STYLES[tok])
+            continue
+        if tok in _EOS_TOKENS or tok_n in _EOS_TOKENS:
+            body.append(tok or f"<id={tid}>", style="bold red")
+            continue
+        try:
+            piece = _tokenizer.decode(
+                [tid], skip_special_tokens=False, clean_up_tokenization_spaces=False,
+            )
+        except Exception:
+            piece = tok or f"<id={tid}>"
+        styled = False
+        for tag, style in _SPECIAL_STYLES.items():
+            if tag == piece:
+                body.append(tag, style=style)
+                styled = True
+                break
+        if not styled:
+            body.append(piece, style="white")
+    return body
+
+
+def _decode_ids_str(tids: list[int]) -> str:
+    """Best-effort decode of a list of token ids into a single string,
+    keeping special tokens visible.  Empty on failure."""
+    if _tokenizer is None or not tids:
+        return ""
+    try:
+        return _tokenizer.decode(
+            tids, skip_special_tokens=False, clean_up_tokenization_spaces=False,
+        )
+    except Exception:
+        return ""
+
+
+def _framing_health(
+    *, reasoning: bool, prompt_tail_str: str, output_str: str, output_tids: list[int],
+) -> tuple[str, str]:
+    """Compute a one-line framing health string for the post-turn dump.
+
+    Checks whether the expected CoT framing tokens appear where they should:
+      - ``<think>``  → must be present in the *prompt tail* when reasoning is on
+                       (we inject it ourselves; we never want the model to repeat it).
+      - ``</think>`` → must appear in the *output* when reasoning is on.
+      - ``<final>``  / ``</final>`` → must appear in the *output* when reasoning is on.
+      - EOS-ish     → look for a clean ``<|im_end|>`` or any token in ``_EOS_TOKENS``.
+
+    Returns ``(line, severity)`` where severity is one of ``"ok" | "warn" | "info"``."""
+    def _mk(present: bool, label: str) -> str:
+        if present:
+            return f"[green]{label}✓[/]"
+        return f"[red]{label}✗[/]"
+
+    has_open_think = "<think>" in prompt_tail_str
+    has_close_think = "</think>" in output_str
+    has_open_final = "<final>" in output_str
+    has_close_final = "</final>" in output_str
+    has_im_end = "<|im_end|>" in output_str
+    # EOS-ish: any token that matches one of our EOS strings.
+    eos_tok = ""
+    if output_tids and _tokenizer is not None:
+        try:
+            last_tok = _tokenizer.convert_ids_to_tokens(output_tids[-1])
+            if isinstance(last_tok, list):
+                last_tok = "".join(str(x) for x in last_tok)
+            last_tok = str(last_tok) if last_tok is not None else ""
+            if last_tok in _EOS_TOKENS or last_tok.strip().replace(" ", "") in _EOS_TOKENS:
+                eos_tok = last_tok
+        except Exception:
+            eos_tok = ""
+
+    bits: list[str] = []
+    if reasoning:
+        bits.append(_mk(has_open_think, "<think>(prompt)"))
+        bits.append(_mk(has_close_think, "</think>"))
+        bits.append(_mk(has_open_final, "<final>"))
+        bits.append(_mk(has_close_final, "</final>"))
+    bits.append(_mk(has_im_end, "<|im_end|>"))
+    if eos_tok:
+        bits.append(f"[red]eos={eos_tok}[/]")
+
+    severity: str = "ok"
+    if reasoning and not has_close_think:
+        severity = "warn"
+    elif reasoning and (not has_open_final or not has_close_final):
+        severity = "warn"
+    elif not has_im_end and not eos_tok:
+        severity = "info"
+    return "  ".join(bits), severity
+
+
+def _print_turn_summary(
+    *,
+    history: list[dict],
+    system_prompt: str,
+    reasoning: bool,
+    prompt_ids: list[int],
+    output_token_count: int,
+    all_tids: list[int],
+    elapsed_s: float,
+    ttft_ms: float | None,
+    prefill_ms: float,
+    mw_health: dict[str, Any] | None = None,
+) -> None:
+    """Print a JSON-like view of the just-completed turn to the launcher
+    terminal using ``rich``.  Special tokens (``<think>`` / ``</think>`` /
+    ``<final>`` / ``</final>`` / ``<|im_start|>`` / ``<|im_end|>`` / EOS) get
+    distinct colours; everything else renders as plain decoded text.  Safe to
+    fail silently if `rich` is missing or the tokenizer can't resolve an id.
+
+    In addition to the raw output, this surfaces:
+      * ``prompt_tail`` — the last few prompt tokens, so the injected
+        ``<|im_start|>assistant`` + ``<think>\\n`` framing is visible and you
+        can confirm the model was set up correctly for CoT.
+      * ``framing``   — a one-line health check that flags when the model
+        failed to emit ``</think>`` / ``<final>`` / ``</final>``.  This is the
+        quick "is the model stable on CoT or not?" signal."""
+    if not all_tids or _tokenizer is None:
+        return
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.text import Text
+    except Exception:
+        return
+
+    body = _render_token_run(all_tids)
+    if body is None:
+        return
+    # Last ~12 prompt tokens — usually covers `<|im_start|>assistant\n<think>\n`.
+    tail_ids = list(prompt_ids[-12:]) if prompt_ids else []
+    tail_text = _render_token_run(tail_ids)
+    tail_str = _decode_ids_str(tail_ids)
+    out_str = _decode_ids_str(all_tids)
+    framing_line, severity = _framing_health(
+        reasoning=reasoning,
+        prompt_tail_str=tail_str,
+        output_str=out_str,
+        output_tids=all_tids,
+    )
+
+    last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
+    con = Console(highlight=False)
+    con.rule("[bold dim]chat turn complete[/]")
+
+    header = Text()
+    header.append("{\n", style="dim")
+    header.append('  "system":    ', style="cyan")
+    header.append(_short_json_str(system_prompt, 200) + ",\n")
+    header.append('  "user":      ', style="cyan")
+    header.append(_short_json_str(last_user, 200) + ",\n")
+    header.append('  "reasoning": ', style="cyan")
+    header.append(("true" if reasoning else "false") + ",\n", style="yellow")
+    header.append('  "metrics":   ', style="cyan")
+    header.append(
+        "{ "
+        f"prompt: {len(prompt_ids)} tok, "
+        f"output: {output_token_count} tok, "
+        f"prefill: {prefill_ms:.0f}ms, "
+        f"ttft: {(ttft_ms or 0.0):.0f}ms, "
+        f"total: {elapsed_s * 1000:.0f}ms"
+        " },\n",
+        style="dim",
+    )
+    con.print(header, end="")
+
+    # Render the framing health check + optional warning.
+    con.print(Text.assemble(('  "framing":   ', "cyan")), end="")
+    con.print(f"[ {framing_line} ],", highlight=False)
+    if severity == "warn" and reasoning:
+        con.print(
+            "  [bold yellow]⚠ reasoning enabled but model never closed `<think>` / `<final>` — "
+            "ChatML framing not honored this turn.[/]",
+            highlight=False,
+        )
+
+    # Middleware health one-liner — what the format guard / budget / inject
+    # path actually did this turn.
+    if mw_health is not None:
+        con.print(Text.assemble(('  "middleware":', "cyan")), end=" ")
+        con.print(f"[ {render_health_line(mw_health)} ],", highlight=False)
+
+    # Prompt tail (last few tokens) so the injected `<think>\n` is visible.
+    if tail_text is not None and len(tail_ids) > 0:
+        con.print(Text.assemble(('  "prompt_tail":', "cyan")), end=" ")
+        con.print(Panel(tail_text, border_style="dim", padding=(0, 1), title="last prompt tokens",
+                        title_align="left"))
+
+    con.print(Text.assemble(('  "raw":', "cyan")), end="")
+    con.print(Panel(body, border_style="dim", padding=(0, 1)))
+    con.print("}", style="dim")
 
 
 # ---------------------------------------------------------------------------
@@ -799,7 +1011,34 @@ async def demo_config():
         "categories": data.get("categories", []),
         "examples": flat if flat else legacy,
         "sampling_defaults": _sampling_defaults_dict(),
+        "max_new_tokens_cap": int(getattr(_args, "max_new_tokens", 2048)) if _args else 2048,
+        "reasoning_budget": int(getattr(_args, "reasoning_budget", 2000)) if _args else 2000,
+        "format_guard": _format_guard_status_dict(),
     })
+
+
+def _format_guard_status_dict() -> dict[str, Any]:
+    """Snapshot of CLI defaults for the inference middleware, so the UI can
+    show matching toggles in the Sampling drawer."""
+    if _args is None:
+        return {
+            "enabled": True,
+            "ban_im_start": True,
+            "close_bias": 4.0,
+            "close_bias_max": 16.0,
+            "close_bias_start": 0,
+            "force_final_inject": True,
+            "reasoning_budget": 2000,
+        }
+    return {
+        "enabled": bool(getattr(_args, "format_guard", True)),
+        "ban_im_start": bool(getattr(_args, "ban_im_start", True)),
+        "close_bias": float(getattr(_args, "close_bias", 4.0)),
+        "close_bias_max": float(getattr(_args, "close_bias_max", 16.0)),
+        "close_bias_start": int(getattr(_args, "close_bias_start", 0)),
+        "force_final_inject": bool(getattr(_args, "force_final_inject", True)),
+        "reasoning_budget": int(getattr(_args, "reasoning_budget", 2000)),
+    }
 
 
 def _sampling_defaults_dict() -> dict[str, Any]:
@@ -856,6 +1095,46 @@ def _apply_sampling_override(base_args: Any, sampling: dict[str, Any] | None) ->
         except (TypeError, ValueError):
             pass
     return a
+
+
+def _apply_format_guard_override(base_args: Any, override: Any) -> Any:
+    """Attach per-call middleware overrides from a WS ``chat`` payload.
+
+    Recognises:
+      * ``format_guard: false``                — disable ban + close-bias for this turn.
+      * ``format_guard: {"enabled": false}``   — same as above.
+      * ``format_guard: {"force_final_inject": false}`` — skip the multi-stage
+        ``<final>\\n`` injection for this turn.
+
+    Anything else (truthy values, missing fields) leaves the process-wide
+    defaults intact."""
+    import copy as _copy
+
+    if override is None:
+        return base_args
+    enabled: bool | None = None
+    inject: bool | None = None
+    if isinstance(override, bool):
+        enabled = override
+    elif isinstance(override, dict):
+        if "enabled" in override:
+            try:
+                enabled = bool(override["enabled"])
+            except Exception:
+                pass
+        if "force_final_inject" in override:
+            try:
+                inject = bool(override["force_final_inject"])
+            except Exception:
+                pass
+    if enabled is False or inject is False:
+        a = _copy.copy(base_args)
+        if enabled is False:
+            a.format_guard_call_override = False
+        if inject is False:
+            a.force_final_inject_call_override = False
+        return a
+    return base_args
 
 
 def _flatten_mock_examples(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1163,6 +1442,13 @@ async def websocket_chat(ws: WebSocket):
 
             if action == "clear":
                 conversation.clear()
+                # Drop all primed prefixes and release pooled Metal memory.
+                # The next chat will re-prime as needed; this keeps long-lived
+                # sessions from accumulating KV caches across many category
+                # switches.
+                if not _MOCK_MODE:
+                    _primed_prefix.clear()
+                    _free_metal_cache()
                 await ws.send_json({"type": "cleared"})
                 continue
 
@@ -1283,6 +1569,7 @@ async def websocket_chat(ws: WebSocket):
                     reasoning_flag = bool(reasoning_flag)
                 sampling_override = msg.get("sampling") if isinstance(msg.get("sampling"), dict) else None
                 args_for_call = _apply_sampling_override(_args, sampling_override)
+                args_for_call = _apply_format_guard_override(args_for_call, msg.get("format_guard"))
 
                 conversation.append({"role": "user", "content": prompt})
                 history_snapshot = list(conversation)
@@ -1348,7 +1635,116 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--inference-type", type=str, default="safe",
                     choices=("throughput", "safe", "eager", "sequential-ssm", "custom"))
     p.add_argument("--seq-len", type=int, default=512)
-    p.add_argument("--max-new-tokens", type=int, default=2048)
+    p.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=20480,
+        help=(
+            "Hard ceiling on streamed tokens per turn. Also feeds into _max_cache_len "
+            "(= seq_len + max_new_tokens + 8), so KV memory scales linearly with this. "
+            "Lower it (e.g. 4096) if you're memory-bound."
+        ),
+    )
+    p.add_argument(
+        "--prime-max-entries",
+        type=int,
+        default=_PRIME_MAX_ENTRIES_DEFAULT,
+        help=(
+            "Max number of distinct system prompts whose KV cache is kept warm. "
+            "Each entry holds a full padded KV cache (~tens of MB at large max-new-tokens); "
+            "older entries are evicted in LRU order."
+        ),
+    )
+    p.add_argument(
+        "--reasoning-budget",
+        type=int,
+        default=2000,
+        help=(
+            "Hard cap on tokens emitted *inside* `<think>` before we force-stop the turn. "
+            "If the model is still rambling inside the reasoning block after this many tokens "
+            "without emitting `</think>`, we synthesise a short notice + force a stop. "
+            "Set to 0 to disable."
+        ),
+    )
+    p.add_argument(
+        "--format-guard",
+        dest="format_guard",
+        action="store_true",
+        default=True,
+        help=(
+            "Enable the inference-time ChatML / CoT format guard: bans `<|im_start|>` to "
+            "stop role-flip hallucinations and adds a soft close-bias on `</think>` once "
+            "`--close-bias-start` is reached. See inference/cot_format_fsm.py."
+        ),
+    )
+    p.add_argument(
+        "--no-format-guard",
+        dest="format_guard",
+        action="store_false",
+        help="Disable the format guard entirely (no ban, no close-bias).",
+    )
+    p.add_argument(
+        "--ban-im-start",
+        dest="ban_im_start",
+        action="store_true",
+        default=True,
+        help="Set `<|im_start|>` logit to -inf during assistant generation (default: on).",
+    )
+    p.add_argument(
+        "--no-ban-im-start",
+        dest="ban_im_start",
+        action="store_false",
+        help="Allow `<|im_start|>` in assistant generation (NOT recommended; only for debugging).",
+    )
+    p.add_argument(
+        "--close-bias",
+        dest="close_bias",
+        type=float,
+        default=4.0,
+        help=(
+            "*Initial* positive logit bias for the first id of `</think>` once the "
+            "think block is past `--close-bias-start` tokens. Stacks on top of model "
+            "logits.  See also --close-bias-max for the dynamic ramp ceiling."
+        ),
+    )
+    p.add_argument(
+        "--close-bias-max",
+        dest="close_bias_max",
+        type=float,
+        default=16.0,
+        help=(
+            "*Peak* close-bias value reached at the reasoning budget (linear ramp from "
+            "--close-bias at --close-bias-start up to this value at --reasoning-budget). "
+            "Set equal to --close-bias to disable the dynamic ramp."
+        ),
+    )
+    p.add_argument(
+        "--close-bias-start",
+        dest="close_bias_start",
+        type=int,
+        default=0,
+        help=(
+            "Token count *inside* `<think>` after which the close-bias kicks in. "
+            "0 = auto: middleware sets this to reasoning_budget // 2."
+        ),
+    )
+    p.add_argument(
+        "--force-final-inject",
+        dest="force_final_inject",
+        action="store_true",
+        default=True,
+        help=(
+            "Multi-stage prompt injection: when the splitter just exited <think>, "
+            "encode `<final>\\n` and run it through the model so caches advance and "
+            "the next token is conditioned on the structural transition. (default: on)"
+        ),
+    )
+    p.add_argument(
+        "--no-force-final-inject",
+        dest="force_final_inject",
+        action="store_false",
+        help="Disable multi-stage `<final>\\n` injection (model must emit `<final>` on its own).",
+    )
     p.add_argument("--warmup", type=int, default=2)
     p.add_argument("--vocab-size", type=int, default=32007)
     p.add_argument("--dtype", type=str, default="bf16", choices=["fp32", "bf16", "fp16"])

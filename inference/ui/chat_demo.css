@@ -383,44 +383,119 @@ header{
 }
 .msg-row.intro-bubble .msg-text p{margin:.35em 0}
 
-/* ───────────────────── Markdown body ───────────────────── */
-.md-body{font-size:.94rem;line-height:1.65;color:var(--fg);word-wrap:break-word}
+/* ───────────────────── Markdown body (Claude-flavoured) ─────────────────────
+   - Headings: sans-serif, slightly heavier, tighter rhythm so subsections read
+     like the structured Claude output ("核心改動說明 / 流程 / 修正").
+   - Inline code: warm-neutral pill that contrasts gently against body text.
+   - Tables: bottomless rows, distinct header band, hover highlight.
+   - Lists: tighter row spacing, bullets in muted accent. */
+.md-body{
+  font-size:.93rem;line-height:1.7;color:var(--fg2);word-wrap:break-word;
+  font-feature-settings:"cv11","ss01";
+}
 .md-body.markdown-streaming{white-space:pre-wrap}
-.md-body h1,.md-body h2,.md-body h3,.md-body h4{
-  font-family:var(--serif);margin:1em 0 .45em;font-weight:600;
-  line-height:1.25;letter-spacing:-.015em;color:var(--fg);
+.md-body > :first-child{margin-top:0}
+.md-body > :last-child{margin-bottom:0}
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4{
+  font-family:var(--font);font-weight:600;line-height:1.3;letter-spacing:-.01em;
+  color:var(--fg);margin:1.35em 0 .55em;
 }
-.md-body h1{font-size:1.4rem}
-.md-body h2{font-size:1.2rem}
-.md-body h3{font-size:1.05rem}
-.md-body h4{font-size:.98rem}
+.md-body h1{font-size:1.28rem;letter-spacing:-.015em}
+.md-body h2{font-size:1.12rem}
+.md-body h3{font-size:1rem}
+.md-body h4{font-size:.94rem;color:var(--fg);font-weight:600}
+.md-body h1::after,
+.md-body h2::after{
+  content:"";display:block;height:1px;margin-top:.45em;
+  background:linear-gradient(90deg,var(--border-2),transparent);
+}
 .md-body p{margin:.6em 0}
-.md-body ul,.md-body ol{margin:.5em 0 .5em 1.3em}
-.md-body li{margin:.28em 0}
+.md-body p + p{margin-top:.55em}
+.md-body strong{color:var(--fg);font-weight:600}
+.md-body em{color:var(--fg2);font-style:italic}
+.md-body a{color:var(--accent-2);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:.06em}
+.md-body hr{border:none;height:1px;background:var(--border);margin:1.2em 0}
+
+/* Lists — bullets in muted accent, tighter rhythm */
+.md-body ul,
+.md-body ol{margin:.5em 0 .55em;padding-left:1.25em}
+.md-body ul{list-style:none}
+.md-body ul > li{position:relative;padding-left:.85em;margin:.28em 0}
+.md-body ul > li::before{
+  content:"";position:absolute;left:0;top:.7em;width:5px;height:5px;
+  border-radius:50%;background:var(--accent-2);opacity:.85;
+}
+.md-body ol{list-style:decimal;color:var(--fg2)}
+.md-body ol > li{margin:.32em 0;padding-left:.25em}
+.md-body ol > li::marker{color:var(--accent-2);font-weight:600;font-family:var(--mono);font-size:.85em}
+.md-body li > p{margin:.2em 0}
+.md-body li > ul,
+.md-body li > ol{margin:.25em 0 .2em}
+
+/* Inline code — neutral warm pill, slightly smaller than body text */
 .md-body code{
-  font-family:var(--mono);font-size:.84em;
-  background:rgba(255,255,255,.06);padding:.12em .38em;border-radius:5px;color:#f3dccc;
+  font-family:var(--mono);font-size:.82em;letter-spacing:-.01em;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.06);
+  color:#f0c9b1;
+  padding:.08em .42em .12em;border-radius:6px;
+  white-space:nowrap;
 }
+.md-body code::before,
+.md-body code::after{content:""}
+
+/* Fenced code block — calm dark surface with a thin top accent strip */
 .md-body pre{
-  background:var(--bg-deep);padding:14px 16px;border-radius:10px;overflow-x:auto;margin:.75em 0;
-  border:1px solid var(--border);
+  position:relative;
+  background:#1f1e1c;border:1px solid var(--border);
+  padding:14px 16px;border-radius:12px;
+  margin:.85em 0;overflow-x:auto;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);
 }
-.md-body pre code{background:none;padding:0;color:var(--fg)}
-.md-body strong{color:var(--fg)}
-.md-body a{color:var(--accent-2);text-decoration:underline;text-underline-offset:2px}
-.md-body hr{border:none;border-top:1px solid var(--border);margin:1em 0}
+.md-body pre::before{
+  content:"";position:absolute;left:14px;right:14px;top:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(204,120,92,.45),transparent);
+  opacity:.55;
+}
+.md-body pre code{
+  background:none;border:none;padding:0;color:var(--fg);
+  font-size:.84em;line-height:1.6;white-space:pre;
+}
+
+/* Blockquote — left rule + softened text */
+.md-body blockquote{
+  margin:.85em 0;padding:.25em 0 .25em 14px;
+  border-left:3px solid rgba(204,120,92,.5);color:var(--fg3);
+  background:linear-gradient(90deg,rgba(204,120,92,.05),transparent 70%);
+}
+.md-body blockquote p:first-child{margin-top:0}
+.md-body blockquote p:last-child{margin-bottom:0}
+
+/* Tables — borderless rows with a clear header band, gentle hover */
 .md-body table{
-  border-collapse:collapse;width:100%;font-size:.86rem;margin:.85em 0;
-  border:1px solid var(--border);border-radius:10px;overflow:hidden;
-  background:rgba(0,0,0,.18);
+  border-collapse:separate;border-spacing:0;width:100%;font-size:.86rem;
+  margin:1em 0;background:transparent;
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;
 }
 .md-body thead th{
-  background:rgba(204,120,92,.10);color:var(--fg);font-weight:600;
-  font-family:var(--font);letter-spacing:.01em;
+  font-family:var(--font);font-weight:600;color:var(--fg);
+  background:rgba(204,120,92,.07);
+  border-bottom:1px solid var(--border-2);
+  padding:9px 14px;text-align:left;letter-spacing:.005em;
 }
-.md-body th,.md-body td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
-.md-body tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.md-body tbody tr:hover td{background:rgba(255,255,255,.04)}
+.md-body tbody td{
+  padding:10px 14px;text-align:left;vertical-align:top;
+  border-bottom:1px solid var(--border);color:var(--fg2);
+}
+.md-body tbody tr:last-child td{border-bottom:none}
+.md-body tbody tr:hover td{background:rgba(255,255,255,.025)}
+.md-body table code{
+  background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.05);
+  color:#f0c9b1;
+}
 
 /* Streaming caret */
 .msg-text.streaming.markdown-streaming::after{
@@ -501,11 +576,56 @@ header{
 .tool-inner .tool-sublabel{font-size:.62rem;color:var(--fg3);margin-bottom:4px;letter-spacing:.04em}
 .tool-inner .ctl-block{margin:0}
 
-.typing-dots{display:inline-flex;gap:4px;padding:2px 0;align-items:center;height:20px}
-.typing-dots span{width:7px;height:7px;background:var(--fg3);border-radius:50%;animation:dotBounce .6s infinite alternate}
-.typing-dots span:nth-child(2){animation-delay:.15s}
-.typing-dots span:nth-child(3){animation-delay:.3s}
-@keyframes dotBounce{to{transform:translateY(-4px);opacity:.3}}
+/* Thinking pulse — Claude-style starburst + italic status line.
+   Replaces the older 3-dot ellipsis. The glyph slowly rotates + breathes,
+   while a soft warm halo behind it pulses on a slightly slower beat so
+   the eye reads it as "alive" without being noisy. */
+.thinking-pulse{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:4px 0;color:var(--accent);
+  font-family:var(--serif);font-style:italic;font-size:.92rem;
+  letter-spacing:.005em;
+}
+.thinking-pulse .tp-glyph{
+  position:relative;width:18px;height:18px;flex:0 0 18px;
+  color:var(--accent);
+  transform-origin:50% 50%;
+  filter:drop-shadow(0 0 6px rgba(204,120,92,.45));
+  animation:tpBreathe 2.2s ease-in-out infinite, tpSpin 6s linear infinite;
+}
+.thinking-pulse .tp-glyph::before{
+  content:"";position:absolute;inset:-6px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(204,120,92,.32),transparent 70%);
+  filter:blur(1px);
+  animation:tpHalo 2.4s ease-in-out infinite;
+  pointer-events:none;
+}
+.thinking-pulse .tp-label{
+  color:var(--fg2);opacity:.85;
+  animation:tpFade 2.6s ease-in-out infinite;
+}
+@keyframes tpBreathe{
+  0%,100%{transform:scale(.9);opacity:.85}
+  50%   {transform:scale(1.08);opacity:1}
+}
+@keyframes tpSpin{
+  from{rotate:0deg}
+  to  {rotate:360deg}
+}
+@keyframes tpHalo{
+  0%,100%{opacity:.55;transform:scale(.92)}
+  50%   {opacity:.95;transform:scale(1.18)}
+}
+@keyframes tpFade{
+  0%,100%{opacity:.7}
+  50%   {opacity:1}
+}
+/* Legacy class kept for any third-party hooks; mapped onto the new visual. */
+.typing-dots{display:inline-flex;gap:4px;align-items:center;height:20px}
+.typing-dots span{width:6px;height:6px;background:var(--accent);border-radius:50%;
+  animation:tpBreathe 1.6s ease-in-out infinite}
+.typing-dots span:nth-child(2){animation-delay:.18s}
+.typing-dots span:nth-child(3){animation-delay:.36s}
 
 .msg-metrics{
   display:flex;gap:12px;margin-top:8px;padding:6px 0;font-size:.66rem;color:var(--fg3);
@@ -518,18 +638,112 @@ header{
   font-family:var(--mono);width:fit-content;
 }
 
-/* ───────────────────── Welcome screen ───────────────────── */
-.welcome-wrap{
-  flex:1;display:flex;align-items:center;justify-content:center;padding:48px 24px;
-  animation:msgEnter 320ms ease-out both;
+/* ───────────────────── Claude-style landing (empty chat) ───────────────────── */
+.welcome-wrap.landing{
+  flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  padding:8px 20px 20px;
+  animation:msgEnter 420ms cubic-bezier(.16,1,.3,1) both;
 }
-.welcome{max-width:560px;text-align:center}
-.welcome-h1{
-  font-family:var(--serif);font-size:2.05rem;font-weight:500;
-  margin-bottom:12px;letter-spacing:-.02em;color:var(--fg);
+/* Compact the sys-card in landing mode so it doesn't dominate the page. */
+.main-col.landing-mode .sys-card{
+  margin-top:6px;margin-bottom:0;max-width:min(720px,94vw);
 }
-.welcome-sub{font-size:.92rem;color:var(--fg3);line-height:1.65}
-.welcome-sub code{font-family:var(--mono);font-size:.82em;color:var(--accent-2)}
+.main-col.landing-mode .sys-card-body{max-height:200px}
+.landing-inner{
+  max-width:720px;width:100%;display:flex;flex-direction:column;align-items:center;
+  text-align:center;
+}
+.landing-logo{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:22px;
+  filter:drop-shadow(0 6px 22px rgba(217,119,87,.32));
+}
+.landing-logo::before{
+  content:"";position:absolute;inset:-26%;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(217,119,87,.22),rgba(217,119,87,0) 72%);
+  z-index:-1;pointer-events:none;
+}
+.landing-logo-svg{
+  display:block;width:58px;height:58px;-webkit-user-select:none;user-select:none;
+  animation:logoPulse 4.6s ease-in-out infinite;
+  transform-origin:center;
+}
+@keyframes logoPulse{
+  0%,100%{opacity:.96;filter:drop-shadow(0 0 0 rgba(217,119,87,0)) saturate(1)}
+  50%{opacity:1;filter:drop-shadow(0 0 14px rgba(232,150,120,.32)) saturate(1.05)}
+}
+@media (prefers-reduced-motion: reduce){
+  .landing-logo-svg{animation:none}
+}
+.landing-greeting{
+  font-family:var(--serif);font-size:clamp(1.65rem,3.2vw,2.4rem);font-weight:500;
+  letter-spacing:-.03em;line-height:1.1;color:var(--fg);margin:0 0 10px;
+}
+.landing-tagline{
+  font-size:1.02rem;color:var(--fg3);font-weight:450;margin:0 0 26px;line-height:1.45;
+}
+.landing-pills{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
+  margin-bottom:20px;
+}
+.landing-pill{
+  display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;
+  border:1px solid var(--border-2);background:rgba(255,255,255,.03);color:var(--fg2);
+  font-family:var(--font);font-size:.78rem;font-weight:500;cursor:pointer;
+  transition:background .14s,border-color .14s,color .14s,transform .14s;
+}
+.landing-pill:hover{
+  background:rgba(255,255,255,.07);border-color:var(--border-strong);color:var(--fg);transform:translateY(-1px);
+}
+.landing-pill .lp-ic{display:inline-flex;color:var(--fg4);transition:color .14s}
+.landing-pill:hover .lp-ic{color:var(--accent-2)}
+.landing-pill-accent{border-color:rgba(204,120,92,.42);background:rgba(204,120,92,.08);color:var(--accent-2)}
+.landing-pill-accent:hover{background:rgba(204,120,92,.14);border-color:rgba(204,120,92,.55)}
+.landing-footnote{
+  font-size:.76rem;color:var(--fg4);line-height:1.55;max-width:480px;margin:0;
+}
+.landing-footnote strong{color:var(--fg3);font-weight:600}
+
+/* Hint row under composer — visible only in landing mode.  Width tracks the
+   landing-mode composer (≈720px) so it sits centered below the input box. */
+.landing-strip{
+  display:none;width:100%;max-width:min(720px,94vw);margin:8px auto 2px;
+  padding:0 6px;align-items:center;justify-content:space-between;gap:12px;
+  font-size:.7rem;color:var(--fg4);
+}
+.main-col.landing-mode .landing-strip{display:flex}
+.landing-strip-msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.landing-strip-link{
+  background:none;border:none;padding:0;font:inherit;font-size:.68rem;font-weight:600;
+  color:var(--fg2);cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+}
+.landing-strip-link:hover{color:var(--accent-2)}
+
+/* Landing: soften chrome, enlarge composer.  The system-prompt card stays
+   visible (sits centered above the welcome block, see .sys-card rules).
+   The dense footer (Max tokens slider) is hidden so the landing area only
+   shows the composer + the slim hint strip below it. */
+.main-col.landing-mode header{
+  border-bottom-color:transparent;background:transparent;
+}
+.main-col.landing-mode .header-title-pill{opacity:.5}
+.main-col.landing-mode .input-container{max-width:min(720px,94vw)}
+.main-col.landing-mode .input-box{
+  border-radius:26px;padding:12px 14px 12px 12px;min-height:56px;
+  background:#2e2e2c;border-color:rgba(255,255,255,.1);
+  box-shadow:0 8px 36px -20px rgba(0,0,0,.6);
+}
+.main-col.landing-mode #prompt-input{font-size:1.05rem;padding:10px 6px;min-height:28px}
+.main-col.landing-mode .input-footer{display:none}
+.main-col.landing-mode .input-area{padding-top:2px;padding-bottom:18px}
+
+.input-mic{
+  width:32px;height:32px;flex-shrink:0;border-radius:10px;border:none;background:transparent;
+  color:var(--fg3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  align-self:flex-end;transition:background .12s,color .12s;
+}
+.input-mic:hover:not(:disabled){background:rgba(255,255,255,.06);color:var(--fg)}
+.input-mic:disabled{opacity:.45;cursor:default}
 
 /* ───────────────────── Input area ───────────────────── */
 .input-area{
@@ -741,6 +955,37 @@ header{
   background:#1a1815;border:1px solid var(--border);border-radius:var(--radius-xs);
   padding:6px 10px;overflow-x:auto;white-space:nowrap;
 }
+
+/* Format guard toggle row — sits below the slider grid in the Sampling tab. */
+.sampling-row.guard-row{grid-template-columns:1fr auto;margin-top:6px}
+.guard-toggle{
+  display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  -webkit-user-select:none;user-select:none;
+}
+.guard-toggle input[type=checkbox]{
+  position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;
+}
+.guard-toggle .guard-toggle-knob{
+  position:relative;width:34px;height:18px;border-radius:999px;
+  background:rgba(255,255,255,.08);border:1px solid var(--border);
+  transition:background .15s ease, border-color .15s ease;
+  flex:0 0 34px;
+}
+.guard-toggle .guard-toggle-knob::after{
+  content:"";position:absolute;top:1px;left:1px;width:14px;height:14px;
+  border-radius:50%;background:var(--fg3);
+  transition:transform .15s ease, background .15s ease;
+}
+.guard-toggle input:checked + .guard-toggle-knob{
+  background:rgba(204,120,92,.30);border-color:rgba(204,120,92,.55);
+}
+.guard-toggle input:checked + .guard-toggle-knob::after{
+  transform:translateX(15px);background:var(--accent);
+}
+.guard-toggle .guard-toggle-label{
+  font-family:var(--mono);font-size:.7rem;color:var(--fg3);min-width:24px;
+}
+.guard-toggle input:checked ~ .guard-toggle-label{color:var(--accent-2)}
 .btn-secondary{
   font-family:var(--font);font-size:.72rem;font-weight:600;padding:6px 12px;border-radius:8px;
   border:1px solid var(--border-2);background:rgba(255,255,255,.04);color:var(--fg2);cursor:pointer;

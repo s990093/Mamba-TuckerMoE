@@ -96,6 +96,31 @@ window.addEventListener('resize', () => nudgeScroll());
 const samplingGrid = $('#sampling-grid');
 const samplingJsonEl = $('#sampling-json');
 const btnSamplingReset = $('#btn-sampling-reset');
+const formatGuardToggle = $('#format-guard-toggle');
+const formatGuardLabel = $('#format-guard-label');
+const formatGuardJsonEl = $('#format-guard-json');
+
+/** Inference-time format guard (CoT ChatML skeleton; see cot_format_fsm.py).
+ *  When ``false`` we send ``format_guard: false`` in each chat payload so the
+ *  backend bypasses the ban + close-bias for that turn only. */
+let formatGuardEnabled = true;
+let formatGuardServer = { enabled: true, ban_im_start: true, close_bias: 4.0, close_bias_start: 0 };
+
+function refreshFormatGuardLabel() {
+  if (formatGuardLabel) formatGuardLabel.textContent = formatGuardEnabled ? 'On' : 'Off';
+  if (formatGuardToggle) formatGuardToggle.checked = !!formatGuardEnabled;
+  if (formatGuardJsonEl) {
+    formatGuardJsonEl.textContent = JSON.stringify({
+      ...formatGuardServer,
+      enabled: !!formatGuardEnabled,
+    });
+  }
+}
+
+formatGuardToggle?.addEventListener('change', () => {
+  formatGuardEnabled = !!formatGuardToggle.checked;
+  refreshFormatGuardLabel();
+});
 
 /** Sampling controls — keep in sync with `chat_demo.py` CLI args. */
 const SAMPLING_FIELDS = [
@@ -707,6 +732,13 @@ async function loadDemoConfig() {
     renderStyleAndTools(j.style_constraints, j.tool_registry);
     renderSidebarCategories(j.categories);
     initSamplingDefaults(j.sampling_defaults || {});
+    applyMaxTokensCap(j.max_new_tokens_cap);
+    if (j.format_guard && typeof j.format_guard === 'object') {
+      formatGuardServer = { ...formatGuardServer, ...j.format_guard };
+      formatGuardEnabled = !!formatGuardServer.enabled;
+    }
+    refreshFormatGuardLabel();
+    refreshLandingGreeting();
   } catch {
     globalSystemMarkdown = '';
     categorySystemPrompts = {};
@@ -714,6 +746,7 @@ async function loadDemoConfig() {
     renderSidebarCategories([]);
     applySysCardForCategory(null);
     initSamplingDefaults({});
+    refreshLandingGreeting();
   }
 }
 
@@ -726,6 +759,59 @@ function setDrawerTab(tab) {
   });
 }
 
+const mainCol = $('#main-col');
+const landingGreeting = $('#landing-greeting');
+const landingStripLink = $('#landing-strip-link');
+
+function greetingPrefix() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Good morning';
+  if (h >= 12 && h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function refreshLandingGreeting() {
+  const u = document.querySelector('.user-name');
+  const raw = u?.textContent?.trim() || '';
+  const name = raw || 'there';
+  if (landingGreeting) landingGreeting.textContent = `${greetingPrefix()}, ${name}`;
+}
+
+function setLandingMode(on) {
+  mainCol?.classList.toggle('landing-mode', !!on);
+  if (input) {
+    input.placeholder = on ? 'How can I help you today?' : 'Write a message…';
+  }
+  if (on) refreshLandingGreeting();
+}
+
+function hideWelcome() {
+  if (welcomeWrap) welcomeWrap.style.display = 'none';
+  setLandingMode(false);
+}
+
+function showWelcome() {
+  if (welcomeWrap) welcomeWrap.style.display = '';
+  setLandingMode(true);
+}
+
+landingStripLink?.addEventListener('click', () => {
+  drawer.classList.add('show');
+  overlay.classList.add('show');
+  setDrawerTab('metrics');
+});
+
+welcomeWrap?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.landing-pill[data-prompt]');
+  if (!btn || !welcomeWrap.contains(btn)) return;
+  const pr = btn.getAttribute('data-prompt');
+  if (pr && input) {
+    input.value = pr;
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+  }
+});
+
 document.querySelectorAll('.drawer-tab').forEach((btn) => {
   btn.addEventListener('click', () => setDrawerTab(btn.dataset.tab || 'metrics'));
 });
@@ -733,6 +819,7 @@ document.querySelectorAll('.drawer-tab').forEach((btn) => {
 $('#btn-info').onclick = () => {
   drawer.classList.add('show');
   overlay.classList.add('show');
+  setDrawerTab('metrics');
 };
 $('#drawer-close').onclick = overlay.onclick = () => {
   drawer.classList.remove('show');
@@ -746,6 +833,21 @@ $('#btn-sidebar-toggle')?.addEventListener('click', () => {
 maxTokensSlider.oninput = () => {
   maxTokensVal.textContent = maxTokensSlider.value;
 };
+
+/** Clamp the Max-tokens slider to the launcher's `--max-new-tokens` ceiling
+ *  reported by `/api/demo-config.max_new_tokens_cap`.  Keeps the UI honest:
+ *  the server clamps anyway, but exposing the limit lets the slider land on
+ *  a valid value (and the UI shows the same ceiling on hover). */
+function applyMaxTokensCap(cap) {
+  const n = Number(cap);
+  if (!Number.isFinite(n) || n <= 0) return;
+  maxTokensSlider.max = String(n);
+  if (parseInt(maxTokensSlider.value, 10) > n) {
+    maxTokensSlider.value = String(n);
+    maxTokensVal.textContent = String(n);
+  }
+  maxTokensSlider.title = `Max output tokens (server cap: ${n})`;
+}
 
 input.oninput = () => {
   input.style.height = 'auto';
@@ -761,11 +863,11 @@ input.onkeydown = (e) => {
 function clearChatUi() {
   chatScroll.innerHTML = '';
   if (sysCard) {
-    sysCard.open = true;
+    sysCard.open = false;
     chatScroll.appendChild(sysCard);
   }
   chatScroll.appendChild(welcomeWrap);
-  welcomeWrap.style.display = '';
+  showWelcome();
   applySysCardForCategory(sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null);
   turnCount = 0;
   $('#m-turns').textContent = '0';
@@ -842,7 +944,7 @@ async function fetchInfo() {
 }
 
 function addRow(role, text) {
-  welcomeWrap.style.display = 'none';
+  hideWelcome();
   const row = document.createElement('div');
   row.className = 'msg-row ' + role;
   const inner = document.createElement('div');
@@ -874,7 +976,7 @@ function addRow(role, text) {
 }
 
 function addToolRow(call, systemResult, phase) {
-  welcomeWrap.style.display = 'none';
+  hideWelcome();
   const row = document.createElement('div');
   row.className = 'msg-row tool-route';
   const card = document.createElement('div');
@@ -895,10 +997,28 @@ function addToolRow(call, systemResult, phase) {
   nudgeScroll();
 }
 
+const THINKING_PHRASES = [
+  'Ruminating on it, stand by…',
+  'Thinking it through…',
+  'Mulling this over…',
+  'Working through the steps…',
+  'Stitching thoughts together…',
+  'Reasoning, one moment…',
+];
 function addDots(obj) {
   const d = document.createElement('div');
-  d.className = 'typing-dots';
-  d.innerHTML = '<span></span><span></span><span></span>';
+  d.className = 'thinking-pulse';
+  const phrase = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+  d.innerHTML =
+    '<svg class="tp-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">' +
+      '<g stroke="currentColor" stroke-width="2.6" stroke-linecap="round">' +
+        '<line x1="16" y1="3.2" x2="16" y2="28.8"/>' +
+        '<line x1="3.2" y1="16" x2="28.8" y2="16"/>' +
+        '<line x1="7.1" y1="7.1" x2="24.9" y2="24.9"/>' +
+        '<line x1="24.9" y1="7.1" x2="7.1" y2="24.9"/>' +
+      '</g>' +
+    '</svg>' +
+    `<span class="tp-label">${phrase}</span>`;
   obj.body.appendChild(d);
   return d;
 }
@@ -1091,7 +1211,6 @@ function playSystemPrompt() {
   isGenerating = true;
   sendBtn.disabled = true;
   refreshExampleDisabled();
-  welcomeWrap.style.display = 'none';
   if (sysCard && sysCard.open) sysCard.open = false;
   currentMsg = addRow('assistant', '');
   typingDots = addDots(currentMsg);
@@ -1133,6 +1252,9 @@ function doSend() {
     reasoning: isReasoningOn(),
     sampling: { ...samplingState },
   };
+  if (!formatGuardEnabled) {
+    payload.format_guard = false;
+  }
   if (sysCatSelect && sysCatSelect.value) {
     payload.category_key = sysCatSelect.value;
   }
@@ -1145,4 +1267,5 @@ function doSend() {
 
 sendBtn.onclick = doSend;
 
+refreshLandingGreeting();
 loadDemoConfig().then(() => connectWs());
