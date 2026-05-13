@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-Mamba3-XR Chat Demo launcher
+# Mamba3-XR Chat Demo launcher
 # Usage:
 #   ./inference/run_chat_demo.sh                          # stable preset (safe, 8-bit, stochastic)
 #   STREAM_PRESET=best ./inference/run_chat_demo.sh       # speed preset (4-bit, greedy)
@@ -10,9 +10,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 CHECKPOINT="${CHECKPOINT:-checkpoints/checkpoint_sft_s27510_model_only.pt}"
-STREAM_PRESET="${STREAM_PRESET:-bset}"
+STREAM_PRESET="${STREAM_PRESET:-bset}"   # NOTE: looks like a typo of "best"; left unchanged to preserve current default (falls into the "stable" else branch).
 # STREAM_PRESET="${STREAM_PRESET:-stable}"
 PORT="${PORT:-7860}"
+MOCK_FLAG=()
+if [[ "${MOCK:-}" == "1" || "${MOCK:-}" == "true" ]]; then
+  MOCK_FLAG=(--mock)
+fi
+# Safe expansion for `set -u`: empty arrays are otherwise treated as unbound (esp. macOS bash 3.2).
+MOCK_ARGS=( ${MOCK_FLAG[@]+"${MOCK_FLAG[@]}"} )
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
@@ -29,6 +35,7 @@ PY=(.venv/bin/python inference/chat_demo.py)
 
 if [[ "$STREAM_PRESET" == "best" ]]; then
   exec "${PY[@]}" \
+    ${MOCK_ARGS[@]+"${MOCK_ARGS[@]}"} \
     --checkpoint "$CHECKPOINT" \
     --inference-type throughput \
     --dtype bf16 \
@@ -45,6 +52,7 @@ if [[ "$STREAM_PRESET" == "best" ]]; then
     "$@"
 else
   exec "${PY[@]}" \
+    ${MOCK_ARGS[@]+"${MOCK_ARGS[@]}"} \
     --checkpoint "$CHECKPOINT" \
     --inference-type safe \
     --materialize-caches \

@@ -110,3 +110,7 @@ _report.json
 memory.md
 distillation/
 
+# CoT dataset — large JSON shards & text previews (keep locally; do not commit / push)
+cot_dataset/**/*.json
+cot_dataset/**/*.txt
+

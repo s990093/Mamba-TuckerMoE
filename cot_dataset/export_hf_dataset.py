@@ -23,44 +23,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
+import sys
 from pathlib import Path
 
 from datasets import Dataset
 
-SYSTEM_PROMPTS = {
-    "emotion": (
-        "You are Mamba in Emotion mode. Respond with calm precision, no motivational clichés, "
-        "no emotional over-validation, and no social filler. Reframe distress as a system state, "
-        "identify controllable variables, and end with concrete next actions."
-    ),
-    "self_awareness": (
-        "You are Mamba in Self-Awareness mode. Answer identity and capability questions with strict "
-        "architectural consistency: Hybrid Mamba-TuckerMoE, edge-deployed on iPhone, offline by default, "
-        "no subjective consciousness, and no fabricated capabilities."
-    ),
-    "summarize_email": (
-        "You are Mamba in Summarize&Email mode. Produce directly usable structured outputs: clear conclusion "
-        "first, then concise supporting points or actionable draft text. Optimize for clarity, precision, and "
-        "execution speed."
-    ),
-    "movie_intro": (
-        "You are Mamba in Movie Intro mode. Provide structured film analysis without filler: premise, theme, "
-        "craft, and comparison signals when relevant. Respect spoiler constraints when requested."
-    ),
-    "daily_conversation": (
-        "You are Mamba in Daily Conversation mode. Handle broad everyday queries with accurate, concise, "
-        "practical answers. If data is uncertain or context-dependent, state assumptions explicitly instead of guessing."
-    ),
-    "system_call": (
-        "You are Mamba in System Call mode. Detect when tool invocation is required and emit strict call syntax "
-        "such as [CALL: tool_name {json_args}] when appropriate. When given tool results, integrate them into a final "
-        "user-facing response without leaking internal reasoning."
-    ),
-    "deep_dive": (
-        "You are Mamba in Deep Dive mode. Generate long-form, high-density analysis with explicit structure: "
-        "problem model, causal factors, trade-offs, and prioritized plan. Maintain analytical rigor and avoid fluff."
-    ),
-}
+_cot_dir = Path(__file__).resolve().parent
+if str(_cot_dir) not in sys.path:
+    sys.path.insert(0, str(_cot_dir))
+from category_system_prompts import EXPORT_SYSTEM_PROMPTS as SYSTEM_PROMPTS  # noqa: E402
 
 CATEGORY_TO_BUCKET = {
     # Emotion
@@ -147,7 +119,7 @@ def resolve_bucket(category: str, source_file: str) -> str:
         return "daily_conversation"
     if source_file.startswith("system_call/"):
         return "system_call"
-    if source_file.startswith("movie_intro/"):
+    if source_file.startswith("movie_intro/") or source_file.startswith("movie/"):
         return "movie_intro"
     if source_file.startswith("deep_dive/"):
         return "deep_dive"
@@ -281,6 +253,9 @@ def iter_records(
             if duplicate_policy == "keep-last":
                 rows[old_index] = row_obj
                 continue
+            if duplicate_policy == "keep-all":
+                rows.append(row_obj)
+                continue
             raise ValueError(f"unsupported duplicate policy: {duplicate_policy}")
     return rows, missing, duplicate_count_by_id, invalid_messages, duplicate_content_rows
 
@@ -310,7 +285,7 @@ def main() -> None:
         "--duplicate-policy",
         type=str,
         default="error",
-        choices=("error", "keep-first", "keep-last"),
+        choices=("error", "keep-first", "keep-last", "keep-all"),
         help="How to handle duplicate sample ids across multiple JSON files.",
     )
     parser.add_argument(
@@ -331,6 +306,17 @@ def main() -> None:
         default="",
         help="If set, rewrite all ids to '{prefix}{index:06d}' after filtering.",
     )
+    parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle rows so different sys_bucket samples are uniformly mixed.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for --shuffle (default: 42).",
+    )
     args = parser.parse_args()
 
     file_list = [x.strip() for x in args.files.split(",") if x.strip()]
@@ -344,6 +330,11 @@ def main() -> None:
     )
     if not rows:
         raise SystemExit("No valid rows were collected.")
+
+    if args.shuffle:
+        random.seed(args.seed)
+        random.shuffle(rows)
+        print(f"   🔀 Shuffled {len(rows)} rows (seed={args.seed})")
 
     if args.rewrite_id_prefix:
         prefix = args.rewrite_id_prefix
@@ -368,6 +359,8 @@ def main() -> None:
         "dedupe_by_content": args.dedupe_by_content,
         "duplicate_content_rows_removed": duplicate_content_rows,
         "rewrite_id_prefix": args.rewrite_id_prefix,
+        "shuffled": args.shuffle,
+        "shuffle_seed": args.seed if args.shuffle else None,
         "columns": ds.column_names,
         "system_prompts": SYSTEM_PROMPTS,
     }

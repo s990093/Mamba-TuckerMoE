@@ -37,7 +37,7 @@ for f in emotion.json self_awareness.json email_summary.json movie_intro.json no
         FILES="${FILES:+${FILES},}${f}"
     fi
 done
-for subdir in emotion self noise system_call movie_intro deep_dive; do
+for subdir in emotion self noise system_call movie_intro movie deep_dive; do
     if [[ -d "${COT_DIR}/${subdir}" ]]; then
         for f in "${COT_DIR}/${subdir}"/*.json; do
             if [[ -f "$f" ]]; then
@@ -58,10 +58,11 @@ python3 "${COT_DIR}/export_hf_dataset.py" \
     --src-dir "${COT_DIR}" \
     --files "${FILES}" \
     --out "${HF_FINAL}" \
-    --duplicate-policy keep-last \
+    --duplicate-policy keep-all \
     --dedupe-by-content \
     --invalid-row-policy skip \
-    --rewrite-id-prefix train_
+    --rewrite-id-prefix train_ \
+    --shuffle --seed 42
 
 echo ""
 echo "   ✅ HF dataset 匯出完成"

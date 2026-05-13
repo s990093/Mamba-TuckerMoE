@@ -74,13 +74,13 @@ CATEGORY_TO_BUCKET: dict[str, str] = {
 }
 
 TARGETS = {
-    "emotion": 5000,
-    "self_awareness": 5000,
-    "email_summary": 5000,
-    "movie_intro": 2000,
-    "noise": 2000,
-    "system_call": 600,
-    "deep_dive": 700,
+    "emotion": 10000,
+    "self_awareness": 10000,
+    "email_summary": 10000,
+    "movie_intro": 5000,
+    "noise": 10000,
+    "system_call": 10000,
+    "deep_dive": 10000,
 }
 
 FILE_CATEGORY_GROUPS = {
@@ -223,9 +223,9 @@ def infer_file_group(filepath: str, entry: dict) -> str:
         return "emotion"
     if "self" in basename or parent == "self":
         return "self_awareness"
-    if "email" in basename or "mail" in basename or parent == "email_summary":
+    if "email" in basename or "mail" in basename or parent in ("email_summary", "mail"):
         return "email_summary"
-    if "movie" in basename or parent == "movie_intro":
+    if "movie" in basename or parent in ("movie_intro", "movie"):
         return "movie_intro"
     if "deep" in basename or parent == "deep_dive":
         return "deep_dive"
@@ -256,10 +256,7 @@ def load_all_data() -> tuple[list[dict], dict[str, list[dict]]]:
             json_files.extend(sorted(subdir.glob("*.json")))
 
     skip = {"tokenizer.json", "tokenizer_config.json"}
-    seen_ids: dict[str, str] = {}
-    raw_entries: list[dict] = []
-    override_summary: dict[str, int] = defaultdict(int)
-    dup_warnings: list[str] = []
+    id_counts: dict[str, int] = Counter()
 
     for fp in json_files:
         if fp.name in skip:
@@ -277,35 +274,19 @@ def load_all_data() -> tuple[list[dict], dict[str, list[dict]]]:
             continue
 
         rel = str(fp.relative_to(SCRIPT_DIR))
-        is_subdir = "/" in rel
         for entry in data:
             entry["_source_file"] = rel
             entry["_group"] = infer_file_group(str(fp), entry)
             eid = entry.get("id", "")
-            if eid and eid in seen_ids:
-                prev_src = seen_ids[eid]
-                prev_is_subdir = "/" in prev_src
-                if is_subdir and not prev_is_subdir:
-                    raw_entries = [e for e in raw_entries if e.get("id") != eid]
-                    key = f"{prev_src} → {rel}"
-                    override_summary[key] += 1
-                elif not is_subdir and prev_is_subdir:
-                    continue
-                else:
-                    dup_warnings.append(f"[{eid}] in {prev_src} and {rel}")
-            seen_ids[eid] = rel
-            raw_entries.append(entry)
+            id_counts[eid] += 1
+            all_entries.append(entry)
+            by_group[entry["_group"]].append(entry)
 
-    for desc, cnt in override_summary.items():
-        console.print(f"[dim]↻ {cnt} IDs overridden: {desc}[/dim]")
-    for warn in dup_warnings[:10]:
-        console.print(f"[yellow]⚠ Duplicate ID {warn}[/yellow]")
-    if len(dup_warnings) > 10:
-        console.print(f"[yellow]  ... and {len(dup_warnings) - 10} more duplicates[/yellow]")
-
-    for entry in raw_entries:
-        all_entries.append(entry)
-        by_group[entry["_group"]].append(entry)
+    dup_ids = {k: v for k, v in id_counts.items() if k and v > 1}
+    if dup_ids:
+        console.print(f"[dim]ℹ {len(dup_ids)} IDs appear more than once "
+                       f"({sum(v - 1 for v in dup_ids.values())} extra rows) — "
+                       f"will be reassigned by --rewrite-id-prefix[/dim]")
 
     return all_entries, dict(by_group)
 

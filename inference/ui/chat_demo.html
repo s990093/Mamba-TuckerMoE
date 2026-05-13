@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mamba · Edge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/chat_demo.css">
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+</head>
+<body>
+
+<div id="mock-banner" class="mock-banner" hidden>
+  Mock: responses driven by <code>ui/mock_config.json</code> (seven GUIDE categories + CoT + optional <code>[CALL: …]</code>).
+</div>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <div class="side-dots" aria-hidden="true">
+        <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+      </div>
+      <button type="button" class="side-icon-btn" title="Search recents" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      </button>
+    </div>
+
+    <div class="side-segment" role="tablist" aria-label="Workspace">
+      <button type="button" class="seg-btn active" data-side-tab="chat" role="tab">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat
+      </button>
+      <button type="button" class="seg-btn" data-side-tab="code" role="tab" disabled title="Coming soon">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>
+        Code
+      </button>
+    </div>
+
+    <nav class="side-quick" aria-label="Quick links">
+      <button type="button" class="qlink" id="btn-new-sidebar">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New chat</span>
+      </button>
+      <button type="button" class="qlink" disabled title="Visual only">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Projects</span>
+      </button>
+      <button type="button" class="qlink" disabled title="Visual only">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
+        <span>Artifacts</span>
+      </button>
+      <button type="button" class="qlink" disabled title="Visual only">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span>Customize</span>
+      </button>
+    </nav>
+
+    <div class="side-section-label">Recents</div>
+    <div class="side-scroll" id="sidebar-categories"></div>
+
+    <div class="side-foot">
+      <button type="button" class="user-pill" title="Local · Free plan">
+        <span class="user-avatar" aria-hidden="true">L</span>
+        <span class="user-info">
+          <span class="user-name">lai</span>
+          <span class="user-plan">Free</span>
+        </span>
+        <span class="user-chev" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg>
+        </span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <header>
+      <div class="header-left">
+        <button type="button" class="btn-icon btn-sidebar-toggle" id="btn-sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+      </div>
+      <div class="header-center">
+        <button type="button" class="header-title-pill" id="header-title-pill" title="Conversation">
+          <span class="header-title-text">Mamba · Edge CoT</span>
+          <span class="header-title-chev" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg>
+          </span>
+        </button>
+      </div>
+      <div class="header-right">
+        <div class="ws-pill connecting" id="ws-pill"><span class="dot"></span><span id="ws-label">Connecting</span></div>
+        <button type="button" class="btn-icon" id="btn-clear" title="Clear conversation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+        <button type="button" class="btn-icon" id="btn-info" title="Metrics &amp; system prompt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 12h16M4 6h16M4 18h10"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <button type="button" class="jump-bottom" id="jump-bottom" aria-label="Jump to latest" hidden>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+      <span>Jump to latest</span>
+    </button>
+
+    <div class="chat-scroll" id="chat-scroll">
+      <details class="sys-card" id="sys-card" open>
+        <summary class="sys-card-summary">
+          <span class="sys-card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
+          </span>
+          <span class="sys-card-title">System prompt</span>
+          <span class="sys-card-pill" id="sys-card-pill">CoT · Markdown · System Call</span>
+          <span class="sys-card-spacer"></span>
+          <span
+            class="sys-card-tools"
+            onclick="event.preventDefault(); event.stopPropagation();"
+            role="presentation"
+          >
+            <label class="visually-hidden" for="sys-cat-select">Category for training system prompt</label>
+            <select id="sys-cat-select" class="sys-cat-select" title="SFT export category"></select>
+            <button type="button" class="btn-play-sys" id="btn-play-sys">Play system prompt</button>
+          </span>
+          <span class="sys-card-chev" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </summary>
+        <div class="sys-card-body md-body" id="sys-card-body"></div>
+      </details>
+      <div class="welcome-wrap" id="welcome-wrap">
+        <div class="welcome">
+          <h1 class="welcome-h1">What do you want to explore?</h1>
+          <p class="welcome-sub">Pick a curated example from the left (mock) or type freely. Assistant replies render as <strong>Markdown</strong>; CoT mirrors the JSON <code>cot</code> field from SFT.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-container">
+        <div class="input-box">
+          <button type="button" class="input-plus" title="Attach (visual only)" aria-label="Attach" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <textarea id="prompt-input" rows="1" placeholder="Write a message…" autofocus></textarea>
+          <div class="input-right">
+            <div class="mode-pill-wrap">
+              <button
+                type="button"
+                class="mode-pill thinking"
+                id="mode-pill"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                title="Switch reasoning mode"
+              >
+                <span class="mp-icon" id="mode-pill-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4.95 11.95c.6.6.95 1.41.95 2.26V17h8v-.79c0-.85.35-1.66.95-2.26A7 7 0 0012 2z"/></svg>
+                </span>
+                <span class="mp-text">
+                  <span class="mp-text-brand">Mamba</span>
+                  <span class="mp-text-sep">·</span>
+                  <span class="mp-text-mode" id="mode-pill-label">Thinking</span>
+                </span>
+                <span class="mp-chev" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg>
+                </span>
+              </button>
+              <div class="mode-menu" id="mode-menu" role="listbox" hidden>
+                <div class="mode-menu-header">Response mode</div>
+                <button type="button" class="mode-item active" data-mode="think" role="option" aria-selected="true">
+                  <span class="mi-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4.95 11.95c.6.6.95 1.41.95 2.26V17h8v-.79c0-.85.35-1.66.95-2.26A7 7 0 0012 2z"/></svg>
+                  </span>
+                  <span class="mi-body">
+                    <span class="mi-title">Thinking</span>
+                    <span class="mi-desc">Stream chain-of-thought before the answer.</span>
+                  </span>
+                  <span class="mi-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                  </span>
+                </button>
+                <button type="button" class="mode-item" data-mode="direct" role="option" aria-selected="false">
+                  <span class="mi-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </span>
+                  <span class="mi-body">
+                    <span class="mi-title">Direct</span>
+                    <span class="mi-desc">Answer immediately, no &lt;think&gt; block.</span>
+                  </span>
+                  <span class="mi-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+            <button type="button" class="send-circle" id="send-btn" title="Send message" aria-label="Send message" disabled>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-footer">
+          <div class="input-hint">System prompt is editable in mock JSON and shown in the drawer.</div>
+          <div class="footer-ctrls">
+            <div class="token-ctrl">
+              <label>Max tokens</label>
+              <input type="range" id="max-tokens" min="32" max="2048" value="512" step="32" title="Max output tokens" aria-label="Max output tokens">
+              <div class="val" id="max-tokens-val">512</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<div class="drawer drawer-wide" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-tabs" role="tablist">
+      <button type="button" class="drawer-tab active" data-tab="metrics" role="tab">Metrics</button>
+      <button type="button" class="drawer-tab" data-tab="sampling" role="tab">Sampling</button>
+      <button type="button" class="drawer-tab" data-tab="system" role="tab">System prompt</button>
+    </div>
+    <button type="button" class="btn-icon" id="drawer-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-panel" id="panel-metrics" data-panel="metrics">
+      <div>
+        <div class="drawer-section-title">Architecture</div>
+        <div class="drawer-grid">
+          <div class="drawer-card"><div class="label">d_model</div><div class="value" id="info-dmodel">—</div></div>
+          <div class="drawer-card"><div class="label">Layers</div><div class="value" id="info-layers">—</div></div>
+          <div class="drawer-card"><div class="label">Experts</div><div class="value" id="info-experts">—</div></div>
+          <div class="drawer-card"><div class="label">Top-K</div><div class="value" id="info-topk">—</div></div>
+          <div class="drawer-card"><div class="label">Quant</div><div class="value" id="info-quant">—</div></div>
+          <div class="drawer-card"><div class="label">dtype</div><div class="value" id="info-dtype">—</div></div>
+          <div class="drawer-card wide"><div class="label">Model load</div><div class="value" id="info-load">—</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="drawer-section-title">Live</div>
+        <div class="metrics-live">
+          <div class="metric-box"><div class="val" id="m-toks">—</div><div class="lbl">tok/s</div></div>
+          <div class="metric-box"><div class="val" id="m-ttft">—</div><div class="lbl">TTFT</div></div>
+          <div class="metric-box"><div class="val" id="m-prefill">—</div><div class="lbl">Prefill</div></div>
+          <div class="metric-box"><div class="val" id="m-total">—</div><div class="lbl">Tokens</div></div>
+          <div class="metric-box"><div class="val" id="m-turns">0</div><div class="lbl">Turns</div></div>
+          <div class="metric-box"><div class="val" id="m-ws">—</div><div class="lbl">WS</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-panel hidden" id="panel-sampling" data-panel="sampling">
+      <div>
+        <div class="drawer-section-title">Decoding parameters</div>
+        <p class="drawer-note">Live tweaks are sent with the next <code>chat</code> WS message; nothing here affects already-streaming turns. Press <strong>Reset</strong> to fall back to the CLI defaults.</p>
+        <div class="sampling-grid" id="sampling-grid"></div>
+        <div class="sampling-actions">
+          <button type="button" class="btn-secondary" id="btn-sampling-reset">Reset to defaults</button>
+          <code class="sampling-json" id="sampling-json"></code>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-panel hidden" id="panel-system" data-panel="system">
+      <div>
+        <div class="drawer-section-title">Style constraints (no-emoji etc.)</div>
+        <div class="style-pills" id="style-constraints"></div>
+      </div>
+      <div>
+        <div class="drawer-section-title">Active system prompt (markdown)</div>
+        <p class="drawer-note">SFT packs category-specific prompts at train time; this block documents the <strong>mock</strong> persona string from <code>mock_config.json</code>.</p>
+        <div class="system-md md-body" id="system-prompt-md"></div>
+      </div>
+      <div>
+        <div class="drawer-section-title">System Call registry</div>
+        <p class="drawer-note">Only these four host tools are allowed. Mamba emits <code>[CALL: …]</code>; the host returns <code>[SYSTEM_RESULT: …]</code>.</p>
+        <div class="tool-list" id="tool-registry"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/chat_demo.js" defer></script>
+</body>
+</html>
