@@ -9,14 +9,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-CHECKPOINT="${CHECKPOINT:-/Users/hungwei/Desktop/Proj/Mamba3-XR/checkpoints/latest_sft_cot_model.npz}"
+CHECKPOINT="${CHECKPOINT:-cot_checkpoints/latest_sft_cot_model.npz}"
 STREAM_PRESET="${STREAM_PRESET:-bset}"   # NOTE: looks like a typo of "best"; left unchanged to preserve current default (falls into the "stable" else branch).
 # STREAM_PRESET="${STREAM_PRESET:-stable}"
 PORT="${PORT:-7860}"
 # Max tokens that the slider can request.  KV cache memory scales linearly
 # with this — keep it modest (4096–8192) on 8 GB Macs, bump to 20480 only
 # when you really need long generations.
-MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-20480}"
+MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-204800}"
 # Hard cap on how many distinct system prompts we keep KV-primed at once.
 # Each entry holds a padded KV cache, so the LRU bound directly caps memory.
 PRIME_MAX_ENTRIES="${PRIME_MAX_ENTRIES:-2}"

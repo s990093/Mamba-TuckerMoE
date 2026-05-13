@@ -105,6 +105,11 @@ class CotMiddlewareConfig:
     # the next sampled token is conditioned on the structural transition.
     force_final_inject: bool = True
 
+    # Minimum tokens the model must produce inside <final> before </final>
+    # or <|im_end|> are allowed.  Prevents the model from closing the
+    # answer block immediately after injection with zero content.
+    final_min_tokens: int = 16
+
     @classmethod
     def config_from_args(cls, args: Any) -> "CotMiddlewareConfig":
         """Build from ``argparse.Namespace`` (CLI defaults).  Auto-derives
@@ -122,6 +127,7 @@ class CotMiddlewareConfig:
             close_bias_start=close_bias_start,
             reasoning_budget=reasoning_budget,
             force_final_inject=bool(getattr(args, "force_final_inject", True)),
+            final_min_tokens=int(getattr(args, "final_min_tokens", 16) or 0),
         )
 
 
@@ -213,6 +219,7 @@ class CotMiddleware:
         # Per-turn mutable state.
         self._reasoning_acc: list[str] = []
         self._think_tokens = 0
+        self._final_tokens = 0
         self._budget_hit = False
         self._final_injected = False
         self._generated_ids: list[int] = []
@@ -278,9 +285,24 @@ class CotMiddleware:
         """Apply ban mask + dynamic close-bias before sampling.  Always safe
         to call regardless of mode — returns the input unchanged when the
         guard is off."""
-        return self.deps.guard.apply(
-            row, mode=self.mode, close_bias_scalar=self.current_close_bias(),
+        cb = self.current_close_bias()
+        if cb > 0 and self.mode == "think" and self._think_tokens == self.cfg.close_bias_start:
+            print(f"[mw] close_bias ramp started at think t={self._think_tokens} (bias={cb:.1f}→{self.cfg.close_bias_max:.1f})")
+        row = self.deps.guard.apply(
+            row, mode=self.mode, close_bias_scalar=cb,
         )
+        # Ban </final> and <|im_end|> during the first N tokens of final
+        # mode so the model can't close with zero answer content.
+        if (
+            self.cfg.enabled
+            and self.mode == "final"
+            and self._final_tokens < self.cfg.final_min_tokens
+            and self.deps.guard._final_ban_mask is not None
+        ):
+            if self._final_tokens == 0:
+                print(f"[mw] final_min guard: banning </final> for first {self.cfg.final_min_tokens} tokens")
+            row = row + self.deps.guard._final_ban_mask.astype(row.dtype)
+        return row
 
     # === Layer 2: post-sample step ========================================
     def step(self, tid: int, *, n_out: int, elapsed_s_fn: Callable[[], float]) -> Iterator[dict]:
@@ -294,6 +316,7 @@ class CotMiddleware:
         """
         chunk = self._decode_chunk(tid)
         stopped = False
+        prev_mode = self.mode
         for kind, payload in self.splitter.feed(chunk):
             if kind == "reasoning":
                 self._reasoning_acc.append(payload)
@@ -308,6 +331,8 @@ class CotMiddleware:
                 }
             elif kind == "stop":
                 stopped = True
+        if self.mode != prev_mode:
+            print(f"[mw] mode {prev_mode} → {self.mode} at n_out={n_out}")
 
         # Think-token counter (only meaningful while we're still inside the
         # think block — once the splitter moves to `between` we freeze it).
@@ -321,6 +346,11 @@ class CotMiddleware:
             ):
                 stopped = True
                 yield from self._fire_reasoning_budget(n_out=n_out, elapsed_s_fn=elapsed_s_fn)
+
+        # Final-token counter — tracks how many tokens have been generated
+        # inside the <final> block so the minimum-content guard works.
+        if self.mode == "final":
+            self._final_tokens += 1
 
         if stopped:
             yield {"__stop__": True}
@@ -368,6 +398,7 @@ class CotMiddleware:
         caller still needs to break the decode loop on the ``__stop__``
         sentinel ``step`` yields after this."""
         self._budget_hit = True
+        print(f"[mw] ⚠ reasoning budget hit: {self.cfg.reasoning_budget} tokens without </think>")
         note = (
             f"\n\n_⚠ Reasoning budget exhausted ({self.cfg.reasoning_budget} tokens) "
             f"without `</think>` — forcing stop._\n"
@@ -422,15 +453,13 @@ class CotMiddleware:
             logits, caches = self._model_apply(x, caches, seq_pos)
             mx.eval(logits, caches)
         except Exception as exc:
-            # The injection is an *optimisation*; if MLX rejects the call
-            # (e.g. seq_pos out of padded cache range) we fall back to the
-            # bias-only path and let the splitter sort itself out.
-            print(f"[CotMiddleware] WARN: <final> injection failed → fallback. ({exc})")
-            self._final_injected = False  # allow a retry on the next `between` entry
+            print(f"[mw] WARN: <final> injection failed → fallback. ({exc})")
+            self._final_injected = False
             return caches, pos, None, False, 0.0
         ms = (time.perf_counter() - t0) * 1000.0
         new_pos = int(pos + len(ids))
         last_row = logits[0, -1, :]
+        print(f"[mw] ✓ <final> injected into cache ({len(ids)} ids, {ms:.1f}ms, pos {pos}→{new_pos})")
 
         # Push the same text through the splitter so its mode advances from
         # `between` → `final` and its buffer reflects the trailing "\n".
@@ -476,6 +505,8 @@ class CotMiddleware:
             "reasoning_budget": self.cfg.reasoning_budget,
             "budget_hit": self._budget_hit,
             "final_injected": self._final_injected,
+            "final_tokens": self._final_tokens,
+            "final_min_tokens": self.cfg.final_min_tokens,
             "close_bias_window": (self.cfg.close_bias_start, self.cfg.reasoning_budget),
             "close_bias_range": (self.cfg.close_bias_value, self.cfg.close_bias_max),
         }
@@ -494,7 +525,9 @@ def render_health_line(report: dict[str, Any]) -> str:
     if report.get("budget_hit"):
         bits.append("[yellow]budget_hit[/]")
     if report.get("final_injected"):
-        bits.append("[green]final_injected[/]")
+        ft = report.get("final_tokens", 0)
+        fm = report.get("final_min_tokens", 0)
+        bits.append(f"[green]final_injected[/]  final_tok={ft}(min={fm})")
     cs, cb = report.get("close_bias_window", (0, 0))
     cv, cm = report.get("close_bias_range", (0.0, 0.0))
     bits.append(f"close_bias=({cv:.1f}→{cm:.1f} from t={cs} to t={cb})")

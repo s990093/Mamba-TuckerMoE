@@ -114,3 +114,4 @@ distillation/
 cot_dataset/**/*.json
 cot_dataset/**/*.txt
 
+/note

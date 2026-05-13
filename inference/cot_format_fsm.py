@@ -227,7 +227,7 @@ class CotStreamSplitter:
 # ---------------------------------------------------------------------------
 # Format guard (logit ban + scalable close-bias)
 # ---------------------------------------------------------------------------
-_BAN_LITERALS: tuple[str, ...] = ("<|im_start|>",)
+_BAN_LITERALS: tuple[str, ...] = ("<|im_start|>", "</s>", "<|im_end|>")
 
 # Per splitter-mode, the first-token strings of the *expected closing tag*.
 # We try several variants so a tokenizer that doesn't have CoT tags as
@@ -307,9 +307,13 @@ class FormatGuard:
     cfg: FormatGuardConfig
     vocab_size: int
     ban_ids: tuple[int, ...] = ()
+    think_ban_ids: tuple[int, ...] = ()
+    final_ban_ids: tuple[int, ...] = ()
     close_first_id_by_mode: dict[str, int] = field(default_factory=dict)
 
     _ban_mask: mx.array | None = None
+    _think_ban_mask: mx.array | None = None
+    _final_ban_mask: mx.array | None = None
     _close_one_hot_by_mode: dict[str, mx.array] = field(default_factory=dict)
     _neg_inf: float = -1e9
 
@@ -322,11 +326,28 @@ class FormatGuard:
                 if 0 <= tid < self.vocab_size:
                     mask[tid] = self._neg_inf
             self._ban_mask = mask
+            mx.eval(self._ban_mask)
+        if self.think_ban_ids:
+            mask = mx.zeros((self.vocab_size,), dtype=mx.float32)
+            for tid in self.think_ban_ids:
+                if 0 <= tid < self.vocab_size:
+                    mask[tid] = self._neg_inf
+            self._think_ban_mask = mask
+            mx.eval(self._think_ban_mask)
+        if self.final_ban_ids:
+            mask = mx.zeros((self.vocab_size,), dtype=mx.float32)
+            for tid in self.final_ban_ids:
+                if 0 <= tid < self.vocab_size:
+                    mask[tid] = self._neg_inf
+            self._final_ban_mask = mask
+            mx.eval(self._final_ban_mask)
         for mode, tid in self.close_first_id_by_mode.items():
             if 0 <= tid < self.vocab_size:
                 oh = mx.zeros((self.vocab_size,), dtype=mx.float32)
                 oh[tid] = 1.0
                 self._close_one_hot_by_mode[mode] = oh
+        if self._close_one_hot_by_mode:
+            mx.eval(*self._close_one_hot_by_mode.values())
 
     # === Apply path ========================================================
     def apply(
@@ -351,6 +372,8 @@ class FormatGuard:
         out = logits_row
         if self._ban_mask is not None:
             out = out + self._ban_mask.astype(out.dtype)
+        if mode == "think" and self._think_ban_mask is not None:
+            out = out + self._think_ban_mask.astype(out.dtype)
         if close_bias_scalar and close_bias_scalar > 0:
             oh = self._close_one_hot_by_mode.get(mode)
             if oh is not None:
@@ -375,6 +398,20 @@ def build_format_guard(
             if tid is not None and 0 <= tid < vocab_size:
                 ban_ids.append(tid)
 
+    # (think_ban: formerly banned <|im_end|> here, now covered by
+    #  global ban_ids which blocks </s> + <|im_end|> in all non-done modes.)
+    think_ban_ids: list[int] = []
+
+    # Ban </final> inside <final> for the first N tokens so the model
+    # can't close with zero answer content.  (<|im_end|> and </s> are
+    # already covered by the global ban_ids.)
+    final_ban_ids: list[int] = []
+    if cfg.enabled:
+        for lit in ("</final>",):
+            tid = _resolve_single_id(tokenizer, lit)
+            if tid is not None and 0 <= tid < vocab_size:
+                final_ban_ids.append(tid)
+
     close_map: dict[str, int] = {}
     if cfg.enabled and (cfg.close_bias_start > 0 or cfg.close_bias_value > 0):
         for mode, variants in _MODE_CLOSE_VARIANTS.items():
@@ -388,6 +425,8 @@ def build_format_guard(
         cfg=cfg,
         vocab_size=int(vocab_size),
         ban_ids=tuple(sorted(set(ban_ids))),
+        think_ban_ids=tuple(sorted(set(think_ban_ids))),
+        final_ban_ids=tuple(sorted(set(final_ban_ids))),
         close_first_id_by_mode=close_map,
     )
 
@@ -408,6 +447,24 @@ def describe_format_guard(guard: FormatGuard, tokenizer: Any) -> str:
         bits.append(f"ban=[{toks}]")
     else:
         bits.append("ban=(none)")
+    if guard.think_ban_ids:
+        try:
+            toks = ", ".join(
+                f"{tid} `{tokenizer.convert_ids_to_tokens(tid)}`"
+                for tid in guard.think_ban_ids
+            )
+        except Exception:
+            toks = ", ".join(str(t) for t in guard.think_ban_ids)
+        bits.append(f"think_ban=[{toks}]")
+    if guard.final_ban_ids:
+        try:
+            toks = ", ".join(
+                f"{tid} `{tokenizer.convert_ids_to_tokens(tid)}`"
+                for tid in guard.final_ban_ids
+            )
+        except Exception:
+            toks = ", ".join(str(t) for t in guard.final_ban_ids)
+        bits.append(f"final_ban=[{toks}]")
     if guard.close_first_id_by_mode:
         try:
             close_str = ", ".join(

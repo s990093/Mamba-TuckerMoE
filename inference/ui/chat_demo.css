@@ -986,6 +986,136 @@ header{
   font-family:var(--mono);font-size:.7rem;color:var(--fg3);min-width:24px;
 }
 .guard-toggle input:checked ~ .guard-toggle-label{color:var(--accent-2)}
+/* EOS No Stop toggle (input footer) */
+.eos-toggle{
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  -webkit-user-select:none;user-select:none;margin-left:8px;
+}
+.eos-toggle input[type=checkbox]{
+  position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;
+}
+.eos-toggle .eos-toggle-knob{
+  position:relative;width:28px;height:15px;border-radius:999px;
+  background:rgba(255,255,255,.08);border:1px solid var(--border);
+  transition:background .15s ease, border-color .15s ease;
+  flex:0 0 28px;
+}
+.eos-toggle .eos-toggle-knob::after{
+  content:"";position:absolute;top:1px;left:1px;width:11px;height:11px;
+  border-radius:50%;background:var(--fg3);
+  transition:transform .15s ease, background .15s ease;
+}
+.eos-toggle input:checked + .eos-toggle-knob{
+  background:rgba(120,180,92,.30);border-color:rgba(120,180,92,.55);
+}
+.eos-toggle input:checked + .eos-toggle-knob::after{
+  transform:translateX(13px);background:#78b45c;
+}
+.eos-toggle .eos-toggle-label{
+  font-family:var(--mono);font-size:.62rem;color:var(--fg3);white-space:nowrap;
+}
+.eos-toggle input:checked ~ .eos-toggle-label{color:#78b45c}
+
+/* ── EOS No Stop progress tracker (Claude Code style) ── */
+.nes-tracker{
+  margin:6px 0 2px;
+  padding:8px 12px;
+  background:rgba(217,119,87,.04);
+  border:1px solid rgba(204,120,92,.18);
+  border-radius:var(--radius-xs);
+  animation:nes-slide-in .25s ease-out;
+}
+@keyframes nes-slide-in{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.nes-bar-track{
+  position:relative;height:3px;border-radius:3px;
+  background:rgba(204,120,92,.12);overflow:hidden;
+}
+.nes-bar-fill{
+  height:100%;width:0%;border-radius:3px;
+  background:linear-gradient(90deg,#cc785c,#e89678);
+  transition:width .3s ease-out;
+  position:relative;z-index:1;
+}
+.nes-bar-glow{
+  position:absolute;top:0;left:0;height:100%;width:100%;
+  background:linear-gradient(90deg,transparent 0%,rgba(204,120,92,.3) 50%,transparent 100%);
+  animation:nes-glow-sweep 2s ease-in-out infinite;
+}
+@keyframes nes-glow-sweep{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(100%)}
+}
+.nes-info{
+  display:flex;align-items:center;gap:8px;
+  margin-top:5px;font-size:.65rem;color:var(--fg3);
+  font-family:var(--mono);
+}
+/* Claude icon: spin + breathe bounce */
+.nes-icon{
+  flex-shrink:0;
+  animation:nes-icon-dance 2.4s ease-in-out infinite;
+  filter:drop-shadow(0 0 3px rgba(217,119,87,.4));
+}
+@keyframes nes-icon-dance{
+  0%{transform:rotate(0deg) scale(1);filter:drop-shadow(0 0 3px rgba(217,119,87,.3))}
+  25%{transform:rotate(90deg) scale(1.12) translateY(-1.5px);filter:drop-shadow(0 0 6px rgba(217,119,87,.45))}
+  50%{transform:rotate(180deg) scale(1.2) translateY(-2px);filter:drop-shadow(0 0 10px rgba(217,119,87,.6))}
+  75%{transform:rotate(270deg) scale(1.12) translateY(-1px);filter:drop-shadow(0 0 6px rgba(217,119,87,.45))}
+  100%{transform:rotate(360deg) scale(1);filter:drop-shadow(0 0 3px rgba(217,119,87,.3))}
+}
+.nes-label{
+  color:var(--accent);font-weight:600;letter-spacing:.03em;
+  text-transform:uppercase;font-size:.58rem;
+}
+.nes-tokens{color:var(--fg2);font-variant-numeric:tabular-nums}
+.nes-tokens #nes-cur{color:var(--accent-2);font-weight:600}
+.nes-sep{color:var(--fg4)}
+.nes-speed{color:var(--accent-2);margin-left:auto;font-variant-numeric:tabular-nums}
+.nes-abort{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px 3px 7px;border-radius:6px;
+  border:1px solid rgba(204,120,92,.3);
+  background:rgba(204,120,92,.08);
+  color:var(--accent);font-family:var(--mono);font-size:.6rem;
+  font-weight:600;cursor:pointer;
+  transition:all .15s ease;
+  margin-left:4px;
+}
+.nes-abort:hover{
+  background:rgba(204,120,92,.2);
+  border-color:rgba(204,120,92,.5);
+  box-shadow:0 0 8px rgba(204,120,92,.2);
+}
+.nes-abort:active{transform:scale(.96)}
+.nes-abort svg{opacity:.8}
+.nes-tracker[data-state="stopping"]{
+  animation:nes-fade-pulse .6s ease-in-out infinite alternate;
+}
+.nes-tracker[data-state="stopping"] .nes-bar-fill{
+  background:linear-gradient(90deg,var(--accent),var(--fg4));
+  transition:width .1s;
+}
+.nes-tracker[data-state="stopping"] .nes-icon{
+  animation:nes-icon-stop .5s ease-in-out infinite alternate;
+  filter:drop-shadow(0 0 4px rgba(204,120,92,.6));
+}
+@keyframes nes-icon-stop{
+  from{transform:scale(1) rotate(0deg);opacity:1}
+  to{transform:scale(.85) rotate(-15deg);opacity:.5}
+}
+@keyframes nes-fade-pulse{
+  from{opacity:1}to{opacity:.7}
+}
+.nes-tracker.nes-done{
+  animation:nes-slide-out .35s ease-in forwards;
+}
+@keyframes nes-slide-out{
+  to{opacity:0;transform:translateY(-4px)}
+}
+
 .btn-secondary{
   font-family:var(--font);font-size:.72rem;font-weight:600;padding:6px 12px;border-radius:8px;
   border:1px solid var(--border-2);background:rgba(255,255,255,.04);color:var(--fg2);cursor:pointer;

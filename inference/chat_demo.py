@@ -28,6 +28,7 @@ import json
 import os
 import sys
 import time
+import threading
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -354,6 +355,7 @@ def _build_system_block_ids(system_prompt: str) -> list[int]:
 def _prime_system_prefix_sync(system_prompt: str) -> dict[str, Any]:
     """Run prefill over the system block alone and cache the resulting state.
     Caller must hold ``_infer_lock``. Return ``{"ok": bool, ...}``."""
+    # mx.set_default_device(mx.gpu)  # ensure GPU stream exists in executor thread
     if not _model_ready or _MOCK_MODE:
         return {"ok": False, "reason": "model not ready or mock mode", "prefill_ms": 0.0, "prompt_tokens": 0}
     sys_text = (system_prompt or "").strip()
@@ -407,6 +409,8 @@ def _stream_generate(
     system_prompt: str | None = None,
     reasoning: bool = False,
     args_for_call: Any = None,
+    no_eos_stop: bool = False,
+    abort_event: "threading.Event | None" = None,
 ) -> Iterator[dict]:
     """
     Yields dicts sent as WebSocket JSON frames:
@@ -531,6 +535,37 @@ def _stream_generate(
     n_out = 0
     elapsed_s_fn = lambda: time.perf_counter() - t_dec0
 
+    # When no_eos_stop is on, we bypass the middleware after it enters "done"
+    # and decode tokens directly so text keeps streaming to the UI.
+    _nes_bypass = False  # no-eos-stop bypass active
+    _nes_ids: list[int] = []  # accumulator for direct decoding
+    _nes_prev_text = ""
+
+    def _nes_decode_and_yield(tid: int) -> dict | None:
+        """Decode a single token directly (bypass middleware splitter)."""
+        nonlocal _nes_prev_text
+        _nes_ids.append(tid)
+        try:
+            full = _tokenizer.decode(_nes_ids, skip_special_tokens=False,
+                                     clean_up_tokenization_spaces=False)
+            if full.startswith(_nes_prev_text):
+                chunk = full[len(_nes_prev_text):]
+            else:
+                chunk = _tokenizer.decode([tid], skip_special_tokens=False,
+                                          clean_up_tokenization_spaces=False)
+            _nes_prev_text = full
+        except Exception:
+            chunk = ""
+        if not chunk:
+            return None
+        el = elapsed_s_fn()
+        return {
+            "type": "token",
+            "text": chunk,
+            "n": n_out,
+            "tok_s": round(n_out / max(el, 1e-9), 1),
+        }
+
     # === First sampled token ================================================
     tid = int(last.item())
     all_tids.append(tid)
@@ -540,7 +575,10 @@ def _stream_generate(
     prev_mode = mw.mode
     for ev in mw.step(tid, n_out=n_out, elapsed_s_fn=elapsed_s_fn):
         if ev.get("__stop__"):
-            stop_after = True
+            if not no_eos_stop:
+                stop_after = True
+            else:
+                _nes_bypass = True
         else:
             yield ev
 
@@ -555,7 +593,7 @@ def _stream_generate(
         if did_inject:
             prefill_ms += inj_ms
 
-    if stop_after or mw.should_break(tid):
+    if stop_after or (not no_eos_stop and mw.should_break(tid)):
         for ev in mw.flush(n_out=n_out, elapsed_s_fn=elapsed_s_fn):
             yield ev
         elapsed = time.perf_counter() - t_dec0
@@ -603,18 +641,30 @@ def _stream_generate(
         all_tids.append(tid)
         n_out += 1
         prev_mode = mw.mode
-        for ev in mw.step(tid, n_out=n_out, elapsed_s_fn=elapsed_s_fn):
-            if ev.get("__stop__"):
-                stop_after = True
-            else:
+
+        if _nes_bypass:
+            # Middleware already in "done" — decode directly, skip splitter.
+            ev = _nes_decode_and_yield(tid)
+            if ev:
                 yield ev
+        else:
+            for ev in mw.step(tid, n_out=n_out, elapsed_s_fn=elapsed_s_fn):
+                if ev.get("__stop__"):
+                    if not no_eos_stop:
+                        stop_after = True
+                    else:
+                        _nes_bypass = True
+                else:
+                    yield ev
 
         if not stop_after and prev_mode == "think" and mw.mode == "between":
             caches, pos, inj_row, did_inject, inj_ms = mw.maybe_inject_final(caches=caches, pos=pos)
             if did_inject:
                 prefill_ms += inj_ms
 
-        if stop_after or mw.should_break(tid):
+        if stop_after or (not no_eos_stop and mw.should_break(tid)):
+            break
+        if abort_event and abort_event.is_set():
             break
         x_one = last.reshape(1, 1)
 
@@ -742,6 +792,7 @@ def _decode_ids_str(tids: list[int]) -> str:
 
 def _framing_health(
     *, reasoning: bool, prompt_tail_str: str, output_str: str, output_tids: list[int],
+    mw_health: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     """Compute a one-line framing health string for the post-turn dump.
 
@@ -750,6 +801,8 @@ def _framing_health(
                        (we inject it ourselves; we never want the model to repeat it).
       - ``</think>`` → must appear in the *output* when reasoning is on.
       - ``<final>``  / ``</final>`` → must appear in the *output* when reasoning is on.
+        ``<final>`` is also satisfied when ``force_final_inject`` injected it into
+        the model caches (it won't appear in sampled tokens).
       - EOS-ish     → look for a clean ``<|im_end|>`` or any token in ``_EOS_TOKENS``.
 
     Returns ``(line, severity)`` where severity is one of ``"ok" | "warn" | "info"``."""
@@ -761,6 +814,11 @@ def _framing_health(
     has_open_think = "<think>" in prompt_tail_str
     has_close_think = "</think>" in output_str
     has_open_final = "<final>" in output_str
+    # force_final_inject injects <final>\n into the model cache without
+    # sampling — the token won't appear in output_str but the model IS
+    # conditioned on it.  Count it as present.
+    if not has_open_final and mw_health and mw_health.get("final_injected"):
+        has_open_final = True
     has_close_final = "</final>" in output_str
     has_im_end = "<|im_end|>" in output_str
     # EOS-ish: any token that matches one of our EOS strings.
@@ -777,10 +835,14 @@ def _framing_health(
             eos_tok = ""
 
     bits: list[str] = []
+    final_was_injected = bool(mw_health and mw_health.get("final_injected"))
     if reasoning:
         bits.append(_mk(has_open_think, "<think>(prompt)"))
         bits.append(_mk(has_close_think, "</think>"))
-        bits.append(_mk(has_open_final, "<final>"))
+        if has_open_final and final_was_injected and "<final>" not in output_str:
+            bits.append(f"[green]<final>(injected)✓[/]")
+        else:
+            bits.append(_mk(has_open_final, "<final>"))
         bits.append(_mk(has_close_final, "</final>"))
     bits.append(_mk(has_im_end, "<|im_end|>"))
     if eos_tok:
@@ -789,7 +851,11 @@ def _framing_health(
     severity: str = "ok"
     if reasoning and not has_close_think:
         severity = "warn"
-    elif reasoning and (not has_open_final or not has_close_final):
+    elif reasoning and not has_open_final:
+        severity = "warn"
+    elif reasoning and not has_close_final and not final_was_injected:
+        # When <final> was force-injected the model often skips </final>
+        # and goes straight to <|im_end|>; the splitter handles this fine.
         severity = "warn"
     elif not has_im_end and not eos_tok:
         severity = "info"
@@ -844,6 +910,7 @@ def _print_turn_summary(
         prompt_tail_str=tail_str,
         output_str=out_str,
         output_tids=all_tids,
+        mw_health=mw_health,
     )
 
     last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
@@ -1533,7 +1600,7 @@ async def websocket_chat(ws: WebSocket):
 
             if action == "chat":
                 prompt = msg.get("prompt", "").strip()
-                max_tokens = min(msg.get("max_tokens", 512), _args.max_new_tokens if _args else 2048)
+                max_tokens = min(msg.get("max_tokens", 512), _args.max_new_tokens if _args else 204800)
                 if not prompt:
                     await ws.send_json({"type": "error", "message": "Empty prompt"})
                     continue
@@ -1570,9 +1637,12 @@ async def websocket_chat(ws: WebSocket):
                 sampling_override = msg.get("sampling") if isinstance(msg.get("sampling"), dict) else None
                 args_for_call = _apply_sampling_override(_args, sampling_override)
                 args_for_call = _apply_format_guard_override(args_for_call, msg.get("format_guard"))
+                no_eos_stop_flag = bool(msg.get("no_eos_stop", False))
 
                 conversation.append({"role": "user", "content": prompt})
                 history_snapshot = list(conversation)
+
+                abort_event = threading.Event()
 
                 def _send_now(ev: dict):
                     """Fire ws.send_json from generator thread — blocks until sent."""
@@ -1580,6 +1650,7 @@ async def websocket_chat(ws: WebSocket):
                     fut.result()
 
                 def run_gen() -> str:
+                    # mx.set_default_device(mx.gpu)  # ensure GPU stream exists in executor thread
                     text_parts: list[str] = []
                     try:
                         for ev in _stream_generate(
@@ -1588,6 +1659,8 @@ async def websocket_chat(ws: WebSocket):
                             system_prompt=system_prompt,
                             reasoning=reasoning_flag,
                             args_for_call=args_for_call,
+                            no_eos_stop=no_eos_stop_flag,
+                            abort_event=abort_event,
                         ):
                             _send_now(ev)
                             if ev.get("type") == "token":
@@ -1599,10 +1672,46 @@ async def websocket_chat(ws: WebSocket):
                             pass
                     return "".join(text_parts)
 
+                # Listen for abort messages while generation runs.
+                async def _abort_listener():
+                    try:
+                        while isGenerating_flag[0]:
+                            try:
+                                raw2 = await asyncio.wait_for(ws.receive_text(), timeout=0.5)
+                            except asyncio.TimeoutError:
+                                continue
+                            except Exception:
+                                break
+                            try:
+                                m2 = json.loads(raw2)
+                            except Exception:
+                                continue
+                            if m2.get("action") == "abort":
+                                abort_event.set()
+                                break
+                            if m2.get("action") == "ping":
+                                await ws.send_json({"type": "pong", "ready": _model_ready})
+                    except Exception:
+                        pass
+
+                isGenerating_flag = [True]
+                abort_listener_task = asyncio.create_task(_abort_listener())
+
                 async with _infer_lock:
                     assistant_text = await loop.run_in_executor(None, run_gen)
 
+                isGenerating_flag[0] = False
+                abort_listener_task.cancel()
+                try:
+                    await abort_listener_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+
                 conversation.append({"role": "assistant", "content": assistant_text})
+                continue
+
+            if action == "abort":
+                # Abort received outside of generation — ignore silently.
                 continue
 
             await ws.send_json({"type": "error", "message": f"Unknown action: {action}"})
@@ -1638,7 +1747,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--max-new-tokens",
         type=int,
-        default=20480,
+        default=204800,
         help=(
             "Hard ceiling on streamed tokens per turn. Also feeds into _max_cache_len "
             "(= seq_len + max_new_tokens + 8), so KV memory scales linearly with this. "
@@ -1744,6 +1853,16 @@ def parse_args() -> argparse.Namespace:
         dest="force_final_inject",
         action="store_false",
         help="Disable multi-stage `<final>\\n` injection (model must emit `<final>` on its own).",
+    )
+    p.add_argument(
+        "--final-min-tokens",
+        type=int,
+        default=16,
+        help=(
+            "Minimum tokens the model must produce inside <final> before "
+            "</final> or <|im_end|> are allowed. Prevents zero-content answers. "
+            "0 = disabled. (default: 16)"
+        ),
     )
     p.add_argument("--warmup", type=int, default=2)
     p.add_argument("--vocab-size", type=int, default=32007)

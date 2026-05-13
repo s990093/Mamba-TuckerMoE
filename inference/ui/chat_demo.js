@@ -1,27 +1,35 @@
 const $ = (s) => document.querySelector(s);
-const chatScroll = $('#chat-scroll');
-const welcomeWrap = $('#welcome-wrap');
-const input = $('#prompt-input');
-const sendBtn = $('#send-btn');
-const wsPill = $('#ws-pill');
-const wsLabel = $('#ws-label');
-const maxTokensSlider = $('#max-tokens');
-const maxTokensVal = $('#max-tokens-val');
-const drawer = $('#drawer');
-const overlay = $('#drawer-overlay');
-const mockBanner = $('#mock-banner');
-const sidebar = $('#sidebar');
-const sidebarCat = $('#sidebar-categories');
-const systemPromptMd = $('#system-prompt-md');
-const sysCard = $('#sys-card');
-const sysCardBody = $('#sys-card-body');
-const sysCatSelect = $('#sys-cat-select');
-const btnPlaySys = $('#btn-play-sys');
-const modePill = $('#mode-pill');
-const modePillLabel = $('#mode-pill-label');
-const modePillIcon = $('#mode-pill-icon');
-const modeMenu = $('#mode-menu');
-const jumpBtn = $('#jump-bottom');
+const chatScroll = $("#chat-scroll");
+const welcomeWrap = $("#welcome-wrap");
+const input = $("#prompt-input");
+const sendBtn = $("#send-btn");
+const wsPill = $("#ws-pill");
+const wsLabel = $("#ws-label");
+const maxTokensSlider = $("#max-tokens");
+const maxTokensVal = $("#max-tokens-val");
+const eosNoStopToggle = $("#eos-no-stop-toggle");
+const eosNoStopLabel = $("#eos-no-stop-label");
+const nesTracker = $("#nes-tracker");
+const nesBarFill = $("#nes-bar-fill");
+const nesCur = $("#nes-cur");
+const nesMax = $("#nes-max");
+const nesSpeed = $("#nes-speed");
+const nesAbort = $("#nes-abort");
+const drawer = $("#drawer");
+const overlay = $("#drawer-overlay");
+const mockBanner = $("#mock-banner");
+const sidebar = $("#sidebar");
+const sidebarCat = $("#sidebar-categories");
+const systemPromptMd = $("#system-prompt-md");
+const sysCard = $("#sys-card");
+const sysCardBody = $("#sys-card-body");
+const sysCatSelect = $("#sys-cat-select");
+const btnPlaySys = $("#btn-play-sys");
+const modePill = $("#mode-pill");
+const modePillLabel = $("#mode-pill-label");
+const modePillIcon = $("#mode-pill-icon");
+const modeMenu = $("#mode-menu");
+const jumpBtn = $("#jump-bottom");
 
 /** Auto-scroll controller.
  *  - `autoScroll` follows streaming output as long as the user is parked near
@@ -37,15 +45,18 @@ let _suppressScrollEvent = 0;
 
 function isAtBottom() {
   if (!chatScroll) return true;
-  return (chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight) <= NEAR_BOTTOM_PX;
+  return (
+    chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight <=
+    NEAR_BOTTOM_PX
+  );
 }
 
 function updateJumpBtn() {
   if (!jumpBtn) return;
   const show = !autoScroll;
-  jumpBtn.classList.toggle('show', show);
-  if (show) jumpBtn.removeAttribute('hidden');
-  else jumpBtn.setAttribute('hidden', '');
+  jumpBtn.classList.toggle("show", show);
+  if (show) jumpBtn.removeAttribute("hidden");
+  else jumpBtn.setAttribute("hidden", "");
 }
 
 function nudgeScroll(force = false) {
@@ -59,7 +70,9 @@ function nudgeScroll(force = false) {
     requestAnimationFrame(() => {
       chatScroll.scrollTop = chatScroll.scrollHeight;
       _scrollPending = false;
-      requestAnimationFrame(() => { _suppressScrollEvent = Math.max(0, _suppressScrollEvent - 1); });
+      requestAnimationFrame(() => {
+        _suppressScrollEvent = Math.max(0, _suppressScrollEvent - 1);
+      });
     });
   });
 }
@@ -70,44 +83,62 @@ function forceFollow() {
   nudgeScroll(true);
 }
 
-chatScroll?.addEventListener('scroll', () => {
-  if (_suppressScrollEvent > 0) return;
-  autoScroll = isAtBottom();
-  updateJumpBtn();
-}, { passive: true });
-
-chatScroll?.addEventListener('wheel', () => {
-  if (!isAtBottom()) {
-    autoScroll = false;
+chatScroll?.addEventListener(
+  "scroll",
+  () => {
+    if (_suppressScrollEvent > 0) return;
+    autoScroll = isAtBottom();
     updateJumpBtn();
-  }
-}, { passive: true });
+  },
+  { passive: true }
+);
 
-chatScroll?.addEventListener('touchmove', () => {
-  if (!isAtBottom()) {
-    autoScroll = false;
-    updateJumpBtn();
-  }
-}, { passive: true });
+chatScroll?.addEventListener(
+  "wheel",
+  () => {
+    if (!isAtBottom()) {
+      autoScroll = false;
+      updateJumpBtn();
+    }
+  },
+  { passive: true }
+);
 
-jumpBtn?.addEventListener('click', forceFollow);
+chatScroll?.addEventListener(
+  "touchmove",
+  () => {
+    if (!isAtBottom()) {
+      autoScroll = false;
+      updateJumpBtn();
+    }
+  },
+  { passive: true }
+);
 
-window.addEventListener('resize', () => nudgeScroll());
-const samplingGrid = $('#sampling-grid');
-const samplingJsonEl = $('#sampling-json');
-const btnSamplingReset = $('#btn-sampling-reset');
-const formatGuardToggle = $('#format-guard-toggle');
-const formatGuardLabel = $('#format-guard-label');
-const formatGuardJsonEl = $('#format-guard-json');
+jumpBtn?.addEventListener("click", forceFollow);
+
+window.addEventListener("resize", () => nudgeScroll());
+const samplingGrid = $("#sampling-grid");
+const samplingJsonEl = $("#sampling-json");
+const btnSamplingReset = $("#btn-sampling-reset");
+const formatGuardToggle = $("#format-guard-toggle");
+const formatGuardLabel = $("#format-guard-label");
+const formatGuardJsonEl = $("#format-guard-json");
 
 /** Inference-time format guard (CoT ChatML skeleton; see cot_format_fsm.py).
  *  When ``false`` we send ``format_guard: false`` in each chat payload so the
  *  backend bypasses the ban + close-bias for that turn only. */
 let formatGuardEnabled = true;
-let formatGuardServer = { enabled: true, ban_im_start: true, close_bias: 4.0, close_bias_start: 0 };
+let formatGuardServer = {
+  enabled: true,
+  ban_im_start: true,
+  close_bias: 4.0,
+  close_bias_start: 0,
+};
 
 function refreshFormatGuardLabel() {
-  if (formatGuardLabel) formatGuardLabel.textContent = formatGuardEnabled ? 'On' : 'Off';
+  if (formatGuardLabel)
+    formatGuardLabel.textContent = formatGuardEnabled ? "On" : "Off";
   if (formatGuardToggle) formatGuardToggle.checked = !!formatGuardEnabled;
   if (formatGuardJsonEl) {
     formatGuardJsonEl.textContent = JSON.stringify({
@@ -117,18 +148,58 @@ function refreshFormatGuardLabel() {
   }
 }
 
-formatGuardToggle?.addEventListener('change', () => {
+formatGuardToggle?.addEventListener("change", () => {
   formatGuardEnabled = !!formatGuardToggle.checked;
   refreshFormatGuardLabel();
 });
 
 /** Sampling controls — keep in sync with `chat_demo.py` CLI args. */
 const SAMPLING_FIELDS = [
-  { key: 'temperature', label: 'Temperature', cli: '--temp',     min: 0,    max: 1.5, step: 0.01, decimals: 2 },
-  { key: 'top_k',       label: 'Top-K',       cli: '--top_k',    min: 1,    max: 200, step: 1,    decimals: 0 },
-  { key: 'top_p',       label: 'Top-P',       cli: '--top_p',    min: 0,    max: 1,   step: 0.01, decimals: 2 },
-  { key: 'min_p',       label: 'Min-P',       cli: '--min_p',    min: 0,    max: 0.5, step: 0.005,decimals: 3 },
-  { key: 'repetition_penalty', label: 'Rep. pen.', cli: '--rep_pen', min: 1, max: 1.6, step: 0.01, decimals: 2 },
+  {
+    key: "temperature",
+    label: "Temperature",
+    cli: "--temp",
+    min: 0,
+    max: 1.5,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    key: "top_k",
+    label: "Top-K",
+    cli: "--top_k",
+    min: 1,
+    max: 200,
+    step: 1,
+    decimals: 0,
+  },
+  {
+    key: "top_p",
+    label: "Top-P",
+    cli: "--top_p",
+    min: 0,
+    max: 1,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    key: "min_p",
+    label: "Min-P",
+    cli: "--min_p",
+    min: 0,
+    max: 0.5,
+    step: 0.005,
+    decimals: 3,
+  },
+  {
+    key: "repetition_penalty",
+    label: "Rep. pen.",
+    cli: "--rep_pen",
+    min: 1,
+    max: 1.6,
+    step: 0.01,
+    decimals: 2,
+  },
 ];
 /** Mutable current values, sent with every chat payload as `sampling: {...}`. */
 let samplingState = {};
@@ -139,83 +210,87 @@ let samplingDefaults = {};
  *  - 'think'  → reasoning ON, prompt injects <think> after the assistant marker.
  *  - 'direct' → reasoning OFF, model answers immediately, no <think> block.
  *  The chosen mode drives the `reasoning` flag in every chat WS payload. */
-const MODE_LABELS = { think: 'Thinking', direct: 'Direct' };
+const MODE_LABELS = { think: "Thinking", direct: "Direct" };
 const MODE_ICONS = {
   think:
     '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4.95 11.95c.6.6.95 1.41.95 2.26V17h8v-.79c0-.85.35-1.66.95-2.26A7 7 0 0012 2z"/></svg>',
   direct:
     '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
 };
-let currentMode = 'think';
+let currentMode = "think";
 
 function isReasoningOn() {
-  return currentMode === 'think';
+  return currentMode === "think";
 }
 
 function applyModeToPill() {
-  if (modePillLabel) modePillLabel.textContent = MODE_LABELS[currentMode] || 'Thinking';
-  if (modePillIcon) modePillIcon.innerHTML = MODE_ICONS[currentMode] || MODE_ICONS.think;
+  if (modePillLabel)
+    modePillLabel.textContent = MODE_LABELS[currentMode] || "Thinking";
+  if (modePillIcon)
+    modePillIcon.innerHTML = MODE_ICONS[currentMode] || MODE_ICONS.think;
   if (modePill) {
-    modePill.classList.toggle('thinking', currentMode === 'think');
-    modePill.title = currentMode === 'think'
-      ? 'Thinking mode · prompt injects <think>…</think> before the answer'
-      : 'Direct mode · skip <think>, answer immediately';
+    modePill.classList.toggle("thinking", currentMode === "think");
+    modePill.title =
+      currentMode === "think"
+        ? "Thinking mode · prompt injects <think>…</think> before the answer"
+        : "Direct mode · skip <think>, answer immediately";
   }
-  modeMenu?.querySelectorAll('.mode-item').forEach((it) => {
+  modeMenu?.querySelectorAll(".mode-item").forEach((it) => {
     const active = it.dataset.mode === currentMode;
-    it.classList.toggle('active', active);
-    it.setAttribute('aria-selected', active ? 'true' : 'false');
+    it.classList.toggle("active", active);
+    it.setAttribute("aria-selected", active ? "true" : "false");
   });
 }
 
 function setMode(mode) {
-  if (mode !== 'think' && mode !== 'direct') return;
+  if (mode !== "think" && mode !== "direct") return;
   currentMode = mode;
   applyModeToPill();
 }
 
 function setReasoning(on) {
-  setMode(on ? 'think' : 'direct');
+  setMode(on ? "think" : "direct");
 }
 
 function openModeMenu() {
   if (!modeMenu || !modePill) return;
   modeMenu.hidden = false;
-  modePill.setAttribute('aria-expanded', 'true');
+  modePill.setAttribute("aria-expanded", "true");
 }
 
 function closeModeMenu() {
   if (!modeMenu || !modePill) return;
   modeMenu.hidden = true;
-  modePill.setAttribute('aria-expanded', 'false');
+  modePill.setAttribute("aria-expanded", "false");
 }
 
 function toggleModeMenu() {
   if (!modeMenu) return;
-  if (modeMenu.hidden) openModeMenu(); else closeModeMenu();
+  if (modeMenu.hidden) openModeMenu();
+  else closeModeMenu();
 }
 
-modePill?.addEventListener('click', (e) => {
+modePill?.addEventListener("click", (e) => {
   e.stopPropagation();
   toggleModeMenu();
 });
 
-modeMenu?.querySelectorAll('.mode-item').forEach((it) => {
-  it.addEventListener('click', (e) => {
+modeMenu?.querySelectorAll(".mode-item").forEach((it) => {
+  it.addEventListener("click", (e) => {
     e.stopPropagation();
-    setMode(it.dataset.mode || 'think');
+    setMode(it.dataset.mode || "think");
     closeModeMenu();
   });
 });
 
-document.addEventListener('click', (e) => {
+document.addEventListener("click", (e) => {
   if (!modeMenu || modeMenu.hidden) return;
   if (modeMenu.contains(e.target) || modePill?.contains(e.target)) return;
   closeModeMenu();
 });
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && modeMenu && !modeMenu.hidden) closeModeMenu();
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && modeMenu && !modeMenu.hidden) closeModeMenu();
 });
 
 applyModeToPill();
@@ -233,31 +308,37 @@ function refreshSamplingJson() {
 
 function renderSamplingControls() {
   if (!samplingGrid) return;
-  samplingGrid.innerHTML = '';
+  samplingGrid.innerHTML = "";
   SAMPLING_FIELDS.forEach((f) => {
-    const row = document.createElement('div');
-    row.className = 'sampling-row';
+    const row = document.createElement("div");
+    row.className = "sampling-row";
     row.dataset.field = f.key;
-    const label = document.createElement('div');
-    label.className = 'sr-name';
+    const label = document.createElement("div");
+    label.className = "sr-name";
     label.innerHTML = `${f.label}<span class="sr-key">${f.cli}</span>`;
-    const slider = document.createElement('input');
-    slider.type = 'range';
+    const slider = document.createElement("input");
+    slider.type = "range";
     slider.min = String(f.min);
     slider.max = String(f.max);
     slider.step = String(f.step);
-    const cur = samplingState[f.key] != null ? Number(samplingState[f.key]) : Number(samplingDefaults[f.key] ?? f.min);
+    const cur =
+      samplingState[f.key] != null
+        ? Number(samplingState[f.key])
+        : Number(samplingDefaults[f.key] ?? f.min);
     slider.value = String(cur);
-    const val = document.createElement('div');
-    val.className = 'sr-val';
+    const val = document.createElement("div");
+    val.className = "sr-val";
     val.textContent = formatSamplingValue(f, cur);
-    slider.addEventListener('input', () => {
-      const v = f.decimals > 0 ? Number(slider.value) : parseInt(slider.value, 10);
+    slider.addEventListener("input", () => {
+      const v =
+        f.decimals > 0 ? Number(slider.value) : parseInt(slider.value, 10);
       samplingState[f.key] = v;
       val.textContent = formatSamplingValue(f, v);
       const defv = Number(samplingDefaults[f.key]);
-      const dirty = Number.isFinite(defv) ? Math.abs(defv - v) > (f.step / 2) : false;
-      row.classList.toggle('dirty', dirty);
+      const dirty = Number.isFinite(defv)
+        ? Math.abs(defv - v) > f.step / 2
+        : false;
+      row.classList.toggle("dirty", dirty);
       refreshSamplingJson();
     });
     row.appendChild(label);
@@ -269,7 +350,8 @@ function renderSamplingControls() {
 }
 
 function initSamplingDefaults(defaults) {
-  samplingDefaults = (defaults && typeof defaults === 'object') ? { ...defaults } : {};
+  samplingDefaults =
+    defaults && typeof defaults === "object" ? { ...defaults } : {};
   samplingState = {};
   SAMPLING_FIELDS.forEach((f) => {
     const dv = Number(samplingDefaults[f.key]);
@@ -278,7 +360,7 @@ function initSamplingDefaults(defaults) {
   renderSamplingControls();
 }
 
-btnSamplingReset?.addEventListener('click', () => {
+btnSamplingReset?.addEventListener("click", () => {
   initSamplingDefaults(samplingDefaults);
 });
 
@@ -287,14 +369,61 @@ let isGenerating = false;
 let turnCount = 0;
 let currentMsg = null;
 let typingDots = null;
-let streamText = '';
+let streamText = "";
 /** @type {string|null} */
 let pendingExampleId = null;
+
+/* ── EOS No Stop tracker state ── */
+let nesActive = false;
+
+function nesShow(maxTok) {
+  if (!nesTracker) return;
+  nesActive = true;
+  nesTracker.hidden = false;
+  nesTracker.removeAttribute("data-state");
+  nesTracker.classList.remove("nes-done");
+  if (nesCur) nesCur.textContent = "0";
+  if (nesMax) nesMax.textContent = maxTok.toLocaleString();
+  if (nesBarFill) nesBarFill.style.width = "0%";
+  if (nesSpeed) nesSpeed.textContent = "";
+}
+
+function nesUpdate(n, tokS, maxTok) {
+  if (!nesActive || !nesTracker) return;
+  if (nesCur) nesCur.textContent = n.toLocaleString();
+  const pct = Math.min((n / maxTok) * 100, 100);
+  if (nesBarFill) nesBarFill.style.width = pct.toFixed(2) + "%";
+  if (nesSpeed) nesSpeed.textContent = tokS.toFixed(2) + " tok/s";
+}
+
+function nesHide() {
+  if (!nesTracker) return;
+  nesActive = false;
+  nesTracker.classList.add("nes-done");
+  setTimeout(() => {
+    nesTracker.hidden = true;
+    nesTracker.classList.remove("nes-done");
+  }, 400);
+}
+
+function nesStopping() {
+  if (!nesTracker) return;
+  nesTracker.setAttribute("data-state", "stopping");
+  if (nesAbort) nesAbort.disabled = true;
+}
+
+if (nesAbort) {
+  nesAbort.addEventListener("click", () => {
+    if (!ws || ws.readyState !== 1) return;
+    nesStopping();
+    ws.send(JSON.stringify({ action: "abort" }));
+  });
+}
 /** True while Mamba is streaming the turn-1 system-prompt intro bubble. */
 let inIntro = false;
 
 /** Full mock persona (drawer + fallback for system card). */
-let globalSystemMarkdown = '';
+let globalSystemMarkdown = "";
 /** Per sidebar `key` → short SFT/export string from `/api/demo-config`. */
 let categorySystemPrompts = {};
 
@@ -302,27 +431,27 @@ let categorySystemPrompts = {};
 const MD_PURIFY = { USE_PROFILES: { html: true } };
 
 function escapeHtml(s) {
-  const d = document.createElement('div');
+  const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
 }
 
 /** Inline: `code`, **bold**, *italic*, [text](https://...) */
 function inlineMarkdown(s) {
-  const parts = String(s).split('`');
+  const parts = String(s).split("`");
   return parts
     .map((chunk, i) => {
-      if (i % 2 === 1) return '<code>' + escapeHtml(chunk) + '</code>';
+      if (i % 2 === 1) return "<code>" + escapeHtml(chunk) + "</code>";
       let t = escapeHtml(chunk);
       t = t.replace(
         /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
       );
-      t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      t = t.replace(/\*([^*]+)\*/g, "<em>$1</em>");
       return t;
     })
-    .join('');
+    .join("");
 }
 
 /** Lenient: a row starts with `|` and has ≥2 pipes. Allowing an unclosed
@@ -330,7 +459,7 @@ function inlineMarkdown(s) {
  *  <table> while data is still arriving (cells are padded to header width). */
 function isTableRow(ln) {
   const t = ln.trim();
-  if (!t.startsWith('|')) return false;
+  if (!t.startsWith("|")) return false;
   return (t.match(/\|/g) || []).length >= 2;
 }
 
@@ -342,14 +471,17 @@ function isTableSeparatorRow(ln) {
 
 function splitTableRow(row) {
   let t = row.trim();
-  if (t.startsWith('|')) t = t.slice(1);
-  if (t.endsWith('|')) t = t.slice(0, -1);
-  return t.split('|').map((c) => c.trim());
+  if (t.startsWith("|")) t = t.slice(1);
+  if (t.endsWith("|")) t = t.slice(0, -1);
+  return t.split("|").map((c) => c.trim());
 }
 
 function consumeTable(lines, start) {
   if (start + 1 >= lines.length || !isTableSeparatorRow(lines[start + 1])) {
-    return { html: '<p>' + inlineMarkdown(lines[start].trim()) + '</p>', end: start + 1 };
+    return {
+      html: "<p>" + inlineMarkdown(lines[start].trim()) + "</p>",
+      end: start + 1,
+    };
   }
   const headerCells = splitTableRow(lines[start]);
   let i = start + 2;
@@ -359,26 +491,26 @@ function consumeTable(lines, start) {
     i++;
   }
   const n = headerCells.length;
-  let html = '<table><thead><tr>';
+  let html = "<table><thead><tr>";
   headerCells.forEach((c) => {
-    html += '<th>' + inlineMarkdown(c) + '</th>';
+    html += "<th>" + inlineMarkdown(c) + "</th>";
   });
-  html += '</tr></thead><tbody>';
+  html += "</tr></thead><tbody>";
   bodyLines.forEach((row) => {
     const cells = splitTableRow(row);
-    html += '<tr>';
+    html += "<tr>";
     for (let k = 0; k < n; k++) {
-      const c = cells[k] !== undefined ? cells[k] : '';
-      html += '<td>' + inlineMarkdown(c) + '</td>';
+      const c = cells[k] !== undefined ? cells[k] : "";
+      html += "<td>" + inlineMarkdown(c) + "</td>";
     }
-    html += '</tr>';
+    html += "</tr>";
   });
-  html += '</tbody></table>';
+  html += "</tbody></table>";
   return { html, end: i };
 }
 
 function isBlockFence(ln) {
-  return ln.trim().startsWith('```');
+  return ln.trim().startsWith("```");
 }
 
 function consumeFencedCode(lines, start) {
@@ -389,7 +521,10 @@ function consumeFencedCode(lines, start) {
     i++;
   }
   if (i < lines.length) i++;
-  return { html: '<pre><code>' + escapeHtml(body.join('\n')) + '</code></pre>', end: i };
+  return {
+    html: "<pre><code>" + escapeHtml(body.join("\n")) + "</code></pre>",
+    end: i,
+  };
 }
 
 function isSpecialBlockStart(lines, i) {
@@ -399,7 +534,12 @@ function isSpecialBlockStart(lines, i) {
   if (/^(\*{3,}|-{3,}|_{3,})$/.test(ln.trim())) return true;
   if (/^[-*]\s+/.test(ln)) return true;
   if (/^\d+\.\s+/.test(ln)) return true;
-  if (isTableRow(ln) && i + 1 < lines.length && isTableSeparatorRow(lines[i + 1])) return true;
+  if (
+    isTableRow(ln) &&
+    i + 1 < lines.length &&
+    isTableSeparatorRow(lines[i + 1])
+  )
+    return true;
   return false;
 }
 
@@ -407,16 +547,16 @@ function isSpecialBlockStart(lines, i) {
  * Minimal Markdown → HTML aligned with GUIDE-style model outputs (no CDN parser).
  */
 function renderGuideMarkdown(text) {
-  const lines = String(text || '')
-    .replace(/\r\n/g, '\n')
-    .split('\n');
+  const lines = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
   const out = [];
   let i = 0;
   const n = lines.length;
 
   while (i < n) {
     const ln = lines[i];
-    if (ln.trim() === '') {
+    if (ln.trim() === "") {
       i++;
       continue;
     }
@@ -438,13 +578,15 @@ function renderGuideMarkdown(text) {
     const hm = ln.match(/^(#{1,6})\s+(.*)$/);
     if (hm) {
       const level = Math.min(hm[1].length, 6);
-      out.push('<h' + level + '>' + inlineMarkdown(hm[2].trim()) + '</h' + level + '>');
+      out.push(
+        "<h" + level + ">" + inlineMarkdown(hm[2].trim()) + "</h" + level + ">"
+      );
       i++;
       continue;
     }
 
     if (/^(\*{3,}|-{3,}|_{3,})$/.test(ln.trim())) {
-      out.push('<hr>');
+      out.push("<hr>");
       i++;
       continue;
     }
@@ -452,40 +594,48 @@ function renderGuideMarkdown(text) {
     if (/^[-*]\s+/.test(ln)) {
       const items = [];
       while (i < n && /^[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^[-*]\s+/, ''));
+        items.push(lines[i].replace(/^[-*]\s+/, ""));
         i++;
       }
-      out.push('<ul>' + items.map((it) => '<li>' + inlineMarkdown(it) + '</li>').join('') + '</ul>');
+      out.push(
+        "<ul>" +
+          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+          "</ul>"
+      );
       continue;
     }
 
     if (/^\d+\.\s+/.test(ln)) {
       const items = [];
       while (i < n && /^\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\.\s+/, ''));
+        items.push(lines[i].replace(/^\d+\.\s+/, ""));
         i++;
       }
-      out.push('<ol>' + items.map((it) => '<li>' + inlineMarkdown(it) + '</li>').join('') + '</ol>');
+      out.push(
+        "<ol>" +
+          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+          "</ol>"
+      );
       continue;
     }
 
     const buf = [];
     buf.push(ln);
     i++;
-    while (i < n && lines[i].trim() !== '' && !isSpecialBlockStart(lines, i)) {
+    while (i < n && lines[i].trim() !== "" && !isSpecialBlockStart(lines, i)) {
       buf.push(lines[i]);
       i++;
     }
     if (buf.length) {
-      out.push('<p>' + buf.map((l) => inlineMarkdown(l)).join('<br>') + '</p>');
+      out.push("<p>" + buf.map((l) => inlineMarkdown(l)).join("<br>") + "</p>");
     }
   }
-  return out.join('\n');
+  return out.join("\n");
 }
 
 function renderMd(text) {
-  const raw = renderGuideMarkdown(text || '');
-  if (typeof DOMPurify !== 'undefined') {
+  const raw = renderGuideMarkdown(text || "");
+  if (typeof DOMPurify !== "undefined") {
     return DOMPurify.sanitize(raw, MD_PURIFY);
   }
   return raw;
@@ -493,7 +643,7 @@ function renderMd(text) {
 
 /** Container tags whose children we morph individually so new <tr> / <li>
  *  fade in without re-animating the surrounding <table>/<ul>/<ol>. */
-const MORPH_CONTAINERS = new Set(['TABLE', 'TBODY', 'THEAD', 'TR', 'UL', 'OL']);
+const MORPH_CONTAINERS = new Set(["TABLE", "TBODY", "THEAD", "TR", "UL", "OL"]);
 
 /** In-place children morph: same index + same tag → patch innerHTML;
  *  different tag → replace + tag .fresh; extras at the tail → append .fresh;
@@ -506,7 +656,7 @@ function morphChildren(parent, newKids) {
     const o = oldKids[i];
     const n = newKids[i];
     if (o.tagName !== n.tagName) {
-      n.classList.add('fresh');
+      n.classList.add("fresh");
       parent.replaceChild(n, o);
       continue;
     }
@@ -518,7 +668,7 @@ function morphChildren(parent, newKids) {
     }
   }
   for (let i = oldKids.length; i < newKids.length; i++) {
-    newKids[i].classList.add('fresh');
+    newKids[i].classList.add("fresh");
     parent.appendChild(newKids[i]);
   }
   while (parent.children.length > newKids.length) {
@@ -530,8 +680,8 @@ function morphChildren(parent, newKids) {
  *  body in place so already-visible nodes don't re-animate. New blocks (and
  *  new <tr>/<li> inside tables/lists) pick up `.fresh` → CSS fade-slide-in. */
 function streamRenderInto(bodyEl, raw) {
-  const html = postProcessMarkers(renderMd(raw || ''));
-  const tmp = document.createElement('div');
+  const html = postProcessMarkers(renderMd(raw || ""));
+  const tmp = document.createElement("div");
   tmp.innerHTML = html;
   morphChildren(bodyEl, Array.from(tmp.children));
 }
@@ -577,63 +727,63 @@ function catIconSvg(key) {
 }
 
 function renderControlBlock(raw) {
-  const t = (raw || '').trim();
-  if (!t) return '';
+  const t = (raw || "").trim();
+  if (!t) return "";
   const html = postProcessMarkers(escapeHtml(t));
   return `<pre class="ctl-block"><code>${html}</code></pre>`;
 }
 
 function finalizeAssistantBody(bodyEl, raw) {
-  bodyEl.classList.remove('streaming', 'markdown-streaming');
+  bodyEl.classList.remove("streaming", "markdown-streaming");
   streamRenderInto(bodyEl, raw);
 }
 
 function renderSidebarCategories(categories) {
   if (!sidebarCat) return;
-  sidebarCat.innerHTML = '';
+  sidebarCat.innerHTML = "";
   (categories || []).forEach((cat) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'side-cat';
-    const t = document.createElement('div');
-    t.className = 'side-cat-title';
-    const tic = document.createElement('span');
-    tic.className = 'side-cat-icon';
-    tic.setAttribute('aria-hidden', 'true');
-    tic.innerHTML = catIconSvg(cat.key || '');
-    const ttxt = document.createElement('span');
-    ttxt.className = 'side-cat-title-text';
-    ttxt.textContent = cat.title || cat.key || '';
+    const wrap = document.createElement("div");
+    wrap.className = "side-cat";
+    const t = document.createElement("div");
+    t.className = "side-cat-title";
+    const tic = document.createElement("span");
+    tic.className = "side-cat-icon";
+    tic.setAttribute("aria-hidden", "true");
+    tic.innerHTML = catIconSvg(cat.key || "");
+    const ttxt = document.createElement("span");
+    ttxt.className = "side-cat-title-text";
+    ttxt.textContent = cat.title || cat.key || "";
     t.appendChild(tic);
     t.appendChild(ttxt);
     wrap.appendChild(t);
     (cat.examples || []).forEach((ex) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'side-ex';
-      btn.dataset.prompt = ex.user || '';
-      btn.dataset.exampleId = ex.id || '';
-      btn.dataset.categoryKey = cat.key || '';
-      const eic = document.createElement('span');
-      eic.className = 'side-ex-icon';
-      eic.setAttribute('aria-hidden', 'true');
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "side-ex";
+      btn.dataset.prompt = ex.user || "";
+      btn.dataset.exampleId = ex.id || "";
+      btn.dataset.categoryKey = cat.key || "";
+      const eic = document.createElement("span");
+      eic.className = "side-ex-icon";
+      eic.setAttribute("aria-hidden", "true");
       eic.innerHTML = EX_ICON_SVG;
-      const mid = document.createElement('span');
-      mid.className = 'side-ex-mid';
-      const line = document.createElement('span');
-      line.className = 'ex-line';
-      line.textContent = ex.user || ex.id || 'Example';
-      const sub = document.createElement('span');
-      sub.className = 'ex-sub';
-      sub.textContent = [cat.key, ex.subcategory].filter(Boolean).join(' · ');
+      const mid = document.createElement("span");
+      mid.className = "side-ex-mid";
+      const line = document.createElement("span");
+      line.className = "ex-line";
+      line.textContent = ex.user || ex.id || "Example";
+      const sub = document.createElement("span");
+      sub.className = "ex-sub";
+      sub.textContent = [cat.key, ex.subcategory].filter(Boolean).join(" · ");
       mid.appendChild(line);
       mid.appendChild(sub);
       btn.appendChild(eic);
       btn.appendChild(mid);
-      btn.addEventListener('click', () => {
+      btn.addEventListener("click", () => {
         if (isGenerating || !ws || ws.readyState !== 1) return;
         pendingExampleId = ex.id || null;
-        input.value = ex.user || '';
-        input.dispatchEvent(new Event('input'));
+        input.value = ex.user || "";
+        input.dispatchEvent(new Event("input"));
         if (sysCatSelect && cat.key) {
           sysCatSelect.value = cat.key;
           applySysCardForCategory(cat.key);
@@ -649,7 +799,7 @@ function renderSidebarCategories(categories) {
 
 function refreshExampleDisabled() {
   const ok = ws && ws.readyState === 1;
-  document.querySelectorAll('.side-ex').forEach((b) => {
+  document.querySelectorAll(".side-ex").forEach((b) => {
     b.disabled = !ok || isGenerating;
   });
   if (btnPlaySys) {
@@ -659,56 +809,69 @@ function refreshExampleDisabled() {
 }
 
 function renderStyleAndTools(constraints, tools) {
-  const stylePanel = document.getElementById('style-constraints');
+  const stylePanel = document.getElementById("style-constraints");
   if (stylePanel) {
     const c = constraints || {};
     const pills = [];
-    if (c.no_emoji) pills.push('no emoji');
-    if (c.no_motivational_cliches) pills.push('no clichés');
-    if (c.deep_dive_only_on_request) pills.push('deep-dive on request');
+    if (c.no_emoji) pills.push("no emoji");
+    if (c.no_motivational_cliches) pills.push("no clichés");
+    if (c.deep_dive_only_on_request) pills.push("deep-dive on request");
     if (c.default_voice) pills.push(c.default_voice);
     stylePanel.innerHTML = pills.length
-      ? pills.map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`).join('')
+      ? pills
+          .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
+          .join("")
       : '<span class="style-pill muted">no constraints declared</span>';
   }
-  const toolList = document.getElementById('tool-registry');
+  const toolList = document.getElementById("tool-registry");
   if (toolList) {
     const rows = (tools || [])
       .map((t) => {
-        const examples = (t.trigger_examples || []).map((q) => `<li>${escapeHtml(q)}</li>`).join('');
+        const examples = (t.trigger_examples || [])
+          .map((q) => `<li>${escapeHtml(q)}</li>`)
+          .join("");
         return (
           `<div class="tool-entry">` +
-          `<div class="tool-name"><code class="tool-name-code">${escapeHtml(t.name || '')}</code> <span class="tool-purpose">${escapeHtml(t.purpose || '')}</span></div>` +
-          `<div class="tool-result">${renderControlBlock(t.system_result_example || '')}</div>` +
-          (examples ? `<ul class="tool-eg">${examples}</ul>` : '') +
+          `<div class="tool-name"><code class="tool-name-code">${escapeHtml(
+            t.name || ""
+          )}</code> <span class="tool-purpose">${escapeHtml(
+            t.purpose || ""
+          )}</span></div>` +
+          `<div class="tool-result">${renderControlBlock(
+            t.system_result_example || ""
+          )}</div>` +
+          (examples ? `<ul class="tool-eg">${examples}</ul>` : "") +
           `</div>`
         );
       })
-      .join('');
-    toolList.innerHTML = rows || '<p class="drawer-note">No registered tools.</p>';
+      .join("");
+    toolList.innerHTML =
+      rows || '<p class="drawer-note">No registered tools.</p>';
   }
 }
 
 function fillSysCategorySelect(categories) {
   if (!sysCatSelect) return;
-  sysCatSelect.innerHTML = '';
+  sysCatSelect.innerHTML = "";
   (categories || []).forEach((cat) => {
-    const key = cat.key || '';
+    const key = cat.key || "";
     if (!key) return;
-    const opt = document.createElement('option');
+    const opt = document.createElement("option");
     opt.value = key;
     opt.textContent = cat.title || key;
     sysCatSelect.appendChild(opt);
   });
-  if (sysCatSelect.options.length && !sysCatSelect.value) sysCatSelect.selectedIndex = 0;
+  if (sysCatSelect.options.length && !sysCatSelect.value)
+    sysCatSelect.selectedIndex = 0;
   refreshExampleDisabled();
 }
 
 /** System card body: show SFT short string for `categoryKey` when known; else full mock persona. */
 function applySysCardForCategory(categoryKey) {
   if (!sysCardBody) return;
-  const k = categoryKey != null ? String(categoryKey).trim() : '';
-  const short = k && categorySystemPrompts[k] ? String(categorySystemPrompts[k]) : '';
+  const k = categoryKey != null ? String(categoryKey).trim() : "";
+  const short =
+    k && categorySystemPrompts[k] ? String(categorySystemPrompts[k]) : "";
   const src = short || globalSystemMarkdown;
   if (!src) return;
   sysCardBody.innerHTML = postProcessMarkers(renderMd(src));
@@ -716,31 +879,35 @@ function applySysCardForCategory(categoryKey) {
 
 async function loadDemoConfig() {
   try {
-    const r = await fetch('/api/demo-config');
+    const r = await fetch("/api/demo-config");
     const j = await r.json();
     if (j.mock) mockBanner.hidden = false;
-    globalSystemMarkdown = j.system_prompt_markdown || '';
+    globalSystemMarkdown = j.system_prompt_markdown || "";
     categorySystemPrompts =
-      j.category_system_prompts && typeof j.category_system_prompts === 'object'
+      j.category_system_prompts && typeof j.category_system_prompts === "object"
         ? j.category_system_prompts
         : {};
     if (globalSystemMarkdown && systemPromptMd) {
-      systemPromptMd.innerHTML = postProcessMarkers(renderMd(globalSystemMarkdown));
+      systemPromptMd.innerHTML = postProcessMarkers(
+        renderMd(globalSystemMarkdown)
+      );
     }
     fillSysCategorySelect(j.categories);
-    applySysCardForCategory(sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null);
+    applySysCardForCategory(
+      sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null
+    );
     renderStyleAndTools(j.style_constraints, j.tool_registry);
     renderSidebarCategories(j.categories);
     initSamplingDefaults(j.sampling_defaults || {});
     applyMaxTokensCap(j.max_new_tokens_cap);
-    if (j.format_guard && typeof j.format_guard === 'object') {
+    if (j.format_guard && typeof j.format_guard === "object") {
       formatGuardServer = { ...formatGuardServer, ...j.format_guard };
       formatGuardEnabled = !!formatGuardServer.enabled;
     }
     refreshFormatGuardLabel();
     refreshLandingGreeting();
   } catch {
-    globalSystemMarkdown = '';
+    globalSystemMarkdown = "";
     categorySystemPrompts = {};
     fillSysCategorySelect([]);
     renderSidebarCategories([]);
@@ -751,83 +918,86 @@ async function loadDemoConfig() {
 }
 
 function setDrawerTab(tab) {
-  document.querySelectorAll('.drawer-tab').forEach((b) => {
-    b.classList.toggle('active', b.dataset.tab === tab);
+  document.querySelectorAll(".drawer-tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tab);
   });
-  document.querySelectorAll('.drawer-panel').forEach((p) => {
-    p.classList.toggle('hidden', p.dataset.panel !== tab);
+  document.querySelectorAll(".drawer-panel").forEach((p) => {
+    p.classList.toggle("hidden", p.dataset.panel !== tab);
   });
 }
 
-const mainCol = $('#main-col');
-const landingGreeting = $('#landing-greeting');
-const landingStripLink = $('#landing-strip-link');
+const mainCol = $("#main-col");
+const landingGreeting = $("#landing-greeting");
+const landingStripLink = $("#landing-strip-link");
 
 function greetingPrefix() {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good morning';
-  if (h >= 12 && h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h >= 5 && h < 12) return "Good morning";
+  if (h >= 12 && h < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 function refreshLandingGreeting() {
-  const u = document.querySelector('.user-name');
-  const raw = u?.textContent?.trim() || '';
-  const name = raw || 'there';
-  if (landingGreeting) landingGreeting.textContent = `${greetingPrefix()}, ${name}`;
+  const u = document.querySelector(".user-name");
+  const raw = u?.textContent?.trim() || "";
+  const name = raw || "there";
+  if (landingGreeting)
+    landingGreeting.textContent = `${greetingPrefix()}, ${name}`;
 }
 
 function setLandingMode(on) {
-  mainCol?.classList.toggle('landing-mode', !!on);
+  mainCol?.classList.toggle("landing-mode", !!on);
   if (input) {
-    input.placeholder = on ? 'How can I help you today?' : 'Write a message…';
+    input.placeholder = on ? "How can I help you today?" : "Write a message…";
   }
   if (on) refreshLandingGreeting();
 }
 
 function hideWelcome() {
-  if (welcomeWrap) welcomeWrap.style.display = 'none';
+  if (welcomeWrap) welcomeWrap.style.display = "none";
   setLandingMode(false);
 }
 
 function showWelcome() {
-  if (welcomeWrap) welcomeWrap.style.display = '';
+  if (welcomeWrap) welcomeWrap.style.display = "";
   setLandingMode(true);
 }
 
-landingStripLink?.addEventListener('click', () => {
-  drawer.classList.add('show');
-  overlay.classList.add('show');
-  setDrawerTab('metrics');
+landingStripLink?.addEventListener("click", () => {
+  drawer.classList.add("show");
+  overlay.classList.add("show");
+  setDrawerTab("metrics");
 });
 
-welcomeWrap?.addEventListener('click', (e) => {
-  const btn = e.target.closest('.landing-pill[data-prompt]');
+welcomeWrap?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".landing-pill[data-prompt]");
   if (!btn || !welcomeWrap.contains(btn)) return;
-  const pr = btn.getAttribute('data-prompt');
+  const pr = btn.getAttribute("data-prompt");
   if (pr && input) {
     input.value = pr;
-    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event("input"));
     input.focus();
   }
 });
 
-document.querySelectorAll('.drawer-tab').forEach((btn) => {
-  btn.addEventListener('click', () => setDrawerTab(btn.dataset.tab || 'metrics'));
+document.querySelectorAll(".drawer-tab").forEach((btn) => {
+  btn.addEventListener("click", () =>
+    setDrawerTab(btn.dataset.tab || "metrics")
+  );
 });
 
-$('#btn-info').onclick = () => {
-  drawer.classList.add('show');
-  overlay.classList.add('show');
-  setDrawerTab('metrics');
+$("#btn-info").onclick = () => {
+  drawer.classList.add("show");
+  overlay.classList.add("show");
+  setDrawerTab("metrics");
 };
-$('#drawer-close').onclick = overlay.onclick = () => {
-  drawer.classList.remove('show');
-  overlay.classList.remove('show');
+$("#drawer-close").onclick = overlay.onclick = () => {
+  drawer.classList.remove("show");
+  overlay.classList.remove("show");
 };
 
-$('#btn-sidebar-toggle')?.addEventListener('click', () => {
-  sidebar?.classList.toggle('collapsed-mobile');
+$("#btn-sidebar-toggle")?.addEventListener("click", () => {
+  sidebar?.classList.toggle("collapsed-mobile");
 });
 
 maxTokensSlider.oninput = () => {
@@ -850,64 +1020,66 @@ function applyMaxTokensCap(cap) {
 }
 
 input.oninput = () => {
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 200) + "px";
 };
 input.onkeydown = (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
+  if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     doSend();
   }
 };
 
 function clearChatUi() {
-  chatScroll.innerHTML = '';
+  chatScroll.innerHTML = "";
   if (sysCard) {
     sysCard.open = false;
     chatScroll.appendChild(sysCard);
   }
   chatScroll.appendChild(welcomeWrap);
   showWelcome();
-  applySysCardForCategory(sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null);
+  applySysCardForCategory(
+    sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null
+  );
   turnCount = 0;
-  $('#m-turns').textContent = '0';
-  ['m-toks', 'm-ttft', 'm-prefill', 'm-total'].forEach((id) => {
-    const el = $('#' + id);
-    if (el) el.textContent = '—';
+  $("#m-turns").textContent = "0";
+  ["m-toks", "m-ttft", "m-prefill", "m-total"].forEach((id) => {
+    const el = $("#" + id);
+    if (el) el.textContent = "—";
   });
 }
 
 function doClear() {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ action: 'clear' }));
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ action: "clear" }));
   clearChatUi();
 }
 
-$('#btn-clear').onclick = doClear;
-$('#btn-new-sidebar')?.addEventListener('click', doClear);
+$("#btn-clear").onclick = doClear;
+$("#btn-new-sidebar")?.addEventListener("click", doClear);
 
 function setWs(state, text) {
-  wsPill.className = 'ws-pill ' + state;
+  wsPill.className = "ws-pill " + state;
   wsLabel.textContent = text || state;
-  const mws = $('#m-ws');
-  if (mws) mws.textContent = state === 'open' ? 'Live' : state;
-  const ok = state === 'open';
+  const mws = $("#m-ws");
+  if (mws) mws.textContent = state === "open" ? "Live" : state;
+  const ok = state === "open";
   sendBtn.disabled = !ok || isGenerating;
   refreshExampleDisabled();
 }
 
 function connectWs() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(proto + '//' + location.host + '/ws');
-  setWs('connecting', 'Connecting');
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(proto + "//" + location.host + "/ws");
+  setWs("connecting", "Connecting");
   ws.onopen = () => {
-    setWs('open', 'Connected');
+    setWs("open", "Connected");
     fetchInfo();
   };
   ws.onclose = () => {
-    setWs('closed', 'Reconnecting…');
+    setWs("closed", "Reconnecting…");
     setTimeout(connectWs, 2000);
   };
-  ws.onerror = () => setWs('closed', 'Error');
+  ws.onerror = () => setWs("closed", "Error");
   ws.onmessage = (e) => {
     try {
       handleMsg(JSON.parse(e.data));
@@ -919,24 +1091,25 @@ function connectWs() {
 
 async function fetchInfo() {
   try {
-    const d = await (await fetch('/api/status')).json();
+    const d = await (await fetch("/api/status")).json();
     if (d.config) {
       const map = [
-        ['info-dmodel', d.config.d_model],
-        ['info-layers', d.config.num_layers],
-        ['info-experts', d.config.kmoe_num_experts],
-        ['info-topk', d.config.kmoe_top_k],
-        ['info-quant', d.config.quantize ? d.config.quantize + 'b' : 'off'],
-        ['info-dtype', d.config.dtype],
+        ["info-dmodel", d.config.d_model],
+        ["info-layers", d.config.num_layers],
+        ["info-experts", d.config.kmoe_num_experts],
+        ["info-topk", d.config.kmoe_top_k],
+        ["info-quant", d.config.quantize ? d.config.quantize + "b" : "off"],
+        ["info-dtype", d.config.dtype],
       ];
       map.forEach(([id, v]) => {
-        const el = $('#' + id);
-        if (el) el.textContent = v != null ? String(v) : '—';
+        const el = $("#" + id);
+        if (el) el.textContent = v != null ? String(v) : "—";
       });
     }
     if (d.load_timings && d.load_timings.total_ms != null) {
-      const el = $('#info-load');
-      if (el) el.textContent = (d.load_timings.total_ms / 1000).toFixed(1) + 's';
+      const el = $("#info-load");
+      if (el)
+        el.textContent = (d.load_timings.total_ms / 1000).toFixed(1) + "s";
     }
   } catch {
     /* ignore */
@@ -945,25 +1118,25 @@ async function fetchInfo() {
 
 function addRow(role, text) {
   hideWelcome();
-  const row = document.createElement('div');
-  row.className = 'msg-row ' + role;
-  const inner = document.createElement('div');
-  inner.className = 'msg-inner';
-  const av = document.createElement('div');
-  av.className = 'msg-avatar';
-  av.textContent = role === 'user' ? 'You' : 'M';
-  const content = document.createElement('div');
-  content.className = 'msg-content';
-  const roleName = document.createElement('div');
-  roleName.className = 'msg-role';
-  roleName.textContent = role === 'user' ? 'You' : 'Mamba';
-  const body = document.createElement('div');
-  body.className = 'msg-text md-body';
-  if (role === 'user') {
-    body.innerHTML = postProcessMarkers(renderMd(text || ''));
+  const row = document.createElement("div");
+  row.className = "msg-row " + role;
+  const inner = document.createElement("div");
+  inner.className = "msg-inner";
+  const av = document.createElement("div");
+  av.className = "msg-avatar";
+  av.textContent = role === "user" ? "You" : "M";
+  const content = document.createElement("div");
+  content.className = "msg-content";
+  const roleName = document.createElement("div");
+  roleName.className = "msg-role";
+  roleName.textContent = role === "user" ? "You" : "Mamba";
+  const body = document.createElement("div");
+  body.className = "msg-text md-body";
+  if (role === "user") {
+    body.innerHTML = postProcessMarkers(renderMd(text || ""));
   } else {
-    body.classList.add('markdown-streaming', 'streaming');
-    body.textContent = text || '';
+    body.classList.add("markdown-streaming", "streaming");
+    body.textContent = text || "";
   }
   content.appendChild(roleName);
   content.appendChild(body);
@@ -977,135 +1150,142 @@ function addRow(role, text) {
 
 function addToolRow(call, systemResult, phase) {
   hideWelcome();
-  const row = document.createElement('div');
-  row.className = 'msg-row tool-route';
-  const card = document.createElement('div');
-  card.className = 'tool-card';
-  const phaseLabel = phase === 'response' ? 'Host · injected payload' : 'Host · function tool';
-  const callHtml = call ? `<div class="tool-line">${renderControlBlock(call)}</div>` : '';
+  const row = document.createElement("div");
+  row.className = "msg-row tool-route";
+  const card = document.createElement("div");
+  card.className = "tool-card";
+  const phaseLabel =
+    phase === "response" ? "Host · injected payload" : "Host · function tool";
+  const callHtml = call
+    ? `<div class="tool-line">${renderControlBlock(call)}</div>`
+    : "";
   const injHtml = systemResult
-    ? `<div class="tool-line tool-line-result"><div class="tool-sublabel">Injected back into the conversation</div>${renderControlBlock(systemResult)}</div>`
-    : '';
+    ? `<div class="tool-line tool-line-result"><div class="tool-sublabel">Injected back into the conversation</div>${renderControlBlock(
+        systemResult
+      )}</div>`
+    : "";
   card.innerHTML =
     '<div class="tool-inner">' +
     `<div class="tool-label"><span class="tool-dot"></span>${phaseLabel}</div>` +
     callHtml +
     injHtml +
-    '</div>';
+    "</div>";
   row.appendChild(card);
   chatScroll.appendChild(row);
   nudgeScroll();
 }
 
 const THINKING_PHRASES = [
-  'Ruminating on it, stand by…',
-  'Thinking it through…',
-  'Mulling this over…',
-  'Working through the steps…',
-  'Stitching thoughts together…',
-  'Reasoning, one moment…',
+  "Ruminating on it, stand by…",
+  "Thinking it through…",
+  "Mulling this over…",
+  "Working through the steps…",
+  "Stitching thoughts together…",
+  "Reasoning, one moment…",
 ];
 function addDots(obj) {
-  const d = document.createElement('div');
-  d.className = 'thinking-pulse';
-  const phrase = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+  const d = document.createElement("div");
+  d.className = "thinking-pulse";
+  const phrase =
+    THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
   d.innerHTML =
     '<svg class="tp-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">' +
-      '<g stroke="currentColor" stroke-width="2.6" stroke-linecap="round">' +
-        '<line x1="16" y1="3.2" x2="16" y2="28.8"/>' +
-        '<line x1="3.2" y1="16" x2="28.8" y2="16"/>' +
-        '<line x1="7.1" y1="7.1" x2="24.9" y2="24.9"/>' +
-        '<line x1="24.9" y1="7.1" x2="7.1" y2="24.9"/>' +
-      '</g>' +
-    '</svg>' +
+    '<g stroke="currentColor" stroke-width="2.6" stroke-linecap="round">' +
+    '<line x1="16" y1="3.2" x2="16" y2="28.8"/>' +
+    '<line x1="3.2" y1="16" x2="28.8" y2="16"/>' +
+    '<line x1="7.1" y1="7.1" x2="24.9" y2="24.9"/>' +
+    '<line x1="24.9" y1="7.1" x2="7.1" y2="24.9"/>' +
+    "</g>" +
+    "</svg>" +
     `<span class="tp-label">${phrase}</span>`;
   obj.body.appendChild(d);
   return d;
 }
 
 function addPrefill(obj, data) {
-  const p = document.createElement('div');
-  p.className = 'prefill-pill';
-  const cat = data.category ? ` · ${data.category}` : '';
-  const eid = data.example_id ? ` · ${data.example_id}` : '';
+  const p = document.createElement("div");
+  p.className = "prefill-pill";
+  const cat = data.category ? ` · ${data.category}` : "";
+  const eid = data.example_id ? ` · ${data.example_id}` : "";
   p.textContent =
-    (data.prompt_tokens ?? '') +
-    ' tok · ' +
+    (data.prompt_tokens ?? "") +
+    " tok · " +
     Number(data.prefill_ms).toFixed(1) +
-    'ms' +
+    "ms" +
     cat +
     eid +
-    (data.turns > 1 ? ' · turn ' + data.turns : '');
+    (data.turns > 1 ? " · turn " + data.turns : "");
   obj.content.insertBefore(p, obj.body);
 }
 
 function addMetrics(obj, data) {
-  const m = document.createElement('div');
-  m.className = 'msg-metrics';
+  const m = document.createElement("div");
+  m.className = "msg-metrics";
   m.innerHTML =
-    '<span>' +
+    "<span>" +
     Number(data.tok_s).toFixed(1) +
-    ' tok/s</span><span>TTFT ' +
+    " tok/s</span><span>TTFT " +
     Number(data.ttft_ms).toFixed(1) +
-    'ms</span><span>Prefill ' +
+    "ms</span><span>Prefill " +
     Number(data.prefill_ms).toFixed(1) +
-    'ms</span><span>' +
+    "ms</span><span>" +
     data.total_tokens +
-    ' tok</span><span>' +
+    " tok</span><span>" +
     Number(data.total_ms).toFixed(0) +
-    'ms</span>';
+    "ms</span>";
   obj.content.appendChild(m);
 }
 
 function ensureReasoningBlock() {
   if (!currentMsg) return null;
-  let det = currentMsg.content.querySelector('details.reasoning-block');
+  let det = currentMsg.content.querySelector("details.reasoning-block");
   if (!det) {
-    det = document.createElement('details');
-    det.className = 'reasoning-block';
+    det = document.createElement("details");
+    det.className = "reasoning-block";
     det.open = true;
     det.innerHTML =
       '<summary>Chain of thought <span class="cot-tag">CoT · JSON field</span></summary><div class="reasoning-md md-body"></div>';
     currentMsg.content.insertBefore(det, currentMsg.body);
   }
-  return det.querySelector('.reasoning-md');
+  return det.querySelector(".reasoning-md");
 }
 
 function handleMsg(m) {
-  if (m.type === 'connected' || m.type === 'pong') return;
-  if (m.type === 'cleared') {
+  if (m.type === "connected" || m.type === "pong") return;
+  if (m.type === "cleared") {
     turnCount = 0;
-    const mt = $('#m-turns');
-    if (mt) mt.textContent = '0';
+    const mt = $("#m-turns");
+    if (mt) mt.textContent = "0";
     return;
   }
-  if (m.type === 'error') {
+  if (m.type === "error") {
     if (currentMsg) {
       if (typingDots) {
         typingDots.remove();
         typingDots = null;
       }
-      currentMsg.body.classList.remove('streaming', 'markdown-streaming');
-      currentMsg.body.textContent = 'Error: ' + m.message;
-      currentMsg.body.style.color = '#ef5350';
+      currentMsg.body.classList.remove("streaming", "markdown-streaming");
+      currentMsg.body.textContent = "Error: " + m.message;
+      currentMsg.body.style.color = "#ef5350";
       currentMsg = null;
     }
     isGenerating = false;
     sendBtn.disabled = false;
     refreshExampleDisabled();
+    nesHide();
     return;
   }
-  if (m.type === 'reasoning') {
+  if (m.type === "reasoning") {
     const slot = ensureReasoningBlock();
-    if (slot) slot.innerHTML = postProcessMarkers(renderMd(m.markdown || ''));
+    if (slot) slot.innerHTML = postProcessMarkers(renderMd(m.markdown || ""));
     nudgeScroll();
     return;
   }
-  if (m.type === 'tool_action') {
+  if (m.type === "tool_action") {
     addToolRow(m.call, m.system_result, m.phase);
     return;
   }
-  if (m.type === 'intro_start') {
+  if (m.type === "intro_start") {
     inIntro = true;
     nudgeScroll();
     if (currentMsg) {
@@ -1113,18 +1293,20 @@ function handleMsg(m) {
         typingDots.remove();
         typingDots = null;
       }
-      currentMsg.row.classList.add('intro-bubble');
-      const roleEl = currentMsg.row.querySelector('.msg-role');
+      currentMsg.row.classList.add("intro-bubble");
+      const roleEl = currentMsg.row.querySelector(".msg-role");
       if (roleEl) {
-        const tit = String(m.category_title || '').trim();
-        roleEl.textContent = tit ? 'Mamba · ' + tit + ' · SFT system' : 'Mamba · System prompt';
+        const tit = String(m.category_title || "").trim();
+        roleEl.textContent = tit
+          ? "Mamba · " + tit + " · SFT system"
+          : "Mamba · System prompt";
       }
-      const avEl = currentMsg.row.querySelector('.msg-avatar');
-      if (avEl) avEl.textContent = 'S';
+      const avEl = currentMsg.row.querySelector(".msg-avatar");
+      if (avEl) avEl.textContent = "S";
     }
     return;
   }
-  if (m.type === 'assistant_split') {
+  if (m.type === "assistant_split") {
     if (currentMsg) {
       if (typingDots) {
         typingDots.remove();
@@ -1132,100 +1314,103 @@ function handleMsg(m) {
       }
       finalizeAssistantBody(currentMsg.body, streamText);
     }
-    currentMsg = addRow('assistant', '');
-    currentMsg.body.classList.add('streaming', 'markdown-streaming');
+    currentMsg = addRow("assistant", "");
+    currentMsg.body.classList.add("streaming", "markdown-streaming");
     typingDots = addDots(currentMsg);
-    streamText = '';
+    streamText = "";
     inIntro = false;
     nudgeScroll();
     return;
   }
-  if (m.type === 'meta') {
+  if (m.type === "meta") {
     if (typingDots) {
       typingDots.remove();
       typingDots = null;
     }
     if (currentMsg) addPrefill(currentMsg, m);
-    const mp = $('#m-prefill');
-    if (mp) mp.textContent = Number(m.prefill_ms).toFixed(0) + 'ms';
+    const mp = $("#m-prefill");
+    if (mp) mp.textContent = Number(m.prefill_ms).toFixed(0) + "ms";
     if (m.turns) {
-      const mt = $('#m-turns');
+      const mt = $("#m-turns");
       if (mt) mt.textContent = m.turns;
     }
     nudgeScroll();
     return;
   }
-  if (m.type === 'token') {
+  if (m.type === "token") {
     streamText += m.text;
     if (currentMsg) {
       if (typingDots) {
         typingDots.remove();
         typingDots = null;
       }
-      currentMsg.body.classList.remove('markdown-streaming');
-      currentMsg.body.classList.add('streaming');
+      currentMsg.body.classList.remove("markdown-streaming");
+      currentMsg.body.classList.add("streaming");
       streamRenderInto(currentMsg.body, streamText);
     }
     nudgeScroll();
     if (!inIntro) {
-      const mtok = $('#m-toks');
-      const mtot = $('#m-total');
+      const mtok = $("#m-toks");
+      const mtot = $("#m-total");
       if (mtok) mtok.textContent = Number(m.tok_s).toFixed(1);
       if (mtot) mtot.textContent = m.n;
+      if (nesActive)
+        nesUpdate(m.n, m.tok_s, parseInt(maxTokensSlider.value, 10));
     }
     return;
   }
-  if (m.type === 'done') {
+  if (m.type === "done") {
     const playOnly = Boolean(m.play_system_only);
     if (currentMsg) {
       finalizeAssistantBody(currentMsg.body, streamText);
       if (!playOnly) addMetrics(currentMsg, m);
     }
-    const mtok = $('#m-toks');
-    const mtt = $('#m-ttft');
-    const mpf = $('#m-prefill');
-    const mtot = $('#m-total');
-    const mtr = $('#m-turns');
+    const mtok = $("#m-toks");
+    const mtt = $("#m-ttft");
+    const mpf = $("#m-prefill");
+    const mtot = $("#m-total");
+    const mtr = $("#m-turns");
     if (mtok) mtok.textContent = Number(m.tok_s).toFixed(1);
-    if (mtt) mtt.textContent = Number(m.ttft_ms).toFixed(0) + 'ms';
-    if (mpf) mpf.textContent = Number(m.prefill_ms).toFixed(0) + 'ms';
+    if (mtt) mtt.textContent = Number(m.ttft_ms).toFixed(0) + "ms";
+    if (mpf) mpf.textContent = Number(m.prefill_ms).toFixed(0) + "ms";
     if (mtot) mtot.textContent = m.total_tokens;
     nudgeScroll();
     if (!playOnly) turnCount++;
     if (mtr) mtr.textContent = turnCount;
     currentMsg = null;
     typingDots = null;
-    streamText = '';
+    streamText = "";
     inIntro = false;
     isGenerating = false;
     sendBtn.disabled = false;
     refreshExampleDisabled();
+    nesHide();
     input.focus();
   }
 }
 
 function playSystemPrompt() {
   if (!ws || ws.readyState !== 1 || isGenerating) return;
-  const key = (sysCatSelect && sysCatSelect.value) || '';
+  const key = (sysCatSelect && sysCatSelect.value) || "";
   if (!key) return;
   isGenerating = true;
   sendBtn.disabled = true;
   refreshExampleDisabled();
   if (sysCard && sysCard.open) sysCard.open = false;
-  currentMsg = addRow('assistant', '');
+  currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
-  streamText = '';
+  streamText = "";
   inIntro = false;
-  ws.send(JSON.stringify({ action: 'play_system_prompt', category_key: key }));
+  ws.send(JSON.stringify({ action: "play_system_prompt", category_key: key }));
 }
 
-btnPlaySys?.addEventListener('click', (e) => {
+btnPlaySys?.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
   playSystemPrompt();
 });
 
-sysCatSelect?.addEventListener('change', () => {
+sysCatSelect?.addEventListener("change", () => {
   applySysCardForCategory(sysCatSelect.value);
 });
 
@@ -1235,18 +1420,18 @@ function doSend() {
   isGenerating = true;
   sendBtn.disabled = true;
   refreshExampleDisabled();
-  input.value = '';
-  input.style.height = 'auto';
+  input.value = "";
+  input.style.height = "auto";
   if (sysCard && sysCard.open) sysCard.open = false;
   forceFollow();
-  addRow('user', t);
-  currentMsg = addRow('assistant', '');
+  addRow("user", t);
+  currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
-  streamText = '';
+  streamText = "";
   inIntro = false;
   forceFollow();
   const payload = {
-    action: 'chat',
+    action: "chat",
     prompt: t,
     max_tokens: parseInt(maxTokensSlider.value, 10),
     reasoning: isReasoningOn(),
@@ -1254,6 +1439,10 @@ function doSend() {
   };
   if (!formatGuardEnabled) {
     payload.format_guard = false;
+  }
+  if (eosNoStopToggle && eosNoStopToggle.checked) {
+    payload.no_eos_stop = true;
+    nesShow(payload.max_tokens);
   }
   if (sysCatSelect && sysCatSelect.value) {
     payload.category_key = sysCatSelect.value;
