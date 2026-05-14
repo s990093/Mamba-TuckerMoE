@@ -47,9 +47,115 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.remove("fs-open");
   }
 
+  // ── TD-MoE iframe：全螢幕（原生 Fullscreen API，不支援則偽全螢幕）──
+  const simWrap = document.getElementById("sim-embed-wrap");
+  const simFrame = document.getElementById("sim-embed-frame");
+  const simFsBtn = document.getElementById("sim-fs-btn");
+  const simPseudoExit = document.getElementById("sim-pseudo-fs-exit");
+
+  function simIsNativeFs() {
+    const el = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!el) return false;
+    return el === simWrap || el === simFrame;
+  }
+  function simIsPseudoFs() {
+    return !!(simWrap && simWrap.classList.contains("is-pseudo-fullscreen"));
+  }
+  function simIsAnyFs() {
+    return simIsNativeFs() || simIsPseudoFs();
+  }
+  function syncSimFsBtn() {
+    if (!simFsBtn) return;
+    simFsBtn.textContent = simIsAnyFs() ? "退出全螢幕" : "全螢幕";
+  }
+  function simEnterFs() {
+    if (!simWrap || simIsAnyFs()) return;
+
+    const enterPseudo = () => {
+      simWrap.classList.add("is-pseudo-fullscreen");
+      document.body.classList.add("sim-fs-open");
+      if (simPseudoExit) {
+        simPseudoExit.hidden = false;
+        simPseudoExit.setAttribute("aria-hidden", "false");
+      }
+      syncSimFsBtn();
+    };
+
+    const webkitOrPseudo = () => {
+      try {
+        if (simWrap.webkitRequestFullscreen) {
+          simWrap.webkitRequestFullscreen();
+          syncSimFsBtn();
+          return;
+        }
+      } catch (_) {
+        /* fall through */
+      }
+      try {
+        if (simFrame && simFrame.webkitRequestFullscreen) {
+          simFrame.webkitRequestFullscreen();
+          syncSimFsBtn();
+          return;
+        }
+      } catch (_) {
+        /* fall through */
+      }
+      enterPseudo();
+    };
+
+    if (simWrap.requestFullscreen) {
+      simWrap
+        .requestFullscreen()
+        .then(() => syncSimFsBtn())
+        .catch(() => {
+          if (simFrame && simFrame.requestFullscreen) {
+            return simFrame.requestFullscreen().then(() => syncSimFsBtn());
+          }
+          return Promise.reject(new Error("wrap+frame fs failed"));
+        })
+        .catch(webkitOrPseudo);
+      return;
+    }
+    webkitOrPseudo();
+  }
+  async function simExitFs() {
+    if (simIsNativeFs()) {
+      try {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (simIsPseudoFs()) {
+      simWrap.classList.remove("is-pseudo-fullscreen");
+      document.body.classList.remove("sim-fs-open");
+      if (simPseudoExit) {
+        simPseudoExit.hidden = true;
+        simPseudoExit.setAttribute("aria-hidden", "true");
+      }
+    }
+    syncSimFsBtn();
+  }
+
+  if (simWrap && simFsBtn) {
+    simFsBtn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (simIsAnyFs()) void simExitFs();
+      else simEnterFs();
+    });
+    document.addEventListener("fullscreenchange", syncSimFsBtn);
+    document.addEventListener("webkitfullscreenchange", syncSimFsBtn);
+  }
+  if (simPseudoExit) {
+    simPseudoExit.addEventListener("click", () => void simExitFs());
+  }
+
   function go(d) {
     const nx = Math.max(0, Math.min(N - 1, c + d));
     if (nx === c && d !== 0) return;
+    if (nx !== c && simIsAnyFs()) void simExitFs();
     const prev = c;
 
     // Exit: current slide direction
@@ -140,6 +246,29 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    if (simWrap && simIsAnyFs()) {
+      if (e.key === "Escape" && simIsPseudoFs()) {
+        e.preventDefault();
+        void simExitFs();
+        return;
+      }
+      const k = e.key;
+      if (
+        k === "ArrowRight" ||
+        k === "ArrowDown" ||
+        k === " " ||
+        k === "PageDown" ||
+        k === "ArrowLeft" ||
+        k === "ArrowUp" ||
+        k === "PageUp" ||
+        k === "Home" ||
+        k === "End"
+      ) {
+        e.preventDefault();
+      }
+      return;
+    }
+
     if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "PageDown") {
       e.preventDefault(); go(1);
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") {
@@ -158,6 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
     tx = e.changedTouches[0].screenX;
   }, { passive: true });
   st.addEventListener("touchend", (e) => {
+    if (simWrap && simIsAnyFs()) return;
     if (tx === null) return;
     const dx = e.changedTouches[0].screenX - tx;
     tx = null;

@@ -2,21 +2,21 @@
 # Mamba3-XR Chat Demo launcher
 # Usage:
 #   ./inference/run_chat_demo.sh                          # stable preset (safe, 8-bit, stochastic)
-#   STREAM_PRESET=best ./inference/run_chat_demo.sh       # speed preset (4-bit, greedy)
+#   STREAM_PRESET=best ./inference/run_chat_demo.sh       # throughput preset (4-bit, greedy, compiled decode)
 #   ./inference/run_chat_demo.sh --port 8080              # custom port
 #   CHECKPOINT=path/to.pt ./inference/run_chat_demo.sh    # custom checkpoint
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-CHECKPOINT="${CHECKPOINT:-cot_checkpoints/latest_sft_cot_model.npz}"
-STREAM_PRESET="${STREAM_PRESET:-bset}"   # NOTE: looks like a typo of "best"; left unchanged to preserve current default (falls into the "stable" else branch).
-# STREAM_PRESET="${STREAM_PRESET:-stable}"
+CHECKPOINT="${CHECKPOINT:-checkpoints/latest_sft_cot_model.npz}"
+# stable = safe + eager decode (no per-layer decode compile); best = throughput + fast-sample + 4-bit
+STREAM_PRESET="${STREAM_PRESET:-stable}"
 PORT="${PORT:-7860}"
 # Max tokens that the slider can request.  KV cache memory scales linearly
-# with this — keep it modest (4096–8192) on 8 GB Macs, bump to 20480 only
-# when you really need long generations.
-MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-204800}"
+# with MAX_NEW_TOKENS (chat_demo: _max_cache_len = seq_len + max_new_tokens + 8).
+# Keep modest on 8 GB Macs unless you export a larger MAX_NEW_TOKENS.
+MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-2048}"
 # Hard cap on how many distinct system prompts we keep KV-primed at once.
 # Each entry holds a padded KV cache, so the LRU bound directly caps memory.
 PRIME_MAX_ENTRIES="${PRIME_MAX_ENTRIES:-2}"
@@ -77,20 +77,19 @@ echo ""
 
 PY=(.venv/bin/python inference/chat_demo.py)
 
-if [[ "$STREAM_PRESET" == "best" ]]; then
+if [[ "$STREAM_PRESET" == "best" || "$STREAM_PRESET" == "fast" ]]; then
+  # chat_demo.py does not expose --tucker-scalar-fuse / --fused-mamba-mixer (those are stream_mlx / benchmark flags).
   exec "${PY[@]}" \
     ${MOCK_ARGS[@]+"${MOCK_ARGS[@]}"} \
     --checkpoint "$CHECKPOINT" \
     --inference-type throughput \
     --dtype bf16 \
     --kv-dtype auto \
-    --quantize 4 \
+    --quantize 8 \
     --tucker-einsum-fuse \
-    --tucker-scalar-fuse \
-    --fused-mamba-mixer \
+    --materialize-caches \
     --fast-sample \
     --full-decode-compile \
-    --no-materialize-caches \
     --router-temp 0.5 \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --prime-max-entries "$PRIME_MAX_ENTRIES" \

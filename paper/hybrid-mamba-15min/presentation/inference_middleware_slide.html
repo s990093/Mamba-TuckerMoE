@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>推論中介層架構 · Mamba Middleware</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    .font-math { font-family: "Merriweather", "Times New Roman", serif; }
+    .font-code { font-family: "Fira Code", ui-monospace, monospace; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Inter, -apple-system, sans-serif;
+      /* 與簡報 embed 區底色區隔，避免「整塊灰靜態」感 */
+      background: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 45%, #cbd5e1 100%);
+    }
+
+    #scale-wrapper {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    #slide-container {
+      width: 1920px;
+      height: 1080px;
+      max-height: 1080px;
+      background: #fff;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      position: relative;
+      transform-origin: center center;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      border: 1px solid #94a3b8;
+      overflow: hidden;
+    }
+
+    .academic-box {
+      background: #fff;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      box-shadow: 3px 3px 0 rgba(51, 65, 85, 0.1);
+    }
+
+    .highlight-box-blue {
+      border-color: #1d4ed8;
+      background: #eff6ff;
+    }
+
+    .highlight-box-green {
+      border-color: #15803d;
+      background: #f0fdf4;
+    }
+
+    .ramp-svg-wrap {
+      max-height: 240px;
+    }
+
+    .fsm-svg-wrap {
+      max-height: 150px;
+      min-height: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="scale-wrapper">
+    <div id="slide-container" class="flex flex-col px-8 py-5 box-border min-h-0">
+      <header class="mb-3 border-b-2 border-slate-800 pb-3 flex justify-between items-end gap-6 shrink-0">
+        <div class="min-w-0">
+          <h1 class="text-[2.35rem] leading-tight font-bold text-slate-900 mb-1 tracking-tight">
+            Optimized Inference Middleware Architecture
+          </h1>
+          <h2 class="text-xl text-slate-600 font-medium leading-snug">
+            Token-ID FSM、融合 Bias 向量、雙輪廓取樣（Dual-Profile）
+          </h2>
+          <p class="text-sm text-slate-500 mt-1.5 font-medium">CoT 推論：regex-free 狀態機 + 每步 O(1) logit 修正</p>
+        </div>
+        <div class="text-sm text-slate-500 font-mono tracking-widest uppercase font-bold shrink-0">Fig 1</div>
+      </header>
+
+      <div class="flex-1 flex flex-row gap-8 min-h-0 overflow-hidden">
+        <div class="w-[34%] flex flex-col min-h-0 overflow-hidden shrink-0">
+          <h3 class="text-lg font-bold text-slate-800 mb-2 border-l-4 border-slate-800 pl-3 uppercase tracking-wide shrink-0">
+            Execution Pipeline（每步）
+          </h3>
+
+          <div class="flex flex-col items-center flex-1 relative w-full min-h-0 overflow-y-auto pr-1">
+            <div class="absolute w-0.5 bg-slate-300 top-6 bottom-20 left-1/2 -translate-x-1/2 z-0"></div>
+
+            <div class="academic-box w-full max-w-sm p-3 mb-3 relative z-10 flex flex-col items-center text-center">
+              <div class="absolute -top-3 left-6 bg-slate-800 text-white px-2 py-0.5 text-sm font-bold rounded">1</div>
+              <h4 class="text-lg font-bold text-slate-900 mb-1">Model Forward</h4>
+              <code class="font-code text-slate-600 bg-slate-100 px-2 py-0.5 rounded text-sm border border-slate-200">logits = model(x)</code>
+            </div>
+
+            <div class="academic-box highlight-box-blue w-full max-w-sm p-3 mb-3 relative z-10 flex flex-col items-center text-center">
+              <div class="absolute -top-3 left-6 bg-blue-700 text-white px-2 py-0.5 text-sm font-bold rounded">2</div>
+              <h4 class="text-lg font-bold text-blue-900 mb-1">Fused Bias Processor</h4>
+              <p class="text-slate-700 text-sm mb-1">Ban mask + dynamic ramp bias，O(1) 向量相加</p>
+              <code class="font-code text-blue-800 bg-blue-100 px-2 py-0.5 rounded text-sm border border-blue-200">row += precomputed_bias</code>
+            </div>
+
+            <div class="academic-box highlight-box-green w-full max-w-sm p-3 mb-3 relative z-10 flex flex-col items-center text-center">
+              <div class="absolute -top-3 left-6 bg-green-700 text-white px-2 py-0.5 text-sm font-bold rounded">3</div>
+              <h4 class="text-lg font-bold text-green-900 mb-1">Token-ID FSM Splitter</h4>
+              <p class="text-slate-700 text-sm leading-snug">無 regex 序列比對；路由 token 並觸發狀態轉移</p>
+            </div>
+
+            <div class="flex w-full justify-between items-start gap-2 mt-1 px-1 relative z-10 shrink-0">
+              <div class="academic-box flex-1 min-w-0 p-2.5 text-center bg-white shadow-sm">
+                <h5 class="font-bold text-sm text-slate-800">Emit Token</h5>
+                <p class="text-slate-500 text-xs mt-1">WebSocket</p>
+              </div>
+              <div class="academic-box flex-1 min-w-0 p-2.5 text-center border-orange-500 bg-orange-50 shadow-sm relative">
+                <div class="absolute -top-2 -right-1 bg-orange-600 text-white text-[10px] px-1.5 py-0.5 font-bold rounded-full">Trig</div>
+                <h5 class="font-bold text-sm text-orange-900">KV Speculative</h5>
+                <p class="text-orange-700 text-xs mt-0.5 font-code">&lt;final&gt;\n</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 flex flex-col min-h-0 overflow-hidden gap-3">
+          <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 border-l-4 border-blue-600 pl-3 uppercase tracking-wide shrink-0">
+              A. Dynamic Close-Bias Ramp
+            </h3>
+
+            <div class="w-full flex-1 min-h-0 bg-white border-2 border-slate-300 shadow-sm p-4 rounded-lg flex flex-col overflow-hidden">
+              <div class="ramp-svg-wrap w-full shrink min-h-0 flex items-center justify-center">
+                <svg viewBox="0 0 800 280" preserveAspectRatio="xMidYMid meet" class="w-full h-full max-h-[240px]" aria-label="Ramp diagram">
+                  <defs>
+                    <linearGradient id="rampFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.15" />
+                      <stop offset="100%" stop-color="#2563eb" stop-opacity="0" />
+                    </linearGradient>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#334155" />
+                    </marker>
+                  </defs>
+
+                  <g stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6,6">
+                    <line x1="100" y1="50" x2="720" y2="50" />
+                    <line x1="100" y1="150" x2="720" y2="150" />
+                    <line x1="380" y1="50" x2="380" y2="230" />
+                    <line x1="620" y1="50" x2="620" y2="230" />
+                  </g>
+
+                  <path d="M 100 150 L 380 150 L 620 50 L 720 50 L 720 230 L 100 230 Z" fill="url(#rampFill)" />
+                  <path d="M 100 150 L 380 150 L 620 50 L 720 50" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+
+                  <circle cx="380" cy="150" r="6" fill="#fff" stroke="#2563eb" stroke-width="2" />
+                  <circle cx="620" cy="50" r="6" fill="#fff" stroke="#2563eb" stroke-width="2" />
+
+                  <line x1="100" y1="230" x2="760" y2="230" stroke="#1e293b" stroke-width="2.5" marker-end="url(#arrowhead)" />
+                  <line x1="100" y1="230" x2="100" y2="25" stroke="#1e293b" stroke-width="2.5" marker-end="url(#arrowhead)" />
+
+                  <line x1="90" y1="50" x2="100" y2="50" stroke="#1e293b" stroke-width="2" />
+                  <line x1="90" y1="150" x2="100" y2="150" stroke="#1e293b" stroke-width="2" />
+                  <line x1="90" y1="230" x2="100" y2="230" stroke="#1e293b" stroke-width="2" />
+
+                  <text x="78" y="54" class="font-math font-bold" font-size="18" text-anchor="end" fill="#1e293b">c_max</text>
+                  <text x="78" y="154" class="font-math" font-size="18" text-anchor="end" fill="#1e293b">c_value</text>
+                  <text x="78" y="236" class="font-math" font-size="18" text-anchor="end" fill="#1e293b">0</text>
+
+                  <line x1="380" y1="230" x2="380" y2="238" stroke="#1e293b" stroke-width="2" />
+                  <line x1="620" y1="230" x2="620" y2="238" stroke="#1e293b" stroke-width="2" />
+
+                  <text x="100" y="258" class="font-math" font-size="16" text-anchor="middle" fill="#1e293b">0</text>
+                  <text x="380" y="254" class="font-math" font-size="15" text-anchor="middle" fill="#1d4ed8">c_start</text>
+                  <text x="620" y="254" class="font-math font-bold" font-size="15" text-anchor="middle" fill="#b91c1c">budget</text>
+
+                  <text x="115" y="18" font-size="13" fill="#475569" font-weight="700">Logit bias → &lt;/think&gt;</text>
+                  <text x="735" y="210" font-size="13" text-anchor="end" fill="#475569" font-weight="700">Think tokens</text>
+
+                  <g transform="translate(400, 82)">
+                    <rect x="0" y="0" width="180" height="34" fill="#fff" stroke="#94a3b8" stroke-width="1.2" rx="4" />
+                    <text x="90" y="22" class="font-math" font-size="15" text-anchor="middle" fill="#1e293b">
+                      Slope = <tspan font-style="italic">Δc / Δsteps</tspan>
+                    </text>
+                  </g>
+                </svg>
+              </div>
+
+              <div class="mt-2 pt-2 border-t border-slate-200 flex justify-center gap-6 flex-wrap shrink-0">
+                <div class="flex items-center gap-2">
+                  <div class="w-4 h-4 bg-blue-600 rounded shrink-0"></div>
+                  <span class="text-sm font-code">mode == think</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-4 h-4 border-2 border-slate-400 bg-white rounded shrink-0"></div>
+                  <span class="text-sm font-code">between / final</span>
+                  <span class="text-xs text-slate-500 font-math">定值 c</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col min-h-[148px] max-h-[200px] shrink-0 overflow-hidden">
+            <h3 class="text-lg font-bold text-slate-800 mb-1 border-l-4 border-green-600 pl-3 uppercase tracking-wide shrink-0">
+              B. Multi-Stage Injection FSM
+            </h3>
+            <div class="fsm-svg-wrap w-full flex-1 bg-white border-2 border-slate-300 shadow-sm p-3 rounded-lg flex items-center justify-center min-h-0">
+              <svg viewBox="0 0 900 170" preserveAspectRatio="xMidYMid meet" class="w-full h-full max-h-[150px]" aria-label="FSM diagram">
+                <defs>
+                  <marker id="arrowFSM" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#334155" />
+                  </marker>
+                  <filter id="fsmShadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#cbd5e1" />
+                  </filter>
+                </defs>
+
+                <line x1="120" y1="85" x2="330" y2="85" stroke="#334155" stroke-width="3" marker-end="url(#arrowFSM)" />
+                <line x1="430" y1="85" x2="640" y2="85" stroke="#334155" stroke-width="3" marker-end="url(#arrowFSM)" />
+                <line x1="740" y1="85" x2="810" y2="85" stroke="#334155" stroke-width="3" marker-end="url(#arrowFSM)" />
+                <path d="M 70 115 Q 70 155 460 155 T 850 115" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="8 4" marker-end="url(#arrowFSM)" />
+
+                <g transform="translate(20, 55)" filter="url(#fsmShadow)">
+                  <rect width="100" height="52" rx="26" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2.5" />
+                  <text x="50" y="32" class="font-code font-bold" font-size="16" text-anchor="middle" fill="#1e293b">think</text>
+                </g>
+                <g transform="translate(330, 55)" filter="url(#fsmShadow)">
+                  <rect width="100" height="52" rx="26" fill="#fff7ed" stroke="#ea580c" stroke-width="2.5" />
+                  <text x="50" y="32" class="font-code font-bold" font-size="16" text-anchor="middle" fill="#1e293b">between</text>
+                </g>
+                <g transform="translate(640, 55)" filter="url(#fsmShadow)">
+                  <rect width="100" height="52" rx="26" fill="#f0fdf4" stroke="#15803d" stroke-width="2.5" />
+                  <text x="50" y="32" class="font-code font-bold" font-size="16" text-anchor="middle" fill="#1e293b">final</text>
+                </g>
+                <g transform="translate(810, 55)" filter="url(#fsmShadow)">
+                  <rect width="70" height="52" rx="26" fill="#f1f5f9" stroke="#64748b" stroke-width="2.5" />
+                  <text x="35" y="32" class="font-code font-bold" font-size="14" text-anchor="middle" fill="#1e293b">done</text>
+                </g>
+
+                <text x="225" y="68" font-size="13" text-anchor="middle" fill="#475569" font-weight="700">sees</text>
+                <text x="225" y="105" class="font-code font-bold" font-size="15" text-anchor="middle" fill="#1d4ed8">&lt;/think&gt;</text>
+                <text x="485" y="52" font-size="12" text-anchor="middle" fill="#ea580c" font-weight="700">maybe_inject_final()</text>
+                <text x="485" y="108" class="font-code" font-size="14" text-anchor="middle" fill="#1e293b">&lt;final&gt;\n</text>
+                <text x="775" y="72" font-size="12" text-anchor="middle" fill="#475569" font-weight="700">sees</text>
+                <text x="775" y="105" class="font-code font-bold" font-size="13" text-anchor="middle" fill="#15803d">&lt;/final&gt;</text>
+                <text x="460" y="158" font-size="13" text-anchor="middle" fill="#b91c1c" font-weight="700">Hard budget（watchdog）</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const container = document.getElementById("slide-container");
+      const wrapper = document.getElementById("scale-wrapper");
+      if (!container || !wrapper) return;
+
+      function scaleSlide() {
+        const w = wrapper.clientWidth;
+        const h = wrapper.clientHeight;
+        if (w < 8 || h < 8) {
+          requestAnimationFrame(scaleSlide);
+          return;
+        }
+        const scale = Math.min(w / 1920, h / 1080) * 0.995;
+        container.style.transform = "scale(" + scale + ")";
+      }
+
+      window.addEventListener("resize", scaleSlide);
+      window.addEventListener("load", scaleSlide);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", scaleSlide);
+      }
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) scaleSlide();
+      });
+
+      if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(function () {
+          scaleSlide();
+        }).observe(wrapper);
+      }
+
+      scaleSlide();
+      requestAnimationFrame(scaleSlide);
+      setTimeout(scaleSlide, 50);
+      setTimeout(scaleSlide, 250);
+      setTimeout(scaleSlide, 600);
+    })();
+  </script>
+</body>
+</html>

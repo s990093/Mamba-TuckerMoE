@@ -108,6 +108,13 @@ _MOCK_MODE: bool = False
 # Inference lock — model is single-threaded on Metal GPU
 _infer_lock = asyncio.Lock()
 
+# Default decode ceiling for *allocated* KV / compile shapes.  ``_max_cache_len`` is
+# ``seq_len + max_new_tokens + 8`` at load time (not per-request length), so a huge
+# ``--max-new-tokens`` pads every transformer KV to that length — unlike ``benchmark_mlx``,
+# which uses ``len(prompt) + decode_tokens + 8``.  Keep the default modest for 8 GB Macs;
+# raise ``--max-new-tokens`` when you truly need long generations.
+DEFAULT_MAX_NEW_TOKENS_KV = 8192
+
 
 def _read_ui_config() -> dict[str, Any]:
     """Load `ui/mock_config.json` for mock status, stream chunks, and welcome examples."""
@@ -177,11 +184,21 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     _router_temp = mx.array(args.router_temp, dtype=target_dtype)
 
     pre_budget = int(args.seq_len) if args.seq_len > 0 else 4096
-    _max_cache_len = pre_budget + args.max_new_tokens + 8
+    _max_cache_len = pre_budget + int(args.max_new_tokens) + 8
+    print(
+        f"[chat_demo] KV pad length _max_cache_len={_max_cache_len} "
+        f"(seq_len cap {pre_budget} + max_new_tokens {int(args.max_new_tokens)} + 8). "
+        f"Unlike benchmark_mlx, this uses the CLI ceiling, not each prompt's length."
+    )
 
+    # Per-layer decode compile + compiled LM head (see `mlx_hybrid_infer.attach_decode_compilation`).
+    # Default `--inference-type safe` keeps `eager_decode=True` → compile_decode off (easier to debug).
+    # Use `--inference-type throughput` or omit `--eager-decode` after a throughput preset for max tok/s.
     attach_decode_compilation(
-        _model, max_cache_len=_max_cache_len, kv_dtype=kv_dtype,
-        compile_decode=False,
+        _model,
+        max_cache_len=_max_cache_len,
+        kv_dtype=kv_dtype,
+        compile_decode=not bool(getattr(args, "eager_decode", True)),
     )
 
     def prefill_forward(x: mx.array, rt: mx.array):
@@ -283,9 +300,9 @@ def _build_multiturn_ids(
 # prefill over the whole system block every time).
 #
 # IMPORTANT: each entry stores a *padded* KV cache sized to ``_max_cache_len``
-# (= seq_len + max_new_tokens + 8).  With large ``--max-new-tokens`` (e.g. 20k)
-# every primed entry holds tens of MB and stacks across categories — bound it
-# strictly with an LRU and let the user override via ``--prime-max-entries``.
+# (= seq_len + max_new_tokens + 8 at process start).  Large ``--max-new-tokens``
+# multiplies RAM (and stacks across primed categories) — bound with LRU via
+# ``--prime-max-entries``.
 import collections
 _primed_prefix: "collections.OrderedDict[str, dict[str, Any]]" = collections.OrderedDict()
 _PRIME_MAX_ENTRIES_DEFAULT = 2
@@ -1600,7 +1617,10 @@ async def websocket_chat(ws: WebSocket):
 
             if action == "chat":
                 prompt = msg.get("prompt", "").strip()
-                max_tokens = min(msg.get("max_tokens", 512), _args.max_new_tokens if _args else 204800)
+                max_tokens = min(
+                    msg.get("max_tokens", 512),
+                    int(getattr(_args, "max_new_tokens", DEFAULT_MAX_NEW_TOKENS_KV)) if _args else DEFAULT_MAX_NEW_TOKENS_KV,
+                )
                 if not prompt:
                     await ws.send_json({"type": "error", "message": "Empty prompt"})
                     continue
@@ -1747,11 +1767,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--max-new-tokens",
         type=int,
-        default=204800,
+        default=DEFAULT_MAX_NEW_TOKENS_KV,
         help=(
-            "Hard ceiling on streamed tokens per turn. Also feeds into _max_cache_len "
-            "(= seq_len + max_new_tokens + 8), so KV memory scales linearly with this. "
-            "Lower it (e.g. 4096) if you're memory-bound."
+            "Hard ceiling on streamed tokens per turn. Also sets padded KV length at load: "
+            "_max_cache_len = seq_len + max_new_tokens + 8 (same shape every turn). "
+            "Defaults low for 8 GB machines; raise (e.g. 65536) only if you need very long outputs."
         ),
     )
     p.add_argument(

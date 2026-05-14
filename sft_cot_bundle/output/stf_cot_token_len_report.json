@@ -1,0 +1,84 @@
+{
+  "total_examples": 20078,
+  "token_len_min": 83,
+  "token_len_mean": 280.8,
+  "token_len_max": 1621,
+  "p50": 269.0,
+  "p90": 407.0,
+  "p95": 470.0,
+  "p99": 584.0,
+  "suggested_seq_len": 512,
+  "truncation_by_seq_len": {
+    "256": {
+      "n_truncated": 10768,
+      "truncation_rate": "53.6%"
+    },
+    "512": {
+      "n_truncated": 551,
+      "truncation_rate": "2.7%"
+    },
+    "768": {
+      "n_truncated": 23,
+      "truncation_rate": "0.1%"
+    },
+    "1024": {
+      "n_truncated": 2,
+      "truncation_rate": "0.0%"
+    },
+    "1536": {
+      "n_truncated": 1,
+      "truncation_rate": "0.0%"
+    },
+    "2048": {
+      "n_truncated": 0,
+      "truncation_rate": "0.0%"
+    }
+  },
+  "per_bucket_stats": {
+    "daily_conversation": {
+      "count": 2645,
+      "min": 83,
+      "mean": 296.1,
+      "max": 1621,
+      "p50": 261.0,
+      "p95": 579.0,
+      "p99": 734.0
+    },
+    "emotion": {
+      "count": 4811,
+      "min": 237,
+      "mean": 341.6,
+      "max": 600,
+      "p50": 334.0,
+      "p95": 472.0,
+      "p99": 520.0
+    },
+    "movie_intro": {
+      "count": 1192,
+      "min": 123,
+      "mean": 386.2,
+      "max": 838,
+      "p50": 396.0,
+      "p95": 608.0,
+      "p99": 723.0
+    },
+    "self_awareness": {
+      "count": 5909,
+      "min": 111,
+      "mean": 216.9,
+      "max": 410,
+      "p50": 208.0,
+      "p95": 333.0,
+      "p99": 365.0
+    },
+    "summarize_email": {
+      "count": 5521,
+      "min": 132,
+      "mean": 266.0,
+      "max": 659,
+      "p50": 255.0,
+      "p95": 396.0,
+      "p99": 462.0
+    }
+  }
+}

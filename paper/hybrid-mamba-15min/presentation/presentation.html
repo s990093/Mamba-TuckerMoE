@@ -131,6 +131,126 @@
       body.fs-open .top-progress {
         visibility: hidden;
       }
+      /* TD-MoE React simulator (iframe) */
+      .slide:has(.sim-embed-inner) {
+        display: flex;
+        flex-direction: column;
+        padding: 0.55rem 2vw 3.2rem;
+      }
+      .slide:has(.sim-embed-inner) .inner.sim-embed-inner {
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .sim-embed-head .t2 {
+        font-size: clamp(1rem, 2.2vw, 1.35rem);
+        margin-bottom: 0.35rem;
+      }
+      .sim-embed-head .lead {
+        font-size: 0.82rem;
+        margin-bottom: 0.45rem;
+      }
+      .sim-embed-wrap {
+        position: relative;
+        isolation: isolate;
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+        border: 1px solid var(--rule2);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #eaf0f5;
+        display: flex;
+        flex-direction: column;
+      }
+      .sim-embed-frame {
+        position: relative;
+        z-index: 0;
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+        border: 0;
+        display: block;
+      }
+      .sim-embed-note {
+        font-size: 0.68rem;
+        color: var(--ink3);
+        margin: 0.4rem 0 0;
+        flex-shrink: 0;
+        line-height: 1.45;
+      }
+      .sim-embed-stack {
+        position: relative;
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      .sim-embed-actions {
+        position: absolute;
+        top: 0.35rem;
+        right: 0.45rem;
+        z-index: 100;
+        pointer-events: auto;
+      }
+      .sim-fs-btn {
+        font-family: var(--sans);
+        font-size: 0.72rem;
+        font-weight: 700;
+        border: 1px solid var(--rule);
+        background: var(--surface);
+        color: var(--ink);
+        padding: 0.35rem 0.65rem;
+        cursor: pointer;
+      }
+      .sim-fs-btn:hover {
+        background: #efefef;
+      }
+      .sim-embed-wrap:fullscreen,
+      .sim-embed-wrap:-webkit-full-screen {
+        background: #eaf0f5;
+        border-radius: 0;
+        border: none;
+        max-width: none;
+      }
+      .sim-embed-wrap:fullscreen .sim-embed-frame,
+      .sim-embed-wrap:-webkit-full-screen .sim-embed-frame {
+        flex: 1 1 0;
+        min-height: 0;
+        height: 100%;
+      }
+      .sim-embed-wrap.is-pseudo-fullscreen {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        z-index: 9998;
+        border-radius: 0;
+        border: none;
+        flex: none !important;
+      }
+      .sim-embed-wrap.is-pseudo-fullscreen .sim-embed-frame {
+        flex: 1 1 0;
+        min-height: 0;
+        height: 100%;
+      }
+      body.sim-fs-open .toolbar,
+      body.sim-fs-open .topbar,
+      body.sim-fs-open .top-progress {
+        visibility: hidden;
+      }
+      .sim-pseudo-fs-exit {
+        display: none;
+      }
+      body.sim-fs-open .sim-pseudo-fs-exit {
+        display: block;
+      }
       /* Let the slide itself have minimal padding for fig slides */
       .slide:has(.fig-slide) {
         padding: 0.5rem 1vw 0.5rem;
@@ -149,7 +269,7 @@
       <div class="topbar">
         <span class="venue">學術報告 · Hybrid Mamba-TuckerMoE</span>
         <span>Breaking the Memory Wall</span>
-        <span id="ctr-top" style="font-variant-numeric:tabular-nums;min-width:3rem;text-align:right;">01 / 31</span>
+        <span id="ctr-top" style="font-variant-numeric:tabular-nums;min-width:3rem;text-align:right;">01 / 33</span>
       </div>
       <div class="top-progress" aria-hidden="true">
         <div class="top-progress-fill" id="pgt"></div>
@@ -205,9 +325,9 @@
       <article class="outline-card oc-a" data-oc="1"><h3 class="t3">問題動機</h3><ol class="n"><li>Transformer 瓶頸</li><li>SSM vs MoE</li></ol></article>
       <article class="outline-card oc-b" data-oc="2"><h3 class="t3">資料設定</h3><ol class="n" start="3"><li>FineWeb-Edu</li><li>Tokenizer / SFT</li></ol></article>
       <article class="outline-card oc-c" data-oc="3"><h3 class="t3">Hybrid 架構</h3><ol class="n" start="5"><li>4:1 Macro Block</li><li>Mamba-3 SSM</li></ol></article>
-      <article class="outline-card oc-d" data-oc="4"><h3 class="t3">TuckerMoE</h3><ol class="n" start="7"><li>跨專家共享</li><li>I/O 複雜度</li></ol></article>
-      <article class="outline-card oc-e" data-oc="5"><h3 class="t3">訓練實作</h3><ol class="n" start="9"><li>3× RTX 3090</li><li>Router 診斷</li></ol></article>
-      <article class="outline-card oc-a" data-oc="6"><h3 class="t3">部署結論</h3><ol class="n" start="11"><li>MLX 推論</li><li>同算力擴容</li></ol></article>
+      <article class="outline-card oc-d" data-oc="4"><h3 class="t3">TuckerMoE</h3><ol class="n" start="7"><li>跨專家共享</li><li>I/O 複雜度</li><li>互動模擬（TD-MoE）</li></ol></article>
+      <article class="outline-card oc-e" data-oc="5"><h3 class="t3">訓練實作</h3><ol class="n" start="9"><li>3× RTX 3090</li><li>Router 診斷</li><li>推論中介層（FSM）</li></ol></article>
+      <article class="outline-card oc-a" data-oc="6"><h3 class="t3">部署結論</h3><ol class="n" start="12"><li>MLX 推論</li><li>同算力擴容</li></ol></article>
     </div>
   </div>
 </section>
@@ -444,6 +564,25 @@
   </div>
 </section>
 
+<!-- ══ SLIDE 14B — TD-MoE Interactive Simulator (React) ══ -->
+<section class="slide" data-idx="13b">
+  <div class="inner sim-embed-inner">
+    <div class="sim-embed-head">
+      <h2 class="t2">§5.4 · 互動：Tucker 分解與 On-the-fly 推論（TD-MoE Simulator）</h2>
+      <p class="lead">內嵌 React 模擬器（來源：<code>paper/td-moe-iclr2026/td-moe-simulator-react</code>）：可拖曳進度看 A→B→C 分解、切換「張量分解 / 推論」對照 Dense 還原與 latent 流水線。右上角<strong>全螢幕</strong>可放大操作區（瀏覽器全螢幕 API，不支援時改為覆蓋全視窗）。</p>
+    </div>
+    <div class="sim-embed-stack">
+      <div class="sim-embed-wrap" id="sim-embed-wrap">
+        <iframe class="sim-embed-frame" id="sim-embed-frame" title="TD-MoE 張量分解與推論模擬器" src="td-moe-simulator/index.html" loading="lazy" allow="fullscreen"></iframe>
+        <div class="sim-embed-actions">
+          <button type="button" class="sim-fs-btn" id="sim-fs-btn" title="全螢幕顯示模擬器">全螢幕</button>
+        </div>
+      </div>
+    </div>
+    <p class="sim-embed-note">iframe 內為 ES module，請用 HTTP 開啟（勿用 <code>file://</code>）。在 <code>…/presentation/</code> 執行 <code>./serve_presentation.sh</code>（預設埠 <strong>18886</strong>，伺服器根目錄為上一層 <code>hybrid-mamba-15min/</code> 以便載入 <code>../assets</code> 圖檔）。請開 <code>http://127.0.0.1:18886/presentation/</code> 或 <code>http://127.0.0.1:18886/presentation/presentation.html</code>。換埠：<code>PORT=9000 ./serve_presentation.sh</code>。重建模擬器：<code>npx vite build --outDir ../../hybrid-mamba-15min/presentation/td-moe-simulator</code>（於 <code>td-moe-simulator-react</code> 目錄）。</p>
+  </div>
+</section>
+
 <!-- ══ SLIDE 15 — TuckerMoE Forward/Backward (figure) ══ -->
 <section class="slide" data-idx="14">
   <div class="inner fig-slide">
@@ -488,7 +627,7 @@
 <section class="slide" data-idx="15a">
   <div class="inner">
     <h2 class="t2">§5.4.2 · 命題 1（完整）I/O 比率</h2>
-    <p class="lead">把符號改成 IN / OUT 視角後，可更直觀看出 HBM 主導項如何下降。</p>
+    <p class="lead">符號對齊報告後，代入<strong>真參數</strong>（\(d,d_{\text{ff}},E,k,r_1,r_2,r_3,N\)）可得到簡報表內 **151.6 / 13.4 MiB·層⁻¹** 與 **11.3×** 縮減。</p>
     <div class="box red" style="margin-bottom:0.7rem">
       <div style="font-weight:700;color:var(--red);margin-bottom:0.3rem">符號重新定義（Notion Symbols）</div>
       <table class="j" style="font-size:0.8rem">
@@ -505,7 +644,7 @@
 \text{HBM}^{\text{Dense}}_{\text{fwd}} \ge 2Nd + \min(E,kN)\cdot 2d\,d_{\text{ff}}
 \]
 \[
-\text{HBM}^{\text{Tucker}}_{\text{fwd}} \le 2Nd + (2dr_3 + 2r_2d_{\text{ff}}) + (Er_1 + 2r_1r_3r_2) + 2kNr_3
+\text{HBM}^{\text{Tucker}}_{\text{fwd}} \le 2Nd + (2d\,r_3 + 2r_2\,d_{\text{ff}}) + (Er_1 + 2r_1r_3r_2) + 2kNr_3
 \]
 \[
 \frac{\text{HBM}^{\text{Tucker}}_{\text{fwd}}}{\text{HBM}^{\text{Dense}}_{\text{fwd}}}
@@ -514,6 +653,22 @@
 +
 \mathcal{O}\!\left(\frac{\text{Tokens}\cdot\text{Dim\_IN}}{\text{Experts}\cdot d_{\text{ff}}}\right)
 \]
+    </div>
+    <div class="box green" style="margin-top:0.55rem;margin-bottom:0.45rem">
+      <div style="font-weight:700;color:var(--green);margin-bottom:0.3rem">數值例（報告 §5.4.2 · Mamba <code>x_up</code> 單層，bf16）</div>
+      <p style="font-size:0.76rem;margin:0 0 0.4rem;line-height:1.45;color:var(--ink2)">
+        設定與報告一致：<strong>\(d{=}1536\)</strong>，<strong>\(d_{\text{ff}}{=}6144\)</strong>，<strong>\(E{=}8\)</strong>，<strong>\(k{=}2\)</strong>，Tucker 秩 <strong>\((r_1,r_2,r_3){=}(32,512,256)\)</strong>（checkpoint 常用組合），decode 範例 <strong>\(N{=}64\)</strong>。權重項以 gate+up+down 合併近似為每 expert 一塊 <strong>\(2\,d\,d_{\text{ff}}\)</strong>。
+      </p>
+      <table class="j" style="font-size:0.72rem">
+        <thead><tr><th>分量</th><th>Dense MoE</th><th>TuckerMoE</th></tr></thead>
+        <tbody>
+          <tr><td>Activation I/O</td><td>\(2Nd = 196{,}608\,\text{B}\)</td><td>同上</td></tr>
+          <tr><td>Expert／共享權重</td><td>\(E\cdot 2d\,d_{\text{ff}} \approx 1.51\times 10^{8}\,\text{B}\)</td><td>\(2(d\,r_3+r_2\,d_{\text{ff}})+E r_1+2 r_1 r_3 r_2 \approx 1.38\times 10^{7}\,\text{B}\)</td></tr>
+          <tr><td>Token permute（\(d\) vs \(r_3\)）</td><td>\(2kNd = 393{,}216\,\text{B}\)</td><td>\(2kNr_3 = 65{,}536\,\text{B}\)</td></tr>
+          <tr class="hi"><td><strong>HBM 合計／層</strong></td><td style="color:var(--red)"><strong>\(\approx 151.6\,\text{MiB}\)</strong></td><td style="color:var(--green)"><strong>\(\approx 13.4\,\text{MiB}\)</strong></td></tr>
+          <tr class="hi"><td><strong>縮減</strong></td><td colspan="2" style="text-align:center"><strong>\(151.6/13.4 \approx 11.3\times\)</strong>（與 §5.4.2 主表一致）</td></tr>
+        </tbody>
+      </table>
     </div>
     <div class="box" style="margin-top:0.7rem;border-width:1px 1px 1px 4px;border-left-color:var(--gold)">
       <div style="font-weight:700;color:var(--gold);margin-bottom:0.25rem">公式符號補充（Dense I/O 式）</div>
@@ -524,10 +679,11 @@
           <tr><td>\(d_{\text{ff}}\)</td><td>FFN 中間維度</td></tr>
           <tr><td>\(k\)</td><td>Top-k 路由中每個 token 啟用的 expert 數</td></tr>
           <tr><td>\(E\)</td><td>Experts（專家總數）</td></tr>
+          <tr><td>\(r_1,r_2,r_3\)</td><td>Tucker 秩（報告 checkpoint：<strong>32 / 512 / 256</strong>）</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="insight" style="margin-top:0.7rem"><strong>結論：</strong>當 Dim_IN、Dim_OUT 相對於原始 \(d,d_{\text{ff}}\) 夠小時，TuckerMoE 的每層 HBM I/O 比率呈顯著下降。</div>
+    <div class="insight" style="margin-top:0.55rem"><strong>結論：</strong>\(r_2,r_3 \ll d,d_{\text{ff}}\) 時共享因子與 latent permute 取代「整塊 expert 權重掃 HBM」；上表為報告給出的<strong>同一組真參數</strong>帶入前向 I/O 上／下界後的每層 MiB 合計，與 Dense <strong>151.6</strong>、Tucker <strong>13.4</strong>、縮減 <strong>11.3×</strong> 對齊。</div>
   </div>
 </section>
 
@@ -535,7 +691,7 @@
 <section class="slide" data-idx="15b">
   <div class="inner">
     <h2 class="t2">§5.4.2 · 命題 2（完整）Memory-bound → Compute-bound</h2>
-    <p class="lead">以算術強度觀點，Tucker 核心在 decode 可從 \(\mathcal{O}(1)\) 躍升到 \(\text{Dim\_OUT}\) 級別。</p>
+    <p class="lead">算術強度 \(\mathcal{I}\)：Dense decode 約 \(\mathcal{O}(1)\)；Tucker 核心在<strong>同一組報告參數</strong>下可算出實數，並在 \(Nk\) 增大時向 \(r_2\) 逼近、跨過 ridge。</p>
     <div class="box red" style="margin-bottom:0.7rem">
       <div style="font-weight:700;color:var(--red);margin-bottom:0.3rem">符號重新定義（Notion Symbols）</div>
       <div style="font-size:0.82rem;line-height:1.55">
@@ -563,7 +719,22 @@ r_2
 \mathcal{I}^{\text{Dense}}_{\text{FFN}} \le Nk/E \approx \mathcal{O}(1)
 \]
     </div>
-    <div class="cols" style="margin-top:0.7rem">
+    <div class="box green" style="margin-top:0.5rem;margin-bottom:0.45rem">
+      <div style="font-weight:700;color:var(--green);margin-bottom:0.25rem">數值例（報告 §5.4.2 · 與命題 1 同一組 \(r_1,r_2,r_3,E,k\)）</div>
+      <p style="font-size:0.74rem;margin:0 0 0.35rem;line-height:1.45;color:var(--ink2)">
+        取 <strong>\(r_2{=}512,\; r_3{=}256,\; E{=}8,\; k{=}2\)</strong>。核心 GEMM 強度 \(\displaystyle \mathcal{I}^{\text{Tucker}}_{\text{core}}=\frac{2r_3r_2\cdot(Nk)}{2(Nk\,r_3+E\,r_3r_2)}\)，Dense 對照 \(\mathcal{I}^{\text{Dense}}_{\text{FFN}}\le Nk/E\)（bf16 語意與報告一致）。
+      </p>
+      <table class="j" style="font-size:0.7rem">
+        <thead><tr><th>情境</th><th>\(N\)（batch tokens）</th><th>\(Nk\)</th><th>\(\mathcal{I}^{\text{Tucker}}_{\text{core}}\)</th><th>\(\mathcal{I}^{\text{Dense}}_{\text{FFN}}\le Nk/E\)</th></tr></thead>
+        <tbody>
+          <tr><td>decode 小 batch（報告數值例）</td><td><strong>64</strong></td><td>128</td><td><strong>\(\approx 15.5\)</strong> FLOPs/Byte</td><td>\(128/8=16\)</td></tr>
+          <tr><td>prefill 較大（對照）</td><td><strong>2048</strong></td><td>4096</td><td><strong>\(\approx 256\)</strong>（\(Nk r_3\) 與 \(E r_3 r_2\) 同量級）</td><td>\(4096/8=512\)</td></tr>
+          <tr class="hi"><td>漸近極限</td><td colspan="2">投影片箭頭：\(Nk\gg E r_2/r_3\)（此組 <strong>\(=16\)</strong>）。強度實際趨近 \(r_2\) 還需 \(Nk\,r_3\gg E\,r_3 r_2\)，即 <strong>\(Nk\gg E r_2=4096\)</strong>（例：\(N=2048\) 時 \(\mathcal{I}\approx256\)，續增則向 512）</td><td colspan="2"><strong>上界 \(r_2=512>400\)</strong>（ridge）</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:0.72rem;margin:0.35rem 0 0;line-height:1.45;color:var(--ink3)">H100 bf16 ridge \(\approx 400\) FLOPs/Byte；<strong>\(r_2=512>400\)</strong> 時核心可進入 compute-bound（報告原文）。NCU 上 fused MoE DRAM peak \(\approx 4.4\%\) 與此敘事一致。</p>
+    </div>
+    <div class="cols" style="margin-top:0.55rem">
       <div class="box accent">
         <div style="font-weight:700;color:var(--blue);margin-bottom:0.2rem">相變條件</div>
         <ul class="b" style="font-size:0.82rem">
@@ -693,6 +864,22 @@ r_2
   </div>
 </section>
 
+<!-- ══ SLIDE 20B — Inference Middleware (16:9 PPT canvas) ══ -->
+<section class="slide" data-idx="21b">
+  <div class="inner sim-embed-inner">
+    <div class="sim-embed-head">
+      <h2 class="t2">§8 · 推論中介層：CoT 管線與 Token-ID FSM</h2>
+      <p class="lead">銜接 SFT 格式與線上推論：每步 <code>model(x)</code> 後以融合 bias 修正 logits，再以無 regex 的 token 序列 FSM 分支（emit / speculative）。內嵌頁為固定 1920×1080 畫布並自動縮放至 iframe。</p>
+    </div>
+    <div class="sim-embed-stack">
+      <div class="sim-embed-wrap">
+        <iframe class="sim-embed-frame" title="推論中介層架構圖" src="inference_middleware_slide.html" loading="lazy"></iframe>
+      </div>
+    </div>
+    <p class="sim-embed-note">與互動模擬頁相同：請以 <code>./serve_presentation.sh</code> 開啟 <code>http://127.0.0.1:18886/presentation/presentation.html</code>；原始圖檔可獨立開啟 <code>inference_middleware_slide.html</code>。</p>
+  </div>
+</section>
+
 <!-- ══ SLIDE 21 — Live Training Progress ══ -->
 <section class="slide" data-idx="22">
   <div class="inner">
@@ -811,11 +998,12 @@ r_2
         <button class="fs-exit-btn" id="fs-exit" type="button">退出</button>
         <img id="fs-img" src="" alt="" />
       </div>
+      <button type="button" class="fs-exit-btn sim-pseudo-fs-exit" id="sim-pseudo-fs-exit" hidden aria-hidden="true">退出全螢幕</button>
       <div class="toolbar">
         <button class="nb" id="bp" disabled>← Prev</button>
         <div class="pw"></div>
         <div class="pb" id="pg" style="width:0%"></div>
-        <span class="ct" id="ct">01 / 31</span>
+        <span class="ct" id="ct">01 / 33</span>
         <button class="nb" id="bn">Next →</button>
       </div>
     </div>
