@@ -519,6 +519,48 @@ class FusedMambaMixerKernels:
 
     Eliminates ~576 KB of intermediate memory traffic per token (default config).
     Measured speedup: 2.12× per layer → projected >100 tok/s with 24 Mamba layers.
+
+    Kernel Variants
+    ───────────────
+    V1 (build / run):
+        The six-operation fused kernel described above.  This is the DEFAULT
+        recommended variant for all inference modes.  Activated via the
+        --fused-mamba-mixer CLI flag or config.fused_mamba_mixer=True.
+
+        Performance (M2 Pro, bf16, 4-bit MoE, mx.compile throughput):
+          ~88.9 tok/s (11.25 ms/token) as of 2026-05.
+
+    V3 (build_v3 / run_v3):
+        V1 + Phase 3: additionally fuses y_down_proj and D_skip into the
+        same Metal dispatch.  Activated via --fused-mamba-mixer-v3.
+
+        IMPORTANT: V3 is SLOWER than V1 in mx.compile (throughput) mode.
+        Measured regression: +0.085 ms/layer × 24 layers = +2.04 ms/step.
+
+        Root cause: In compiled mode, intermediate tensors (y_out from Einsum2)
+        live in the GPU's L2 cache and do NOT incur a real DRAM roundtrip before
+        y_down_proj.  V3 therefore adds 16,384 MAC ops per layer without
+        eliminating any memory bandwidth bottleneck.  The Phase 3 sequential loop
+        cannot be accelerated with simd_sum because each thread computes a
+        DIFFERENT output element with a DIFFERENT yd_weight row — simd_sum
+        requires 32 lanes operating on the SAME output (incompatible geometry).
+
+        V3 is preserved for research comparison and for safe/eager inference modes
+        where dispatch overhead is larger (~5-20 µs each).
+        See metal/DESIGN_GUIDELINES.md §4 for the complete analysis.
+
+    Threadgroup Geometry
+    ────────────────────
+        grid      = (P, H, 1)   — one thread per (p, h) pair
+        threadgroup = (P, 1, 1) — all P threads in one head share SRAM
+        SIMD groups = 2 groups of 32 lanes (for P=64)
+
+    SRAM Usage (P=64, N=64, R=4):
+        b_sram[N*R = 256] = 1 KB
+        c_sram[N*R = 256] = 1 KB
+        rms_buf[64]       = 256 B
+        (V3) y_sram[P*R = 256] = 1 KB
+        Total: ~2.25 KB (well within 32 KB limit)
     """
 
     _KERNEL_SRC = r"""
@@ -723,6 +765,44 @@ class FusedMambaMixerKernels:
         return new_h, new_inp, y, new_ang
 
     # ── V3: Extended kernel with y_down_proj + D_skip fused ──
+    #
+    # PERFORMANCE STATUS — V3 with transposed yd_weight (coalesced Phase 3)
+    # ─────────────────────────────────────────────────────────────────────────
+    #
+    # V3 fuses Phase 3 (y_down_proj + D_skip) into the same Metal dispatch as
+    # V1 (Norm+RoPE+Einsum1+Lambda+SSM+Einsum2).  In theory this saves 2
+    # dispatches × 24 Mamba layers = 48 fewer Metal dispatches per decode step.
+    #
+    # ORIGINAL V3 WAS SLOWER — ROOT CAUSE: non-coalesced Phase 3 reads.
+    #
+    #   Original access:  yd_weight[p * P_R + pr]
+    #   Stride between SIMD lanes: p differs by 1 → stride = P_R * sizeof(T)
+    #                              = 256 * 2 = 512 bytes → 32 L2 cache lines.
+    #   Measured cost: +0.085 ms/layer × 24 = +2.04 ms/step (vs ~0.5 ms saved).
+    #
+    # FIX: offline transpose yd_weight from (P_out=64, P_R=256) → (P_R=256, P_out=64)
+    #
+    #   Transposed access: yd_weight_T[pr * P_VAL + p]
+    #   Stride between SIMD lanes: p differs by 1 → stride = sizeof(T) = 2 bytes
+    #   → all 32 SIMD lanes coalesce to a SINGLE cache line per iteration.
+    #   Expected to eliminate ~90% of the 0.085 ms Phase 3 overhead.
+    #
+    # WHY simd_sum CANNOT FIX PHASE 3 (even with transposed weight):
+    #   The threadgroup geometry is (P=64, 1, 1), forming 2 SIMD groups of 32
+    #   lanes each.  In SIMD group 0, lanes 0..31 correspond to threads p=0..31,
+    #   each computing a DIFFERENT output element y_down[p] using a DIFFERENT
+    #   column of yd_weight_T.  simd_sum() reduces across all 32 lanes, producing a
+    #   single scalar that equals sum(y_down[p=0..31]) — meaningless for any
+    #   individual p.
+    #
+    #   To use simd_sum correctly, all 32 lanes must compute partial sums for
+    #   the SAME p using DIFFERENT rows of yd_weight_T[:, p].  That requires
+    #   a threadgroup of shape (32_reduction, 64_outputs) = 2048 threads, which
+    #   exceeds Metal's 1024-thread limit.  Restructuring for this would also
+    #   break Phases 1 and 2 entirely.
+    #
+    # See: metal/DESIGN_GUIDELINES.md §4 for full analysis.
+    # ─────────────────────────────────────────────────────────────────────────
 
     _KERNEL_V3_SRC = r"""
     uint p = thread_position_in_grid.x;
@@ -832,8 +912,33 @@ class FusedMambaMixerKernels:
     }
 
     // ═══ Phase 3: y_down_proj + D_skip (fused) ═══
-    // Write y to shared memory so all threads in this head can read
-    // Reuse b_sram/c_sram (no longer needed after Phase 2)
+    //
+    // GEOMETRY NOTE — why simd_sum cannot be used here:
+    //
+    //   threadgroup = (P=64, 1, 1) → 2 SIMD groups of 32 lanes each.
+    //   SIMD group 0: lanes 0..31 = threads with p=0..31 (different outputs)
+    //   SIMD group 1: lanes 0..31 = threads with p=32..63 (different outputs)
+    //
+    //   Each thread p needs: y_down[p] = dot(y_sram[0..P_R-1], yd_weight[p, :])
+    //   This is a unique dot product per thread — different yd_weight ROW each time.
+    //
+    //   simd_sum(partial) reduces all 32 lanes' values into one scalar,
+    //   which would equal sum(y_down[p=0..31]), NOT any individual y_down[p].
+    //
+    //   Correct use of simd_sum requires 32 lanes computing DIFFERENT SEGMENTS
+    //   of the SAME dot product (same p, different i range in yd_weight[p, i]).
+    //   That requires threadgroup shape (32_reduction × 64_outputs) = 2048 threads
+    //   → exceeds Metal's 1024-thread limit and would break Phases 1 & 2.
+    //
+    //   Therefore: the sequential loop below is the correct and optimal
+    //   implementation within this threadgroup geometry.
+    //
+    //   Performance: ~0.085 ms/layer (64 × 256 MAC ops per head).
+    //   Compared to dispatch overhead savings (~10-20 µs), this is a net LOSS
+    //   in mx.compile mode.  V3 is slower than V1 in compiled throughput mode.
+    //
+    // Write y to shared memory so all threads in this head can read.
+    // Reuse b_sram/c_sram (no longer needed after Phase 2).
     threadgroup float y_sram[P_R];
     uint y_base_s = p * R_VAL;
     y_sram[y_base_s + 0] = y0;
@@ -842,17 +947,21 @@ class FusedMambaMixerKernels:
     y_sram[y_base_s + 3] = y3;
     threadgroup_barrier(mem_flags::mem_threadgroup);
 
-    // y_down = y_sram @ yd_weight[p, :].T
+    // y_down = dot(y_sram[0..P_R-1], yd_weight_T[:, p])
+    // yd_weight_T is pre-transposed offline: shape (P_R=256, P_VAL=64).
+    // Original layout was (P_VAL=64, P_R=256): thread p reads row p → stride
+    // between adjacent SIMD lanes = P_R * sizeof(T) = 512 bytes → 32 cache lines.
+    // Transposed layout: yd_weight_T[pr * P_VAL + p] → adjacent lanes differ by
+    // sizeof(T) = 2 bytes → all 32 lanes coalesce to a single cache line.
     float y_down = 0.0f;
-    uint w_row = p * P_R;
     for (uint pr = 0; pr < P_R; pr += 4) {
-        y_down += y_sram[pr]     * float(yd_weight[w_row + pr]);
-        y_down += y_sram[pr + 1] * float(yd_weight[w_row + pr + 1]);
-        y_down += y_sram[pr + 2] * float(yd_weight[w_row + pr + 2]);
-        y_down += y_sram[pr + 3] * float(yd_weight[w_row + pr + 3]);
+        y_down += y_sram[pr]     * float(yd_weight_T[(pr)   * P_VAL + p]);
+        y_down += y_sram[pr + 1] * float(yd_weight_T[(pr+1) * P_VAL + p]);
+        y_down += y_sram[pr + 2] * float(yd_weight_T[(pr+2) * P_VAL + p]);
+        y_down += y_sram[pr + 3] * float(yd_weight_T[(pr+3) * P_VAL + p]);
     }
 
-    // D_skip: y_combined = y_down + x_prime[h, p] * D[h]
+    // D_skip: y_combined = y_down + x_prime[h, p] * D[h, p]
     float x_p = float(x_prime_flat[h * P_VAL + p]);
     float d_val = float(d_rep[h * P_VAL + p]);
     y_combined[h * P_VAL + p] = T(y_down + x_p * d_val);
@@ -884,7 +993,7 @@ class FusedMambaMixerKernels:
                 "x_ssm",
                 "prev_h", "prev_in",
                 "dt_arr", "a_arr", "lv_arr",
-                "yd_weight", "x_prime_flat", "d_rep",
+                "yd_weight_T", "x_prime_flat", "d_rep",
             ],
             output_names=["new_h", "new_prev_in", "y_combined", "new_angle"],
             source=self._KERNEL_V3_SRC,
@@ -910,7 +1019,7 @@ class FusedMambaMixerKernels:
         dt_b: mx.array,
         a_b: mx.array,
         lv: mx.array,
-        yd_weight: mx.array,
+        yd_weight_T: mx.array,
         x_prime_flat: mx.array,
         d_rep: mx.array,
         *,
@@ -918,6 +1027,11 @@ class FusedMambaMixerKernels:
     ) -> Tuple[mx.array, mx.array, mx.array, mx.array]:
         """
         Run V3 fused kernel.
+
+        yd_weight_T must be the TRANSPOSED y_down_proj weight:
+            shape (P_R=P*R, P_out=P) instead of the original (P_out, P_R).
+        Transposing offline eliminates non-coalesced device-memory reads in
+        Phase 3 (stride drops from 512 bytes → 2 bytes between SIMD lanes).
 
         Returns:
             (new_h, new_input, y_combined, new_angle)
@@ -937,7 +1051,7 @@ class FusedMambaMixerKernels:
                 mx.flatten(x_ssm),
                 mx.flatten(prev_h), mx.flatten(prev_input),
                 dt_b, a_b, lv,
-                mx.flatten(yd_weight), x_prime_flat, d_rep,
+                mx.flatten(yd_weight_T), x_prime_flat, d_rep,
             ],
             template=[("T", dtype)],
             grid=(p, h, 1),

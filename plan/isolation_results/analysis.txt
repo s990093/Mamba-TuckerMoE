@@ -1,0 +1,96 @@
+# Jacobi 隔離測試分析報告
+
+Results directory: `plan/isolation_results`
+
+## 指標摘要
+
+步驟     功能組合                                       重複率        最長重複(次)   tok/s    ARL  speedup
+----------------------------------------------------------------------------------------------------
+Step 0    ✓ [AR] AR baseline (stream_mlx)              0.0%              —    53.8   0.67    0.66×
+Step 0b   ✓ [AR] AR compare_ar_jacobi                  0.0%              —    45.0  32.00        —
+Step 1    ✓ [···] 純 Jacobi (no-ngram, no-dyn-K, no-intra)   70.1%             8×    14.2   1.18    0.17×
+Step 2    ✓ [N··] ngram only                           70.5%            11×    38.5   5.53    0.47×
+Step 3    ✓ [·D·] dynamic-K only                       70.5%            11×    28.2   1.08    0.34×
+Step 4    ✓ [··I] intra only                           70.1%             8×    13.9   1.18    0.17×
+Step 5a   ✓ [ND·] ngram + dynamic-K                    70.5%            11×    44.1   3.55    0.54×
+Step 5b   ✓ [N·I] ngram + intra                        70.1%             8×    47.2   5.83    0.57×
+Step 5c   ✓ [·DI] dynamic-K + intra                    70.5%            11×    27.4   1.08    0.33×
+Step 6    ✓ [NDI] 全功能 default                          70.5%            11×    40.4   3.55    0.49×
+
+## 輸出預覽 (前200字元)
+
+### Step 0: AR baseline (stream_mlx)
+```
+──────────────────────────────────────────────────────────↵   53.8 tok/s  0.66× speedup  ARL —  K=32  36 tokens  0.67s↵EXIT_CODE=0
+```
+
+### Step 0b: AR compare_ar_jacobi
+```
+Loading latest_sft_cot_model.npz (npz) …↵📥 正在從 /Users/hungwei/Desktop/Proj/Mamba3-XR/checkpoints/latest_sft_cot_model.npz 讀取權重...↵ℹ️  略過 NPZ 非權重欄位（object / pickle）: config_json↵✅ 成功提取 Checkpoint，來源 /U
+```
+
+### Step 1: 純 Jacobi (no-ngram, no-dyn-K, no-intra)
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model, not a language model.↵↵I am a language mo
+```
+⚠️  最長重複片段 (8 次): `a language model. I am a language model, not a language mode`
+
+### Step 2: ngram only
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model.↵↵I am a language model. I am a language m
+```
+⚠️  最長重複片段 (11 次): `a language model. I am a language model. I am a language mod`
+
+### Step 3: dynamic-K only
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model.↵↵I am a language model. I am a language m
+```
+⚠️  最長重複片段 (11 次): `a language model. I am a language model. I am a language mod`
+
+### Step 4: intra only
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model, not a language model.↵↵I am a language mo
+```
+⚠️  最長重複片段 (8 次): `a language model. I am a language model, not a language mode`
+
+### Step 5a: ngram + dynamic-K
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model.↵↵I am a language model. I am a language m
+```
+⚠️  最長重複片段 (11 次): `a language model. I am a language model. I am a language mod`
+
+### Step 5b: ngram + intra
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model, not a language model.↵↵I am a language mo
+```
+⚠️  最長重複片段 (8 次): `a language model. I am a language model, not a language mode`
+
+### Step 5c: dynamic-K + intra
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model.↵↵I am a language model. I am a language m
+```
+⚠️  最長重複片段 (11 次): `a language model. I am a language model. I am a language mod`
+
+### Step 6: 全功能 default
+```
+4000m, I am a language model.↵↵1. I am a language model.↵2. I am a language model.↵3. I am a language model.↵4. I am a language model.↵↵I am a language model.↵↵I am a language model. I am a language m
+```
+⚠️  最長重複片段 (11 次): `a language model. I am a language model. I am a language mod`
+
+## 根因分析
+
+- ngram (Step 2): 重複率 delta=+0.5pp — 單獨無問題
+- dynamic-K (Step 3): 重複率 delta=+0.5pp — 單獨無問題
+- intra (Step 4): 重複率 delta=+0.0pp — 單獨無問題
+
+✅ 所有步驟重複率無顯著差異。
+   → 重複輸出可能來自模型本身（checkpoint 品質），Jacobi 加速功能無負面影響。
+   AR baseline: 45.0 tok/s
+
+### AR vs 純Jacobi 重複率
+- AR : 0.0%
+- 純Jacobi: 70.1%
+→ 純 Jacobi 本身即導致更多重複，基礎 verify/replay 可能有問題。
+
+---
+_分析完成_

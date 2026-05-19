@@ -1,0 +1,55 @@
+{
+  "total_samples": 50,
+  "structure_tokens_per_sample": {
+    "mean": 52.94,
+    "std": 24.111748173867444,
+    "min": 27,
+    "max": 147
+  },
+  "weight_stats": {
+    "min": {
+      "mean": 1.0
+    },
+    "max": {
+      "mean": 10.0
+    },
+    "mean": {
+      "mean": 1.4410160517692565
+    },
+    "std": {
+      "mean": 1.0156061089038848
+    }
+  },
+  "pattern_distribution": {
+    "step": {
+      "total_hits": 181,
+      "mean_per_sample": 3.62,
+      "samples_with_hits": 50
+    },
+    "pipe": {
+      "total_hits": 676,
+      "mean_per_sample": 13.52,
+      "samples_with_hits": 50
+    },
+    "separator": {
+      "total_hits": 657,
+      "mean_per_sample": 13.14,
+      "samples_with_hits": 50
+    },
+    "bold": {
+      "total_hits": 255,
+      "mean_per_sample": 5.1,
+      "samples_with_hits": 50
+    },
+    "heading": {
+      "total_hits": 6,
+      "mean_per_sample": 0.12,
+      "samples_with_hits": 6
+    },
+    "fenced_code": {
+      "total_hits": 0,
+      "mean_per_sample": 0.0,
+      "samples_with_hits": 0
+    }
+  }
+}

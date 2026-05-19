@@ -551,10 +551,12 @@ Apple Silicon 的 GPU 擁有高帶寬的 Threadgroup Memory (SRAM)，但必須�
 在推論過程中，Prefill（提示詞處理）與 Decode（單步生成）面臨著完全不同的運算瓶頸，因此我們在架構上採用了截然不同的核心最佳化策略：
 
 ### 11.1 Prefill 階段：平行前綴和掃描 (Parallel Scan)
+
 - **情境與瓶頸：** Prefill 階段會一次性輸入大量的提示詞 Tokens。此時 GPU 有大量資料可算，不再受限於 Kernel 啟動開銷，主要的瓶頸在於 SSM 狀態在**時間序列上的相依性 (Sequential Dependency)**。
 - **加強策略：** 我們實作了基於 Blelloch Scan 演算法的**平行前綴和掃描 (Parallel Scan)**。透過 Workgroup 內部的平行化以及跨 Workgroup 的狀態傳遞，打破了序列依賴，讓成千上萬個 Token 的狀態更新可以同時並行計算。這將運算推向了極致的 Compute-bound（計算受限），在 Apple Silicon 上可達數千 tok/s 的吞吐量。
 
 ### 11.2 Decode 階段：單步融合執行 (Single-step Execution)
+
 - **情境與瓶頸：** Decode 階段每次只產生 1 個 Token (Batch=1)。此時序列長度僅為 1，平行 Scan 毫無用武之地。GPU 計算核心極度閒置，瓶頸轉變為**記憶體讀寫頻寬 (Memory-bound)** 以及**指令下達開銷 (Launch Overhead)**。
 - **加強策略：** 放棄平行掃描，改用**單步更新 (Single-step Execution) 的 Fused Mixer**。我們將原本分散的 Norm、RoPE、Einsum、SSM Step 徹底融合為單一個 Metal Kernel。要求所有中間暫存變數都在暫存器 (Registers) 與 SRAM 中處理完畢後才寫回 VRAM，以最小化記憶體往返次數並消滅氣泡，這是達成高達 120 tok/s 速度的決定性技術。
 
@@ -565,10 +567,12 @@ Apple Silicon 的 GPU 擁有高帶寬的 Threadgroup Memory (SRAM)，但必須�
 在此架構中，TuckerMoE 是我們能夠在端側設備 (Apple Silicon) 跑出極速的另一大功臣，但同時也是推論時的最大效能挑戰：
 
 ### 12.1 透過張量分解突破記憶體牆 (Breaking the Memory Wall)
+
 - **降維壓縮：** 傳統的 Mixture of Experts (MoE) 雖然能擴展模型容量，但龐大的專家矩陣權重會導致極為嚴重的 Memory-bound 瓶頸。我們利用 **Tucker 張量分解技術**，將高維度的專家權重拆解為低秩 (Low-rank) 的投影矩陣 (`U_in`, `U_out`) 與核心張量 (`Core`)。
 - **驚人的壓縮率：** 這種設計讓我們能以僅 **417M 的實體參數**，達成等效於 **2.4B 密集模型 (Dense-equivalent)** 的知識容量（高達 82.87% 的壓縮率）。這不只極大化地節省了 VRAM，更將推論時所需的 KV + State Cache 壓低至 512 序列長度僅需 14.1 MiB（比傳統 Transformer 節省近 80%）。
 
 ### 12.2 推論效能的雙面刃與挑戰
+
 - **運算破碎化：** 雖然 TuckerMoE 大幅減少了記憶體讀取量，但在前向傳播 (Forward Pass) 時，原本單一的巨大矩陣乘法被強制拆解成了多個微小步驟（Router 決策 → `U_in` 降維 → `Core` 專家交互 → `U_out` 升維）。
 - **Launch Overhead 放大：** 在 Decode 階段 (Batch=1)，這類微小運算的實際計算時間極短，但卻無可避免地受到 GPU 指令啟動開銷 (Launch Overhead) 的拖累。這正是為何在 Profiling 中，`x_up_proj` 與 `out_proj` 等 TuckerMoE 模組佔據了單層高達 40.4% 執行時間的主因。
 - **我們的解決之道：** 為克服此問題，我們針對 MLX 開發了特製的 `scalar_fuse` 與 `einsum_fuse` 硬體核心，搭配 4-bit 量化，盡可能將這些破碎的操作在 Metal 圖編譯時打包。未來的「前置融合 (Fused Norm + Router)」也將是徹底解放 TuckerMoE 潛力的最後一塊拼圖。
@@ -582,3 +586,5 @@ Apple Silicon 的 GPU 擁有高帶寬的 Threadgroup Memory (SRAM)，但必須�
 1. **V3 Fused Mixer 全面實裝：** 將剩餘的 `y_down_proj` 與 `D_skip` 徹底融入 SSM 單步核心的 Phase 3 中，消滅每層的最後一個 Dispatch 氣泡。
 2. **TuckerMoE 前置融合 (Fused Norm + Router)：** 針對高達 48 次的 Mamba MoE 呼叫，將其前置的 Norm 與 Router 決策融合為單一 Dispatch 進行瘦身。
 3. **推論圖結構重組 (Graph Restructuring)：** 深入 MLX 編譯器層面，調整 Evaluate Barriers 的觸發時機，確保 Metal Graph 的提交 (Submission) 開銷與管線延遲降至絕對最低點。
+
+然後針對記憶體 做更加強 像是 lock page table 或是 pageattn 參考vllm等推理技巧

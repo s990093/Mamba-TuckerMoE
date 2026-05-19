@@ -1,48 +1,57 @@
 {
-  "total_examples": 20078,
+  "total_examples": 23695,
   "token_len_min": 83,
-  "token_len_mean": 280.8,
-  "token_len_max": 1621,
-  "p50": 269.0,
-  "p90": 407.0,
-  "p95": 470.0,
-  "p99": 584.0,
-  "suggested_seq_len": 512,
+  "token_len_mean": 309.1,
+  "token_len_max": 3575,
+  "p50": 282.0,
+  "p90": 475.0,
+  "p95": 574.0,
+  "p99": 856.0,
+  "suggested_seq_len": 768,
   "truncation_by_seq_len": {
     "256": {
-      "n_truncated": 10768,
-      "truncation_rate": "53.6%"
+      "n_truncated": 13814,
+      "truncation_rate": "58.3%"
     },
     "512": {
-      "n_truncated": 551,
-      "truncation_rate": "2.7%"
+      "n_truncated": 1791,
+      "truncation_rate": "7.6%"
     },
     "768": {
-      "n_truncated": 23,
-      "truncation_rate": "0.1%"
+      "n_truncated": 347,
+      "truncation_rate": "1.5%"
     },
     "1024": {
-      "n_truncated": 2,
-      "truncation_rate": "0.0%"
+      "n_truncated": 102,
+      "truncation_rate": "0.4%"
     },
     "1536": {
-      "n_truncated": 1,
+      "n_truncated": 6,
       "truncation_rate": "0.0%"
     },
     "2048": {
-      "n_truncated": 0,
+      "n_truncated": 3,
       "truncation_rate": "0.0%"
     }
   },
   "per_bucket_stats": {
     "daily_conversation": {
-      "count": 2645,
+      "count": 4916,
       "min": 83,
-      "mean": 296.1,
-      "max": 1621,
-      "p50": 261.0,
-      "p95": 579.0,
-      "p99": 734.0
+      "mean": 343.8,
+      "max": 3575,
+      "p50": 344.0,
+      "p95": 623.0,
+      "p99": 747.0
+    },
+    "deep_dive": {
+      "count": 733,
+      "min": 394,
+      "mean": 764.8,
+      "max": 1417,
+      "p50": 719.0,
+      "p95": 1140.0,
+      "p99": 1301.0
     },
     "emotion": {
       "count": 4811,
@@ -54,13 +63,13 @@
       "p99": 520.0
     },
     "movie_intro": {
-      "count": 1192,
+      "count": 1805,
       "min": 123,
-      "mean": 386.2,
-      "max": 838,
-      "p50": 396.0,
-      "p95": 608.0,
-      "p99": 723.0
+      "mean": 376.7,
+      "max": 861,
+      "p50": 371.0,
+      "p95": 624.0,
+      "p99": 738.0
     },
     "self_awareness": {
       "count": 5909,

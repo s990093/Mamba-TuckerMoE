@@ -37,7 +37,7 @@ for f in emotion.json self_awareness.json email_summary.json movie_intro.json no
         FILES="${FILES:+${FILES},}${f}"
     fi
 done
-for subdir in emotion self noise system_call movie_intro movie deep_dive; do
+for subdir in emotion self noise system_call movie_intro movie deep_dive deep; do
     if [[ -d "${COT_DIR}/${subdir}" ]]; then
         for f in "${COT_DIR}/${subdir}"/*.json; do
             if [[ -f "$f" ]]; then

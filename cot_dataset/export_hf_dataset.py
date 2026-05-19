@@ -121,7 +121,7 @@ def resolve_bucket(category: str, source_file: str) -> str:
         return "system_call"
     if source_file.startswith("movie_intro/") or source_file.startswith("movie/"):
         return "movie_intro"
-    if source_file.startswith("deep_dive/"):
+    if source_file.startswith("deep_dive/") or source_file.startswith("deep/"):
         return "deep_dive"
     if source_file.startswith("email_summary/"):
         return "summarize_email"
@@ -148,7 +148,11 @@ def build_chatml(system: str, user_input: str, cot: str, output: str) -> str:
 
 
 def load_json_list(path: Path) -> list[dict]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        print(f"WARNING: Skipping {path} - JSON decode error: {e}")
+        return []
     if isinstance(raw, dict):
         return [raw]
     if not isinstance(raw, list):

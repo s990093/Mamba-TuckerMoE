@@ -1,0 +1,24 @@
+[15:56:28] ===== Jacobi 隔離測試開始 =====
+[15:56:28] Prompt: "who are you" | sys-prompt: (self_awareness) | max-tok: 200 | K: 32 | ar-warmup: 5
+[15:56:28] ▶ Step 0: AR baseline (ar-warmup=201, no Jacobi)
+[15:56:41]   ✓ AR baseline → plan/isolation_results/step0_ar.txt
+[15:56:41] ▶ Step 0b: compare_ar_jacobi (token-level AR+Jacobi match check)
+[15:57:01]   ✓ saved → plan/isolation_results/step0b_compare.txt
+[15:57:01] ▶ Step 1: 純 Jacobi (no-ngram, no-dynamic-K, no-intra)
+[15:57:30]   ✓ OK → plan/isolation_results/step1.txt
+[15:57:30] ▶ Step 2: ngram only (no-dynamic-K, no-intra)
+[15:57:48]   ✓ OK → plan/isolation_results/step2.txt
+[15:57:48] ▶ Step 3: dynamic-K only (no-ngram, no-intra)
+[15:58:07]   ✓ OK → plan/isolation_results/step3.txt
+[15:58:07] ▶ Step 4: intra only (no-ngram, no-dynamic-K)
+[15:58:34]   ✓ OK → plan/isolation_results/step4.txt
+[15:58:34] ▶ Step 5a: ngram + dynamic-K (no-intra)
+[15:58:51]   ✓ OK → plan/isolation_results/step5a.txt
+[15:58:51] ▶ Step 5b: ngram + intra (no-dynamic-K)
+[15:59:08]   ✓ OK → plan/isolation_results/step5b.txt
+[15:59:08] ▶ Step 5c: dynamic-K + intra (no-ngram)
+[15:59:28]   ✓ OK → plan/isolation_results/step5c.txt
+[15:59:28] ▶ Step 6: 全功能 default (ngram + dynamic-K + intra)
+[15:59:45]   ✓ OK → plan/isolation_results/step6.txt
+[15:59:45] ===== 所有步驟完成，開始分析 =====
+[15:59:45] ===== 分析完成 → plan/isolation_results/analysis.txt =====

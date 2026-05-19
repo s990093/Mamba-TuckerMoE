@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q1 Poster: Loss Design for CoT</title>
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --border: #dce1e8;
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent-fcp: #c53030;
+            --accent-fcp-light: #fed7d7;
+            --accent-sftgo: #d69e2e;
+            --accent-sftgo-light: #fefcbf;
+            --accent-scale: #2b6cb0;
+            --accent-scale-light: #bee3f8;
+            --accent-moe: #6b46c1;
+            --accent-moe-light: #e9d8fd;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --font-serif: 'Georgia', 'Times New Roman', 'Noto Serif', serif;
+            --font-sans: 'Inter', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #e2e8f0;
+            font-family: var(--font-sans);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            padding: 28px 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .poster {
+            width: 100%;
+            max-width: 1280px;
+            background: var(--bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 36px 40px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 26px;
+            border: 1px solid var(--border);
+        }
+
+        /* header */
+        .header {
+            text-align: center;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #cbd5e0;
+        }
+        .header .title {
+            font-family: var(--font-serif);
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1a202c;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            margin-bottom: 6px;
+        }
+        .header .title span {
+            color: var(--accent-scale);
+        }
+        .header .authors {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .header .affiliation {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* main loss box – now three clear terms */
+        .main-loss {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 24px 28px;
+            box-shadow: var(--shadow-sm);
+        }
+        .loss-title {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+        .loss-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-family: var(--font-serif);
+            font-size: 1.5rem;
+        }
+        .loss-block {
+            background: #f7fafc;
+            border-radius: var(--radius-sm);
+            padding: 12px 20px;
+            border: 1px solid var(--border);
+            text-align: center;
+            min-width: 160px;
+        }
+        .loss-block .label {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .loss-block .value {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #1a202c;
+        }
+        .loss-block.ce-block {
+            border-left: 5px solid var(--accent-scale);
+        }
+        .loss-block.fcp-block {
+            border-left: 5px solid var(--accent-fcp);
+        }
+        .loss-block.moe-block {
+            border-left: 5px solid var(--accent-moe);
+        }
+        .plus-sign {
+            font-size: 2rem;
+            color: #a0aec0;
+        }
+        .ce-sub {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+        .ce-sub span {
+            font-weight: 600;
+            margin: 0 6px;
+        }
+        .scale-color {
+            color: var(--accent-scale);
+        }
+        .sftgo-color {
+            color: var(--accent-sftgo);
+        }
+        .fcp-color {
+            color: var(--accent-fcp);
+        }
+        .moe-color {
+            color: var(--accent-moe);
+        }
+
+        /* three cards */
+        .cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 18px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .card .accent-bar {
+            height: 3px;
+            border-radius: 2px;
+        }
+        .bar-scale {
+            background: var(--accent-scale);
+        }
+        .bar-fcp {
+            background: var(--accent-fcp);
+        }
+        .bar-moe {
+            background: var(--accent-moe);
+        }
+        .card h3 {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .card .formula {
+            background: #f7fafc;
+            border-left: 4px solid;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-serif);
+            font-size: 0.9rem;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        .card .desc {
+            font-size: 0.84rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .card .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 12px;
+            background: #edf2f7;
+            color: var(--text-secondary);
+        }
+
+        /* scale visual */
+        .scale-visual {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .scale-visual svg {
+            flex-shrink: 0;
+        }
+        .scale-notes {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+        }
+
+        .bottom-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px 22px;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 950px) {
+            .cards {
+                grid-template-columns: 1fr 1fr;
+            }
+            .loss-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .plus-sign {
+                display: none;
+            }
+        }
+        @media (max-width: 650px) {
+            .cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <!-- header -->
+        <div class="header">
+            <div class="title">Loss Engineering for <span>Chain‑of‑Thought</span> Reasoning</div>
+            <div class="authors">Author One, Author Two, Author Three</div>
+            <div class="affiliation">Department of Computer Science, University of Research</div>
+        </div>
+
+        <!-- main loss: three intuitive blocks -->
+        <div class="main-loss">
+            <div class="loss-title">▎Training Objective (20‑second overview)</div>
+            <div class="loss-row">
+                <div class="loss-block ce-block">
+                    <div class="label">adaptive CE loss</div>
+                    <div class="value">L<sub>CE*</sub></div>
+                    <div class="ce-sub">
+                        modulated by <span class="scale-color">SCALe</span> & <span class="sftgo-color">SFT‑GO</span>
+                    </div>
+                </div>
+                <span class="plus-sign">+</span>
+                <div class="loss-block fcp-block">
+                    <div class="label">format penalty</div>
+                    <div class="value">λ L<sub>FCP</sub></div>
+                    <div class="ce-sub">
+                        suppresses early <span class="fcp-color">EOS</span> in &lt;think&gt;
+                    </div>
+                </div>
+                <span class="plus-sign">+</span>
+                <div class="loss-block moe-block">
+                    <div class="label">MoE aux</div>
+                    <div class="value">α L<sub>lb</sub> + β L<sub>z</sub></div>
+                    <div class="ce-sub">
+                        load balance & router <span class="moe-color">stability</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- three detail cards -->
+        <div class="cards">
+            <!-- card 1: SCALe + SFT-GO (how CE becomes L_CE*) -->
+            <div class="card">
+                <div class="accent-bar bar-scale"></div>
+                <h3>① Adaptive CE Weighting</h3>
+                <div class="formula" style="border-color: var(--accent-scale);">
+                    L<sub>CE*</sub> = – <sup>1</sup>&frasl;<sub>N</sub> Σ<sub>t</sub> <strong style="color:var(--accent-scale);">η(s)</strong> · <strong style="color:var(--accent-sftgo);">w[t]</strong> · log P(label<sub>t</sub>)
+                </div>
+                <div class="desc">
+                    <strong style="color:var(--accent-scale);">SCALe:</strong> Cosine schedule reduces <code>&lt;think&gt;</code> region weight from 1.0 → 0.3 during training, while final answer region stays at 1.0.<br>
+                    <strong style="color:var(--accent-sftgo);">SFT‑GO:</strong> Multiplies loss for critical structure tokens (<code>&lt;/think&gt;</code>, <code>&lt;/final&gt;</code>) by a factor (e.g. 8×), reinforcing output format.
+                </div>
+                <div class="scale-visual">
+                    <svg width="140" height="56" viewBox="0 0 140 56">
+                        <defs>
+                            <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#2b6cb0" stop-opacity="0.9"/>
+                                <stop offset="100%" stop-color="#2c5282" stop-opacity="0.6"/>
+                            </linearGradient>
+                        </defs>
+                        <line x1="10" y1="10" x2="130" y2="10" stroke="#e2e8f0" stroke-width="0.8" stroke-dasharray="4,3"/>
+                        <line x1="10" y1="46" x2="130" y2="46" stroke="#e2e8f0" stroke-width="0.8" stroke-dasharray="4,3"/>
+                        <path d="M10,10 C45,10 65,14 80,24 C95,34 115,44 130,46"
+                        fill="none" stroke="url(#grad)" stroke-width="2.8" stroke-linecap="round"/>
+                        <circle cx="10" cy="10" r="3.8" fill="#2b6cb0" />
+                        <circle cx="130" cy="46" r="3.8" fill="#2c5282" />
+                        <text x="9" y="6" font-size="8" fill="#2b6cb0" font-family="monospace">η_max</text>
+                        <text x="130" y="54" font-size="8" fill="#2c5282" font-family="monospace" text-anchor="end">η_min</text>
+                    </svg>
+                    <div class="scale-notes">
+                        <span>η(s) = 1.0 → 0.3</span><br>
+                        <span>(think region only)</span>
+                    </div>
+                </div>
+                <div class="tags">
+                    <span class="tag">cosine schedule</span>
+                    <span class="tag">structure boost</span>
+                </div>
+            </div>
+
+            <!-- card 2: FCP -->
+            <div class="card">
+                <div class="accent-bar bar-fcp"></div>
+                <h3>② FCP: Format &amp; EOS Penalty</h3>
+                <div class="formula" style="border-color: var(--accent-fcp);">
+                    L<sub>FCP</sub> = <sup>1</sup>&frasl;<sub>|M<sub>think</sub>|</sub> Σ<sub>t</sub> M<sub>think</sub>[t] · <strong style="color:var(--accent-fcp);">max(P(EOS|t) − δ, 0)</strong>
+                </div>
+                <div class="desc">
+                    Penalizes the model whenever it assigns high probability to the EOS token inside the <code>&lt;think&gt;</code> segment. This prevents early termination and encourages full reasoning chains before the final answer.
+                </div>
+                <div class="tags">
+                    <span class="tag">think‑masked</span>
+                    <span class="tag">EOS threshold δ</span>
+                    <span class="tag">penalty strength λ</span>
+                </div>
+            </div>
+
+            <!-- card 3: MoE aux -->
+            <div class="card">
+                <div class="accent-bar bar-moe"></div>
+                <h3>③ MoE Auxiliary Losses</h3>
+                <div class="formula" style="border-color: var(--accent-moe);">
+                    L<sub>lb</sub> = K · Σ<sub>i</sub> f<sub>i</sub> · P<sub>i</sub> &ensp;(load balance)<br>
+                    L<sub>z</sub> = 𝔼[(log Σ<sub>i</sub> e<sup>logit<sub>i</sub></sup>)<sup>2</sup>] &ensp;(z‑loss)
+                </div>
+                <div class="desc">
+                    <strong>Load balancing</strong> encourages all experts to be used uniformly. <strong>Z‑loss</strong> stabilizes router logits, preventing numerical divergence.
+                </div>
+                <div class="tags">
+                    <span class="tag">Tucker MoE</span>
+                    <span class="tag">expert utilization</span>
+                    <span class="tag">router regularization</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- bottom summary -->
+        <div class="bottom-bar">
+            <span style="font-weight:700;">L<sub>total</sub></span>
+            <span>=</span>
+            <span style="color:var(--accent-scale);">adaptive CE</span>
+            <span>+</span>
+            <span style="color:var(--accent-fcp);">FCP penalty</span>
+            <span>+</span>
+            <span style="color:var(--accent-moe);">MoE aux</span>
+            <span style="margin-left:16px;">→</span>
+            <span style="font-weight:700;">better CoT reasoning without early stopping</span>
+        </div>
+    </div>
+</body>
+</html>

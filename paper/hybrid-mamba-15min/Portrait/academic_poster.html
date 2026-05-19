@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      /* ── ICLR Academic Palette ──────────────────────────────── */
+      :root {
+        --navy: #1455a4; /* bright royal blue — all headers */
+        --burg: #c0392b; /* bright crimson — accent ONLY   */
+        --bg: #ffffff; /* white                    */
+        --card: #ffffff;
+        --tx: #0f172a;
+        --mu: #4b5563;
+        --bo: #c8cdd8;
+      }
+      @page {
+        size: A0 portrait;
+        margin: 0;
+      }
+      @media screen {
+        html {
+          background: #b0b8c8;
+          padding: 12px;
+        }
+        .pw {
+          transform: scale(0.45);
+          transform-origin: top left;
+        }
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Times New Roman", Times, Georgia, serif;
+        color: var(--tx);
+        font-size: 22pt;
+      }
+
+      /* ── POSTER SHELL ── */
+      .poster {
+        width: 841mm;
+        height: 1189mm;
+        padding: 12mm 16mm 10mm 16mm;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      /* ── HEADER ── */
+      .hdr {
+        display: flex;
+        align-items: flex-start;
+        gap: 8mm;
+        padding-bottom: 4.5mm;
+        border-bottom: 3.5px solid var(--navy);
+        margin-bottom: 4.5mm;
+        flex-shrink: 0;
+        background: transparent;
+      }
+      .logo {
+        width: 30mm;
+        height: 30mm;
+        object-fit: contain;
+        flex-shrink: 0;
+        margin-top: 2mm;
+      }
+      .hb {
+        flex: 1;
+        text-align: center;
+      }
+      .ht {
+        font-size: 62pt;
+        font-weight: 800;
+        color: var(--navy);
+        line-height: 1.06;
+        margin-bottom: 3mm;
+        letter-spacing: -0.5pt;
+        text-align: center;
+      }
+      .hv {
+        font-size: 20pt;
+        font-weight: 700;
+        color: var(--burg);
+        text-transform: uppercase;
+        letter-spacing: 1.5pt;
+        margin-bottom: 2.5mm;
+        border-bottom: 1px solid var(--bo);
+        padding-bottom: 1.5mm;
+        text-align: center;
+      }
+      .hauth {
+        display: flex;
+        gap: 0;
+        border: 1px solid var(--bo);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .hau {
+        flex: 1;
+        padding: 2.5mm 3.5mm;
+        font-size: 13pt;
+        line-height: 1.38;
+        border-right: 1px solid var(--bo);
+        background: var(--card);
+        text-align: center;
+      }
+      .hau:last-child {
+        border-right: none;
+      }
+      .hau .nm {
+        font-size: 20pt;
+        font-weight: 700;
+        color: var(--navy);
+        display: block;
+        margin-bottom: 1.5mm;
+      }
+      .hau .af {
+        font-size: 14pt;
+        color: var(--mu);
+        display: block;
+        line-height: 1.38;
+      }
+      .hau .em {
+        font-size: 14pt;
+        color: var(--burg);
+        display: block;
+        margin-top: 1.5mm;
+      }
+
+      /* ── PIPELINE ── */
+      .pipe-wrap {
+        flex-shrink: 0;
+        margin-bottom: 5mm;
+      }
+      .pipe {
+        display: flex;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #0a1628;
+      }
+      .pp {
+        flex: 1;
+        padding: 2.5mm 3.5mm;
+        font-size: 15pt;
+        line-height: 1.3;
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .pp:last-child {
+        border-right: none;
+      }
+      .pp b {
+        display: block;
+        font-size: 16.5pt;
+        font-weight: 700;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+        padding-bottom: 0.8mm;
+        margin-bottom: 0.8mm;
+      }
+      .pp,
+      .pp * {
+        color: rgba(255, 255, 255, 0.9);
+      }
+      /* monochromatic dark navy pipeline */
+      .pp.amber {
+        background: #1d3557;
+      }
+      .pp.blue {
+        background: #14283f;
+      }
+      .pp.green {
+        background: #152b40;
+      }
+      .pp.purple {
+        background: #101e33;
+      }
+      .pp.out {
+        background: #0d1929;
+      }
+
+      /* ── COLUMNS ── */
+      .cols {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12mm;
+        min-height: 0;
+        align-items: stretch;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 4.5mm;
+      }
+      [id^="slot-"] {
+        display: contents;
+      }
+
+      /* ── SECTION CARDS ── */
+      .sec {
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--card);
+        border: 1px solid var(--bo);
+        box-shadow: 0 2px 14px rgba(15, 23, 42, 0.08);
+      }
+      .sec.s {
+        background: #f8f9fb;
+      }
+
+      /* ── SECTION HEADERS — bright bg, black text ── */
+      .sh,
+      .sh.green,
+      .sh.blue,
+      .sh.purple,
+      .sh.red {
+        font-size: 30pt;
+        font-weight: 700;
+        color: #111827;
+        padding: 2.5mm 5mm 2mm 8mm;
+        margin: 0;
+        line-height: 1.15;
+        background: #eff6ff;
+        border-left: 6px solid var(--navy);
+        border-bottom: 1.5px solid #bfdbfe;
+        letter-spacing: -0.2pt;
+      }
+
+      .sc {
+        padding: 2mm 4mm;
+      }
+      .svgw {
+        width: 100%;
+        display: block;
+      }
+      .svgw svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      /* ── STAT BOXES ── */
+      .ks3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2.5mm;
+      }
+      .ks2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2.5mm;
+      }
+      .sb {
+        background: #f8f9fb;
+        border: 1px solid var(--bo);
+        border-radius: 5px;
+        padding: 2.5mm 3mm;
+        text-align: center;
+        border-top: 3px solid var(--navy);
+      }
+      .sn {
+        font-size: 48pt;
+        font-weight: 800;
+        color: var(--burg);
+        line-height: 1;
+        display: block;
+      }
+      .sl {
+        font-size: 15pt;
+        color: var(--mu);
+        line-height: 1.3;
+        display: block;
+        margin-top: 0.8mm;
+      }
+
+      /* ── FIGURES ── */
+      .figph {
+        background: #f0f2f5;
+        border: 2px dashed #a0aab8;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #718096;
+        font-size: 15pt;
+        font-style: italic;
+        padding: 5mm;
+      }
+      .figimg {
+        width: 100%;
+        border-radius: 4px;
+        display: block;
+      }
+      .fc {
+        font-size: 15pt;
+        color: var(--mu);
+        margin-top: 1.5mm;
+        font-style: italic;
+        padding: 0 3mm 2mm;
+      }
+
+      /* ── TABLE ── */
+      table.t {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 15pt;
+      }
+      table.t th {
+        background: #eef0f5;
+        color: var(--navy);
+        font-weight: 700;
+        padding: 1.8mm 3mm;
+        border-bottom: 2px solid var(--bo);
+        text-align: left;
+      }
+      table.t td {
+        padding: 1.4mm 3mm;
+        border-bottom: 1px solid var(--bo);
+      }
+      table.t tr:last-child td {
+        border-bottom: none;
+      }
+      table.t .hl {
+        color: var(--burg);
+        font-weight: 700;
+      }
+
+      /* ── MISC ── */
+      .hr {
+        border: none;
+        border-top: 1.5px solid var(--bo);
+        margin: 3mm 0;
+      }
+      .qrrow {
+        display: flex;
+        align-items: center;
+        gap: 5mm;
+      }
+      .qrbox {
+        width: 44mm;
+        height: 44mm;
+        flex-shrink: 0;
+        background: #eef0f5;
+        border: 1.5px solid var(--bo);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 14pt;
+        color: #718096;
+        font-style: italic;
+      }
+      .qt {
+        font-size: 17pt;
+        color: var(--mu);
+        line-height: 1.45;
+      }
+      .qt strong {
+        color: var(--navy);
+      }
+      .acc {
+        color: var(--burg);
+        font-weight: 700;
+      }
+      ul.bl {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      ul.bl li {
+        position: relative;
+        padding-left: 7mm;
+        margin-bottom: 2mm;
+        font-size: 19pt;
+        line-height: 1.4;
+      }
+      ul.bl li::before {
+        content: "▸";
+        position: absolute;
+        left: 0;
+        top: 0.05em;
+        color: var(--burg);
+        font-size: 17pt;
+      }
+      ul.bl li strong {
+        color: var(--navy);
+      }
+      .loading {
+        color: #94a3b8;
+        font-size: 15pt;
+        font-style: italic;
+        padding: 5mm;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pw">
+      <div class="poster">
+        <!-- ═══ HEADER ═══ -->
+        <header class="hdr">
+          <img
+            class="logo"
+            src="NKUST_Logo.png"
+            alt="NKUST"
+            onerror="this.style.visibility = 'hidden'"
+          />
+          <div class="hb">
+            <div class="ht">
+              Multi‑Strategy Speculative Decoding for Local LLM Inference:
+              TuckerMoE Hybrid State Space Models on Resource‑Constrained
+              Devices
+            </div>
+            <div class="hauth">
+              <div class="hau">
+                <span class="nm">Hung-Wei Lai</span>
+                <span class="af"
+                  >Department of Computer Science and Information
+                  Engineering,</span
+                >
+                <span class="af"
+                  >National Kaohsiung University of Science and
+                  Technology,</span
+                >
+                <span class="af">Kaohsiung, Taiwan</span>
+                <span class="em">c111151125@nkust.edu.tw</span>
+              </div>
+              <div class="hau">
+                <span class="nm">LAN, HSIN-AN</span>
+                <span class="af"
+                  >Department of Computer Science and Information
+                  Engineering,</span
+                >
+                <span class="af"
+                  >National Kaohsiung University of Science and
+                  Technology,</span
+                >
+                <span class="af">Kaohsiung, Taiwan</span>
+                <span class="em">c112152307@nkust.edu.tw</span>
+              </div>
+              <div class="hau">
+                <span class="nm">Manny Hsu</span>
+                <span class="af"
+                  >Department of Computer Science and Information
+                  Engineering,</span
+                >
+                <span class="af"
+                  >National Kaohsiung University of Science and
+                  Technology,</span
+                >
+                <span class="af">Kaohsiung, Taiwan</span>
+                <span class="em">c111152345@nkust.edu.tw</span>
+              </div>
+              <div class="hau">
+                <span class="nm">Yu-Han Lu</span>
+                <span class="af"
+                  >Department of Computer Science and Information
+                  Engineering,</span
+                >
+                <span class="af"
+                  >National Kaohsiung University of Science and
+                  Technology,</span
+                >
+                <span class="af">Kaohsiung, Taiwan</span>
+                <span class="em">c111151111@nkust.edu.tw</span>
+              </div>
+            </div>
+          </div>
+          <!-- balance spacer: same width as logo so title is truly centered -->
+          <div style="width: 30mm; flex-shrink: 0"></div>
+        </header>
+
+        <!-- ═══ PIPELINE — Chevron Flowchart ═══ -->
+        <div class="pipe-wrap">
+          <svg
+            viewBox="0 0 809 82"
+            xmlns="http://www.w3.org/2000/svg"
+            style="
+              width: 100%;
+              display: block;
+              font-family: &quot;Times New Roman&quot;, Times, serif;
+            "
+          >
+            <defs>
+              <filter id="psh">
+                <feDropShadow
+                  dx="0"
+                  dy="1.5"
+                  stdDeviation="2.5"
+                  flood-opacity="0.18"
+                />
+              </filter>
+            </defs>
+
+            <!-- ── Input ── x:0→148, tip at 166 -->
+            <polygon
+              points="0,2 148,2 166,41 148,80 0,80"
+              fill="#0F3460"
+              filter="url(#psh)"
+            />
+            <text
+              x="74"
+              y="28"
+              font-size="15"
+              fill="#93C5FD"
+              font-weight="800"
+              text-anchor="middle"
+              letter-spacing="0.5"
+            >
+              INPUT
+            </text>
+            <text
+              x="74"
+              y="45"
+              font-size="9.5"
+              fill="#BFDBFE"
+              text-anchor="middle"
+            >
+              X ∈ ℝN×d · V=32,007
+            </text>
+            <text
+              x="74"
+              y="59"
+              font-size="9"
+              fill="#7FB3E8"
+              text-anchor="middle"
+            >
+              FineWeb-Edu tokens
+            </text>
+
+            <!-- ── ① Design ── x:148→316, tip at 334 -->
+            <polygon
+              points="148,2 316,2 334,41 316,80 148,80 166,41"
+              fill="#1455A4"
+              filter="url(#psh)"
+            />
+            <text
+              x="241"
+              y="24"
+              font-size="13"
+              fill="#DBEAFE"
+              font-weight="800"
+              text-anchor="middle"
+            >
+              ① MODEL DESIGN
+            </text>
+            <text
+              x="241"
+              y="39"
+              font-size="10"
+              fill="#FFF"
+              font-weight="700"
+              text-anchor="middle"
+            >
+              4:1 Macro Block · 30 layers
+            </text>
+            <text
+              x="241"
+              y="53"
+              font-size="9"
+              fill="#BFDBFE"
+              text-anchor="middle"
+            >
+              24×Mamba-3 + 6×GQA
+            </text>
+            <text
+              x="241"
+              y="66"
+              font-size="9"
+              fill="#93C5FD"
+              text-anchor="middle"
+            >
+              66 TuckerMoE experts
+            </text>
+
+            <!-- ── ② Training ── x:316→484, tip at 502 -->
+            <polygon
+              points="316,2 484,2 502,41 484,80 316,80 334,41"
+              fill="#155E75"
+              filter="url(#psh)"
+            />
+            <text
+              x="409"
+              y="24"
+              font-size="13"
+              fill="#A5F3FC"
+              font-weight="800"
+              text-anchor="middle"
+            >
+              ② TRAINING
+            </text>
+            <text
+              x="409"
+              y="39"
+              font-size="10"
+              fill="#FFF"
+              font-weight="700"
+              text-anchor="middle"
+            >
+              Pre-train → Indie → CoT SFT
+            </text>
+            <text
+              x="409"
+              y="53"
+              font-size="9"
+              fill="#67E8F9"
+              text-anchor="middle"
+            >
+              CE + LB + Z + FCP + SCALe
+            </text>
+            <text
+              x="409"
+              y="66"
+              font-size="9"
+              fill="#A5F3FC"
+              text-anchor="middle"
+            >
+              Router τ: 2.0 → 0.5
+            </text>
+
+            <!-- ── ③ Inference ── x:484→661, tip at 679 -->
+            <polygon
+              points="484,2 661,2 679,41 661,80 484,80 502,41"
+              fill="#7C4D0A"
+              filter="url(#psh)"
+            />
+            <text
+              x="582"
+              y="24"
+              font-size="13"
+              fill="#FDE68A"
+              font-weight="800"
+              text-anchor="middle"
+            >
+              ③ INFERENCE
+            </text>
+            <text
+              x="582"
+              y="39"
+              font-size="10"
+              fill="#FFF"
+              font-weight="700"
+              text-anchor="middle"
+            >
+              Prefill chunk scan · O(1) SSM
+            </text>
+            <text
+              x="582"
+              y="53"
+              font-size="9"
+              fill="#FCD34D"
+              text-anchor="middle"
+            >
+              MLX @mx.compile · Metal JIT
+            </text>
+            <text
+              x="582"
+              y="66"
+              font-size="9"
+              fill="#FDE68A"
+              text-anchor="middle"
+            >
+              42–68 tok/s on M2 Pro
+            </text>
+
+            <!-- ── Output ── x:661→809, flat right -->
+            <polygon
+              points="661,2 809,2 809,80 661,80 679,41"
+              fill="#0F172A"
+              filter="url(#psh)"
+            />
+            <text
+              x="742"
+              y="28"
+              font-size="15"
+              fill="#93C5FD"
+              font-weight="800"
+              text-anchor="middle"
+              letter-spacing="0.5"
+            >
+              OUTPUT
+            </text>
+            <text
+              x="742"
+              y="45"
+              font-size="9.5"
+              fill="#CBD5E1"
+              text-anchor="middle"
+            >
+              Y ∈ ℝN×V
+            </text>
+            <text
+              x="742"
+              y="60"
+              font-size="9"
+              fill="#7FB3E8"
+              text-anchor="middle"
+            >
+              PPL · tok/s · MSE
+            </text>
+          </svg>
+        </div>
+
+        <!-- ═══ COLUMNS ═══ -->
+        <div class="cols">
+          <div class="col">
+            <div id="slot-phase1"><div class="loading">Loading…</div></div>
+            <div id="slot-phase3"><div class="loading">Loading…</div></div>
+          </div>
+          <div class="col">
+            <div id="slot-phase2"><div class="loading">Loading…</div></div>
+            <div id="slot-cot"><div class="loading">Loading…</div></div>
+            <div id="slot-results"><div class="loading">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      async function load(id, file) {
+        const el = document.getElementById(id);
+        try {
+          const r = await fetch(file);
+          if (!r.ok) throw r.status;
+          el.innerHTML = await r.text();
+        } catch (e) {
+          el.innerHTML = `<div style="padding:5mm;color:#B91C1C;font-size:14pt">⚠ ${file} not found</div>`;
+        }
+      }
+      load("slot-phase1", "s_phase1.html");
+      load("slot-phase2", "s_phase2.html");
+      load("slot-phase3", "s_phase3.html");
+      load("slot-cot", "s_cot.html");
+      load("slot-results", "s_results.html");
+    </script>
+  </body>
+</html>

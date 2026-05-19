@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 find_bad_json.py)",
+      "Bash(python3 *)",
+      "Bash(./prepare_data.sh)",
+      "Bash(pip install *)"
+    ]
+  }
+}
