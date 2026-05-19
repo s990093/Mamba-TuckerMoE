@@ -753,6 +753,7 @@ def _gen_real_chat(
         pf_logits, mamba_states, kv_caches = prefill(model, mx.array([prompt_ids]))
 
     generated = list(prompt_ids)   # all token IDs including prompt (used for rep. penalty)
+    n_text = 0  # Initialize before first _sample() call
 
     def _sample(logits_1d, debug_label=""):
         import mlx.core as mx
@@ -808,7 +809,6 @@ def _gen_real_chat(
     prefill_ms = (t_first - t0) * 1000
     yield {"type": "meta", "prefill_ms": round(prefill_ms, 1), "prompt_tokens": len(prompt_ids)}
 
-    n_text          = 0
     t_decode_start  = t_first
     asst_split_sent = False
     answer_parts: list[str] = []
