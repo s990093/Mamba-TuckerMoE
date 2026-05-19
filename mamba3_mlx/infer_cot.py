@@ -14,7 +14,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 _REPO_ROOT = Path(__file__).parent.parent
 if str(_REPO_ROOT) not in sys.path:
@@ -61,22 +61,18 @@ class CotInference:
                 pass
 
         print("Initializing middleware...", end=" ", flush=True)
-        self.mw_cfg = CotMiddlewareConfig(enabled=True, reasoning_budget=500)
-        self.mw_deps = CotMiddlewareDeps.build(
-            tokenizer=self.tokenizer,
-            vocab_size=int(vocab_size),
-            existing_stop_ids=None,
-            cfg=self.mw_cfg,
-        )
-        print("✓")
-        print(f"Format guard: {self.mw_deps.describe()}\n")
+        # Middleware config is set per-inference to allow CLI override
+        self.mw_deps = None  # Will be created in infer() with proper config
+        print("✓\n")
 
     def infer(
         self,
         system_prompt: str,
         user_prompt: str,
-        max_tokens: int = 200,
-        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        temperature: float = 0.5,
+        reasoning_budget: int = 500,
+        final_min_tokens: int = 16,
     ) -> dict:
         """Run inference and split output into reasoning + final."""
 
@@ -88,7 +84,35 @@ class CotInference:
         )
 
         prompt_ids = self.tokenizer.encode(full_prompt)
-        print(f"[Prefill] {len(prompt_ids)} tokens\n")
+        print(f"[Prefill] {len(prompt_ids)} tokens")
+
+        # Detect vocab size (same logic as __init__)
+        vocab_size = (
+            getattr(getattr(self.model, "config", None), "vocab_size", None)
+            or len(self.tokenizer)
+        )
+        if hasattr(self.tokenizer, "backend_tokenizer"):
+            try:
+                backend_vocab = self.tokenizer.backend_tokenizer.get_vocab()
+                if backend_vocab:
+                    vocab_size = max(vocab_size, max(backend_vocab.values()) + 1)
+            except Exception:
+                pass
+
+        # Initialize middleware with CLI-provided config
+        mw_cfg = CotMiddlewareConfig(
+            enabled=True,
+            reasoning_budget=reasoning_budget,
+            final_min_tokens=final_min_tokens,
+        )
+        if self.mw_deps is None:
+            self.mw_deps = CotMiddlewareDeps.build(
+                tokenizer=self.tokenizer,
+                vocab_size=int(vocab_size),
+                existing_stop_ids=None,
+                cfg=mw_cfg,
+            )
+        print(f"Format guard: {self.mw_deps.describe()}\n")
 
         # Prefill
         x = mx.array([prompt_ids])
@@ -96,24 +120,56 @@ class CotInference:
         mx.eval(logits)
         seq_pos = len(prompt_ids)
 
-        # Initialize splitter and middleware
-        splitter = CotStreamSplitter(start_in_think=True)
+        # Create model_apply function for final injection
+        def model_apply(x_ids: mx.array, caches: Any, pos: mx.array) -> tuple[mx.array, Any]:
+            """Forward pass for <final> injection during decode.
+
+            x_ids shape: (1, N) with N token IDs to process sequentially
+            caches: tuple of (mamba_states, kv_caches)
+            pos: starting position as mx.array(scalar)
+
+            Returns: (logits[1, N, vocab_size], updated_caches)
+            """
+            mamba_states, kv_caches = caches
+            n_ids = x_ids.shape[1] if x_ids.ndim > 1 else 1
+            token_ids = [int(x_ids[0, i]) if x_ids.ndim > 1 else int(x_ids[i]) for i in range(n_ids)]
+            logits_list = []
+            current_pos = int(pos)
+
+            for tid in token_ids:
+                _logits, mamba_states, kv_caches = decode_step(
+                    self.model, tid, mamba_states, kv_caches, step=current_pos
+                )
+                # _logits shape: (1, vocab_size)
+                logits_list.append(_logits)
+                current_pos += 1
+
+            # Stack logits: [(1, vocab) x N] -> (1, N, vocab_size)
+            stacked = mx.stack(logits_list, axis=1)  # Stack on new axis
+            return stacked, (mamba_states, kv_caches)
+
+        # Initialize middleware with model_apply so final injection works
         middleware = CotMiddleware(
             deps=self.mw_deps,
-            cfg=self.mw_cfg,
+            cfg=mw_cfg,
             reasoning=True,
-            model_apply=None,
+            model_apply=model_apply,
         )
 
         # Decode
+        # Note: max_tokens is a safety limit; actual stopping is controlled by
+        # middleware (reasoning_budget, final_min_tokens, </final>, <|im_end|>)
         generated_ids = []
         reasoning_text = ""
         final_text = ""
         raw_text = ""
         t0 = time.perf_counter()
+        stop_reason = None
+        stopped = False
 
-        for step_idx in range(max_tokens):
-            # Transform logits
+        step_idx = 0
+        while step_idx < max_tokens:
+            # Transform logits through middleware format guard
             if logits.ndim == 3:
                 logits_row = logits[0, -1, :]
             else:
@@ -125,34 +181,85 @@ class CotInference:
             tid = sample_token(logits_row, temperature=temperature, top_k=40)
             generated_ids.append(tid)
 
-            # Decode chunk
-            chunk = self.tokenizer.decode([tid], skip_special_tokens=False)
-            raw_text += chunk
+            # Check if we sampled a hard stop token (before middleware processing)
+            should_break = middleware.should_break(tid)
 
-            # Feed through splitter
-            for kind, payload in splitter.feed(chunk):
-                if kind == "reasoning":
-                    reasoning_text += payload
-                elif kind == "final":
-                    final_text += payload
+            # Let middleware process the token through the splitter
+            # middleware._decode_chunk() handles special token logic and incremental decoding
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            prev_mode = middleware.mode
+            for event in middleware.step(tid, n_out=len(generated_ids), elapsed_s_fn=lambda: elapsed_ms / 1000):
+                if event.get("__stop__"):
+                    stopped = True
+                    stop_reason = "middleware_stop"
+                elif event.get("type") == "reasoning":
+                    text = event.get("markdown", "")
+                    reasoning_text += text
+                    if step_idx < 3:  # Debug first 3 steps
+                        print(f"  [Step {step_idx}] reasoning: {repr(text[:50])}")
+                elif event.get("type") == "token":
+                    text = event.get("text", "")
+                    final_text += text
+                    if step_idx < 3:
+                        print(f"  [Step {step_idx}] token: {repr(text[:50])}")
 
-            # Check stop
-            if middleware.should_break(tid) or splitter.done:
+            # Try to inject <final> if we just transitioned to "between" mode
+            if prev_mode != "between" and middleware.mode == "between":
+                caches_tuple = (mamba_states, kv_caches)
+                new_caches, new_seq_pos, new_logits_row, did_inject, ms = middleware.maybe_inject_final(
+                    caches=caches_tuple, pos=seq_pos
+                )
+                if did_inject:
+                    mamba_states, kv_caches = new_caches
+                    seq_pos = new_seq_pos
+                    if new_logits_row is not None:
+                        logits = new_logits_row.reshape((1, 1, -1))
+                        mx.eval(logits)
+                        # Continue to next sampling without decode_step since we already have logits
+
+            if should_break:
+                stop_reason = "stop_token"
+                stopped = True
+
+            if stopped:
                 break
 
-            # Decode step
-            logits, mamba_states, kv_caches = decode_step(
-                self.model, tid, mamba_states, kv_caches, step=seq_pos
-            )
-            mx.eval(logits)
+            # Decode step for next iteration (unless we just did final injection)
+            try:
+                logits, mamba_states, kv_caches = decode_step(
+                    self.model, tid, mamba_states, kv_caches, step=seq_pos
+                )
+                mx.eval(logits)
+            except Exception as e:
+                stop_reason = f"decode_error: {e}"
+                break
             seq_pos += 1
+            step_idx += 1
 
-        # Flush
-        for kind, payload in splitter.flush():
-            if kind == "reasoning":
-                reasoning_text += payload
-            elif kind == "final":
-                final_text += payload
+            # Emit progress every 50 tokens
+            if step_idx % 50 == 0:
+                print(f"  Generated {step_idx} tokens...", flush=True)
+
+        # If we hit max_tokens hard limit (safety fallback)
+        if step_idx >= max_tokens and not stopped:
+            stop_reason = "max_tokens_limit"
+
+        # Flush any remaining buffered text from the splitter
+        for event in middleware.flush(n_out=len(generated_ids), elapsed_s_fn=lambda: (time.perf_counter() - t0)):
+            if event.get("type") == "reasoning":
+                reasoning_text += event.get("markdown", "")
+            elif event.get("type") == "token":
+                final_text += event.get("text", "")
+
+        # Build raw_text at the end (once, not per-token)
+        try:
+            raw_text = self.tokenizer.decode(
+                generated_ids,
+                skip_special_tokens=False,
+                clean_up_tokenization_spaces=False
+            )
+        except Exception:
+            raw_text = ""
 
         t_end = time.perf_counter()
 
@@ -162,7 +269,8 @@ class CotInference:
             "final": final_text,
             "tokens": len(generated_ids),
             "time_ms": (t_end - t0) * 1000,
-            "splitter_mode": splitter.mode,
+            "splitter_mode": middleware.mode,
+            "stop_reason": stop_reason,
             "middleware": middleware.health_report(),
         }
 
@@ -223,6 +331,8 @@ def format_output(result: dict, category: str) -> None:
 
     print(f"\nCategory: {CATEGORY_TITLES.get(category, category)}")
     print(f"Tokens: {result['tokens']} | Time: {result['time_ms']:.1f}ms | Mode: {result['splitter_mode']}")
+    if result.get("stop_reason"):
+        print(f"Stop reason: {result['stop_reason']}")
 
     print("\n" + "─" * 80)
     print("REASONING BLOCK")
@@ -302,7 +412,25 @@ def main():
         action="store_true",
         help="Interactive mode (choose category and prompt)",
     )
-    parser.add_argument("--max-tokens", type=int, default=200)
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=4096,
+        help="Safety limit (actual stop is controlled by middleware: "
+             "reasoning_budget, final_min_tokens, </final>, <|im_end|>). Default 4096."
+    )
+    parser.add_argument(
+        "--reasoning-budget",
+        type=int,
+        default=500,
+        help="Max tokens inside <think> block before forced stop. Default 500."
+    )
+    parser.add_argument(
+        "--final-min-tokens",
+        type=int,
+        default=16,
+        help="Min tokens inside <final> block before </final> allowed. Default 16."
+    )
     parser.add_argument("--temp", type=float, default=0.7)
     parser.add_argument("--list-categories", action="store_true", help="Show available categories")
 
@@ -333,6 +461,8 @@ def main():
             user_prompt=user_prompt,
             max_tokens=args.max_tokens,
             temperature=args.temp,
+            reasoning_budget=args.reasoning_budget,
+            final_min_tokens=args.final_min_tokens,
         )
         format_output(result, category)
     except KeyboardInterrupt:

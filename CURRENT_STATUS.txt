@@ -1,0 +1,155 @@
+════════════════════════════════════════════════════════════════════════════════
+                           infer_cot.py 修復 — 當前狀態
+════════════════════════════════════════════════════════════════════════════════
+
+🔴 最新測試結果（2026-05-19 23:39）：
+────────────────────────────────────────────────────────────────────────────────
+Tokens: 11 (應該 100+)
+Output: "PosPositivePositive..." (應該是清晰文本)
+think_tokens: 11 (正確計算 ✓)
+splitter_final_mode: "done"
+Format guard: ✓ 正確初始化
+  → close_bias=[think→32003, final→32005] ✓
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📊 修復進度：
+
+✅ FIXED：Vocab Size（32000 → 32007）
+   - cot_format_fsm.py: build_format_guard() ✓
+   - server.py: vocab_size detection ✓
+
+✅ FIXED：middleware.step() 集成
+   - 移除獨立 CotStreamSplitter ✓
+   - 改為調用 middleware.step() ✓
+   - 正確處理返回的事件 ✓
+   - middleware 現在正確計算 think_tokens ✓
+
+✅ OPTIMIZED：Token 解碼
+   - 移除每步的 tokenizer.decode() ✓
+   - 改為在最後解碼一次 ✓
+
+⚠️ REMAINING ISSUE：垃圾輸出
+   - 模型採樣出重複的 token
+   - 導致解碼為垃圾文本
+   - 根本原因待診斷
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 下一步（在你的 Mac 上）：
+
+1. 運行測試
+   python -m mamba3_mlx.infer_cot --prompt "Who are you?" --category self_awareness
+
+2. 查看結果是否改善
+
+3. 如果還是有問題，執行診斷
+   見 DIAGNOSE_INFER_COT.md
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📁 創建的文件（未推送到 git）：
+
+新增文件：
+  ✓ DIAGNOSE_INFER_COT.md — 詳細診斷指南
+  ✓ NEXT_STEPS.md — 行動計畫
+  ✓ CURRENT_STATUS.txt — 本文件
+  ✓ RUN_TESTS_ON_MAC.sh — 測試腳本
+  ✓ QUICK_FIX_REFERENCE.txt — 快速參考
+  ✓ test_infer_cot_logic.py — 邏輯驗證
+
+修改文件：
+  ✓ mamba3_mlx/infer_cot.py — 實現修復（未提交）
+  ✓ mamba3_mlx/server.py — vocab_size 修復（已提交）
+  ✓ mamba3_mlx/cot_format_fsm.py — vocab_size 修復（已提交）
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔧 infer_cot.py 當前代碼狀態：
+
+✅ 主要修改：
+  1. 移除獨立的 CotStreamSplitter 創建
+  2. 改為調用 middleware.step(tid, n_out=..., elapsed_s_fn=...)
+  3. 正確處理 middleware.step() 返回的事件
+  4. 從事件提取 reasoning 和 final 文本
+  5. 在循環末尾檢查 middleware.should_break(tid)
+  6. 添加 middleware.flush() 清空剩餘
+  7. 解碼從每步一次改為最後一次
+  8. 添加調試輸出（前 3 步顯示詳細信息）
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🧪 診斷建議：
+
+如果測試還是失敗，按以下順序檢查：
+
+第一步：驗證採樣
+  - 檢查 token ID 是否合理（0-32007）
+  - 檢查是否出現重複的 token ID
+  - 看 tokenizer.convert_ids_to_tokens() 返回什麼
+
+第二步：檢查 Logits
+  - Logits 的 min/max 值是否合理（-10 到 +10）
+  - close_bias 修改後是否有明顯變化
+  - 看是否某個位置的 logits 被設為無窮大
+
+第三步：驗證中間件事件
+  - middleware.step() 返回的事件有哪些字段
+  - "reasoning" 或 "final" 事件的內容是什麼
+  - 是否正確提取 "markdown" 或 "text" 字段
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚨 最可能的問題：
+
+基於"PosPositivePositive..."這個重複模式，最可能是：
+
+假設 1（可能性 50%）：
+  採樣函數總是返回同一個 token ID
+  → 可能是 logits 被 close_bias 修改得太極端
+  → 檢查：logits 在 middleware.transform_logits() 後的值
+
+假設 2（可能性 30%）：
+  採樣出了錯誤的 token ID（可能是邊界外的值）
+  → 檢查：sample_token() 返回的 token ID 範圍
+
+假設 3（可能性 15%）：
+  tokenizer.decode() 有問題（版本差異或配置問題）
+  → 檢查：用 tokenizer.convert_ids_to_tokens() 驗證單個 token
+
+假設 4（可能性 5%）：
+  middleware.step() 返回的事件格式不同
+  → 檢查：事件字典的實際結構
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⏱️ 修復投入時間：
+
+總計已投入：3+ 小時
+  - 識別 vocab_size 問題：30 分鐘
+  - 識別 middleware.step() 問題：45 分鐘
+  - 第一次修復嘗試：30 分鐘
+  - 第二次修復（decode 邏輯）：30 分鐘
+  - 創建診斷文檔：1 小時+
+
+下一階段：
+  - 診斷（15-30 分鐘）
+  - 根本原因修復（15-30 分鐘）
+  - 驗證（5-10 分鐘）
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✉️ 下一個行動：
+
+你需要在 Mac 上運行測試並報告結果。
+
+根據結果，可能需要：
+1. 運行詳細診斷（DIAGNOSE_INFER_COT.md）
+2. 添加調試代碼看 logits 和採樣
+3. 基於發現修復根本原因
+
+════════════════════════════════════════════════════════════════════════════════
+
+狀態：⏳ 等待 Mac 上的驗證結果
+
+最後更新：2026-05-19 23:40

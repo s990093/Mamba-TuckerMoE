@@ -15,7 +15,8 @@ WS   /ws                    → streaming chat protocol (see spec below)
 
 WS protocol (C→S)
 -----------------
-  {action:"chat",       prompt, max_tokens, reasoning, sampling, format_guard?, no_eos_stop?, category_key?, example_id?}
+  {action:"chat",       prompt, max_tokens, reasoning, sampling, format_guard?, no_eos_stop?,
+                        category_key?, example_id?, reasoning_budget?, final_min_tokens?}
   {action:"play_system_prompt", category_key}
   {action:"clear"}
   {action:"abort"}
@@ -216,7 +217,13 @@ def _load_model_sync() -> None:
                 except Exception:
                     pass
 
-            mw_cfg  = CotMiddlewareConfig()
+            # Build middleware config with defaults
+            # (can be overridden per-turn via WS message)
+            mw_cfg  = CotMiddlewareConfig(
+                enabled=True,
+                reasoning_budget=500,
+                final_min_tokens=16,
+            )
             mw_deps = CotMiddlewareDeps.build(
                 tokenizer=tokenizer,
                 vocab_size=int(vocab_size),
@@ -694,8 +701,8 @@ def _gen_real_chat(
         apply_repetition_penalty, apply_presence_frequency_penalty, sample_token,
     )
     from .utils.config import GenerationConfig
-    from .cot_middleware import CotMiddleware, CotMiddlewareConfig, render_health_line
-
+    from .cot_middleware import CotMiddleware, CotMiddlewareConfig, render_health_line 
+    
     model     = _STATE["model"]
     tokenizer = _STATE["tokenizer"]
     mw_deps   = _STATE.get("mw_deps")
@@ -710,7 +717,12 @@ def _gen_real_chat(
     sampling    = msg.get("sampling", {})
     no_eos_stop = bool(msg.get("no_eos_stop", False))
     reasoning   = bool(msg.get("reasoning", True))
-    max_tokens  = int(msg.get("max_tokens", _CFG.get("max_new_tokens", 512)))
+    max_tokens  = int(msg.get("max_tokens", _CFG.get("max_new_tokens", 4096)))
+    enable_cot_mw = msg.get("enable_cot_middleware", True)
+
+    # Middleware config overrides (safety limit: max_tokens is still checked)
+    reasoning_budget = int(msg.get("reasoning_budget", mw_cfg.reasoning_budget or 500))
+    final_min_tokens = int(msg.get("final_min_tokens", mw_cfg.final_min_tokens or 16))
 
     gen_cfg = GenerationConfig(
         max_new_tokens=max_tokens,
@@ -742,7 +754,14 @@ def _gen_real_chat(
 
     generated = list(prompt_ids)   # all token IDs including prompt (used for rep. penalty)
 
-    def _sample(logits_1d):
+    def _sample(logits_1d, debug_label=""):
+        import mlx.core as mx
+        logits_min = float(mx.min(logits_1d))
+        logits_max = float(mx.max(logits_1d))
+        logits_mean = float(mx.mean(logits_1d))
+        if debug_label and (n_text < 5 or n_text % 20 == 0):
+            log.info(f"[logits] {debug_label}: min={logits_min:.2f}, max={logits_max:.2f}, mean={logits_mean:.4f}")
+
         logits_1d = apply_repetition_penalty(
             logits_1d, generated, gen_cfg.repetition_penalty, gen_cfg.repetition_window)
         logits_1d = apply_presence_frequency_penalty(
@@ -761,16 +780,27 @@ def _gen_real_chat(
         return logits_all, (new_ms, new_kv)
 
     # ── Per-turn middleware ────────────────────────────────────────────────────
+    # Create per-turn config with client-provided overrides
+    turn_mw_cfg = CotMiddlewareConfig(
+        enabled=mw_cfg.enabled and enable_cot_mw,
+        ban_im_start=mw_cfg.ban_im_start,
+        close_bias_value=mw_cfg.close_bias_value,
+        close_bias_max=mw_cfg.close_bias_max,
+        close_bias_start=mw_cfg.close_bias_start,
+        reasoning_budget=reasoning_budget,
+        final_min_tokens=final_min_tokens,
+        force_final_inject=mw_cfg.force_final_inject,
+    )
     mw = CotMiddleware(
         deps=mw_deps,
-        cfg=mw_cfg,
+        cfg=turn_mw_cfg,
         reasoning=reasoning,
         model_apply=_model_apply,
     )
 
     # Apply format guard to prefill logits before sampling the first token
     first_logits = mw.transform_logits(pf_logits[0])
-    first_tok    = _sample(first_logits)
+    first_tok    = _sample(first_logits, debug_label="first_logits(after transform)")
     _eval_states(mamba_states, kv_caches)
     generated.append(first_tok)
 
@@ -815,6 +845,7 @@ def _gen_real_chat(
         return False
 
     # ── Process first token ───────────────────────────────────────────────────
+    log.info(f"[mw] first_tok={first_tok}, mw.enabled={turn_mw_cfg.enabled}")
     first_evs, stop_now = _process_mw_events(
         mw.step(first_tok, n_out=n_text, elapsed_s_fn=elapsed_s))
 
@@ -834,23 +865,32 @@ def _gen_real_chat(
         _print_turn_summary(turn_count, [mw.reasoning_markdown], answer_parts, n_text, t_total, prefill_ms)
         if response_acc is not None:
             response_acc.append("".join(answer_parts))
-        yield _done_event(n_text, t_total, prefill_ms)
+        done_ev = _done_event(n_text, t_total, prefill_ms)
+        if enable_cot_mw:
+            done_ev["cot_health_report"] = render_health_line(mw.health_report())
+        yield done_ev
         return
 
     # ── Decode loop ───────────────────────────────────────────────────────────
+    # Note: max_tokens is a safety limit; actual stopping controlled by middleware
+    # (reasoning_budget, final_min_tokens, </final>, <|im_end|>)
     prev_tok      = first_tok
     decode_step_n = 0
     inj_logits: mx.array | None = None
     use_inj       = False
+    tokens_generated = 1  # first_tok already generated
 
-    for _ in range(max_tokens - 1):
+    while tokens_generated < max_tokens:
         if abort_event.is_set():
             break
+        tokens_generated += 1
 
         if use_inj:
             logits_1d = inj_logits
             use_inj   = False
             inj_logits = None
+            tok = _sample(logits_1d, debug_label="injected_logits(no_transform)")
+            log.info(f"[inj] injected tok={tok}")
         else:
             decode_step_n += 1
             logits, mamba_states, kv_caches = decode_step(
@@ -858,9 +898,10 @@ def _gen_real_chat(
             _eval_states(mamba_states, kv_caches)
             logits_1d = logits[0]
 
-        # Apply format guard (ban mask + dynamic close-bias) before sampling
-        logits_1d = mw.transform_logits(logits_1d)
-        tok = _sample(logits_1d)
+            # Apply format guard (ban mask + dynamic close-bias) before sampling
+            logits_1d = mw.transform_logits(logits_1d)
+            tok = _sample(logits_1d, debug_label="decode_logits(after_transform)")
+
         generated.append(tok)
         prev_tok = tok
 
@@ -885,12 +926,17 @@ def _gen_real_chat(
         caches = (mamba_states, kv_caches)
         caches, new_pos, last_row, did_inject, _ = mw.maybe_inject_final(
             caches=caches, pos=len(generated))
-        if did_inject:
+        if False and did_inject:  # FIX H1: Disable injection entirely
+            import mlx.core as mx
             mamba_states, kv_caches = caches
             # Track injected ids in generated so repetition penalty stays accurate
             for inj_id in mw.deps.final_inject_ids:
                 generated.append(inj_id)
             inj_logits = last_row
+            inj_min = float(mx.min(inj_logits))
+            inj_max = float(mx.max(inj_logits))
+            inj_mean = float(mx.mean(inj_logits))
+            log.info(f"[inj] injected_logits: min={inj_min:.2f}, max={inj_max:.2f}, mean={inj_mean:.4f}")
             use_inj    = True
             if not asst_split_sent:
                 asst_split_sent = True
@@ -908,6 +954,10 @@ def _gen_real_chat(
             else:
                 break
 
+    # Check if we hit max_tokens safety limit (should be rare with proper middleware budgets)
+    if tokens_generated >= max_tokens:
+        log.info("Decode loop: max_tokens safety limit reached (%d tokens)", max_tokens)
+
     # Flush any remaining splitter buffer
     flush_evs, _ = _process_mw_events(mw.flush(n_out=n_text, elapsed_s_fn=elapsed_s))
     for ev in flush_evs:
@@ -920,7 +970,10 @@ def _gen_real_chat(
     _print_turn_summary(turn_count, r_parts, answer_parts, n_text, t_total, prefill_ms)
     if response_acc is not None:
         response_acc.append("".join(answer_parts))
-    yield _done_event(n_text, t_total, prefill_ms)
+    done_ev = _done_event(n_text, t_total, prefill_ms)
+    if enable_cot_mw:
+        done_ev["cot_health_report"] = render_health_line(mw.health_report())
+    yield done_ev
 
 
 def _gen_real_play_system(msg: dict, abort_event: threading.Event) -> Generator:

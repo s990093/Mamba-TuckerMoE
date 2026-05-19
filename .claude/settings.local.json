@@ -56,7 +56,13 @@
       "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/.venv/bin/python3 *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git commit -m 'fix: handle logits dimensionality in validate_cot_simple.py *)"
+      "Bash(git commit -m 'fix: handle logits dimensionality in validate_cot_simple.py *)",
+      "Bash(git commit -m 'fix: apply actual backend vocab_size detection to server.py initialization *)",
+      "Bash(chmod +x *)",
+      "Bash(./chat_precise.sh \"who are you?\")",
+      "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/mamba3_mlx/scripts/chat_precise.sh \"who are you?\")",
+      "Bash(./run_fix_validation.sh)",
+      "Bash(git commit -m 'fix: disable </final> injection in CoT middleware to stabilize output *)"
     ]
   }
 }

@@ -124,6 +124,9 @@ const btnSamplingReset = $("#btn-sampling-reset");
 const formatGuardToggle = $("#format-guard-toggle");
 const formatGuardLabel = $("#format-guard-label");
 const formatGuardJsonEl = $("#format-guard-json");
+const cotMwToggle = $("#cot-mw-toggle");
+const cotMwLabel = $("#cot-mw-label");
+const cotHealthLine = $("#cot-health-line");
 
 /** Inference-time format guard (CoT ChatML skeleton; see cot_format_fsm.py).
  *  When ``false`` we send ``format_guard: false`` in each chat payload so the
@@ -135,6 +138,10 @@ let formatGuardServer = {
   close_bias: 4.0,
   close_bias_start: 0,
 };
+
+/** CoT Middleware control — dynamically toggle middleware on/off per turn */
+let cotMiddlewareEnabled = true;
+let lastCotHealthReport = null;
 
 function refreshFormatGuardLabel() {
   if (formatGuardLabel)
@@ -152,6 +159,28 @@ formatGuardToggle?.addEventListener("change", () => {
   formatGuardEnabled = !!formatGuardToggle.checked;
   refreshFormatGuardLabel();
 });
+
+function refreshCotMwLabel() {
+  if (cotMwLabel)
+    cotMwLabel.textContent = cotMiddlewareEnabled ? "CoT MW" : "CoT OFF";
+  if (cotMwToggle) cotMwToggle.checked = !!cotMiddlewareEnabled;
+}
+
+cotMwToggle?.addEventListener("change", () => {
+  cotMiddlewareEnabled = !!cotMwToggle.checked;
+  refreshCotMwLabel();
+});
+
+function updateCotHealthLine(healthReport) {
+  if (!cotHealthLine) return;
+  lastCotHealthReport = healthReport;
+  if (!cotMiddlewareEnabled || !healthReport) {
+    cotHealthLine.setAttribute("hidden", "");
+    return;
+  }
+  cotHealthLine.removeAttribute("hidden");
+  cotHealthLine.textContent = healthReport;
+}
 
 /** Sampling controls — keep in sync with `chat_demo.py` CLI args. */
 const SAMPLING_FIELDS = [
@@ -1374,6 +1403,9 @@ function handleMsg(m) {
     if (mtt) mtt.textContent = Number(m.ttft_ms).toFixed(0) + "ms";
     if (mpf) mpf.textContent = Number(m.prefill_ms).toFixed(0) + "ms";
     if (mtot) mtot.textContent = m.total_tokens;
+    if (m.cot_health_report && cotMiddlewareEnabled) {
+      updateCotHealthLine(m.cot_health_report);
+    }
     nudgeScroll();
     if (!playOnly) turnCount++;
     if (mtr) mtr.textContent = turnCount;
@@ -1444,6 +1476,9 @@ function doSend() {
     payload.no_eos_stop = true;
     nesShow(payload.max_tokens);
   }
+  if (!cotMiddlewareEnabled) {
+    payload.enable_cot_middleware = false;
+  }
   if (sysCatSelect && sysCatSelect.value) {
     payload.category_key = sysCatSelect.value;
   }
@@ -1457,4 +1492,5 @@ function doSend() {
 sendBtn.onclick = doSend;
 
 refreshLandingGreeting();
+refreshCotMwLabel();
 loadDemoConfig().then(() => connectWs());

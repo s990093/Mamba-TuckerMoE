@@ -68,11 +68,11 @@ CATEGORY_TITLES: dict[str, str] = {
 }
 
 SAMPLING_DEFAULTS: dict[str, float] = {
-    "temperature":        0.8,
+    "temperature":        0.3,
     "top_k":              40,
     "top_p":              0.9,
     "min_p":              0.05,
-    "repetition_penalty": 1.1,
+    "repetition_penalty": 1.3,
 }
 
 STYLE_CONSTRAINTS: dict = {
@@ -168,3 +168,6 @@ def find_mock_example(mock_data: dict, example_id: str | None, category_key: str
         if cat.get("examples"):
             return cat["examples"][0]
     return {"cot_markdown": "", "assistant_markdown": "No mock data found.", "tool_flow": None}
+
+
+

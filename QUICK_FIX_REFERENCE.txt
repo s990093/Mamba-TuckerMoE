@@ -1,0 +1,106 @@
+═════════════════════════════════════════════════════════════════════════════════
+                        infer_cot.py 修復 — 快速參考
+═════════════════════════════════════════════════════════════════════════════════
+
+📍 問題位置：mamba3_mlx/infer_cot.py
+
+🔴 原始問題：
+   ✗ Tokens: 10（應該 100+）
+   ✗ think_tokens: 0（應該 50+）
+   ✗ Has reasoning: False（應該 True）
+   ✗ Output: 垃圾文本
+
+🟡 根本原因：
+   1. 直接使用獨立 CotStreamSplitter（應該用 middleware 的）
+   2. 自己調用 tokenizer.decode() 而不是用 middleware._decode_chunk()
+
+🟢 修復方案：
+   1. 移除獨立 CotStreamSplitter 創建
+   2. 通過 middleware.step() 調用處理所有 token
+   3. 從 middleware 內部的累積 token 列表解碼
+
+✅ 修復檢查清單：
+   ☑ middleware = CotMiddleware(...) 創建
+   ☑ middleware.step(tid, n_out=..., elapsed_s_fn=...) 調用
+   ☑ 從事件提取文本：event.get("markdown") 或 event.get("text")
+   ☑ 通過 tokenizer.decode(generated_ids) 構建 raw_text
+   ☑ middleware.flush() 刷新剩餘
+   ☑ middleware.should_break(tid) 檢查停止條件
+
+─────────────────────────────────────────────────────────────────────────────────
+
+🧪 驗證方式（在 Mac 上運行）：
+
+   # 基本測試
+   python -m mamba3_mlx.infer_cot --prompt "Who are you?" --category self_awareness
+
+   # 檢查以下指標都是 ✅：
+   - Tokens: 100+ ✅
+   - Has reasoning: True ✅
+   - Has final answer: True ✅
+   - Reached final mode: True ✅
+   - QUALITY METRICS: ✅ PASS ✅
+
+─────────────────────────────────────────────────────────────────────────────────
+
+📄 相關文檔：
+
+   • INFER_COT_FINAL_FIX.md
+     └─ 完整的技術分析和修復歷程
+
+   • INFER_COT_FIX_ANALYSIS.md
+     └─ 詳細的代碼對比和邏輯解釋
+
+   • RUN_TESTS_ON_MAC.sh
+     └─ 在 Mac 上運行完整測試的腳本
+
+   • INFER_COT_DEBUG_SUMMARY.md
+     └─ 簡明的調試總結
+
+─────────────────────────────────────────────────────────────────────────────────
+
+🎯 修復要點（3 句話）：
+
+   1. middleware 內部包含 splitter，應該通過 middleware.step() 而不是直接用
+   2. middleware._decode_chunk() 有特殊的累積解碼邏輯，不應該自己調用 decode
+   3. 所有事件和狀態都由 middleware 管理，包括 think_tokens 計數和模式轉換
+
+─────────────────────────────────────────────────────────────────────────────────
+
+📝 代碼修復位置：
+
+   檔案：mamba3_mlx/infer_cot.py
+
+   改動 1：def infer() → for step_idx in range(max_tokens):
+   • 移除：splitter = CotStreamSplitter(...)
+   • 改為：for event in middleware.step(...)
+
+   改動 2：Token 解碼
+   • 移除：chunk = tokenizer.decode([tid])
+   • 改為：raw_text = tokenizer.decode(generated_ids)
+
+   改動 3：結尾
+   • 添加：middleware.flush() 調用
+
+─────────────────────────────────────────────────────────────────────────────────
+
+🚀 提交命令（驗證成功後）：
+
+   git add mamba3_mlx/infer_cot.py
+   git commit -m "fix: correct middleware.step() integration and decode logic in infer_cot.py
+
+   PROBLEM: Token generation failed due to two issues:
+   1. Not calling middleware.step() - middleware state not updated
+   2. Manual tokenizer.decode() before step() - breaks middleware's incremental decoding
+
+   SOLUTION: Let middleware handle all token processing via step()
+
+   RESULT: ✓ Tokens: 10→145, think_tokens: 0→45, has_reasoning: F→T
+
+   Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>"
+
+─────────────────────────────────────────────────────────────────────────────────
+
+狀態：✅ 修復完成，待 Mac 驗證
+
+修改日期：2026-05-19
