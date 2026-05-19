@@ -206,6 +206,16 @@ def _load_model_sync() -> None:
                 getattr(getattr(model, "config", None), "vocab_size", None)
                 or len(tokenizer)
             )
+            # Detect actual backend vocabulary size (fixes issue where CoT tokens like 32003-32005
+            # are outside tokenizer.vocab_size=32000 but within actual backend vocab=32007)
+            if hasattr(tokenizer, "backend_tokenizer") and hasattr(tokenizer.backend_tokenizer, "get_vocab"):
+                try:
+                    backend_vocab = tokenizer.backend_tokenizer.get_vocab()
+                    if backend_vocab:
+                        vocab_size = max(vocab_size, max(backend_vocab.values()) + 1)
+                except Exception:
+                    pass
+
             mw_cfg  = CotMiddlewareConfig()
             mw_deps = CotMiddlewareDeps.build(
                 tokenizer=tokenizer,
