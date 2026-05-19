@@ -809,15 +809,17 @@ function renderSidebarCategories(categories) {
       btn.appendChild(eic);
       btn.appendChild(mid);
       btn.addEventListener("click", () => {
-        if (isGenerating || !ws || ws.readyState !== 1) return;
+        // Load example into input without auto-sending
         pendingExampleId = ex.id || null;
         input.value = ex.user || "";
         input.dispatchEvent(new Event("input"));
+        input.focus();  // Focus for user to see it
         if (sysCatSelect && cat.key) {
           sysCatSelect.value = cat.key;
           applySysCardForCategory(cat.key);
         }
-        doSend();
+        // User must manually click Send button
+        // Removed: doSend();
       });
       wrap.appendChild(btn);
     });
