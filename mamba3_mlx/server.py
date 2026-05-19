@@ -59,6 +59,9 @@ _DEFAULT_TOK  = str(_REPO_ROOT / "checkpoints" / "tokenizer")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("mamba.server")
 
+# ── Sampling defaults ──────────────────────────────────────────────────────────
+from .server_config import SAMPLING_DEFAULTS
+
 # ── Global server state ────────────────────────────────────────────────────────
 _STATE: dict[str, Any] = {
     "model":            None,
@@ -726,11 +729,11 @@ def _gen_real_chat(
 
     gen_cfg = GenerationConfig(
         max_new_tokens=max_tokens,
-        temperature=float(sampling.get("temperature", 0.8)),
-        top_k=int(sampling.get("top_k", 40)),
-        top_p=float(sampling.get("top_p", 0.9)),
-        min_p=float(sampling.get("min_p", 0.05)),
-        repetition_penalty=float(sampling.get("repetition_penalty", 1.1)),
+        temperature=float(sampling.get("temperature", SAMPLING_DEFAULTS.get("temperature", 0.3))),
+        top_k=int(sampling.get("top_k", SAMPLING_DEFAULTS.get("top_k", 40))),
+        top_p=float(sampling.get("top_p", SAMPLING_DEFAULTS.get("top_p", 0.9))),
+        min_p=float(sampling.get("min_p", SAMPLING_DEFAULTS.get("min_p", 0.05))),
+        repetition_penalty=float(sampling.get("repetition_penalty", SAMPLING_DEFAULTS.get("repetition_penalty", 1.3))),
         stop_token_ids=stop_ids,
         no_eos_stop=no_eos_stop,
     )

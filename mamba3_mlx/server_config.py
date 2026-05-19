@@ -68,11 +68,11 @@ CATEGORY_TITLES: dict[str, str] = {
 }
 
 SAMPLING_DEFAULTS: dict[str, float] = {
-    "temperature":        0.3,
-    "top_k":              40,
-    "top_p":              0.9,
-    "min_p":              0.05,
-    "repetition_penalty": 1.3,
+    "temperature":        0.6,    # Conservative but not too restrictive
+    "top_k":              25,     # Moderate restriction
+    "top_p":              0.80,   # Nucleus filtering
+    "min_p":              0.08,   # Reasonable threshold
+    "repetition_penalty": 1.6,    # Moderate-strong penalty
 }
 
 STYLE_CONSTRAINTS: dict = {
