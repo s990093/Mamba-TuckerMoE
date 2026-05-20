@@ -73,7 +73,10 @@
       "Bash(awk '{print \" \" $9 \" \\(\" $5 \"\\)\"}')",
       "Bash(awk '{print \"   \" $9 \" \\(\" $5 \"\\)\"}')",
       "Bash(/tmp/final_check.sh)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/verify_mlx_stack.shssh 3090-one)",
+      "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/run_mlx_demo.sh)",
+      "Bash(.venv/bin/pip install *)"
     ]
   }
 }
