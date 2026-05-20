@@ -21,63 +21,46 @@ from utils.config import ModelConfig
 
 
 class BPETokenizer:
-    """BPE tokenizer loaded from tokenizer.json."""
+    """BPE tokenizer using transformers/tokenizers library."""
 
     def __init__(self, tokenizer_path="cot_dataset/tokenizer.json"):
-        import json
-        with open(tokenizer_path, 'r') as f:
-            self.data = json.load(f)
+        try:
+            from tokenizers import Tokenizer
+            self.tokenizer = Tokenizer.from_file(tokenizer_path)
+        except ImportError:
+            print("Warning: tokenizers library not found, using fallback")
+            self.tokenizer = None
+            import json
+            with open(tokenizer_path, 'r') as f:
+                self.data = json.load(f)
+            self.vocab = self.data.get('model', {}).get('vocab', {})
+            self.reverse_vocab = {v: k for k, v in self.vocab.items()}
 
-        # Build vocab and reverse vocab
-        self.vocab = self.data.get('model', {}).get('vocab', {})
-        self.reverse_vocab = {v: k for k, v in self.vocab.items()}
-        self.vocab_size = len(self.vocab)
+        self.vocab_size = 32000  # Standard vocab size for this tokenizer
 
     def encode(self, text):
-        """Encode text to token IDs using BPE vocab."""
-        tokens = []
-        # Greedy BPE encoding: find longest matching tokens
-        i = 0
-        while i < len(text):
-            # Try matching progressively longer substrings
-            matched = False
-            for length in range(min(20, len(text) - i), 0, -1):
-                substr = text[i:i+length]
-                if substr in self.vocab:
-                    tokens.append(self.vocab[substr])
-                    i += length
-                    matched = True
-                    break
-            if not matched:
-                # Character not found, use single char or UNK
-                char = text[i]
-                if char in self.vocab:
-                    tokens.append(self.vocab[char])
-                else:
-                    tokens.append(0)  # UNK token
-                i += 1
-        return tokens
+        """Encode text to token IDs."""
+        if self.tokenizer:
+            encoding = self.tokenizer.encode(text)
+            return encoding.ids
+        else:
+            # Fallback: simple character encoding
+            return [ord(c) % self.vocab_size for c in text]
 
     def decode(self, token_ids):
         """Decode token IDs back to text."""
-        text = ""
-        for tid in token_ids:
-            if isinstance(tid, mx.array):
-                tid = int(tid)
-            tid = int(tid)
-            if tid in self.reverse_vocab:
-                token_str = self.reverse_vocab[tid]
-                # Handle BPE tokens that start with ## (subword continuations)
-                if token_str.startswith("##"):
-                    text += token_str[2:]
+        if self.tokenizer:
+            # Convert MLX arrays to Python ints
+            clean_ids = []
+            for tid in token_ids:
+                if isinstance(tid, mx.array):
+                    clean_ids.append(int(tid))
                 else:
-                    # Add space before non-## tokens if text is not empty
-                    if text and not text.endswith(" "):
-                        text += " "
-                    text += token_str
-            else:
-                text += f"[{tid}]"
-        return text.strip()
+                    clean_ids.append(int(tid))
+            return self.tokenizer.decode(clean_ids)
+        else:
+            # Fallback
+            return "".join(chr(min(id, 127)) for id in token_ids if id < 127)
 
 
 def load_model(model_path, dtype="bf16"):
