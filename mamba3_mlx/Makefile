@@ -25,12 +25,13 @@ STOP_STR  ?=            # e.g. STOP_STR='</final>'
 SHOW_SPEC ?= 0          # set to 1 to show special tokens in stream
 # Performance
 COMPILE   ?= 0          # set to 1 to enable mx.compile on decode steps
+WARMUP    ?= 3          # JIT warmup steps when COMPILE=1
 
 _STREAM_FLAG  = $(if $(filter 1,$(STREAM)),--stream,)
 _THINK_FLAG   = $(if $(filter 1,$(NO_THINK)),--no-seed-think,)
 _NOEOS_FLAG   = $(if $(filter 1,$(NO_EOS)),--no-eos-stop,)
 _SPEC_FLAG    = $(if $(filter 1,$(SHOW_SPEC)),--show-special,)
-_COMPILE_FLAG = $(if $(filter 1,$(COMPILE)),--full-decode-compile,)
+_COMPILE_FLAG = $(if $(filter 1,$(COMPILE)),--full-decode-compile --warmup $(WARMUP),)
 _STOPSTR_FLAG = $(if $(strip $(STOP_STR)),--stop-string "$(STOP_STR)",)
 
 _BASE = \
@@ -132,6 +133,7 @@ help:
 	@echo "  STOP_STR='</x>'   extra stop string    (default: empty)"
 	@echo "  SHOW_SPEC=1       show special tokens  (default: 0)"
 	@echo "  COMPILE=1         mx.compile decode    (default: 0)"
+	@echo "  WARMUP=5          JIT warmup steps     (default: 3, used when COMPILE=1)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make                                      # default: who are you? / self_awareness"

@@ -88,7 +88,11 @@ def get_args():
     p.add_argument("--dtype",    default="bf16", choices=list(DTYPE_MAP))
     p.add_argument("--kv_dtype", default="auto", choices=["auto"] + list(DTYPE_MAP))
     p.add_argument("--full-decode-compile", action="store_true",
-                   help="Wrap decode step in mx.compile (faster after first step).")
+                   help="Compile the entire model graph with mx.compile before decoding. "
+                        "Warmup steps run first to pay JIT cost; subsequent steps reuse the graph.")
+    p.add_argument("--warmup", type=int, default=3,
+                   help="Number of greedy decode steps for JIT warm-up when "
+                        "--full-decode-compile is set (default: 3).")
 
     # ── Output / format ───────────────────────────────────────────────────────
     p.add_argument("--stream", action="store_true",
@@ -147,7 +151,7 @@ def main():
     if args.stop_strings:
         print(f"[stop] stop-strings: {args.stop_strings}", file=sys.stderr)
     if args.full_decode_compile:
-        print("[compile] mx.compile enabled for decode steps", file=sys.stderr)
+        print(f"[compile] mx.compile enabled — warmup={args.warmup} steps", file=sys.stderr)
 
     # ── Generation config ─────────────────────────────────────────────────────
     gen_cfg = GenerationConfig(
@@ -195,6 +199,7 @@ def main():
         stop_strings=args.stop_strings or [],
         no_eos_stop=args.no_eos_stop,
         full_decode_compile=args.full_decode_compile,
+        warmup_steps=args.warmup,
         tokenizer=tok if args.stop_strings else None,
         on_token=on_token,
     )
@@ -202,9 +207,14 @@ def main():
     if args.stream:
         print()   # newline after streamed content
 
+    n_timed = len(result.tokens) - result.n_warmup
+    warmup_note = f"  warmup={result.n_warmup}" if result.n_warmup else ""
     print(
-        f"===== GENERATED {len(result.tokens)} tokens in {result.elapsed:.2f}s "
-        f"({result.tps:.2f} tok/s)  stop={result.stop_reason} =====",
+        f"===== "
+        f"prefill {result.prefill_tps:,.0f} tok/s ({result.n_prompt} tok, {result.elapsed_prefill*1000:.0f} ms)  |  "
+        f"decode  {result.decode_tps:,.0f} tok/s ({n_timed} tok, {result.elapsed_decode*1000:.0f} ms)"
+        f"{warmup_note}  |  stop={result.stop_reason}"
+        f" =====",
         file=sys.stderr,
     )
 
