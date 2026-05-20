@@ -100,17 +100,54 @@ kernel void moe_fused_forward(
 
 ---
 
+## 實施進度
+
+### ✅ 完成 (已實施)
+
+1. **Metal MoE Kernel 骨架** ✅
+   - router_topk_fused: Router projection + Softmax + Top-K
+   - shared_projection_norm: U_in projection + RMS normalization  
+   - expert_weighted_forward: Expert selection + weighted aggregation
+   - 檔案: moe_fused.metal (5 kernels, 500+ lines)
+
+2. **TuckerMoE 類更新** ✅
+   - 支援 einsum_fuse, full_fuse, amx_partial_fuse, scalar_fuse 選項
+   - 實現 G 矩陣緩存機制 (_G_cache)
+   - 兼容 QuantizedLinear (graceful fallback)
+   - 檔案: tucker_moe.py (完全重寫, 優化路徑就緒)
+
+3. **Python 綁定** ✅
+   - moe_metal_kernels.py: 金屬核心包裝層
+   - router_topk_simple(): Router + Top-K MLX 實現 (作為回落)
+   - shared_projection(): 投影 + 歸一化
+   - expert_weighted_forward(): 專家加權計算
+
+4. **基準測試套件** ✅
+   - benchmark_metal_fusion.py: 4 種測試路徑
+     1. Baseline: 標準 MLX
+     2. Quantized: 8-bit 量化
+     3. Metal Fusion: Metal kernels (如果可用)
+     4. Combined: 量化 + Metal 融合
+
+### 🔄 進行中
+
+1. **集成到推理管道**
+   - 待集成到 mamba_block / hybrid_model
+
+2. **詳細優化**
+   - AMX simdgroup 路徑 (單 token bf16 decode)
+   - 完整 kernel 融合 (全運算在一個 dispatch)
+
 ## 下一步行動計劃 (今天至明天)
 
-### 立即 (2-4 小時)
+### 立即 (1-2 小時)
 
-1. **完成 Metal MoE kernel**
-   - 實現 router + top-k 選擇
-   - 測試數值正確性
-   - 基準測試
+1. **驗證性能基準**
+   - 運行 benchmark_metal_fusion.py
+   - 比較 baseline vs quantized vs metal fusion
 
 2. **集成到推理管道**
-   - 更新 TuckerMoE 層使用 Metal kernel
+   - 更新 TuckerMoE 層使用 Metal kernel (如果增益 > 5%)
    - 自動回落機制
 
 ### 短期 (明天)
