@@ -13,7 +13,7 @@ TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 # ── Generation defaults ────────────────────────────────────────────────────────
 PROMPT    ?= who are you?
 MODE      ?= self_awareness
-TEMP      ?= 0.1
+TEMP      ?= 0.3
 MAX_TOK   ?= 512
 SEED      ?= 0
 STREAM    ?= 1
