@@ -39,3 +39,8 @@ class GenerationConfig:
     # If True, don't halt generation when a stop token is sampled.
     # Generation continues until max_new_tokens or external abort.
     no_eos_stop: bool = False
+
+    # Metal optimizations (experimental)
+    use_metal_sampling: bool = False  # if True, use Metal-optimized decode sampling
+    use_metal_scan: bool = False      # if True, use Metal-optimized SSM scan
+    metal_threadgroup_size: int = 256  # Metal threadgroup size for sampling kernels

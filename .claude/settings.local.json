@@ -62,7 +62,17 @@
       "Bash(./chat_precise.sh \"who are you?\")",
       "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/mamba3_mlx/scripts/chat_precise.sh \"who are you?\")",
       "Bash(./run_fix_validation.sh)",
-      "Bash(git commit -m 'fix: disable </final> injection in CoT middleware to stabilize output *)"
+      "Bash(git commit -m 'fix: disable </final> injection in CoT middleware to stabilize output *)",
+      "Bash(./mamba3_mlx/scripts/chat_precise.sh \"who are you?\")",
+      "Bash(/tmp/test_fix.sh)",
+      "Bash(git commit -m 'fix: resolve scoping error - move n_text initialization before first _sample\\(\\) call *)",
+      "Bash(./mamba3_mlx/scripts/chat_precise.sh \"What is 2+2?\")",
+      "Bash(./mamba3_mlx/scripts/chat_precise.sh \"What is the capital of France?\")",
+      "Bash(curl -s http://localhost:8000/api/demo-config)",
+      "Bash(xargs ls -lh)",
+      "Bash(awk '{print \" \" $9 \" \\(\" $5 \"\\)\"}')",
+      "Bash(awk '{print \"   \" $9 \" \\(\" $5 \"\\)\"}')",
+      "Bash(/tmp/final_check.sh)"
     ]
   }
 }

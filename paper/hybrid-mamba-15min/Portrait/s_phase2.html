@@ -8,12 +8,35 @@
   <div class="sc" style="padding:3mm 3mm 2.5mm 3mm;">
 
     <!-- ══════════════════════════════════════════
+         PAIN POINTS BANNER
+         ══════════════════════════════════════════ -->
+    <div style="background:#FEF3EC; border:2px solid #D35400; border-radius:7px; padding:2mm 3mm; margin-bottom:3mm;">
+      <div style="font-family:Helvetica,Arial,sans-serif; font-size:12pt; font-weight:800; color:#D35400; margin-bottom:1.5mm;">
+        WHY SPECIAL TRAINING?
+      </div>
+      <div style="display:flex; gap:2mm;">
+        <div style="flex:1; background:#fff; border-left:4px solid #D35400; border-radius:3px; padding:1.5mm 2mm; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <div style="font-family:Helvetica,Arial,sans-serif; font-size:10pt; font-weight:700; color:#111827;">1. EOS Leak</div>
+          <div style="font-family:'Times New Roman',Times,serif; font-size:9.5pt; color:#4B5563; line-height:1.2;">Premature EOS inside &lt;think&gt; cuts reasoning short.</div>
+        </div>
+        <div style="flex:1; background:#fff; border-left:4px solid #5C7B9E; border-radius:3px; padding:1.5mm 2mm; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <div style="font-family:Helvetica,Arial,sans-serif; font-size:10pt; font-weight:700; color:#111827;">2. Boundary Ambiguity</div>
+          <div style="font-family:'Times New Roman',Times,serif; font-size:9.5pt; color:#4B5563; line-height:1.2;">Unclear transitions between reasoning and final answer.</div>
+        </div>
+        <div style="flex:1; background:#fff; border-left:4px solid #1B365D; border-radius:3px; padding:1.5mm 2mm; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <div style="font-family:Helvetica,Arial,sans-serif; font-size:10pt; font-weight:700; color:#111827;">3. CoT Dominates</div>
+          <div style="font-family:'Times New Roman',Times,serif; font-size:9.5pt; color:#4B5563; line-height:1.2;">Reasoning tokens overshadow the final answer quality.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
          TOP: 3-Stage Training Pipeline
          ══════════════════════════════════════════ -->
     <div style="display:flex;align-items:center;margin-bottom:3mm;">
 
       <!-- ① Pre-train box -->
-      <div style="flex:1;background:#EEF2F7;border:2px solid #1B365D;border-radius:8px;padding:3mm 3mm 2.5mm 3mm;position:relative;text-align:center;">
+      <div style="flex:1;background:#F4F7F9;border:2px solid #1B365D;border-radius:8px;padding:3mm 3mm 2.5mm 3mm;position:relative;text-align:center;">
         <div style="position:absolute;top:-5mm;left:50%;transform:translateX(-50%);background:#1B365D;border-radius:50%;width:10mm;height:10mm;display:flex;align-items:center;justify-content:center;">
           <span style="color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14pt;font-weight:900;line-height:1;">❶</span>
         </div>
@@ -26,10 +49,14 @@
           </svg>
           <div style="font-family:Helvetica,Arial,sans-serif;font-size:12.5pt;font-weight:800;color:#1B365D;line-height:1.1;">Pre-train</div>
           <div style="font-family:Helvetica,Arial,sans-serif;font-size:9.5pt;font-weight:600;color:#5C7B9E;font-style:italic;margin-bottom:1.5mm;">(Base Capability)</div>
-          <div style="font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#374151;line-height:1.5;">
-            FineWeb-Edu<br>V = 32,007 · 80K steps
-          </div>
-          <div style="margin-top:2mm;display:inline-block;background:#1B365D;border-radius:3px;padding:1mm 2.5mm;">
+          
+          <ul style="text-align:left; font-size:10pt; font-family:'Times New Roman',Times,serif; margin:0 0 1.5mm 0; padding-left:5mm; color:#374151; line-height:1.3;">
+            <li><strong>Corpus:</strong> FineWeb-Edu</li>
+            <li><strong>Vocab:</strong> 32,007</li>
+            <li><strong>Steps:</strong> 80K</li>
+          </ul>
+
+          <div style="margin-top:1.5mm;display:inline-block;background:#1B365D;border-radius:3px;padding:1mm 2.5mm;">
             <span style="font-family:'Courier New',Courier,monospace;font-size:9pt;color:#93C5FD;">CE + ℒ<sub>lb</sub> + ℒ<sub>z</sub></span>
           </div>
         </div>
@@ -44,34 +71,38 @@
       </div>
 
       <!-- ② Indie SFT box -->
-      <div style="flex:1;background:#F0FDF4;border:2px solid #16A34A;border-radius:8px;padding:3mm 3mm 2.5mm 3mm;position:relative;text-align:center;">
-        <div style="position:absolute;top:-5mm;left:50%;transform:translateX(-50%);background:#16A34A;border-radius:50%;width:10mm;height:10mm;display:flex;align-items:center;justify-content:center;">
+      <div style="flex:1;background:#EEF2F9;border:2px solid #5C7B9E;border-radius:8px;padding:3mm 3mm 2.5mm 3mm;position:relative;text-align:center;">
+        <div style="position:absolute;top:-5mm;left:50%;transform:translateX(-50%);background:#5C7B9E;border-radius:50%;width:10mm;height:10mm;display:flex;align-items:center;justify-content:center;">
           <span style="color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14pt;font-weight:900;line-height:1;">❷</span>
         </div>
         <div style="margin-top:5mm;">
           <!-- Chat bubble icon -->
           <svg width="32" height="28" viewBox="0 0 32 28" style="display:block;margin:0 auto 1.5mm auto;">
-            <rect x="2" y="3" width="24" height="17" rx="4" fill="none" stroke="#16A34A" stroke-width="1.8"/>
-            <line x1="6" y1="9"  x2="22" y2="9"  stroke="#16A34A" stroke-width="1.5"/>
-            <line x1="6" y1="13" x2="16" y2="13" stroke="#16A34A" stroke-width="1.5"/>
-            <path d="M5 20 L9 27 L13 20" fill="#16A34A"/>
+            <rect x="2" y="3" width="24" height="17" rx="4" fill="none" stroke="#5C7B9E" stroke-width="1.8"/>
+            <line x1="6" y1="9"  x2="22" y2="9"  stroke="#5C7B9E" stroke-width="1.5"/>
+            <line x1="6" y1="13" x2="16" y2="13" stroke="#5C7B9E" stroke-width="1.5"/>
+            <path d="M5 20 L9 27 L13 20" fill="#5C7B9E"/>
           </svg>
-          <div style="font-family:Helvetica,Arial,sans-serif;font-size:12.5pt;font-weight:800;color:#16A34A;line-height:1.1;">Indie Mode SFT</div>
-          <div style="font-family:Helvetica,Arial,sans-serif;font-size:9.5pt;font-weight:600;color:#166534;font-style:italic;margin-bottom:1.5mm;">(Alignment)</div>
-          <div style="font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#374151;line-height:1.5;">
-            Instruction alignment<br>(no CoT) · CE only
-          </div>
-          <div style="margin-top:2mm;display:inline-block;background:#16A34A;border-radius:3px;padding:1mm 2.5mm;">
-            <span style="font-family:'Courier New',Courier,monospace;font-size:9pt;color:#fff;">ChatML format</span>
+          <div style="font-family:Helvetica,Arial,sans-serif;font-size:12.5pt;font-weight:800;color:#1B365D;line-height:1.1;">Indie Mode SFT</div>
+          <div style="font-family:Helvetica,Arial,sans-serif;font-size:9.5pt;font-weight:600;color:#5C7B9E;font-style:italic;margin-bottom:1.5mm;">(Alignment)</div>
+          
+          <ul style="text-align:left; font-size:10pt; font-family:'Times New Roman',Times,serif; margin:0 0 1.5mm 0; padding-left:5mm; color:#374151; line-height:1.3;">
+            <li><strong>Goal:</strong> Alignment</li>
+            <li><strong>Format:</strong> ChatML</li>
+            <li><strong>Logic:</strong> No CoT used</li>
+          </ul>
+
+          <div style="margin-top:1.5mm;display:inline-block;background:#5C7B9E;border-radius:3px;padding:1mm 2.5mm;">
+            <span style="font-family:'Courier New',Courier,monospace;font-size:9pt;color:#fff;">CE only</span>
           </div>
         </div>
       </div>
 
-      <!-- Arrow 2 (green) -->
+      <!-- Arrow 2 (Slate Blue) -->
       <div style="flex-shrink:0;width:14mm;display:flex;align-items:center;justify-content:center;">
         <svg width="42" height="20" viewBox="0 0 42 20">
-          <defs><marker id="ph2-arr2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#16A34A"/></marker></defs>
-          <line x1="0" y1="10" x2="34" y2="10" stroke="#16A34A" stroke-width="2.8" marker-end="url(#ph2-arr2)"/>
+          <defs><marker id="ph2-arr2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5C7B9E"/></marker></defs>
+          <line x1="0" y1="10" x2="34" y2="10" stroke="#5C7B9E" stroke-width="2.8" marker-end="url(#ph2-arr2)"/>
         </svg>
       </div>
 
@@ -90,10 +121,14 @@
           </svg>
           <div style="font-family:Helvetica,Arial,sans-serif;font-size:12.5pt;font-weight:800;color:#D35400;line-height:1.1;">CoT SFT</div>
           <div style="font-family:Helvetica,Arial,sans-serif;font-size:9.5pt;font-weight:600;color:#92400E;font-style:italic;margin-bottom:1.5mm;">(Reasoning)</div>
-          <div style="font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#374151;line-height:1.5;">
-            &lt;think&gt; → &lt;final&gt; answer
-          </div>
-          <div style="margin-top:2mm;display:inline-block;background:#D35400;border-radius:3px;padding:1mm 2.5mm;">
+          
+          <ul style="text-align:left; font-size:10pt; font-family:'Times New Roman',Times,serif; margin:0 0 1.5mm 0; padding-left:5mm; color:#374151; line-height:1.3;">
+            <li><strong>Path:</strong> &lt;think&gt; → &lt;final&gt;</li>
+            <li><strong>Fix:</strong> FCP (EOS penal)</li>
+            <li><strong>Fix:</strong> SFT-GO, SCALe</li>
+          </ul>
+
+          <div style="margin-top:1.5mm;display:inline-block;background:#D35400;border-radius:3px;padding:1mm 2.5mm;">
             <span style="font-family:'Courier New',Courier,monospace;font-size:8.5pt;color:#fff;">CE+FCP+SFT-GO+SCALe</span>
           </div>
         </div>
@@ -115,8 +150,8 @@
         <div style="background:#F4F7F9;padding:2mm 2.5mm;">
           <!-- Formula -->
           <div style="background:#fff;border:1.5px solid #C8CDD8;border-radius:5px;padding:2.5mm 3mm;text-align:center;margin-bottom:2mm;">
-            <span style="font-family:'Times New Roman',Times,serif;font-size:12pt;font-weight:700;color:#111827;line-height:1.9;">
-              ℒ<sub>pre</sub> = ℒ<sub>CE</sub> + <span style="color:#5C7B9E;"><sup>0.1</sup>/<sub>66</sub></span>ℒ<sub>lb</sub> + <span style="color:#5C7B9E;"><sup>0.005</sup>/<sub>66</sub></span>ℒ<sub>z</sub>
+            <span style="font-family:'Times New Roman',Times,serif;font-size:16pt;font-weight:700;color:#111827;line-height:1.9;">
+              ℒ<sub>pre</sub> = ℒ<sub>CE</sub> + <span style="color:#5C7B9E;font-size:12pt;"><sup>0.1</sup>/<sub>66</sub></span>ℒ<sub>lb</sub> + <span style="color:#5C7B9E;font-size:12pt;"><sup>0.005</sup>/<sub>66</sub></span>ℒ<sub>z</sub>
             </span>
           </div>
           <!-- Loss rows with icons -->
@@ -179,11 +214,11 @@
         <div style="background:#FEF3EC;padding:2mm 2.5mm;">
           <!-- Total formula -->
           <div style="background:#fff;border:1.5px solid #FDBA74;border-radius:5px;padding:2.5mm 3mm;text-align:center;margin-bottom:2mm;">
-            <div style="font-family:'Times New Roman',Times,serif;font-size:11.5pt;font-weight:700;color:#111827;line-height:1.85;">
+            <div style="font-family:'Times New Roman',Times,serif;font-size:16pt;font-weight:700;color:#111827;line-height:1.85;">
               ℒ<sub>total</sub> = ℒ<sub>CE,wtd</sub> + <span style="color:#D35400;">λ · ℒ<sub>FCP</sub></span><br>
-              <span style="font-size:10pt;color:#6B7280;">+ <sup>0.1</sup>/<sub>66</sub>ℒ<sub>lb</sub> + <sup>0.005</sup>/<sub>66</sub>ℒ<sub>z</sub></span>
+              <span style="font-size:12pt;color:#6B7280;">+ <span style="font-size:10pt;"><sup>0.1</sup>/<sub>66</sub></span>ℒ<sub>lb</sub> + <span style="font-size:10pt;"><sup>0.005</sup>/<sub>66</sub></span>ℒ<sub>z</sub></span>
             </div>
-            <div style="font-family:'Times New Roman',Times,serif;font-size:9pt;color:#92400E;font-style:italic;margin-top:1mm;">
+            <div style="font-family:'Times New Roman',Times,serif;font-size:10pt;color:#92400E;font-style:italic;margin-top:1mm;">
               ≈92% CE &nbsp;·&nbsp; ≈8% CoT format &nbsp;·&nbsp; ≈0.1% MoE aux
             </div>
           </div>
@@ -195,8 +230,8 @@
             </div>
             <!-- FCP formula -->
             <div style="background:#fff;border-radius:3px;padding:1.5mm 2.5mm;text-align:center;margin-bottom:1.5mm;">
-              <span style="font-family:'Times New Roman',Times,serif;font-size:10.5pt;color:#111827;line-height:1.7;">
-                ℒ<sub>FCP</sub> = <sup>1</sup>/<sub>|M<sub>think</sub>|</sub> · Σ<sub>t∈M<sub>think</sub></sub> max(P(EOS|t)−δ, 0)²
+              <span style="font-family:'Times New Roman',Times,serif;font-size:15pt;color:#111827;line-height:1.7;">
+                ℒ<sub>FCP</sub> = <span style="font-size:10pt;"><sup>1</sup>/<sub>|M<sub>think</sub>|</sub></span> · Σ<sub>t∈M<sub>think</sub></sub> max(P(EOS|t)−δ, 0)²
               </span>
             </div>
             <!-- Token sequence visualization -->
@@ -229,7 +264,7 @@
             <div style="font-family:Helvetica,Arial,sans-serif;font-size:10.5pt;font-weight:800;color:#166534;margin-bottom:1.5mm;">
               ② SFT-GO — Boundary Token ×8 Weight
             </div>
-            <div style="font-family:'Times New Roman',Times,serif;font-size:9.5pt;color:#111827;text-align:center;margin-bottom:1.5mm;">
+            <div style="font-family:'Times New Roman',Times,serif;font-size:14pt;color:#111827;text-align:center;margin-bottom:1.5mm;">
               ℒ<sub>CE,wtd</sub> = −Σ<sub>t</sub> w[t]·log P(y<sub>t</sub>|y<sub>&lt;t</sub>, x)
             </div>
             <!-- Token weight diagram -->
@@ -256,8 +291,8 @@
             <div style="font-family:Helvetica,Arial,sans-serif;font-size:10.5pt;font-weight:800;color:#166534;margin-bottom:1mm;">
               ③ SCALe — η Cosine Anneal on &lt;think&gt;
             </div>
-            <div style="font-family:'Times New Roman',Times,serif;font-size:9.5pt;color:#111827;margin-bottom:1.5mm;">
-              η(s) = 0.3 + 0.35·(1+cos(πs/S)), &nbsp; s∈[0, S]
+            <div style="font-family:'Times New Roman',Times,serif;font-size:14pt;color:#111827;margin-bottom:1.5mm;text-align:center;">
+              η(s) = 0.3 + 0.35·(1+cos(πs/S)), &nbsp; <span style="font-size:11pt;">s∈[0, S]</span>
             </div>
             <!-- Cosine decay chart SVG -->
             <!-- y_coord = 38 - (η-0.3)/0.7 * 28 -->

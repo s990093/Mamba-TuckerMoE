@@ -374,22 +374,30 @@ async def api_demo_config() -> dict:
         },
         "max_new_tokens_cap": _CFG.get("max_new_tokens", 4096),
     }
+    # Always try to load mock config for categories + examples (even in non-mock mode)
+    # This allows test prompts to be available in the UI sidebar
+    mock_cfg = load_mock_config()
+    categories_from_mock = mock_cfg.get("categories", [])
+
     if _STATE["mock"]:
-        md = load_mock_config()
-        base["system_prompt_markdown"] = md.get("system_prompt_markdown", "")
-        base["categories"]             = md.get("categories", [])
-        base["tool_registry"]          = md.get("tool_registry", TOOL_REGISTRY)
-        base["style_constraints"]      = md.get("style_constraints", STYLE_CONSTRAINTS)
+        base["system_prompt_markdown"] = mock_cfg.get("system_prompt_markdown", "")
+        base["categories"]             = categories_from_mock
+        base["tool_registry"]          = mock_cfg.get("tool_registry", TOOL_REGISTRY)
+        base["style_constraints"]      = mock_cfg.get("style_constraints", STYLE_CONSTRAINTS)
     else:
         from .server_config import CATEGORY_TITLES
-        # Build category list in the same order the UI expects
+        # Build category list with examples from mock config
         _UI_CATS = [
             "daily_conversation", "emotion", "self_awareness",
             "email_summary", "movie_intro", "system_call", "deep_dive",
         ]
         base["system_prompt_markdown"] = ""
+        # Use mock categories if available, otherwise create empty ones
         base["categories"] = [
-            {"key": k, "title": CATEGORY_TITLES.get(k, k), "examples": []}
+            next(
+                (c for c in categories_from_mock if c.get("key") == k),
+                {"key": k, "title": CATEGORY_TITLES.get(k, k), "examples": []}
+            )
             for k in _UI_CATS
         ]
     return base

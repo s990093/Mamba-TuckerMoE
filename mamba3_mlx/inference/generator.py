@@ -30,6 +30,14 @@ from .sampler import (
     sample_token,
 )
 
+# Optional Metal sampler (enabled via config.use_metal_sampling)
+try:
+    from .sampler_metal import sample_token_metal_full
+    _METAL_SAMPLING_AVAILABLE = True
+except Exception as e:
+    _METAL_SAMPLING_AVAILABLE = False
+    _METAL_IMPORT_ERROR = str(e)
+
 def _assert_state_schema(mamba_states: list, label: str = "") -> None:
     """
     Fail fast if any Mamba state dict is missing required keys.
@@ -154,6 +162,60 @@ class GenerationStep(NamedTuple):
     logprobs: Optional[mx.array]   # (V,) lazy — caller evals if needed
 
 
+# ── Sampling selector (Metal vs MLX) ───────────────────────────────────────────
+
+def _sample_token_wrapper(
+    logits_1d: mx.array,
+    gen_cfg: GenerationConfig,
+    generated: List[int],
+) -> int:
+    """
+    Choose between Metal and MLX sampler based on config.
+
+    Metal sampler requires token counts for penalty application;
+    we reconstruct from generated list.
+    """
+    if gen_cfg.use_metal_sampling and _METAL_SAMPLING_AVAILABLE:
+        # Count token occurrences for penalty application
+        vocab_size = logits_1d.shape[0]
+        token_counts = mx.zeros((vocab_size,))
+
+        # Build count array from generated tokens (within repetition window)
+        recent = generated[-gen_cfg.repetition_window:] if gen_cfg.repetition_window else generated
+        counts_np = np.zeros(vocab_size, dtype=np.float32)
+        for tid in recent:
+            if 0 <= tid < vocab_size:
+                counts_np[tid] += 1.0
+        token_counts = mx.array(counts_np)
+
+        # Metal sampler: pass logits directly (already penalized in stream_generate)
+        # Create a mock args object with sampling parameters
+        class _MetalArgs:
+            pass
+
+        args = _MetalArgs()
+        args.temp = gen_cfg.temperature
+        args.top_k = gen_cfg.top_k
+        args.top_p = gen_cfg.top_p
+        args.min_p = gen_cfg.min_p
+        args.rep_pen = gen_cfg.repetition_penalty
+        args.pres_pen = gen_cfg.presence_penalty
+        args.freq_pen = gen_cfg.frequency_penalty
+        args.fast_sample = False
+
+        token = int(sample_token_metal_full(
+            logits_1d, token_counts, args,
+            threadgroup_size=gen_cfg.metal_threadgroup_size
+        ).item())
+        return token
+    else:
+        # Standard MLX sampler
+        return sample_token(
+            logits_1d, gen_cfg.temperature, gen_cfg.top_k,
+            gen_cfg.top_p, gen_cfg.min_p
+        )
+
+
 # ── Core token stream (official pattern) ──────────────────────────────────────
 
 def stream_generate(
@@ -208,8 +270,8 @@ def stream_generate(
         gen_cfg.presence_penalty, gen_cfg.frequency_penalty, gen_cfg.repetition_window)
 
     # sample_token triggers mx.eval internally — first GPU sync
-    token = sample_token(logits_1d, gen_cfg.temperature, gen_cfg.top_k,
-                         gen_cfg.top_p, gen_cfg.min_p)
+    # Uses either Metal or MLX sampler based on config
+    token = _sample_token_wrapper(logits_1d, gen_cfg, generated)
 
     # Eval states to bound graph before entering decode loop
     _eval_states(mamba_states, kv_caches)
@@ -242,9 +304,8 @@ def stream_generate(
             logits_1d, generated,
             gen_cfg.presence_penalty, gen_cfg.frequency_penalty, gen_cfg.repetition_window)
 
-        # ③ sample_token: single GPU sync for logits
-        token = sample_token(logits_1d, gen_cfg.temperature, gen_cfg.top_k,
-                             gen_cfg.top_p, gen_cfg.min_p)
+        # ③ sample_token: single GPU sync for logits (Metal or MLX)
+        token = _sample_token_wrapper(logits_1d, gen_cfg, generated)
 
         # ④ Eval states: caps graph size at one step
         _eval_states(mamba_states, kv_caches)
@@ -318,8 +379,7 @@ def generate_speculative(
     _eval_states(t_mamba, t_kv)
     _eval_states(d_mamba, d_kv)
 
-    token = sample_token(logits[0], gen_cfg.temperature, gen_cfg.top_k,
-                         gen_cfg.top_p, gen_cfg.min_p)
+    token = _sample_token_wrapper(logits[0], gen_cfg, generated)
     generated.append(token)
     yield token
     if token in gen_cfg.stop_token_ids:

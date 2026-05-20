@@ -151,113 +151,11 @@
       </div>
 
       <!-- RIGHT: Per-Turn Decode Flowchart (visual, intuitive) -->
-      <div style="flex:1;">
-        <div style="font-size:14pt;font-weight:700;color:#111827;margin-bottom:2mm;border-bottom:1.5px solid #BFDBFE;padding-bottom:1.5mm;">
+      <div style="flex:1; display:flex; flex-direction:column; gap:2mm;">
+        <div style="font-size:14pt;font-weight:700;color:#111827;margin-bottom:1mm;border-bottom:1.5px solid #BFDBFE;padding-bottom:1.5mm;">
           Per-Turn Decode Flow — <span style="font-family:'Courier New',monospace;font-size:12pt;color:#1455A4;">cot_middleware.py</span>
         </div>
-
-        <!-- Step 1: Input -->
-        <div style="display:flex;gap:2mm;margin-bottom:1.5mm;">
-          <div style="flex:1;background:#EFF6FF;border:1.5px solid #1455A4;border-radius:5px;padding:2mm 3mm;text-align:center;">
-            <div style="font-size:11pt;font-weight:700;color:#1E3A8A;">User Prompt</div>
-            <div style="font-size:10pt;color:#374151;">reasoning=true · auto ChatML wrap</div>
-          </div>
-          <div style="display:flex;align-items:center;font-size:16pt;color:#1455A4;font-weight:700;">→</div>
-          <div style="flex:1;background:#F0FDF4;border:1.5px solid #16A34A;border-radius:5px;padding:2mm 3mm;text-align:center;">
-            <div style="font-size:11pt;font-weight:700;color:#166534;">System Prompt</div>
-            <div style="font-size:10pt;color:#374151;">Category → SFT system template</div>
-          </div>
-        </div>
-
-        <!-- Arrow down -->
-        <div style="text-align:center;font-size:18pt;color:#475569;line-height:1;">↓</div>
-
-        <!-- Step 2: KV Cache -->
-        <div style="background:#FFFBF0;border:1.5px solid #D97706;border-radius:5px;padding:2mm 3mm;margin:1.5mm 0;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:12pt;font-weight:700;color:#92400E;">KV Cache Prime</div>
-            <div style="font-size:10.5pt;color:#374151;">hit → Suffix prefill only &nbsp;·&nbsp; miss → Full prefill</div>
-          </div>
-          <div style="font-size:11pt;font-weight:700;color:#D97706;background:#FEF9C3;border:1px solid #FDE68A;border-radius:3px;padding:1mm 2.5mm;">cache reuse</div>
-        </div>
-
-        <div style="text-align:center;font-size:18pt;color:#475569;line-height:1;">↓</div>
-
-        <!-- Decode Loop box -->
-        <div style="border:2px solid #1455A4;border-radius:6px;overflow:hidden;margin:1.5mm 0;">
-          <div style="background:#1455A4;padding:1.5mm 3mm;">
-            <span style="font-size:12pt;font-weight:700;color:#FFF;">DECODE LOOP — per token</span>
-          </div>
-          <!-- steps inside loop -->
-          <div style="padding:1.5mm 2mm;display:flex;flex-direction:column;gap:1mm;background:#F8FAFC;">
-
-            <div style="display:flex;align-items:center;gap:2mm;">
-              <div style="width:18pt;height:18pt;background:#1455A4;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9pt;font-weight:700;flex-shrink:0;">1</div>
-              <div style="flex:1;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:3px;padding:1.2mm 2.5mm;">
-                <span style="font-size:11pt;font-weight:700;color:#1E3A8A;">model(x, caches)</span>
-                <span style="font-size:10.5pt;color:#374151;"> → logits[0, −1, :]</span>
-              </div>
-            </div>
-
-            <div style="display:flex;align-items:center;gap:2mm;">
-              <div style="width:18pt;height:18pt;background:#C0392B;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9pt;font-weight:700;flex-shrink:0;">2</div>
-              <div style="flex:1;background:#FFF0F0;border:1px solid #FECACA;border-radius:3px;padding:1.2mm 2.5mm;">
-                <span style="font-size:11pt;font-weight:700;color:#C0392B;">Logit Guard</span>
-                <span style="font-size:10.5pt;color:#374151;"> — ban &lt;|im_start|&gt; · close-bias ramp on &lt;/think&gt;</span>
-              </div>
-            </div>
-
-            <div style="display:flex;align-items:center;gap:2mm;">
-              <div style="width:18pt;height:18pt;background:#065F46;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9pt;font-weight:700;flex-shrink:0;">3</div>
-              <div style="flex:1;background:#F0FAF5;border:1px solid #A7F3D0;border-radius:3px;padding:1.2mm 2.5mm;">
-                <span style="font-size:11pt;font-weight:700;color:#065F46;">Sample Token</span>
-                <span style="font-size:10.5pt;color:#374151;"> — temp · top-p · rep penalty → next_token_id</span>
-              </div>
-            </div>
-
-            <div style="display:flex;align-items:center;gap:2mm;">
-              <div style="width:18pt;height:18pt;background:#D97706;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9pt;font-weight:700;flex-shrink:0;">4</div>
-              <div style="flex:1;background:#FFFBF0;border:1px solid #FDE68A;border-radius:3px;padding:1.2mm 2.5mm;">
-                <span style="font-size:11pt;font-weight:700;color:#92400E;">Route Token</span>
-                <span style="font-size:10.5pt;color:#374151;"> — mode: </span>
-                <span style="font-size:10pt;font-weight:700;color:#C0392B;">think</span>
-                <span style="font-size:10pt;color:#374151;"> / </span>
-                <span style="font-size:10pt;font-weight:700;color:#1455A4;">final</span>
-                <span style="font-size:10pt;color:#374151;"> / done</span>
-              </div>
-            </div>
-
-            <!-- branch row -->
-            <div style="display:flex;gap:2mm;padding-left:22pt;">
-              <div style="flex:1;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:3px;padding:1.2mm 2mm;text-align:center;">
-                <div style="font-size:10.5pt;font-weight:700;color:#C0392B;">&lt;think&gt; zone</div>
-                <div style="font-size:10pt;color:#374151;">→ CoT reasoning panel</div>
-              </div>
-              <div style="flex:1;background:#DBEAFE;border:1px solid #93C5FD;border-radius:3px;padding:1.2mm 2mm;text-align:center;">
-                <div style="font-size:10.5pt;font-weight:700;color:#1455A4;">&lt;final&gt; zone</div>
-                <div style="font-size:10pt;color:#374151;">→ assistant response</div>
-              </div>
-            </div>
-
-            <div style="display:flex;align-items:center;gap:2mm;">
-              <div style="width:18pt;height:18pt;background:#4A1D7A;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9pt;font-weight:700;flex-shrink:0;">5</div>
-              <div style="flex:1;background:#F3F0FF;border:1px solid #D6CEFF;border-radius:3px;padding:1.2mm 2.5mm;">
-                <span style="font-size:11pt;font-weight:700;color:#4A1D7A;">Inject &lt;final&gt;</span>
-                <span style="font-size:10.5pt;color:#374151;"> — encode &lt;final&gt;\n → KV advance N+M pos</span>
-              </div>
-            </div>
-
-            <div style="display:flex;align-items:center;gap:2mm;">
-              <div style="width:18pt;height:18pt;background:#475569;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9pt;font-weight:700;flex-shrink:0;">6</div>
-              <div style="flex:1;background:#F8F9FB;border:1px solid #C8CDD8;border-radius:3px;padding:1.2mm 2.5mm;">
-                <span style="font-size:11pt;font-weight:700;color:#374151;">Done</span>
-                <span style="font-size:10.5pt;color:#374151;"> — flush() → total_tokens / tok/s / ttft_ms</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
+        <img src="decode_flow.png" alt="Per-Turn Decode Flowchart" style="width:100%; border-radius:8px; border:1.5px solid #CBD5E1; display:block; object-fit:contain; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
       </div>
 
     </div>

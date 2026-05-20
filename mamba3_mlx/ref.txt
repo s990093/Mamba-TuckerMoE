@@ -736,7 +736,7 @@ class LayerScale(nn.Module):
         super().__init__()
         self.gamma = mx.ones((dim,)) * init_value
 
-    def __call__(self, x: mx.array) -> mx.array:
+    def __call__(self, x: mx.ariray) -> mx.array:
         return x * self.gamma
 
 
