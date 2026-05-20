@@ -15,6 +15,29 @@ from .mamba_block import Mamba3Block
 from .transformer_block import TransformerBlock
 from .state_utils import init_mamba_states, init_kv_caches
 
+# Phase 2C: Optimized Mamba block selection
+_MAMBA_BLOCK_MODE = "baseline"  # "baseline" | "metal" | "fused"
+
+def set_mamba_block_mode(mode: str) -> None:
+    """Set which Mamba block version to use: baseline, metal, or fused."""
+    global _MAMBA_BLOCK_MODE
+    if mode not in ("baseline", "metal", "fused"):
+        raise ValueError(f"Invalid mode: {mode}. Must be 'baseline', 'metal', or 'fused'")
+    _MAMBA_BLOCK_MODE = mode
+
+
+def get_mamba_block_class():
+    """Get the Mamba block class based on current mode."""
+    if _MAMBA_BLOCK_MODE == "fused":
+        try:
+            from .mamba_block_fused import Mamba3BlockFused
+            return Mamba3BlockFused
+        except ImportError:
+            import logging
+            logging.warning("Fused block import failed, falling back to baseline")
+            return Mamba3Block
+    return Mamba3Block
+
 
 @dataclass
 class Mamba3Config:
@@ -134,9 +157,13 @@ class TrueHybridMamba(nn.Module):
         super().__init__()
         ratio = config.mamba_ratio  # 4 Mamba per 1 Transformer
         layers = []
+
+        # Phase 2C: Use optimized block version
+        MambaBlockClass = get_mamba_block_class()
+
         for _ in range(config.num_layers):
             for _ in range(ratio):
-                layers.append(Mamba3Block(config))
+                layers.append(MambaBlockClass(config))
             layers.append(TransformerBlock(config))
         self.layers = layers
         self.mamba_ratio = ratio

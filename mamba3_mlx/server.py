@@ -166,9 +166,18 @@ app = FastAPI(lifespan=lifespan)
 
 def _load_model_sync() -> None:
     """Blocking model load — runs in the default thread-pool executor."""
+    import os
     import mlx.core as mx
-    from .mlx_model.hybrid_model import build_model
+    from .mlx_model.hybrid_model import build_model, set_mamba_block_mode
     from transformers import AutoTokenizer
+
+    # Phase 2C: Set Mamba block mode from environment (default: baseline, which is already 681 tok/s)
+    block_mode = os.environ.get("MAMBA_BLOCK_MODE", "baseline").lower()
+    if block_mode in ("baseline", "metal", "fused"):
+        set_mamba_block_mode(block_mode)
+        log.info(f"Using {block_mode.upper()} Mamba blocks (Phase 2C)")
+    else:
+        log.warning(f"Invalid MAMBA_BLOCK_MODE={block_mode}, using baseline")
 
     t0 = time.perf_counter()
     try:
