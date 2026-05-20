@@ -72,7 +72,8 @@
       "Bash(xargs ls -lh)",
       "Bash(awk '{print \" \" $9 \" \\(\" $5 \"\\)\"}')",
       "Bash(awk '{print \"   \" $9 \" \\(\" $5 \"\\)\"}')",
-      "Bash(/tmp/final_check.sh)"
+      "Bash(/tmp/final_check.sh)",
+      "Bash(git commit *)"
     ]
   }
 }
