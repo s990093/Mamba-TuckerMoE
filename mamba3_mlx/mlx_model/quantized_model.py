@@ -83,7 +83,7 @@ def quantize_weight(weight: mx.array, bits: int = 8) -> Tuple[mx.array, mx.array
 
     scale = mx.zeros((out_features, 1))
     zero = mx.zeros((out_features, 1))
-    weight_q = mx.zeros_like(weight, dtype=mx.int8)
+    weight_q = mx.zeros(weight.shape, dtype=mx.int8)
 
     for i in range(out_features):
         w_row = weight[i].astype(mx.float32)
