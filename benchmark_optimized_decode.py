@@ -1,222 +1,203 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Optimized decode benchmark with compilation and quantization.
+优化的 decode 基准 - 支持可选的融合优化。
 
-方案 B: 量化 + 編譯優化達 40-50 tok/s
+演示：
+- 基准路径（标准 MLX）
+- 启用单个优化
+- 启用所有优化
+- 比较性能
+
+所有优化都是完全解耦合的，不影响原始推理管道。
 """
 
 import sys
 import time
-import argparse
 
 try:
     import mlx.core as mx
 except ImportError:
-    print("Error: MLX not installed")
+    print("MLX not installed")
     sys.exit(1)
 
 sys.path.insert(0, "/Users/hungwei/Desktop/Proj/Mamba3-XR")
 
 from mamba3_mlx.mlx_model.hybrid_model import build_model
 from mamba3_mlx.mlx_model.quantized_model import (
-    CompiledDecodeConfig,
     QuantizationConfig,
     apply_quantization_to_model,
 )
-from transformers import AutoTokenizer
+from mamba3_mlx.mlx_model.fusion_optimizer import get_fusion_optimizer
 
 
-def benchmark_optimized_decode(
-    checkpoint_path,
-    tokenizer_path,
-    num_tokens=256,
-    enable_quantize=True,
-    enable_compile=True,
-):
-    """Benchmark optimized decode with quantization and compilation."""
+def benchmark_decode(
+    model,
+    num_tokens: int = 128,
+    label: str = "",
+) -> float:
+    """基准 decode 性能。
 
-    print(f"\n{'='*70}")
-    print(f"Optimized Decode Benchmark (方案 B)")
-    print(f"{'='*70}")
-    print(f"Quantization: {'ON' if enable_quantize else 'OFF'}")
-    print(f"Compilation: {'ON' if enable_compile else 'OFF'}")
+    Returns:
+        tok_s: Tokens per second
+    """
+    print(f"\n{label}")
+    print(f"{'─'*70}")
 
-    # Load model
-    print(f"\nLoading model from {checkpoint_path}...")
-    t0 = time.perf_counter()
-    model = build_model(checkpoint_path, dtype=mx.bfloat16)
-    t1 = time.perf_counter()
-    model_load_ms = (t1 - t0) * 1000
-    print(f"✓ Model loaded in {model_load_ms:.0f}ms")
-
-    # Apply optimizations
-    if enable_quantize:
-        print("\nApplying 8-bit quantization to MoE layers...")
-        quant_config = QuantizationConfig(
-            quantize_moe=True, quantize_attention=True, quantize_ssm=False
-        )
-        apply_quantization_to_model(model, quant_config)
-
-    compile_config = None
-    if enable_compile:
-        print("Enabling full-graph compilation for decode...")
-        compile_config = CompiledDecodeConfig(compile_full_decode=True)
-
-    # Load tokenizer
-    print(f"Loading tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-    print(f"✓ Tokenizer loaded (vocab_size={len(tokenizer)})")
-
-    # Prefill
-    print(f"\nPrefill: 10 tokens")
-    prompt = "Once upon a time, there was a beautiful"
-    input_ids = tokenizer.encode(prompt, return_tensors="pt")
-    if len(input_ids.shape) > 1:
-        input_ids = input_ids[0]
-    input_ids = mx.array([input_ids.tolist()])
-
-    t0 = time.perf_counter()
     mamba_states, kv_caches = model.init_empty_states(batch_size=1)
 
-    # Optionally compile prefill
-    if enable_compile:
-        forward_fn = mx.compile(model.__call__)
-    else:
-        forward_fn = model.__call__
-
-    logits, _, mamba_states, kv_caches = forward_fn(
-        input_ids, mamba_states=mamba_states, kv_caches=kv_caches
+    # Prefill
+    t0 = time.perf_counter()
+    logits, _, mamba_states, kv_caches = model(
+        mx.array([[2000]]), mamba_states=mamba_states, kv_caches=kv_caches
     )
     mx.eval(logits)
     t1 = time.perf_counter()
     prefill_ms = (t1 - t0) * 1000
-    print(f"✓ Prefill completed in {prefill_ms:.0f}ms")
 
-    # Decode benchmark
-    print(f"\nDecode: {num_tokens} tokens (optimized)")
-    print(f"{'Step':<8} {'Tok/s':<12} {'Cumulative':<12}")
-    print("─" * 70)
-
+    # Decode
     t0 = time.perf_counter()
-    decode_times = []
-
     for step in range(num_tokens):
-        t_step_start = time.perf_counter()
-
-        # Get compiled function if available
-        if compile_config and step < 256:
-            forward_fn = compile_config.get_compiled_forward(model, step)
-        else:
-            forward_fn = model.__call__
-
-        # Single token decode
-        next_token_id = mx.array([[2000]])  # dummy token
-        logits, _, mamba_states, kv_caches = forward_fn(
-            next_token_id,
-            step=input_ids.shape[1] + step,
+        logits, _, mamba_states, kv_caches = model(
+            mx.array([[2000]]),
+            step=step,
             mamba_states=mamba_states,
             kv_caches=kv_caches,
         )
         mx.eval(logits)
-
-        t_step_end = time.perf_counter()
-        step_time = (t_step_end - t_step_start) * 1000
-        decode_times.append(step_time)
-
-        # Progress reporting
-        if (step + 1) % max(1, num_tokens // 8) == 0 or step + 1 == num_tokens:
-            elapsed = t_step_end - t0
-            avg_tok_s = (step + 1) / elapsed if elapsed > 0 else 0
-            print(f"{step+1:<8} {avg_tok_s:>10.1f} tok/s {elapsed:>10.2f}s")
-
     t1 = time.perf_counter()
-    total_decode_time = t1 - t0
 
-    # Statistics
-    print("\n" + "─" * 70)
-    print(f"Results:")
-    print(f"  Total decode time: {total_decode_time:.2f}s")
-    print(f"  Average per-token: {(total_decode_time/num_tokens)*1000:.2f}ms")
-    print(f"  Average throughput: {num_tokens/total_decode_time:.1f} tok/s")
-    print(f"  Target (60 tok/s): {'✓ PASS' if (num_tokens/total_decode_time) >= 60 else '⚠️  PARTIAL'}")
-    print("─" * 70)
+    total_time = t1 - t0
+    tok_s = num_tokens / total_time
 
-    # Overall metrics
-    print(f"\nPerformance Metrics:")
-    print(f"  Prefill:        {prefill_ms:.0f}ms")
-    print(f"  Decode:         {total_decode_time*1000:.0f}ms ({num_tokens} tokens)")
-    print(f"  Throughput:     {num_tokens/total_decode_time:.1f} tok/s")
+    print(f"Prefill:       {prefill_ms:.0f}ms")
+    print(f"Decode:        {total_time:.2f}s ({num_tokens} tokens)")
+    print(f"Throughput:    {tok_s:.1f} tok/s")
+    print(f"Per-token:     {(total_time/num_tokens)*1000:.2f}ms")
 
-    return num_tokens / total_decode_time
+    return tok_s
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Optimized decode benchmark with quantization and compilation"
-    )
-    parser.add_argument(
-        "--checkpoint",
-        default="checkpoints/latest_sft_cot_model.npz",
-        help="Path to model checkpoint",
-    )
-    parser.add_argument(
-        "--tokenizer",
-        default="checkpoints/tokenizer",
-        help="Path to tokenizer",
-    )
-    parser.add_argument(
-        "--num-tokens",
-        type=int,
-        default=256,
-        help="Number of tokens to generate",
-    )
-    parser.add_argument(
-        "--no-quantize",
-        action="store_true",
-        help="Disable quantization",
-    )
-    parser.add_argument(
-        "--no-compile",
-        action="store_true",
-        help="Disable compilation",
-    )
-    args = parser.parse_args()
+    print("=" * 70)
+    print("Optimized Decode Benchmark - Fused Kernels")
+    print("=" * 70)
 
-    try:
-        tok_s = benchmark_optimized_decode(
-            args.checkpoint,
-            args.tokenizer,
-            args.num_tokens,
-            enable_quantize=not args.no_quantize,
-            enable_compile=not args.no_compile,
-        )
+    # Load model
+    print("\nLoading model...")
+    model = build_model("checkpoints/latest_sft_cot_model.npz", dtype=mx.bfloat16)
 
-        print("\n" + "=" * 70)
-        print(f"Performance: {tok_s:.1f} tok/s")
+    optimizer = get_fusion_optimizer()
 
-        # Compare to baseline
-        baseline = 23.3
-        improvement = (tok_s - baseline) / baseline * 100
-        print(f"Baseline:    {baseline:.1f} tok/s")
-        print(f"Improvement: +{improvement:.1f}%")
+    # Test 1: Baseline (no optimizations)
+    print("\n" + "=" * 70)
+    print("TEST 1: Baseline (Standard MLX - No Fusions)")
+    print("=" * 70)
+    optimizer.disable_all()
+    optimizer.print_status()
 
-        if tok_s >= 40:
-            print(f"\n✅ SUCCESS: Achieved {tok_s:.1f} tok/s (target: 40-50 tok/s)")
-        elif tok_s >= 30:
-            print(f"\n✓ GOOD: Achieved {tok_s:.1f} tok/s (方案 A range)")
+    tok_s_baseline = benchmark_decode(model, num_tokens=128, label="Baseline (bf16, eager)")
+
+    # Test 2: With Quantization
+    print("\n" + "=" * 70)
+    print("TEST 2: Baseline + 8-Bit Quantization")
+    print("=" * 70)
+    print("Applying quantization...")
+    quant_config = QuantizationConfig(
+        quantize_moe=True, quantize_attention=True, quantize_ssm=False
+    )
+    apply_quantization_to_model(model, quant_config)
+    print("✓ Quantization applied")
+
+    tok_s_quant = benchmark_decode(model, num_tokens=128, label="Baseline + 8-bit Quantization")
+
+    # Test 3: With SSM+RoPE Fusion
+    print("\n" + "=" * 70)
+    print("TEST 3: Baseline + Quantization + SSM+RoPE Fusion")
+    print("=" * 70)
+    optimizer.enable("ssm_rope_fusion")
+    optimizer.print_status()
+
+    tok_s_ssm = benchmark_decode(model, num_tokens=128, label="+ SSM+RoPE Fusion (fused kernel)")
+
+    # Test 4: With All Optimizations
+    print("\n" + "=" * 70)
+    print("TEST 4: Full Optimization Stack")
+    print("=" * 70)
+    optimizer.enable_all()
+    optimizer.print_status()
+
+    tok_s_all = benchmark_decode(model, num_tokens=128, label="All optimizations enabled")
+
+    # Summary
+    print("\n" + "=" * 70)
+    print("SUMMARY & PERFORMANCE ANALYSIS")
+    print("=" * 70)
+
+    results = [
+        ("Baseline (bf16)", tok_s_baseline, 0),
+        ("+ Quantization", tok_s_quant, (tok_s_quant - tok_s_baseline) / tok_s_baseline * 100),
+        ("+ SSM+RoPE Fusion", tok_s_ssm, (tok_s_ssm - tok_s_baseline) / tok_s_baseline * 100),
+        ("Full Stack", tok_s_all, (tok_s_all - tok_s_baseline) / tok_s_baseline * 100),
+    ]
+
+    print(f"\n{'Configuration':<25} {'Throughput':<15} {'Improvement':<15} {'Status'}")
+    print("─" * 70)
+
+    for config, tok_s, improvement in results:
+        if improvement > 0:
+            improvement_str = f"+{improvement:.1f}%"
+        elif improvement < 0:
+            improvement_str = f"{improvement:.1f}%"
         else:
-            print(f"\n⚠️  Current: {tok_s:.1f} tok/s (keep optimizing)")
+            improvement_str = "-"
 
-        print("=" * 70 + "\n")
+        status = "✓" if tok_s >= tok_s_baseline else "⚠️"
+        print(f"{config:<25} {tok_s:>7.1f} tok/s      {improvement_str:>10}      {status}")
 
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        import traceback
+    # Target analysis
+    print("\n" + "=" * 70)
+    print("TARGET ANALYSIS (Scheme B: 40-50 tok/s)")
+    print("=" * 70)
 
-        traceback.print_exc()
-        sys.exit(1)
+    target_min = 40
+    target_max = 50
+
+    if tok_s_baseline >= target_min:
+        print(f"✅ Baseline alone meets minimum: {tok_s_baseline:.1f} tok/s")
+    else:
+        gap = target_min - tok_s_baseline
+        print(f"⚠️  Baseline below minimum: {tok_s_baseline:.1f} tok/s (gap: {gap:.1f})")
+
+    if tok_s_all >= target_max:
+        print(f"✅ Full stack achieves maximum: {tok_s_all:.1f} tok/s")
+    elif tok_s_all >= target_min:
+        print(f"✅ Full stack achieves target range: {tok_s_all:.1f} tok/s")
+    else:
+        gap = target_min - tok_s_all
+        print(f"⚠️  Full stack below minimum: {tok_s_all:.1f} tok/s (gap: {gap:.1f})")
+
+    # Efficiency
+    total_improvement = (tok_s_all - tok_s_baseline) / tok_s_baseline * 100
+    print(f"\nTotal improvement (baseline → full stack): {total_improvement:+.1f}%")
+    print(f"Per-token reduction: {((1/tok_s_baseline) - (1/tok_s_all))*1000:.2f}ms")
+
+    print("=" * 70 + "\n")
+
+    return {
+        "baseline": tok_s_baseline,
+        "quantized": tok_s_quant,
+        "ssm_fused": tok_s_ssm,
+        "all_optimized": tok_s_all,
+    }
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        results = main()
+        print(f"✓ Benchmark complete")
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
