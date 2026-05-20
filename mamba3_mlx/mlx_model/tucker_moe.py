@@ -81,7 +81,8 @@ class TuckerMoE(nn.Module):
     def __call__(
         self,
         x: mx.array,
-        router_temp: mx.array,
+        step: Optional[int] = None,
+        router_temp: Optional[mx.array] = None,
         *,
         router_x: Optional[mx.array] = None,
         einsum_fuse: Optional[bool] = None,
@@ -93,7 +94,8 @@ class TuckerMoE(nn.Module):
 
         Args:
             x: Input tensor (B*L, dim_in)
-            router_temp: Router temperature for scaling logits
+            step: Training/inference step (used to compute router temperature)
+            router_temp: Optional explicit router temperature (overrides step-based)
             router_x: Optional separate routing input
             einsum_fuse: Enable fused einsum Metal kernel
             full_fuse: Enable complete kernel fusion
@@ -106,6 +108,12 @@ class TuckerMoE(nn.Module):
 
         # Router: compute expert selection
         raw_logits = self.router(rx)
+
+        # Determine router temperature
+        if router_temp is None:
+            temp_scalar = get_router_temperature(step)
+            router_temp = mx.array(temp_scalar, dtype=raw_logits.dtype)
+
         rt_dt = router_temp.dtype
         t = mx.maximum(router_temp, mx.array(1e-4, dtype=rt_dt))
         capped = fast_scaled_tanh(raw_logits, 10.0)
@@ -130,4 +138,4 @@ class TuckerMoE(nn.Module):
 
         # Output projection
         out = self.U_out(out_core).reshape(*orig_shape[:-1], -1)
-        return out + self.bias
+        return out + self.bias, 0.0, 0.0  # (output, load_balancing_loss, auxiliary_loss)
