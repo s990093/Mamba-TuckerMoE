@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from mamba3_mlx.utils.config import Mamba3Config, GenerationConfig
-from mamba3_mlx.utils.system_prompts import SYSTEM_PROMPTS, MODE_ALIASES, resolve_system_prompt
+from mamba3_mlx.utils.system_prompts import MODE_ALIASES, resolve_system_prompt
 from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
 from mamba3_mlx.mlx_model.weights import load_checkpoint
 from mamba3_mlx.inference.generator import generate
@@ -26,17 +26,14 @@ _DEFAULT_SYSTEM = (
 
 def build_chatml_prompt(tokenizer: Tokenizer, system_prompt: str, user_msg: str,
                         seed_think: bool = True):
-    """Build prompt ids ending with `<|im_start|>assistant\\n<think>\\n` if seed_think."""
-    parts = []
-    parts.append("<|im_start|>system\n" + system_prompt + "<|im_end|>\n")
-    parts.append("<|im_start|>user\n" + user_msg + "<|im_end|>\n")
-    suffix = "<|im_start|>assistant\n"
-    if seed_think:
-        suffix += "<think>\n"
-    parts.append(suffix)
-    text = "".join(parts)
+    """Wrap user_msg in ChatML, optionally seeding <think>\\n after assistant tag."""
+    text = (
+        f"<|im_start|>system\n{system_prompt}<|im_end|>\n"
+        f"<|im_start|>user\n{user_msg}<|im_end|>\n"
+        f"<|im_start|>assistant\n"
+        + ("<think>\n" if seed_think else "")
+    )
     ids = tokenizer.encode(text, add_special_tokens=False).ids
-    # Prepend BOS
     bos = tokenizer.token_to_id("<s>")
     if bos is not None:
         ids = [bos] + ids
@@ -47,49 +44,66 @@ def get_args():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Modes (--mode shorthand → system prompt category):\n"
-            + "\n".join(
-                f"  {alias:<20s} → {key}"
-                for alias, key in sorted(MODE_ALIASES.items())
-                if alias == key or alias in ("self", "email", "movie", "daily", "syscall", "deep")
-            )
+            "Modes (--mode) map to SFT-CoT training categories:\n"
+            "  emotion, self / self_awareness, email / summarize_email,\n"
+            "  movie / movie_intro, daily / daily_conversation,\n"
+            "  syscall / system_call, deep / deep_dive\n"
         ),
     )
-    p.add_argument("--model_path", type=str,
-                   default=str(REPO_ROOT / "checkpoints" / "latest_sft_cot_model.npz"))
-    p.add_argument("--tokenizer_path", type=str,
-                   default=str(REPO_ROOT / "cot_dataset" / "tokenizer.json"))
-    p.add_argument("--prompt", type=str, default="What is the capital of France?")
-    p.add_argument("--mode", type=str, default=None,
-                   choices=sorted(set(MODE_ALIASES.keys())),
-                   help="Select a training-category system prompt. Overrides --system.")
-    p.add_argument("--system", type=str, default=_DEFAULT_SYSTEM,
+
+    # ── Paths ──────────────────────────────────────────────────────────────────
+    p.add_argument("--model_path", default=str(REPO_ROOT / "checkpoints" / "latest_sft_cot_model.npz"))
+    p.add_argument("--tokenizer_path", default=str(REPO_ROOT / "cot_dataset" / "tokenizer.json"))
+
+    # ── Prompt / mode ─────────────────────────────────────────────────────────
+    p.add_argument("--prompt", default="What is the capital of France?")
+    p.add_argument("--mode", default=None, choices=sorted(set(MODE_ALIASES.keys())),
+                   help="System prompt category. Overrides --system.")
+    p.add_argument("--system", default=_DEFAULT_SYSTEM,
                    help="Custom system prompt (ignored when --mode is set).")
 
+    # ── Generation ────────────────────────────────────────────────────────────
     p.add_argument("--max_tokens", type=int, default=256)
-    p.add_argument("--temp", type=float, default=0.8)
-    p.add_argument("--top_k", type=int, default=40)
-    p.add_argument("--top_p", type=float, default=0.9)
-    p.add_argument("--min_p", type=float, default=0.05)
-    p.add_argument("--rep_pen", type=float, default=1.1)
-    p.add_argument("--pres_pen", type=float, default=0.0)
-    p.add_argument("--freq_pen", type=float, default=0.02)
+    p.add_argument("--temp",       type=float, default=0.8)
+    p.add_argument("--top_k",      type=int,   default=40)
+    p.add_argument("--top_p",      type=float, default=0.9)
+    p.add_argument("--min_p",      type=float, default=0.05)
+    p.add_argument("--rep_pen",    type=float, default=1.1)
+    p.add_argument("--pres_pen",   type=float, default=0.0)
+    p.add_argument("--freq_pen",   type=float, default=0.02)
     p.add_argument("--repeat_last_n", type=int, default=64)
-    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--seed",       type=int,   default=0)
 
-    p.add_argument("--dtype", type=str, default="bf16", choices=list(DTYPE_MAP))
-    p.add_argument("--kv_dtype", type=str, default="auto",
-                   choices=["auto"] + list(DTYPE_MAP))
-    p.add_argument("--full-decode-compile", action="store_true")
-    p.add_argument("--speculative", action="store_true")
-    p.add_argument("--speculative-k", type=int, default=5)
+    # ── Stop conditions ───────────────────────────────────────────────────────
+    p.add_argument("--no-eos-stop", action="store_true",
+                   help="Ignore EOS / <|im_end|> tokens — run until max_tokens "
+                        "or a --stop-string match. Useful for spec-decode debugging.")
+    p.add_argument("--stop-string", action="append", dest="stop_strings",
+                   metavar="TEXT", default=[],
+                   help="Stop when TEXT appears in decoded output. "
+                        "Repeatable, handles multi-token strings. "
+                        "Example: --stop-string '</final>'")
 
-    p.add_argument("--no-seed-think", action="store_true",
-                   help="Don't pre-seed '<think>\\n' after assistant tag.")
-    p.add_argument("--raw-prompt", action="store_true",
-                   help="Treat --prompt as a literal string, skip ChatML wrap.")
+    # ── Hardware / precision ──────────────────────────────────────────────────
+    p.add_argument("--dtype",    default="bf16", choices=list(DTYPE_MAP))
+    p.add_argument("--kv_dtype", default="auto", choices=["auto"] + list(DTYPE_MAP))
+    p.add_argument("--full-decode-compile", action="store_true",
+                   help="Wrap decode step in mx.compile (faster after first step).")
+
+    # ── Output / format ───────────────────────────────────────────────────────
     p.add_argument("--stream", action="store_true",
                    help="Stream tokens to stdout as they are produced.")
+    p.add_argument("--show-special", action="store_true",
+                   help="Include special tokens (<think>, <|im_end|> …) in stream output.")
+    p.add_argument("--no-seed-think", action="store_true",
+                   help="Skip pre-seeding <think>\\n after the assistant tag.")
+    p.add_argument("--raw-prompt", action="store_true",
+                   help="Use --prompt verbatim; skip ChatML wrapping.")
+
+    # ── Speculative (scaffold) ────────────────────────────────────────────────
+    p.add_argument("--speculative",   action="store_true")
+    p.add_argument("--speculative-k", type=int, default=5)
+
     return p.parse_args()
 
 
@@ -101,19 +115,19 @@ def main():
     tok = Tokenizer.from_file(args.tokenizer_path)
 
     print(f"[load] model:     {args.model_path}", file=sys.stderr)
-    cfg = Mamba3Config(vocab_size=tok.get_vocab_size())
+    cfg   = Mamba3Config(vocab_size=tok.get_vocab_size())
     model = Mamba3LanguageModel(cfg)
-    t0 = time.time()
+    t0    = time.time()
     load_checkpoint(model, args.model_path, dtype=dtype)
     mx.eval(model.parameters())
-    print(f"[load] done in {time.time() - t0:.2f}s (dtype={args.dtype})", file=sys.stderr)
+    print(f"[load] done in {time.time() - t0:.2f}s  (dtype={args.dtype})", file=sys.stderr)
 
-    # Resolve system prompt (--mode wins over --system)
+    # ── System prompt ─────────────────────────────────────────────────────────
     sys_prompt = resolve_system_prompt(args.mode, args.system)
     if args.mode:
-        print(f"[mode] {args.mode} → {sys_prompt[:60]}…", file=sys.stderr)
+        print(f"[mode] {args.mode} → {sys_prompt[:70]}…", file=sys.stderr)
 
-    # Build prompt
+    # ── Prompt ids ────────────────────────────────────────────────────────────
     if args.raw_prompt:
         prompt_text = args.prompt
         ids = tok.encode(prompt_text, add_special_tokens=False).ids
@@ -127,7 +141,15 @@ def main():
     print("===== PROMPT =====", file=sys.stderr)
     print(prompt_text, file=sys.stderr)
     print(f"===== PROMPT TOKENS: {len(ids)} =====", file=sys.stderr)
+    if args.no_eos_stop:
+        print("[stop] --no-eos-stop active — EOS tokens will NOT halt generation",
+              file=sys.stderr)
+    if args.stop_strings:
+        print(f"[stop] stop-strings: {args.stop_strings}", file=sys.stderr)
+    if args.full_decode_compile:
+        print("[compile] mx.compile enabled for decode steps", file=sys.stderr)
 
+    # ── Generation config ─────────────────────────────────────────────────────
     gen_cfg = GenerationConfig(
         max_tokens=args.max_tokens,
         temperature=args.temp,
@@ -141,37 +163,54 @@ def main():
         seed=args.seed,
     )
 
-    stop_ids = []
-    im_end = tok.token_to_id("<|im_end|>")
-    eos = tok.token_to_id("</s>")
-    if im_end is not None:
-        stop_ids.append(im_end)
-    if eos is not None:
-        stop_ids.append(eos)
+    # ── Stop token ids (EOS / im_end) ─────────────────────────────────────────
+    stop_ids: list[int] = []
+    if not args.no_eos_stop:
+        for name in ("<|im_end|>", "</s>"):
+            tid = tok.token_to_id(name)
+            if tid is not None:
+                stop_ids.append(tid)
 
+    # ── Streaming callback ────────────────────────────────────────────────────
     on_token = None
     if args.stream:
-        seen = []
-        last_decoded_len = [0]
-        def _on_token(tid):
+        seen: list[int] = []
+        prev_len = [0]
+        skip_special = not args.show_special
+
+        def _on_token(tid: int) -> None:
             seen.append(tid)
-            # Decode the running list so SentencePiece word boundaries render correctly.
-            text_full = tok.decode(seen, skip_special_tokens=False)
-            new = text_full[last_decoded_len[0]:]
-            last_decoded_len[0] = len(text_full)
-            print(new, end="", flush=True)
+            text_full = tok.decode(seen, skip_special_tokens=skip_special)
+            new = text_full[prev_len[0]:]
+            prev_len[0] = len(text_full)
+            if new:
+                print(new, end="", flush=True)
+
         on_token = _on_token
 
-    t0 = time.time()
-    out_ids = generate(model, ids, gen_cfg, stop_token_ids=stop_ids, on_token=on_token)
-    dt = time.time() - t0
-    if args.stream:
-        print()
-    print(f"===== GENERATED {len(out_ids)} tokens in {dt:.2f}s "
-          f"({len(out_ids) / max(dt, 1e-6):.2f} tok/s) =====", file=sys.stderr)
+    # ── Generate ──────────────────────────────────────────────────────────────
+    result = generate(
+        model, ids, gen_cfg,
+        stop_token_ids=stop_ids,
+        stop_strings=args.stop_strings or [],
+        no_eos_stop=args.no_eos_stop,
+        full_decode_compile=args.full_decode_compile,
+        tokenizer=tok if args.stop_strings else None,
+        on_token=on_token,
+    )
 
-    full_text = tok.decode(out_ids, skip_special_tokens=False)
+    if args.stream:
+        print()   # newline after streamed content
+
+    print(
+        f"===== GENERATED {len(result.tokens)} tokens in {result.elapsed:.2f}s "
+        f"({result.tps:.2f} tok/s)  stop={result.stop_reason} =====",
+        file=sys.stderr,
+    )
+
     if not args.stream:
+        full_text = tok.decode(result.tokens,
+                               skip_special_tokens=not args.show_special)
         print("===== ASSISTANT OUTPUT =====")
         if not args.no_seed_think:
             print("<think>")
