@@ -1,0 +1,48 @@
+import math
+
+import mlx.core as mx
+import mlx.nn as nn
+
+from .ops import RMSNorm, scaled_tanh
+from .mamba_block import Mamba3Block
+from .transformer_block import TransformerBlock
+
+
+class TrueHybridMamba(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        layers = []
+        for _ in range(config.num_layers):
+            for _ in range(config.mamba_ratio):
+                layers.append(Mamba3Block(config))
+            layers.append(TransformerBlock(config))
+        self.layers = layers
+
+    def __call__(self, x, states=None):
+        new_states = []
+        for i, blk in enumerate(self.layers):
+            st = states[i] if states is not None else None
+            x, new_st = blk(x, state=st)
+            new_states.append(new_st)
+        return x, new_states
+
+
+class Mamba3LanguageModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.embed = nn.Embedding(config.vocab_size, config.d_model)
+        self.backbone = TrueHybridMamba(config)
+        self.norm = RMSNorm(config.d_model, eps=config.rms_norm_eps)
+        # head weight is tied to embed.weight (set at load time)
+        self.head = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        self.inv_sqrt_d = 1.0 / math.sqrt(config.d_model)
+
+    def __call__(self, input_ids, states=None):
+        x = self.embed(input_ids)
+        x, new_states = self.backbone(x, states=states)
+        h = self.norm(x)
+        logits = self.head(h * self.inv_sqrt_d).astype(mx.float32)
+        logits = scaled_tanh(logits, 30.0)
+        return logits, new_states
