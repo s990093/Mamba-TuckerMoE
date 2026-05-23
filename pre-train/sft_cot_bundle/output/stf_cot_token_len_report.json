@@ -1,0 +1,111 @@
+{
+  "total_examples": 39349,
+  "token_len_min": 83,
+  "token_len_mean": 318.1,
+  "token_len_max": 3575,
+  "p50": 287.0,
+  "p90": 507.0,
+  "p95": 596.0,
+  "p99": 779.0,
+  "suggested_seq_len": 768,
+  "truncation_by_seq_len": {
+    "256": {
+      "n_truncated": 23387,
+      "truncation_rate": "59.4%"
+    },
+    "512": {
+      "n_truncated": 3777,
+      "truncation_rate": "9.6%"
+    },
+    "768": {
+      "n_truncated": 410,
+      "truncation_rate": "1.0%"
+    },
+    "1024": {
+      "n_truncated": 105,
+      "truncation_rate": "0.3%"
+    },
+    "1536": {
+      "n_truncated": 6,
+      "truncation_rate": "0.0%"
+    },
+    "2048": {
+      "n_truncated": 3,
+      "truncation_rate": "0.0%"
+    }
+  },
+  "per_bucket_stats": {
+    "daily_conversation": {
+      "count": 8746,
+      "min": 83,
+      "mean": 372.7,
+      "max": 3575,
+      "p50": 380.0,
+      "p95": 635.0,
+      "p99": 747.0
+    },
+    "deep_dive": {
+      "count": 733,
+      "min": 394,
+      "mean": 764.8,
+      "max": 1417,
+      "p50": 719.0,
+      "p95": 1140.0,
+      "p99": 1301.0
+    },
+    "emotion": {
+      "count": 4812,
+      "min": 237,
+      "mean": 341.6,
+      "max": 600,
+      "p50": 334.0,
+      "p95": 472.0,
+      "p99": 520.0
+    },
+    "math_drill": {
+      "count": 200,
+      "min": 94,
+      "mean": 107.6,
+      "max": 136,
+      "p50": 102.0,
+      "p95": 131.0,
+      "p99": 133.0
+    },
+    "movie_intro": {
+      "count": 2817,
+      "min": 123,
+      "mean": 375.0,
+      "max": 861,
+      "p50": 356.0,
+      "p95": 616.0,
+      "p99": 704.0
+    },
+    "self_awareness": {
+      "count": 10210,
+      "min": 111,
+      "mean": 252.5,
+      "max": 1111,
+      "p50": 227.0,
+      "p95": 416.0,
+      "p99": 659.0
+    },
+    "summarize_email": {
+      "count": 10293,
+      "min": 132,
+      "mean": 303.8,
+      "max": 806,
+      "p50": 274.0,
+      "p95": 521.0,
+      "p99": 699.0
+    },
+    "system_call": {
+      "count": 1538,
+      "min": 136,
+      "mean": 174.9,
+      "max": 330,
+      "p50": 168.0,
+      "p95": 221.0,
+      "p99": 269.0
+    }
+  }
+}

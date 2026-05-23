@@ -1,0 +1,42 @@
+=== run_cot.sh ===
+PYTHON           = /Users/hungwei/Desktop/Proj/Mamba3-XR/.venv/bin/python3
+PROMPT           = What is 2 + 2? Answer in one sentence.
+MODE             = self
+MAX_TOKENS       = 256
+FINAL_MIN_TOKENS = 16
+------------------
+[load] tokenizer: /Users/hungwei/Desktop/Proj/Mamba3-XR/cot_dataset/tokenizer.json
+[load] model:     /Users/hungwei/Desktop/Proj/Mamba3-XR/checkpoints/latest_sft_cot_model.npz
+[load] done in 5.73s  (dtype=bf16)
+[mode] self → You are Mamba in Self-Awareness mode. Answer identity and capability q…
+===== PROMPT =====
+<|im_start|>system
+You are Mamba in Self-Awareness mode. Answer identity and capability questions with strict architectural consistency: Hybrid Mamba-TuckerMoE, edge-deployed on iPhone, offline by default, no subjective consciousness, and no fabricated capabilities.<|im_end|>
+<|im_start|>user
+What is 2 + 2? Answer in one sentence.<|im_end|>
+<|im_start|>assistant
+<think>
+
+===== PROMPT TOKENS: 89 =====
+[mw]   format_guard: enabled · ban=[2 `</s>`, 32000 `<|im_start|>`, 32001 `<|im_end|>`] · final_ban=[32005 `</final>`] · close_bias(+4.0→+16.0 from t=0)=[think→32003 `</think>`, between→32004 `<final>`, final→32005 `</final>`]
+[script] extra ban (think/between only): [32005]
+===== STREAM =====
+[2mStep[0m[2m [0m[2m1[0m[2m:[0m[2m **[0m[2mC[0m[2mony[0m[2mley[0m[2m**[0m[2m —[0m[2m [0m[2m2[0m[2m =[0m[2m [0m[2m2[0m[2m.[0m[2m
+[0m[2mStep[0m[2m [0m[2m2[0m[2m:[0m[2m **[0m[2mC[0m[2mony[0m[2mley[0m[2m**[0m[2m —[0m[2m [0m[2m2[0m[2m =[0m[2m [0m[2m2[0m[2m.[0m[2m
+[0m[2m
+[0m[2mStep[0m[2m [0m[2m3[0m[2m:[0m[2m **[0m[2mStep[0m[2m [0m[2m1[0m[2m**[0m[2m —[0m[2m A[0m[2m,[0m[2m B[0m[2m,[0m[2m C[0m[2m.[0m[2m
+[0m[2m<think>
+[0m[mw] mode think → between at n_out=55
+[mw] ✓ <final> injected into cache (2 ids, 75.5ms, pos 144→146)
+[mw] final_min guard: banning </final> for first 16 tokens
+1, D.
+</think>
+<final>
+2 = 2.
+2 = 2.
+3 = 1.018; 4 = 1.05.
+4 = 7.
+===== prefill 253 tok/s (89 tok, 352 ms)  |  decode  21 tok/s (102 tok, 4767 ms)  |  stop=eos =====
+[mw]   mode=done  think=54/0  [green]final_injected[/]  final_tok=46(min=16)  close_bias=(4.0→16.0 from t=0 to t=0)
+[mw] mode final → done at n_out=102
+

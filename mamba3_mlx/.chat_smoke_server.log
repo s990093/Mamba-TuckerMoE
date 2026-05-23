@@ -1,0 +1,26 @@
+
+============================================================
+  Mamba3-XR Chat Demo (WebSocket, mamba3_mlx native)
+============================================================
+
+  Loading model...
+[chat_demo] format_guard: enabled · ban=[2 `</s>`, 32000 `<|im_start|>`, 32001 `<|im_end|>`] · final_ban=[32005 `</final>`] · close_bias(+4.0→+16.0 from t=0)=[think→32003 `</think>`, between→32004 `<final>`, final→32005 `</final>`]
+[chat_demo] extra ban active: </final> banned in think/between modes
+
+  Model loaded in 10306 ms
+  Checkpoint: /Users/hungwei/Desktop/Proj/Mamba3-XR/checkpoints/latest_sft_cot_model.npz
+  dtype: bf16
+
+  Server: http://localhost:7861
+  WebSocket: ws://localhost:7861/ws
+============================================================
+
+[mw] mode think → between at n_out=103
+[mw] ✓ <final> injected into cache (2 ids, 84.0ms, pos 192→194)
+[mw] final_min guard: banning </final> for first 16 tokens
+[mw] mode final → done at n_out=135
+────────────────────────────── chat turn complete ──────────────────────────────
+  user: "What is 2 + 2? Answer in one short sentence.…"   reasoning=True
+  metrics: prompt=89t  out=135t  prefill=419ms  ttft=16ms  total=6629ms
+  middleware: [ mode=done  think=102/0  final_injected  final_tok=31(min=16)  
+close_bias=(4.0→16.0 from t=0 to t=0) ]

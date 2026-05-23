@@ -1,0 +1,159 @@
+<!-- s_phase2.html — Phase 2: Multi-Stage Training & CoT Loss Design
+     Redesigned with RL-style visual flow and prominent mathematical formulas
+     Inspired by RL fine-tuning pipeline visualization
+-->
+<div class="sec" style="max-width:100%;overflow:visible;">
+  <div class="sh" style="font-size:32pt;background:#E8EDF5;color:#1B2A47;border-left:6px solid #1B2A47;">Phase 2 — Multi-Stage Training &amp; CoT Loss Design</div>
+  <div class="sc" style="padding:3mm 3mm 2.5mm 3mm;max-width:100%;overflow:visible;">
+
+    <!-- ══════════════════════════════════════════
+         TOP: Large Mathematical Loss Formulas
+         ══════════════════════════════════════════ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-bottom:3mm;">
+      
+      <!-- LEFT: Pre-train Loss -->
+      <div style="background:#E8EDF5;border:3px solid #1B2A47;border-radius:8px;padding:4mm;position:relative;">
+        <div style="position:absolute;top:-5mm;left:50%;transform:translateX(-50%);background:#1B2A47;color:#FFF;padding:1.5mm 5mm;border-radius:5px;font-family:Helvetica,Arial,sans-serif;font-size:13pt;font-weight:800;white-space:nowrap;">
+          ① Pre-train Loss
+        </div>
+        <div style="margin-top:8mm;text-align:center;">
+          <div style="font-family:'Times New Roman',Times,serif;font-size:28pt;font-weight:700;color:#1B2A47;line-height:1.5;">
+            ℒ<sub style="font-size:18pt;">pre</sub> = ℒ<sub style="font-size:18pt;">Cross-Entropy</sub> + α·ℒ<sub style="font-size:18pt;">Load-Balance</sub><br>
+            + β·ℒ<sub style="font-size:18pt;">Router-Z</sub>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CoT SFT Loss -->
+      <div style="background:#FFF9F0;border:3px solid #8A3324;border-radius:8px;padding:4mm;position:relative;">
+        <div style="position:absolute;top:-5mm;left:50%;transform:translateX(-50%);background:#8A3324;color:#FFF;padding:1.5mm 5mm;border-radius:5px;font-family:Helvetica,Arial,sans-serif;font-size:13pt;font-weight:800;white-space:nowrap;">
+          ③ CoT SFT Loss
+        </div>
+        <div style="margin-top:8mm;text-align:center;">
+          <div style="font-family:'Times New Roman',Times,serif;font-size:28pt;font-weight:700;color:#8A3324;line-height:1.5;">
+            ℒ<sub style="font-size:18pt;">total</sub> = ℒ<sub style="font-size:18pt;">Weighted-Scaled-CE</sub> + λ·ℒ<sub style="font-size:18pt;">Format-Penalty</sub> + α·ℒ<sub style="font-size:18pt;">Load-Balance</sub> + β·ℒ<sub style="font-size:18pt;">Router-Z</sub>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /loss formulas -->
+
+    <!-- ══════════════════════════════════════════
+         MIDDLE: Single-Stage Training Pipeline Flow
+         ══════════════════════════════════════════ -->
+    <div style="background:#FFFFFF;border:3px solid #1B2A47;border-radius:8px;padding:3mm;margin-bottom:3mm;">
+
+      <svg viewBox="0 0 800 288" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:'Times New Roman',Times,serif;">
+        <defs>
+          <marker id="ph2a"  markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#1B2A47"/></marker>
+          <marker id="ph2r"  markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#8A3324"/></marker>
+          <marker id="ph2g"  markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#1B5E34"/></marker>
+          <marker id="ph2gl" markerWidth="9" markerHeight="9" refX="1" refY="4.5" orient="auto"><path d="M9,0 L0,4.5 L9,9 Z" fill="#1B5E34"/></marker>
+        </defs>
+
+        <!-- ── LEFT: Training Corpus (dark-header RL-input style) ── -->
+        <rect x="8" y="20" width="194" height="252" rx="10" fill="#E8EDF5" stroke="#1B2A47" stroke-width="2.5"/>
+        <rect x="8" y="20" width="194" height="36" rx="10" fill="#1B2A47"/>
+        <rect x="8" y="42"  width="194" height="14"  fill="#1B2A47"/>
+        <text x="105" y="43" font-size="13.5" fill="#FFF" text-anchor="middle" font-weight="700">Training Corpus  c</text>
+        <text x="180" y="48" font-size="9"    fill="#FFF" font-style="italic">i</text>
+
+        <!-- Dataset ① FineWeb-Edu -->
+        <rect x="18" y="62"  width="174" height="47" rx="5" fill="#FFF" stroke="#2563EB" stroke-width="1.8"/>
+        <text x="27" y="77"  font-size="11" fill="#1E3A8A" font-weight="700">① FineWeb-Edu</text>
+        <text x="27" y="90"  font-size="9"  fill="#374151">Knowledge pretraining</text>
+        <text x="27" y="102" font-size="9"  fill="#374151">Broad web · general text</text>
+
+        <!-- Dataset ② UltraChat -->
+        <rect x="18" y="115" width="174" height="47" rx="5" fill="#FFF" stroke="#D97706" stroke-width="1.8"/>
+        <text x="27" y="130" font-size="11" fill="#92400E" font-weight="700">② UltraChat 200k</text>
+        <text x="27" y="143" font-size="9"  fill="#374151">Instruction alignment</text>
+        <text x="27" y="155" font-size="9"  fill="#374151">Conversational SFT</text>
+
+        <!-- Dataset ③ Custom CoT -->
+        <rect x="18" y="168" width="174" height="47" rx="5" fill="#FFF" stroke="#8A3324" stroke-width="1.8"/>
+        <text x="27" y="183" font-size="11" fill="#8A3324" font-weight="700">③ Custom CoT  13M tok</text>
+        <text x="27" y="196" font-size="9"  fill="#374151">&lt;think&gt; → &lt;final&gt; format</text>
+        <text x="27" y="208" font-size="9"  fill="#374151">Structured reasoning</text>
+
+        <text x="105" y="231" font-size="9.5" fill="#1B2A47"  text-anchor="middle">b  = (x , y</text>
+        <text x="118" y="235" font-size="7.5" fill="#1B2A47"  font-style="italic">i</text>
+        <text x="134" y="235" font-size="7.5" fill="#1B2A47"  font-style="italic">i</text>
+        <text x="158" y="235" font-size="7"   fill="#1B2A47">masked</text>
+        <text x="176" y="231" font-size="9.5" fill="#1B2A47">) · ChatML</text>
+        <text x="105" y="249" font-size="9.5" fill="#1B5E34"  text-anchor="middle" font-weight="700">Single-Stage Training</text>
+        <text x="105" y="263" font-size="8.5" fill="#6B7280"  text-anchor="middle">Unified gradient step per batch</text>
+
+        <!-- ── Input arrow c_i ── -->
+        <line x1="202" y1="145" x2="244" y2="145" stroke="#1B2A47" stroke-width="2.8" marker-end="url(#ph2a)"/>
+        <text x="223" y="136" font-size="11" fill="#1B2A47" text-anchor="middle" font-style="italic">c<tspan font-size="7" dy="4">i</tspan></text>
+
+        <!-- ── CENTER: Dashed processing box ── -->
+        <rect x="248" y="36" width="288" height="218" rx="8" fill="none" stroke="#98A9D1" stroke-width="2.5" stroke-dasharray="10 5"/>
+
+        <!-- π_θ box (light blue like reference image) -->
+        <rect x="264" y="86" width="122" height="92" rx="8" fill="#C8DDEF" stroke="#1B2A47" stroke-width="2.8"/>
+        <text x="318" y="130" font-size="31" fill="#1B2A47" text-anchor="middle" font-weight="700" font-style="italic">π</text>
+        <text x="338" y="138" font-size="20" fill="#1B2A47" font-weight="700">θ</text>
+        <text x="325" y="163" font-size="10.5" fill="#1B2A47" text-anchor="middle" font-weight="600">Mamba3-TuckerMoE</text>
+
+        <!-- Generate arrow -->
+        <line x1="386" y1="132" x2="420" y2="132" stroke="#1B2A47" stroke-width="2.5" marker-end="url(#ph2a)"/>
+        <text x="403" y="122" font-size="9" fill="#1B2A47" text-anchor="middle" font-weight="600">Generate</text>
+
+        <!-- Document icon -->
+        <rect x="420" y="102" width="50" height="66" rx="4" fill="#FFF" stroke="#1B2A47" stroke-width="2"/>
+        <line x1="428" y1="115" x2="462" y2="115" stroke="#1B2A47" stroke-width="1.8"/>
+        <line x1="428" y1="125" x2="462" y2="125" stroke="#1B2A47" stroke-width="1.8"/>
+        <line x1="428" y1="135" x2="462" y2="135" stroke="#1B2A47" stroke-width="1.8"/>
+        <line x1="428" y1="145" x2="458" y2="145" stroke="#1B2A47" stroke-width="1.8"/>
+        <text x="445" y="179" font-size="8.5" fill="#1B2A47" text-anchor="middle">z</text>
+        <text x="450" y="183" font-size="7"   fill="#1B2A47">i</text>
+        <text x="455" y="179" font-size="8.5" fill="#1B2A47"> = {z</text>
+        <text x="473" y="183" font-size="7"   fill="#1B2A47">i</text>
+        <text x="474" y="176" font-size="6.5" fill="#1B2A47">CoT</text>
+        <text x="488" y="179" font-size="8.5" fill="#1B2A47">; y</text>
+        <text x="497" y="183" font-size="7"   fill="#1B2A47">i</text>
+        <text x="501" y="179" font-size="8.5" fill="#1B2A47">}</text>
+        <text x="445" y="197" font-size="9" fill="#1B2A47" text-anchor="middle" font-weight="700">Extract</text>
+
+        <!-- Arrow: doc → Loss box (dashed, red) -->
+        <line x1="470" y1="132" x2="554" y2="100" stroke="#8A3324" stroke-width="2.2" stroke-dasharray="6 3" marker-end="url(#ph2r)"/>
+        <text x="516" y="106" font-size="8.5" fill="#8A3324" text-anchor="middle" font-weight="600">ℒ compute</text>
+
+        <!-- ── RIGHT: Loss Computation ── -->
+        <rect x="556" y="36" width="236" height="122" rx="8" fill="#FFF9F0" stroke="#8A3324" stroke-width="2.5"/>
+        <rect x="556" y="36" width="236" height="33"  rx="8" fill="#8A3324"/>
+        <rect x="556" y="57" width="236" height="12"  fill="#8A3324"/>
+        <text x="674" y="58" font-size="13.5" fill="#FFF" text-anchor="middle" font-weight="700">Loss Computation  ℒ</text>
+        <text x="564" y="80"  font-size="10"  fill="#1B2A47" font-weight="600">ℒ = ℒ<tspan font-size="7" dy="3">CE,wtd</tspan><tspan dy="-3"> + λ·ℒ</tspan><tspan font-size="7" dy="3">FCP</tspan><tspan dy="-3"> + α·ℒ</tspan><tspan font-size="7" dy="3">lb</tspan><tspan dy="-3"> + β·ℒ</tspan><tspan font-size="7" dy="3">z</tspan></text>
+        <text x="564" y="97"  font-size="8.5" fill="#374151">FCP: penalise EOS in &lt;think&gt; zone</text>
+        <text x="564" y="110" font-size="8.5" fill="#374151">SFT-GO: ×8 weight on token boundaries</text>
+        <text x="564" y="123" font-size="8.5" fill="#374151">SCALe: max focus on &lt;final&gt; zone</text>
+        <text x="564" y="136" font-size="8.5" fill="#374151">Load-balance + Router-Z regulariser</text>
+
+        <!-- ∇θ arrow down -->
+        <line x1="674" y1="158" x2="674" y2="176" stroke="#1B5E34" stroke-width="2.8" marker-end="url(#ph2g)"/>
+        <text x="692" y="170" font-size="10.5" fill="#1B5E34" font-weight="700">∇θ</text>
+
+        <!-- ── RIGHT: AdamW Optimizer ── -->
+        <rect x="556" y="178" width="236" height="82" rx="8" fill="#E8F5E9" stroke="#1B5E34" stroke-width="2.5"/>
+        <text x="674" y="200" font-size="13" fill="#1B5E34" text-anchor="middle" font-weight="700">AdamW Optimizer</text>
+        <text x="674" y="218" font-size="11.5" fill="#1B2A47" text-anchor="middle" font-style="italic">θ ← θ − η · ∇<tspan font-style="normal" font-weight="700">θ</tspan> ℒ</text>
+        <text x="674" y="232" font-size="8.5" fill="#374151" text-anchor="middle">η=8×10⁻⁵  ·  Warmup=400  ·  Clip=1.0</text>
+        <text x="674" y="246" font-size="8.5" fill="#374151" text-anchor="middle">EMA decay=0.999  ·  No separate buffer</text>
+
+        <!-- ── Update θ arrow: AdamW left → across bottom → up into π_θ right ── -->
+        <path d="M556,219 L390,219 L390,148 L388,148" fill="none" stroke="#1B5E34" stroke-width="2.5" stroke-dasharray="7 3" marker-end="url(#ph2gl)"/>
+        <text x="470" y="210" font-size="9" fill="#1B5E34" text-anchor="middle" font-weight="700">Update θ</text>
+
+        <!-- ── Bottom: next batch feedback ── -->
+        <path d="M445,254 L445,272 L105,272 L105,272" fill="none" stroke="#98A9D1" stroke-width="2" stroke-dasharray="7 3" marker-end="url(#ph2a)"/>
+        <text x="275" y="268" font-size="8.5" fill="#98A9D1" text-anchor="middle" font-style="italic">Next batch  b</text>
+        <text x="324" y="271" font-size="7"   fill="#98A9D1" font-style="italic">i+1</text>
+
+      </svg>
+    </div><!-- /pipeline -->
+
+  </div>
+</div>

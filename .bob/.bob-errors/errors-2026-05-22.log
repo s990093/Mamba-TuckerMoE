@@ -1,0 +1,128 @@
+
+================================================================================
+ERROR LOGGED: 2026-05-22T07:55:08.368Z
+User ID: lai09150915@gmail.com
+================================================================================
+Error Name: TypeError
+Error Message: terminated
+
+Stack Trace:
+TypeError: terminated
+    at Fetch.onAborted (node:internal/deps/undici/undici:11350:53)
+    at Fetch.emit (node:events:519:28)
+    at Fetch.terminate (node:internal/deps/undici/undici:10508:14)
+    at Object.onError (node:internal/deps/undici/undici:11473:38)
+    at Request.onError (node:internal/deps/undici/undici:2232:31)
+    at Object.errorRequest (node:internal/deps/undici/undici:1726:17)
+    at TLSSocket.<anonymous> (node:internal/deps/undici/undici:6461:16)
+    at TLSSocket.emit (node:events:531:35)
+    at node:net:346:12
+    at TCP.done (node:internal/tls/wrap:671:7)
+================================================================================
+
+
+================================================================================
+ERROR LOGGED: 2026-05-22T08:01:24.230Z
+User ID: lai09150915@gmail.com
+================================================================================
+Error Name: TypeError
+Error Message: terminated
+
+Stack Trace:
+TypeError: terminated
+    at Fetch.onAborted (node:internal/deps/undici/undici:11350:53)
+    at Fetch.emit (node:events:519:28)
+    at Fetch.terminate (node:internal/deps/undici/undici:10508:14)
+    at Object.onError (node:internal/deps/undici/undici:11473:38)
+    at Request.onError (node:internal/deps/undici/undici:2232:31)
+    at Object.errorRequest (node:internal/deps/undici/undici:1726:17)
+    at TLSSocket.<anonymous> (node:internal/deps/undici/undici:6461:16)
+    at TLSSocket.emit (node:events:531:35)
+    at node:net:346:12
+    at TCP.done (node:internal/tls/wrap:671:7)
+================================================================================
+
+
+================================================================================
+ERROR LOGGED: 2026-05-22T08:40:09.429Z
+User ID: lai09150915@gmail.com
+================================================================================
+Error Name: TypeError
+Error Message: terminated
+
+Stack Trace:
+TypeError: terminated
+    at Fetch.onAborted (node:internal/deps/undici/undici:11350:53)
+    at Fetch.emit (node:events:519:28)
+    at Fetch.terminate (node:internal/deps/undici/undici:10508:14)
+    at Object.onError (node:internal/deps/undici/undici:11473:38)
+    at Request.onError (node:internal/deps/undici/undici:2232:31)
+    at Object.errorRequest (node:internal/deps/undici/undici:1726:17)
+    at TLSSocket.<anonymous> (node:internal/deps/undici/undici:6461:16)
+    at TLSSocket.emit (node:events:531:35)
+    at node:net:346:12
+    at TCP.done (node:internal/tls/wrap:671:7)
+================================================================================
+
+
+================================================================================
+ERROR LOGGED: 2026-05-22T12:40:53.609Z
+User ID: laihungwei29@gmail.com
+================================================================================
+Error Name: GatewayError
+Error Message: Failed to handle chat completion - HTTP 400: Bad Request - <html>
+<head><title>400 Bad Request</title></head>
+<body>
+<center><h1>400 Bad Request</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+
+
+Stack Trace:
+GatewayError: Failed to handle chat completion - HTTP 400: Bad Request - <html>
+<head><title>400 Bad Request</title></head>
+<body>
+<center><h1>400 Bad Request</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+
+    at t.fromResponse (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:765:8546)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async t.createChatCompletion (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:777:8820)
+    at async fnt.createChatCompletionWithTokenRenewal (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2152:235)
+    at async fnt.generateContentStreamInternal (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2157:52)
+    at async H6.loggingStreamWrapper (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:800:31296)
+    at async gY.processStreamResponse (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2463:81)
+    at async file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2457:22044
+    at async kQ.run (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2463:3153)
+    at async nwe.sendMessageStream (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2796:511)
+================================================================================
+
+
+================================================================================
+ERROR LOGGED: 2026-05-22T16:36:08.916Z
+User ID: laihungwei29@gmail.com
+================================================================================
+Error Name: ContextWindowExceededError
+Error Message: Interrupted by System: Context window exceeded.
+
+Your input used 231,803 tokens, but the maximum allowed is 200,000 tokens. Please try again with a shorter input.
+
+Stack Trace:
+ContextWindowExceededError: Interrupted by System: Context window exceeded.
+
+Your input used 231,803 tokens, but the maximum allowed is 200,000 tokens. Please try again with a shorter input.
+    at t.createChatCompletion (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:777:8745)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async fnt.createChatCompletionWithTokenRenewal (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2152:235)
+    at async fnt.generateContentStreamInternal (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2157:52)
+    at async H6.loggingStreamWrapper (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:800:31296)
+    at async gY.processStreamResponse (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2463:81)
+    at async file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2457:22044
+    at async kQ.run (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2463:3153)
+    at async nwe.sendMessageStream (file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:2796:511)
+    at async file:///Users/hungwei/.nvm/versions/node/v22.22.3/lib/node_modules/bobshell/bundle/bob.js:4569:10111
+================================================================================
+

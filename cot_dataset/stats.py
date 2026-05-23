@@ -12,19 +12,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import os
 import re
-import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 from tokenizers import Tokenizer
 
 # ---------------------------------------------------------------------------
@@ -60,7 +55,14 @@ CATEGORY_TO_BUCKET: dict[str, str] = {
     "theme_deconstruction": "dialogue", "technical_craft": "dialogue",
     "comparative_analysis": "summary", "recommendation_filter": "task",
     "trivia_context": "summary",
-    # Daily Conversation (noise)
+    # Daily Conversation (noise) — v2
+    "math_basic": "task", "math_applied": "task",
+    "arith_add_units": "task", "arith_add_mixed": "task",
+    "arith_mul_table": "task", "arith_mul_teens": "task",
+    "arith_mul_extended": "task", "arith_mul_hundred": "task",
+    "everyday_physics": "dialogue", "everyday_chemistry": "dialogue",
+    "object_materials": "dialogue",
+    "assistant_productivity": "task", "assistant_quick_task": "task",
     "tech_troubleshoot": "task", "learning_strategy": "dialogue",
     "time_management": "task", "writing_assist": "task",
     "culinary_science": "dialogue", "fitness_systems": "dialogue",
@@ -74,13 +76,14 @@ CATEGORY_TO_BUCKET: dict[str, str] = {
 }
 
 TARGETS = {
-    "emotion": 10000,
-    "self_awareness": 10000,
-    "email_summary": 10000,
-    "movie_intro": 5000,
-    "noise": 10000,
-    "system_call": 10000,
-    "deep_dive": 10000,
+    "emotion": 5000,
+    "self_awareness": 5000,
+    "email_summary": 5000,
+    "movie_intro": 1000,
+    "noise": 5000,
+    "math_drill": 200,
+    "system_call": 600,
+    "deep_dive": 700,
 }
 
 FILE_CATEGORY_GROUPS = {
@@ -104,6 +107,9 @@ FILE_CATEGORY_GROUPS = {
         "trivia_context",
     ],
     "noise": [
+        "everyday_physics", "everyday_chemistry", "object_materials",
+        "math_basic", "math_applied",
+        "assistant_productivity", "assistant_quick_task",
         "tech_troubleshoot", "learning_strategy", "time_management",
         "writing_assist", "culinary_science", "fitness_systems",
         "finance_logic", "travel_logistics", "general_knowledge",
@@ -115,6 +121,10 @@ FILE_CATEGORY_GROUPS = {
     "deep_dive": [
         "deep_diagnostic", "system_report", "comprehensive_analysis",
         "strategy_planning",
+    ],
+    "math_drill": [
+        "arith_add_units", "arith_add_mixed", "arith_mul_table",
+        "arith_mul_teens", "arith_mul_extended", "arith_mul_hundred",
     ],
 }
 
@@ -129,29 +139,51 @@ SUBCATEGORY_TARGETS = {
     "email_draft": 800, "email_reply": 800, "email_tone_adjust": 500,
     "meeting_summary": 600, "document_summary": 600, "task_extraction": 500,
     "bullet_point": 500, "priority_triage": 400, "academic_email": 300,
-    "plot_overview": 400, "character_analysis": 300,
-    "theme_deconstruction": 300, "technical_craft": 250,
-    "comparative_analysis": 300, "recommendation_filter": 250,
-    "trivia_context": 200,
-    "tech_troubleshoot": 300, "learning_strategy": 250,
-    "time_management": 250, "writing_assist": 250,
-    "culinary_science": 150, "fitness_systems": 150,
+    "plot_overview": 200, "character_analysis": 150,
+    "theme_deconstruction": 150, "technical_craft": 125,
+    "comparative_analysis": 150, "recommendation_filter": 125,
+    "trivia_context": 100,
+    "everyday_physics": 650, "everyday_chemistry": 650, "object_materials": 800,
+    "math_basic": 400, "math_applied": 200,
+    "assistant_productivity": 400, "assistant_quick_task": 350,
+    "tech_troubleshoot": 350, "learning_strategy": 200,
+    "time_management": 200, "writing_assist": 200,
+    "culinary_science": 100, "fitness_systems": 100,
     "finance_logic": 150, "travel_logistics": 150,
-    "general_knowledge": 200, "creative_problem": 150,
+    "general_knowledge": 250, "creative_problem": 200,
+    "arith_add_units": 40, "arith_add_mixed": 36,
+    "arith_mul_table": 48, "arith_mul_teens": 24,
+    "arith_mul_extended": 36, "arith_mul_hundred": 16,
     "tool_trigger": 300, "tool_response": 300,
     "deep_diagnostic": 200, "system_report": 150,
     "comprehensive_analysis": 200, "strategy_planning": 150,
 }
 
 TOKEN_BUDGETS = {
-    "emotion": 512,
-    "self_awareness": 512,
+    "emotion": 768,
+    "self_awareness": 768,
     "email_summary": 768,
     "movie_intro": 768,
-    "noise": 512,
-    "system_call": 512,
+    "noise": 768,
+    "system_call": 768,
+    "math_drill": 128,
     "deep_dive": 2048,
 }
+
+# Per-subcategory overrides for noise (v2); default uses TOKEN_BUDGETS["noise"]
+NOISE_TOKEN_BUDGETS = {
+    "math_basic": 384,
+    "assistant_quick_task": 512,
+}
+
+
+def token_budget_for_record(rec: dict) -> int | None:
+    group = rec.get("_group")
+    if group == "noise":
+        cat = rec.get("category") or ""
+        return NOISE_TOKEN_BUDGETS.get(cat, TOKEN_BUDGETS["noise"])
+    return TOKEN_BUDGETS.get(group or "")
+
 
 FORBIDDEN_PHRASES = [
     "I'm sorry to hear that", "That must be really hard",
@@ -197,17 +229,21 @@ def count_tokens(text: str, tok: Tokenizer | None) -> int:
     return len(tok.encode(text).ids)
 
 
-def build_chatml(entry: dict, tok: Tokenizer | None) -> int:
-    """Return the full ChatML token count for one entry."""
+def batch_count_tokens(texts: list[str], tok: Tokenizer | None) -> list[int]:
+    if tok is None:
+        return [max(1, int(len(t.split()) * 1.3)) for t in texts]
+    return [len(enc.ids) for enc in tok.encode_batch(texts)]
+
+
+def build_chatml_text(entry: dict) -> str:
     bucket = CATEGORY_TO_BUCKET.get(entry.get("category", ""), "dialogue")
     sys_prompt = SYSTEM_PROMPTS[bucket]
-    chatml = (
+    return (
         f"<|im_start|>system\n{sys_prompt}<|im_end|>\n"
         f"<|im_start|>user\n{entry.get('input', '')}<|im_end|>\n"
         f"<|im_start|>assistant\n<think>\n{entry.get('cot', '')}\n</think>"
         f"<final>\n{entry.get('output', '')}\n</final><|im_end|>"
     )
-    return count_tokens(chatml, tok)
 
 
 # ---------------------------------------------------------------------------
@@ -219,20 +255,22 @@ def infer_file_group(filepath: str, entry: dict) -> str:
     basename = p.stem.lower()
     parent = p.parent.name.lower()
     combined = f"{parent}/{basename}"
-    if "emotion" in basename or parent == "emotion":
+    if "emotion" in basename or parent.startswith("emotion"):
         return "emotion"
-    if "self" in basename or parent == "self":
+    if "self" in basename or parent.startswith("self"):
         return "self_awareness"
-    if "email" in basename or "mail" in basename or parent in ("email_summary", "mail"):
+    if "email" in basename or "mail" in basename or parent.startswith("email") or parent.startswith("mail"):
         return "email_summary"
-    if "movie" in basename or parent in ("movie_intro", "movie"):
+    if "movie" in basename or parent.startswith("movie"):
         return "movie_intro"
-    if "deep" in basename or parent == "deep_dive":
+    if "deep" in basename or parent.startswith("deep"):
         return "deep_dive"
-    if "system_call" in basename or parent == "system_call":
+    if "system_call" in basename or parent.startswith("system"):
         return "system_call"
-    if "noise" in basename or parent == "noise":
+    if "noise" in basename or parent.startswith("noise"):
         return "noise"
+    if "math_drill" in basename or parent.startswith("math"):
+        return "math_drill"
     cat = entry.get("category", "")
     for group, cats in FILE_CATEGORY_GROUPS.items():
         if cat in cats:
@@ -382,7 +420,7 @@ def render_progress_table(by_group: dict[str, list[dict]]) -> None:
     total_target = 0
     total_current = 0
 
-    for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "system_call", "deep_dive", "other"]:
+    for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "math_drill", "system_call", "deep_dive", "other"]:
         entries = by_group.get(group, [])
         target = TARGETS.get(group, 0)
         current = len(entries)
@@ -498,7 +536,7 @@ def render_token_table(records: list[dict], title: str) -> None:
 
 def render_aggregate_totals(records: list[dict]) -> None:
     """Per-group and grand total: record count, total tokens for each field."""
-    groups_order = ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "system_call", "deep_dive", "other"]
+    groups_order = ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "math_drill", "system_call", "deep_dive", "other"]
 
     table = Table(title="📋 Aggregate Totals — Records & Tokens", show_lines=True)
     table.add_column("Group", style="bold cyan")
@@ -560,18 +598,21 @@ def render_budget_violations(records: list[dict], by_group: dict[str, list[dict]
     table.add_column("Worst Offender ID")
 
     for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "system_call", "deep_dive"]:
-        budget = TOKEN_BUDGETS.get(group)
-        if budget is None:
-            continue
         group_recs = [r for r in records if r["_group"] == group]
         if not group_recs:
             continue
 
-        over = [r for r in group_recs if r["chatml_tokens"] > budget]
+        over = [
+            r for r in group_recs
+            if (b := token_budget_for_record(r)) is not None and r["chatml_tokens"] > b
+        ]
         worst = max(group_recs, key=lambda r: r["chatml_tokens"]) if group_recs else None
+        budget_label = (
+            "384~768 (per subcat)" if group == "noise" else str(TOKEN_BUDGETS.get(group, "—"))
+        )
         table.add_row(
             group,
-            str(budget),
+            budget_label,
             str(len(group_recs)),
             str(len(over)),
             f"{len(over) / len(group_recs) * 100:.1f}%" if group_recs else "—",
@@ -780,32 +821,39 @@ def main() -> None:
     console.print()
 
     # ----- Tokenization -----
-    console.print("[bold]Tokenizing all entries (this may take a moment)...[/bold]")
+    console.print("[bold]Tokenizing all entries (batch mode, this may take a moment)...[/bold]")
     enriched: list[dict] = []
-    for entry in all_entries:
-        input_text = entry.get("input", "")
-        cot_text = entry.get("cot", "")
-        output_text = entry.get("output", "")
 
+    input_texts = [entry.get("input", "") for entry in all_entries]
+    cot_texts = [entry.get("cot", "") for entry in all_entries]
+    output_texts = [entry.get("output", "") for entry in all_entries]
+    chatml_texts = [build_chatml_text(entry) for entry in all_entries]
+
+    input_token_counts = batch_count_tokens(input_texts, tok)
+    cot_token_counts = batch_count_tokens(cot_texts, tok)
+    output_token_counts = batch_count_tokens(output_texts, tok)
+    chatml_token_counts = batch_count_tokens(chatml_texts, tok)
+
+    for idx, entry in enumerate(all_entries):
         rec = {
             "id": entry.get("id", "???"),
             "category": entry.get("category", "unknown"),
             "_group": entry.get("_group", "other"),
             "_source_file": entry.get("_source_file", "?"),
-            "input_tokens": count_tokens(input_text, tok),
-            "cot_tokens": count_tokens(cot_text, tok),
-            "output_tokens": count_tokens(output_text, tok),
-            "chatml_tokens": build_chatml(entry, tok),
-            "output_words": word_count(output_text),
-            "input_words": word_count(input_text),
-            "cot_steps": cot_step_count(cot_text),
+            "input_tokens": input_token_counts[idx],
+            "cot_tokens": cot_token_counts[idx],
+            "output_tokens": output_token_counts[idx],
+            "chatml_tokens": chatml_token_counts[idx],
+            "output_words": word_count(output_texts[idx]),
+            "input_words": word_count(input_texts[idx]),
+            "cot_steps": cot_step_count(cot_texts[idx]),
         }
         enriched.append(rec)
 
     console.print(f"  Tokenized [bold]{len(enriched)}[/bold] entries.\n")
 
     # ----- Per-group token stats -----
-    for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "system_call", "deep_dive", "other"]:
+    for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "math_drill", "system_call", "deep_dive", "other"]:
         group_recs = [r for r in enriched if r["_group"] == group]
         if group_recs:
             render_token_table(group_recs, group)
@@ -914,7 +962,7 @@ def main() -> None:
             "vocab_size": tok.get_vocab_size() if tok else None,
             "groups": {},
         }
-        for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "system_call", "deep_dive", "other"]:
+        for group in ["emotion", "self_awareness", "email_summary", "movie_intro", "noise", "math_drill", "system_call", "deep_dive", "other"]:
             grecs = [r for r in enriched if r["_group"] == group]
             if not grecs:
                 continue

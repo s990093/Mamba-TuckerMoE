@@ -77,7 +77,23 @@
       "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/verify_mlx_stack.shssh 3090-one)",
       "Bash(/Users/hungwei/Desktop/Proj/Mamba3-XR/run_mlx_demo.sh)",
       "Bash(.venv/bin/pip install *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(N=5 PROMPT=\"What is 2 + 2? Answer in one sentence.\" MAX_TOKENS=256 bash mamba3_mlx/run_cot_verify.sh)",
+      "Bash(make -C mamba3_mlx chat-kill)",
+      "Bash(CHAT_PORT=7861 PROMPT=\"What is 2 + 2? Answer in one short sentence.\" MAX_TOK=300 make -C mamba3_mlx chat-smoke)",
+      "Bash(make --dry-run convert-sidecar)",
+      "Bash(make --dry-run run)",
+      "Bash(wait)",
+      "Bash(pkill -f \"bake_cache\")",
+      "Bash(pkill -f \"run_sjd_demo\")",
+      "Bash(grep -n \"#[0-9a-fA-F]\\\\{3,6\\\\}\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -nP \"fill=\\\\\"#\\(?!1B2A47|98A9D1|9374B1|D8B868|8A3324|1B5E34|E8EDF5|FFF9F0|ffffff|fff\\\\b|FFFFFF|1B2A|98A9|9374|D8B8|8A33|1B5E|E8ED|FFF9\\)[0-9a-fA-F]{3,6}\\\\\"\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -nP \"stroke=\\\\\"#\\(?!1B2A47|98A9D1|9374B1|D8B868|8A3324|1B5E34|E8EDF5|FFF9F0|ffffff|fff\\\\b|FFFFFF|D8B4A0|4B5563\\)[0-9a-fA-F]{3,6}\\\\\"\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -nP \"color:\\\\s*#\\(?!1B2A47|98A9D1|9374B1|D8B868|8A3324|1B5E34|E8EDF5|FFF9F0|ffffff|fff\\\\b|FFFFFF|4B5563|1B2A|98A9|9374|D8B8|8A33|1B5E|E8ED|FFF9\\)[0-9a-fA-F]{3,6}\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -nP \"background:\\\\s*#\\(?!1B2A47|98A9D1|9374B1|D8B868|8A3324|1B5E34|E8EDF5|FFF9F0|ffffff|fff\\\\b|FFFFFF|4B5563|ffffff\\)[0-9a-fA-F]{3,6}\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -cP \"#[0-9a-fA-F]{3,6}\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -nP \"#\\(?!\\(1B2A47|98A9D1|9374B1|D8B868|8A3324|1B5E34|E8EDF5|FFF9F0|ffffff|fff|FFFFFF|D1F0DB|4B5563|D8B4A0|163d2b|1B5E|98A9|9374|D8B8|8A33|1B5E|E8ED|FFF9|1B2A\\)[0-9a-fA-F]\\)[0-9a-fA-F]{2,5}\\\\b\" /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase3.html)",
+      "Bash(grep -vE \"^#\\(1B2A47|98A9D1|9374B1|D8B868|8A3324|1B5E34|E8EDF5|FFF9F0|FFFFFF|D1F0DB|4B5563|D8B4A0|163d2b|ffffff|1b2a47|98a9d1|9374b1|d8b868|8a3324|1b5e34|e8edf5|fff9f0\\)$\")"
     ]
   }
 }

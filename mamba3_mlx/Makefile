@@ -10,22 +10,39 @@ RUN     := $(PYTHON) $(ROOT)/run.py
 CHECKPOINT ?= $(REPO)/checkpoints/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 
+# ── Auto-select fastest checkpoint ────────────────────────────────────────────
+# Strips .npz / .pt to derive the MLX-native sidecar name.
+# If <stem>.mlx_bf16.npz exists → pass it directly (mmap, <5 ms load).
+# Otherwise fall back to CHECKPOINT (Python-side auto-converts on first run).
+_CKPT_STEM := $(patsubst %.pt,%,$(patsubst %.npz,%,$(CHECKPOINT)))
+_SIDECAR   := $(_CKPT_STEM).mlx_bf16.npz
+_FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
+
 # ── Generation defaults ────────────────────────────────────────────────────────
-PROMPT    ?= who are you?
+PROMPT    ?= Who are you?
 MODE      ?= self_awareness
-TEMP      ?= 0.3
-MAX_TOK   ?= 512
+TEMP      ?= 0.15     # 微調：給予極小幅度的彈性，避免字詞過度僵化
+MAX_TOK   ?= 512      # 保持：符合 v2 SFT 規範的預算
 SEED      ?= 0
 STREAM    ?= 1
 NO_THINK  ?= 0
+
+# Sampling knobs (針對 400M 級別混合架構最佳化)
+TOP_K          ?= 20      # 縮緊 (原本 40)：暴力切斷長尾，不讓小模型有機會選到奇怪的碎 Token
+TOP_P          ?= 0.85    # 縮緊 (原本 0.9)：配合 MIN_P 進行雙重保險
+MIN_P          ?= 0.08    # 強化 (原本 0.05)：更激進地過濾掉那些絕對機率低於最高機率 8% 的毒藥選項
+REP_PEN        ?= 1.32    # 微調 (原本 1.1)：稍微加重，避免連續標點符號或單字重複
+PRES_PEN       ?= 0.42     # 保持：不需要無差別懲罰新詞
+FREQ_PEN       ?= 0.05    # 強化 (原本 0.02)：針對 Mamba 特性，打斷「整個句型結構」的重複
+REPEAT_LAST_N  ?= 256     # 關鍵修改 (原本 64)：大幅擴大懲罰的視野
 # Stop control
-NO_EOS    ?= 0          # set to 1 to ignore EOS/<|im_end|> tokens
-STOP_STR  ?=            # e.g. STOP_STR='</final>'
+NO_EOS    ?= 0           # set to 1 to ignore EOS/<|im_end|> tokens
+STOP_STR  ?=             # e.g. STOP_STR='</final>'
 # Output
-SHOW_SPEC ?= 0          # set to 1 to show special tokens in stream
+SHOW_SPEC ?= 0           # set to 1 to show special tokens in stream
 # Performance
-COMPILE   ?= 0          # set to 1 to enable mx.compile on decode steps
-WARMUP    ?= 3          # JIT warmup steps when COMPILE=1
+COMPILE   ?= 0           # set to 1 to enable mx.compile on decode steps
+WARMUP    ?= 3           # JIT warmup steps when COMPILE=1
 
 _STREAM_FLAG  = $(if $(filter 1,$(STREAM)),--stream,)
 _THINK_FLAG   = $(if $(filter 1,$(NO_THINK)),--no-seed-think,)
@@ -35,11 +52,18 @@ _COMPILE_FLAG = $(if $(filter 1,$(COMPILE)),--full-decode-compile --warmup $(WAR
 _STOPSTR_FLAG = $(if $(strip $(STOP_STR)),--stop-string "$(STOP_STR)",)
 
 _BASE = \
-  --model_path     "$(CHECKPOINT)" \
+  --model_path     "$(_FAST_CKPT)" \
   --tokenizer_path "$(TOKENIZER)" \
   --prompt         "$(PROMPT)" \
   --mode           $(MODE) \
   --temp           $(TEMP) \
+  --top_k          $(TOP_K) \
+  --top_p          $(TOP_P) \
+  --min_p          $(MIN_P) \
+  --rep_pen        $(REP_PEN) \
+  --pres_pen       $(PRES_PEN) \
+  --freq_pen       $(FREQ_PEN) \
+  --repeat_last_n  $(REPEAT_LAST_N) \
   --max_tokens     $(MAX_TOK) \
   --seed           $(SEED) \
   $(_STREAM_FLAG) \
@@ -52,7 +76,17 @@ _BASE = \
 _REQUIRE_PROMPT = @test -n "$(PROMPT)" || \
   (echo 'Set PROMPT="your question"  (current default: who are you?)' && exit 1)
 
-.PHONY: run self emotion email movie daily syscall deep default debug help
+# Print selected checkpoint path once at parse time (visible for every target).
+$(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $(CHECKPOINT)  (sidecar not found — will convert on first run)))
+
+.PHONY: run self emotion email movie daily syscall deep default debug help \
+        cot-demo cot-verify chat chat-mock chat-smoke chat-kill \
+        convert-sidecar
+
+## convert-sidecar: one-time export of PyTorch-style .npz → MLX-native sidecar
+## (run once; subsequent loads use mmap instant-path automatically)
+convert-sidecar:
+	cd $(REPO) && $(PYTHON) $(ROOT)/tools/convert_sidecar.py "$(CHECKPOINT)" --dtype bf16
 
 ## run (default): self_awareness mode, "who are you?"
 run:
@@ -78,6 +112,10 @@ movie:
 daily:
 	$(RUN) $(_BASE) --mode daily_conversation
 
+## math: arithmetic drill (EN/ZH short answer)
+math:
+	$(RUN) $(_BASE) --mode math_drill --prompt "$(or $(PROMPT),What is 7 times 8?)"
+
 ## syscall: system-call / tool invocation
 syscall:
 	$(RUN) $(_BASE) --mode system_call
@@ -89,10 +127,17 @@ deep:
 ## default: plain assistant (no category system prompt)
 default:
 	$(RUN) \
-	  --model_path     "$(CHECKPOINT)" \
+	  --model_path     "$(_FAST_CKPT)" \
 	  --tokenizer_path "$(TOKENIZER)" \
 	  --prompt         "$(PROMPT)" \
 	  --temp           $(TEMP) \
+	  --top_k          $(TOP_K) \
+	  --top_p          $(TOP_P) \
+	  --min_p          $(MIN_P) \
+	  --rep_pen        $(REP_PEN) \
+	  --pres_pen       $(PRES_PEN) \
+	  --freq_pen       $(FREQ_PEN) \
+	  --repeat_last_n  $(REPEAT_LAST_N) \
 	  --max_tokens     $(MAX_TOK) \
 	  --seed           $(SEED) \
 	  $(_STREAM_FLAG) \
@@ -106,6 +151,42 @@ default:
 debug:
 	$(RUN) $(_BASE) --no-eos-stop --show-special
 
+# ── CoT middleware (mamba3_mlx/mv/) ───────────────────────────────────────────
+# These don't touch run.py / generator.py / the middleware modules — they
+# wire the middleware into a separate decode loop in run_cot.py.
+
+## cot-demo: single-shot run through cot_middleware (PROMPT='…' MAX_TOK=… MODE=…)
+cot-demo:
+	PROMPT="$(PROMPT)" MAX_TOKENS="$(MAX_TOK)" MODE="$(MODE)" \
+	  bash $(ROOT)/run_cot.sh
+
+## cot-verify: 5-trial sweep — verifies <think>…</think><final>…</final> framing
+cot-verify:
+	N=5 PROMPT="$(PROMPT)" MAX_TOKENS="$(MAX_TOK)" MODE="$(MODE)" \
+	  bash $(ROOT)/run_cot_verify.sh
+
+# ── Chat demo (WebSocket / FastAPI, mamba3_mlx native stack) ──────────────────
+CHAT_PORT ?= 7860
+
+## chat: boot the chat_demo WebSocket server (real inference, port $CHAT_PORT)
+chat:
+	cd $(REPO) && $(PYTHON) -m mamba3_mlx.chat_demo --port $(CHAT_PORT)
+
+## chat-mock: boot chat_demo in mock mode (UI only, no MLX weights)
+chat-mock:
+	cd $(REPO) && $(PYTHON) -m mamba3_mlx.chat_demo --port $(CHAT_PORT) --mock
+
+## chat-smoke: launch the server, fire one WS chat turn, assert <think>+<final>, shut down
+chat-smoke:
+	$(PYTHON) $(ROOT)/chat_smoke_test.py --port $(CHAT_PORT) \
+	  --prompt "$(PROMPT)" --max-tokens $(MAX_TOK)
+
+## chat-kill: terminate any leftover uvicorn process bound to $CHAT_PORT
+chat-kill:
+	@pid="$$(lsof -ti tcp:$(CHAT_PORT) 2>/dev/null)"; \
+	if [ -n "$$pid" ]; then echo "killing pid $$pid on port $(CHAT_PORT)"; kill -9 $$pid; \
+	else echo "no process on port $(CHAT_PORT)"; fi
+
 help:
 	@echo ""
 	@echo "mamba3_mlx quick-launch"
@@ -116,24 +197,32 @@ help:
 	@echo "  make email        → summarise & email"
 	@echo "  make movie        → movie intro / analysis"
 	@echo "  make daily        → daily conversation"
+	@echo "  make math         → math drill (PROMPT='What is 23 times 45?')"
 	@echo "  make syscall      → system-call / tool invocation"
 	@echo "  make deep         → deep dive / long-form analysis"
 	@echo "  make default      → plain assistant (no mode)"
 	@echo "  make debug        → no-eos-stop + show-special (raw model inspection)"
 	@echo ""
 	@echo "Variables (all optional):"
-	@echo "  PROMPT='...'      user message         (default: 'who are you?')"
-	@echo "  MODE=emotion      system prompt mode   (default: self_awareness)"
-	@echo "  TEMP=0.0          temperature          (default: 0.1;  0 = greedy)"
-	@echo "  MAX_TOK=512       max tokens           (default: 512)"
-	@echo "  SEED=42           random seed          (default: 0)"
-	@echo "  STREAM=0          0=batch 1=stream     (default: 1)"
-	@echo "  NO_THINK=1        skip <think> seed    (default: 0)"
-	@echo "  NO_EOS=1          ignore EOS tokens    (default: 0)"
-	@echo "  STOP_STR='</x>'   extra stop string    (default: empty)"
-	@echo "  SHOW_SPEC=1       show special tokens  (default: 0)"
-	@echo "  COMPILE=1         mx.compile decode    (default: 0)"
-	@echo "  WARMUP=5          JIT warmup steps     (default: 3, used when COMPILE=1)"
+	@echo "  PROMPT='...'         user message              (default: 'who are you?')"
+	@echo "  MODE=emotion         system prompt mode        (default: self_awareness)"
+	@echo "  TEMP=0.0             temperature               (default: 0.1;  0 = greedy)"
+	@echo "  TOP_K=50             top-k candidates          (default: 40;   0 = off)"
+	@echo "  TOP_P=0.95           nucleus sampling p        (default: 0.9)"
+	@echo "  MIN_P=0.02           min-p filter              (default: 0.05)"
+	@echo "  REP_PEN=1.2          repetition penalty        (default: 1.1;  1.0 = off)"
+	@echo "  PRES_PEN=0.1         presence penalty          (default: 0.0)"
+	@echo "  FREQ_PEN=0.05        frequency penalty         (default: 0.02)"
+	@echo "  REPEAT_LAST_N=128    penalty context window    (default: 64)"
+	@echo "  MAX_TOK=512          max tokens to generate    (default: 512)"
+	@echo "  SEED=42              random seed               (default: 0)"
+	@echo "  STREAM=0             0=batch 1=stream          (default: 1)"
+	@echo "  NO_THINK=1           skip <think> seed         (default: 0)"
+	@echo "  NO_EOS=1             ignore EOS tokens         (default: 0)"
+	@echo "  STOP_STR='</x>'      extra stop string         (default: empty)"
+	@echo "  SHOW_SPEC=1          show special tokens       (default: 0)"
+	@echo "  COMPILE=1            mx.compile decode         (default: 0)"
+	@echo "  WARMUP=5             JIT warmup steps          (default: 3)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make                                      # default: who are you? / self_awareness"
@@ -143,3 +232,15 @@ help:
 	@echo "  make debug PROMPT='Hello' MAX_TOK=50     # inspect past EOS boundary"
 	@echo "  make self NO_EOS=1 STOP_STR='</final>'   # stop on </final> only"
 	@echo "  make self COMPILE=1                       # faster decode after warmup"
+	@echo ""
+	@echo "CoT middleware (mamba3_mlx/mv/cot_*.py):"
+	@echo "  make cot-demo                              # one shot through middleware"
+	@echo "  make cot-verify                            # 5-trial sweep, asserts <think>+<final> blocks"
+	@echo "  make cot-demo PROMPT='Explain X' MAX_TOK=512"
+	@echo ""
+	@echo "Chat WebSocket server (mamba3_mlx native stack):"
+	@echo "  make chat                                  # boot server at http://localhost:7860"
+	@echo "  make chat-mock                             # UI-only (no MLX weights)"
+	@echo "  make chat-smoke                            # boot + one WS turn + verdict"
+	@echo "  make chat-kill                             # kill leftover server on \$$CHAT_PORT"
+	@echo "  CHAT_PORT=8080 make chat                   # custom port"

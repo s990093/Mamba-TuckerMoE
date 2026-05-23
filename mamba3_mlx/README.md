@@ -64,7 +64,7 @@ mamba3_mlx/
 │
 └── utils/
     ├── config.py               # Mamba3Config, GenerationConfig dataclasses
-    └── system_prompts.py       # 7 SFT-category system prompts + resolve helper
+    └── system_prompts.py       # 8 SFT-category system prompts + resolve helper
 ```
 
 ---
@@ -146,6 +146,7 @@ Run from inside `mamba3_mlx/`:
 | `make email` | `summarize_email` | `who are you?` |
 | `make movie` | `movie_intro` | `who are you?` |
 | `make daily` | `daily_conversation` | `who are you?` |
+| `make math` | `math_drill` | `What is 7 times 8?` |
 | `make syscall` | `system_call` | `who are you?` |
 | `make deep` | `deep_dive` | `who are you?` |
 | `make default` | *(none)* | `who are you?` |
@@ -166,7 +167,7 @@ Makefile variables (all optional):
 
 ## System prompt modes
 
-Seven modes correspond directly to the SFT-CoT training categories. Pass via `--mode` or the Makefile target.
+Eight modes correspond directly to the SFT-CoT training categories. Pass via `--mode` or the Makefile target.
 
 | Mode key | Alias | Description |
 |----------|-------|-------------|
@@ -175,6 +176,7 @@ Seven modes correspond directly to the SFT-CoT training categories. Pass via `--
 | `summarize_email` | `email` | Conclusion-first structured output |
 | `movie_intro` | `movie` | Structured film analysis — premise / theme / craft |
 | `daily_conversation` | `daily` | Practical everyday answers, explicit assumptions |
+| `math_drill` | `math` | Sparse arithmetic drill; natural CoT; final = digits only |
 | `system_call` | `syscall` | Emits `[CALL: tool {args}]` when tool invocation needed |
 | `deep_dive` | `deep` | Long-form analysis — problem model / causal factors / trade-offs |
 

@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      /* ── Universal Academic Palette ──────────────────────────── */
+      :root {
+        --deep-navy: #1b2a47;    /* main text, borders (replaces pure black) */
+        --gray-blue: #98a9d1;    /* main blocks, general items */
+        --soft-purple: #9374b1;  /* secondary blocks, extensions */
+        --mustard-gold: #d8b868; /* visual core, focal points */
+        --rust-red: #8a3324;     /* warnings, contrast, baselines */
+        --deep-green: #1b5e34;   /* positive results, conclusions */
+        --ice-blue: #e8edf5;     /* large cold backgrounds */
+        --sand-beige: #fff9f0;   /* small warm backgrounds */
+        
+        /* Legacy aliases for compatibility */
+        --navy: #1b2a47;
+        --burg: #8a3324;
+        --bg: #ffffff;
+        --card: #ffffff;
+        --tx: #1b2a47;
+        --mu: #4b5563;
+        --bo: #98a9d1;
+      }
+      @page {
+        size: A0 portrait;
+        margin: 0;
+      }
+      @media screen {
+        html {
+          background: #b0b8c8;
+          padding: 12px;
+        }
+        .pw {
+          transform: scale(0.45);
+          transform-origin: top left;
+        }
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Times New Roman", Times, Georgia, serif;
+        color: var(--deep-navy);
+        font-size: 22pt;
+      }
+
+      /* ── POSTER SHELL ── */
+      .poster {
+        width: 841mm;
+        height: 1189mm;
+        padding: 12mm 16mm 10mm 16mm;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      /* ── HEADER ── */
+      .hdr {
+        display: flex;
+        align-items: flex-start;
+        gap: 8mm;
+        padding-bottom: 4.5mm;
+        border-bottom: 3.5px solid var(--deep-navy);
+        margin-bottom: 4.5mm;
+        flex-shrink: 0;
+        background: transparent;
+      }
+      .logo {
+        width: 48mm;
+        height: 48mm;
+        object-fit: contain;
+        flex-shrink: 0;
+        margin-top: 2mm;
+      }
+      .hb {
+        flex: 1;
+        text-align: center;
+      }
+      .ht {
+        font-size: 62pt;
+        font-weight: 800;
+        color: var(--deep-navy);
+        line-height: 1.06;
+        margin-bottom: 3mm;
+        letter-spacing: -0.5pt;
+        text-align: center;
+      }
+      .hv {
+        font-size: 20pt;
+        font-weight: 700;
+        color: var(--rust-red);
+        text-transform: uppercase;
+        letter-spacing: 1.5pt;
+        margin-bottom: 2.5mm;
+        border-bottom: 2px solid var(--gray-blue);
+        padding-bottom: 1.5mm;
+        text-align: center;
+      }
+      .hauth {
+        display: flex;
+        gap: 0;
+        overflow: hidden;
+      }
+      .hau {
+        flex: 1;
+        padding: 2.5mm 3.5mm;
+        font-size: 13pt;
+        line-height: 1.38;
+        background: #FFFFFF;
+        text-align: center;
+      }
+      .hau .nm {
+        font-size: 24pt;
+        font-weight: 700;
+        color: var(--deep-navy);
+        display: block;
+        margin-bottom: 1.5mm;
+      }
+      .hau .af {
+        font-size: 16pt;
+        color: var(--mu);
+        display: block;
+        line-height: 1.38;
+      }
+      .hau .em {
+        font-size: 14pt;
+        color: var(--rust-red);
+        display: block;
+        margin-top: 1.5mm;
+      }
+
+      /* ── PIPELINE ── */
+      .pipe-wrap {
+        flex-shrink: 0;
+        margin-bottom: 5mm;
+      }
+      .pipe {
+        display: flex;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 2px solid var(--deep-navy);
+      }
+      .pp {
+        flex: 1;
+        padding: 2.5mm 3.5mm;
+        font-size: 15pt;
+        line-height: 1.3;
+        border-right: 2px solid var(--gray-blue);
+      }
+      .pp:last-child {
+        border-right: none;
+      }
+      .pp b {
+        display: block;
+        font-size: 16.5pt;
+        font-weight: 700;
+        border-bottom: 2px solid var(--gray-blue);
+        padding-bottom: 0.8mm;
+        margin-bottom: 0.8mm;
+        color: var(--deep-navy);
+      }
+      .pp,
+      .pp * {
+        color: var(--deep-navy);
+      }
+      /* Flat design with universal palette */
+      .pp.amber {
+        background: #FEF3C7;
+        border-right-color: #D97706;
+      }
+      .pp.blue {
+        background: var(--ice-blue);
+        border-right-color: var(--gray-blue);
+      }
+      .pp.green {
+        background: #D1FAE5;
+        border-right-color: var(--deep-green);
+      }
+      .pp.purple {
+        background: #F3E8FF;
+        border-right-color: var(--soft-purple);
+      }
+      .pp.out {
+        background: var(--sand-beige);
+        border-right-color: var(--mustard-gold);
+      }
+
+      /* ── COLUMNS ── */
+      .cols {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12mm;
+        min-height: 0;
+        align-items: stretch;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 4.5mm;
+      }
+      [id^="slot-"] {
+        display: contents;
+      }
+
+      /* ── SECTION CARDS ── */
+      .sec {
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--card);
+        border: 2.5px solid var(--gray-blue);
+        box-shadow: none;
+      }
+      .sec.s {
+        background: var(--ice-blue);
+      }
+
+      /* ── SECTION HEADERS — flat design with deep navy ── */
+      .sh,
+      .sh.green,
+      .sh.blue,
+      .sh.purple,
+      .sh.red {
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 30pt;
+        font-weight: 700;
+        color: var(--deep-navy);
+        padding: 2.5mm 5mm 2mm 8mm;
+        margin: 0;
+        line-height: 1.15;
+        background: var(--ice-blue);
+        border-left: 6px solid var(--deep-navy);
+        border-bottom: 2px solid var(--gray-blue);
+        letter-spacing: -0.2pt;
+      }
+
+      .sc {
+        padding: 2mm 4mm;
+      }
+      .svgw {
+        width: 100%;
+        display: block;
+      }
+      .svgw svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      /* ── STAT BOXES ── */
+      .ks3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2.5mm;
+      }
+      .ks2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2.5mm;
+      }
+      .sb {
+        background: var(--sand-beige);
+        border: 2px solid var(--gray-blue);
+        border-radius: 5px;
+        padding: 2.5mm 3mm;
+        text-align: center;
+        border-top: 3px solid var(--deep-navy);
+      }
+      .sn {
+        font-size: 48pt;
+        font-weight: 800;
+        color: var(--rust-red);
+        line-height: 1;
+        display: block;
+      }
+      .sl {
+        font-size: 15pt;
+        color: var(--mu);
+        line-height: 1.3;
+        display: block;
+        margin-top: 0.8mm;
+      }
+
+      /* ── FIGURES ── */
+      .figph {
+        background: var(--ice-blue);
+        border: 2px dashed var(--gray-blue);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: var(--mu);
+        font-size: 15pt;
+        font-style: italic;
+        padding: 5mm;
+      }
+      .figimg {
+        width: 100%;
+        border-radius: 4px;
+        border: 2px solid var(--gray-blue);
+        display: block;
+      }
+      .fc {
+        font-size: 15pt;
+        color: var(--mu);
+        margin-top: 1.5mm;
+        font-style: italic;
+        padding: 0 3mm 2mm;
+      }
+
+      /* ── TABLE ── */
+      table.t {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 15pt;
+      }
+      table.t th {
+        background: var(--ice-blue);
+        color: var(--deep-navy);
+        font-weight: 700;
+        padding: 1.8mm 3mm;
+        border-bottom: 2px solid var(--gray-blue);
+        text-align: left;
+      }
+      table.t td {
+        padding: 1.4mm 3mm;
+        border-bottom: 1px solid var(--gray-blue);
+      }
+      table.t tr:last-child td {
+        border-bottom: none;
+      }
+      table.t .hl {
+        color: var(--rust-red);
+        font-weight: 700;
+      }
+
+      /* ── MISC ── */
+      .hr {
+        border: none;
+        border-top: 2px solid var(--gray-blue);
+        margin: 3mm 0;
+      }
+      .qrrow {
+        display: flex;
+        align-items: center;
+        gap: 5mm;
+      }
+      .qrbox {
+        width: 44mm;
+        height: 44mm;
+        flex-shrink: 0;
+        background: var(--ice-blue);
+        border: 2px solid var(--gray-blue);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 14pt;
+        color: var(--mu);
+        font-style: italic;
+      }
+      .qt {
+        font-size: 17pt;
+        color: var(--mu);
+        line-height: 1.45;
+      }
+      .qt strong {
+        color: var(--deep-navy);
+      }
+      .acc {
+        color: var(--rust-red);
+        font-weight: 700;
+      }
+      ul.bl {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      ul.bl li {
+        position: relative;
+        padding-left: 7mm;
+        margin-bottom: 2mm;
+        font-size: 19pt;
+        line-height: 1.4;
+      }
+      ul.bl li::before {
+        content: "▸";
+        position: absolute;
+        left: 0;
+        top: 0.05em;
+        color: var(--rust-red);
+        font-size: 17pt;
+      }
+      ul.bl li strong {
+        color: var(--deep-navy);
+      }
+      .loading {
+        color: var(--mu);
+        font-size: 15pt;
+        font-style: italic;
+        padding: 5mm;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pw">
+      <div class="poster">
+        <!-- ═══ HEADER ═══ -->
+        <header class="hdr">
+          <img
+            class="logo"
+            src="NKUST_Logo.png"
+            alt="NKUST"
+            onerror="this.style.visibility = 'hidden'"
+          />
+          <div class="hb">
+            <div class="ht">
+              Multi‑Strategy Speculative Decoding for Local LLM Inference:
+              TuckerMoE Hybrid State Space Models on Resource‑Constrained
+              Devices
+            </div>
+            <div class="hauth">
+              <div class="hau">
+                <span class="nm">Hung-Wei Lai · Hsin-An Lan · Manny Hsu · Yu-Han Lu</span>
+                <span class="af">Department of Computer Science and Information Engineering, National Kaohsiung University of Science and Technology, Kaohsiung, Taiwan</span>
+            </div>
+          </div>
+          <!-- balance spacer: same width as logo so title is truly centered -->
+          <div style="width: 48mm; flex-shrink: 0"></div>
+        </header>
+
+
+
+        <!-- ═══ PROBLEMS → SOLUTIONS (Compact 2-Line Design) ═══ -->
+        <div style="margin-bottom:4mm;">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:center;">
+
+            <!-- LEFT: Problems -->
+            <div style="background:linear-gradient(135deg,#FEE2E2 0%,#FEF3C7 100%);border:2.5px solid #DC2626;border-radius:8px;padding:2.5mm 3.5mm;">
+              <div style="font-family:'Times New Roman',Times,serif;font-size:20pt;color:#1F2937;line-height:1.6;text-align:center;">
+                <div style="margin-bottom:1.5mm;">
+                  <strong style="color:#DC2626;font-size:28pt;">Problems:</strong>
+                  <span style="font-size:24pt;">Local LLMs are constrained by Attention O(N²·d) computational complexity and KV Cache O(N) memory overhead that grows to 1.4GB for long sequences</span>
+                </div>
+                <div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CENTER: Big Arrow -->
+            <div style="display:flex;align-items:center;justify-content:center;padding:0 3mm;flex-shrink:0;">
+              <svg width="52" height="40" viewBox="0 0 52 40" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="arrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#DC2626"/>
+                    <stop offset="100%" style="stop-color:#1455A4"/>
+                  </linearGradient>
+                </defs>
+                <line x1="2" y1="20" x2="38" y2="20" stroke="url(#arrGrad)" stroke-width="5" stroke-linecap="round"/>
+                <polygon points="34,10 50,20 34,30" fill="#1455A4"/>
+              </svg>
+            </div>
+
+            <!-- RIGHT: Solutions -->
+            <div style="background:linear-gradient(135deg,#DBEAFE 0%,#E0E7FF 100%);border:2.5px solid #1455A4;border-radius:8px;padding:2.5mm 3.5mm;">
+              <div style="font-family:'Times New Roman',Times,serif;font-size:20pt;color:#1F2937;line-height:1.6;text-align:center;">
+                <div style="margin-bottom:1.5mm;">
+                  <strong style="color:#1455A4;font-size:28pt;">Solutions:</strong>
+                  <span style="font-size:24pt;">State Space Models achieve O(1) constant memory state while hybrid 4:1 architecture reduces KV cache by 80%</span>
+                </div>
+                <div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+
+
+
+        <!-- ═══ COLUMNS ═══ -->
+        <div class="cols">
+          <div class="col">
+            <div id="slot-phase1"><div class="loading">Loading…</div></div>
+            <div id="slot-phase3"><div class="loading">Loading…</div></div>
+          </div>
+          <div class="col">
+            <div id="slot-phase2"><div class="loading">Loading…</div></div>
+            <div id="slot-cot"><div class="loading">Loading…</div></div>
+            <div id="slot-results"><div class="loading">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      async function load(id, file) {
+        const el = document.getElementById(id);
+        try {
+          const r = await fetch(file);
+          if (!r.ok) throw r.status;
+          el.innerHTML = await r.text();
+        } catch (e) {
+          el.innerHTML = `<div style="padding:5mm;color:#8A3324;font-size:14pt">⚠ ${file} not found</div>`;
+        }
+      }
+      load("slot-phase1", "s_phase1.html");
+      load("slot-phase2", "s_phase2.html");
+      load("slot-phase3", "s_phase3.html");
+      load("slot-cot", "s_cot.html");
+      load("slot-results", "s_results.html");
+    </script>
+  </body>
+</html>

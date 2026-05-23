@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from mamba3_mlx.utils.config import Mamba3Config, GenerationConfig
 from mamba3_mlx.utils.system_prompts import MODE_ALIASES, resolve_system_prompt
 from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
-from mamba3_mlx.mlx_model.weights import load_checkpoint
+from mamba3_mlx.mlx_model.weights import load_checkpoint, _sidecar_path
 from mamba3_mlx.inference.generator import generate
 
 
@@ -121,10 +121,27 @@ def main():
     print(f"[load] model:     {args.model_path}", file=sys.stderr)
     cfg   = Mamba3Config(vocab_size=tok.get_vocab_size())
     model = Mamba3LanguageModel(cfg)
-    t0    = time.time()
+
+    # ── checkpoint load (mmap fast-path when sidecar exists) ─────────────────
+    t0 = time.time()
+    sidecar = _sidecar_path(args.model_path, dtype)
+    if sidecar.exists():
+        print(f"[load] sidecar:   {sidecar.name}  (mmap instant)", file=sys.stderr)
+    else:
+        print(f"[load] converting → {sidecar.name}  (one-time, saved for next run)",
+              file=sys.stderr)
     load_checkpoint(model, args.model_path, dtype=dtype)
     mx.eval(model.parameters())
-    print(f"[load] done in {time.time() - t0:.2f}s  (dtype={args.dtype})", file=sys.stderr)
+    print(f"[load] weights done in {time.time() - t0:.2f}s  (dtype={args.dtype})",
+          file=sys.stderr)
+
+    # ── warmup: one dummy forward pass to pre-JIT the decode graph ───────────
+    t_w = time.time()
+    _dummy = mx.zeros((1, 1), dtype=mx.int32)
+    _lo, _st = model(_dummy, states=None)
+    mx.eval(_lo)
+    del _dummy, _lo, _st
+    print(f"[warmup] graph JIT done in {time.time() - t_w:.2f}s", file=sys.stderr)
 
     # ── System prompt ─────────────────────────────────────────────────────────
     sys_prompt = resolve_system_prompt(args.mode, args.system)

@@ -40,6 +40,8 @@ SUBDIR_TO_ROOT = {
     "mail":         "email_summary.json",
     "system_call":  "system_call.json",
     "deep_dive":    "deep_dive.json",
+    "math_drill":   "math_drill.json",
+    "math":         "math_drill.json",
 }
 
 

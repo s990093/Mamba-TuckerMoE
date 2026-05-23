@@ -80,7 +80,7 @@ Your **neural architecture** has hit thermal throttling. Continued execution pas
 
 ## 3. 三種 System Prompt
 
-系統只有 **三種** System Prompt，依據每筆資料的 `category` 欄位自動分配到對應的 **bucket**。
+系統有 **八種** 訓練用 System Prompt bucket（外加舊版 `dialogue` / `task` / `summary` 相容別名），依據每筆資料的 `category` 或來源檔案自動分配。
 
 ### 3.1 Bucket 定義
 
@@ -165,7 +165,22 @@ Your **neural architecture** has hit thermal throttling. Continued execution pas
 | `general_knowledge` | dialogue |
 | `creative_problem` | dialogue |
 
-> Daily Conversation 是獨立的第五類別（見 GUIDE.md Section 8），目標 2,000 筆。ID 前綴為 `gen_`。
+> Daily Conversation 是獨立的第五類別（見 GUIDE.md Section 8），目標 5,000 筆。ID 前綴為 `gen_`。
+
+#### Math Drill 類（獨立檔案 `math_drill.json`）
+
+| category | bucket |
+|----------|--------|
+| `arith_add_units` | **math_drill** |
+| `arith_add_mixed` | **math_drill** |
+| `arith_mul_table` | **math_drill** |
+| `arith_mul_teens` | **math_drill** |
+| `arith_mul_extended` | **math_drill** |
+| `arith_mul_hundred` | **math_drill** |
+
+> Math Drill 是獨立的第六類別（見 GUIDE.md §8.5、`MATH_DRILL.md`），目標 **≤200** 筆（稀疏抽樣）。ID 前綴為 `mat_`。
+>
+> **CoT 禁止** `Step 1:` / `Parse operands` 等編譯器日誌體。JSON `output` 僅數字；腳本包成 `<final>{n}</final>`。
 
 #### System Call 類（獨立檔案 `system_call.json`）
 

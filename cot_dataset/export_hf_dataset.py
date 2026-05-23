@@ -83,6 +83,23 @@ CATEGORY_TO_BUCKET = {
     "culinary_science": "daily_conversation",
     "finance_logic": "daily_conversation",
     "fitness_systems": "daily_conversation",
+    "everyday_physics": "daily_conversation",
+    "everyday_chemistry": "daily_conversation",
+    "object_materials": "daily_conversation",
+    "math_basic": "daily_conversation",
+    "math_applied": "daily_conversation",
+    "assistant_productivity": "daily_conversation",
+    "assistant_quick_task": "daily_conversation",
+    "travel_logistics": "daily_conversation",
+    "creative_problem": "daily_conversation",
+    "general_knowledge": "daily_conversation",
+    # Math Drill
+    "arith_add_units": "math_drill",
+    "arith_add_mixed": "math_drill",
+    "arith_mul_table": "math_drill",
+    "arith_mul_teens": "math_drill",
+    "arith_mul_extended": "math_drill",
+    "arith_mul_hundred": "math_drill",
     # Deep Dive
     "deep_diagnostic": "deep_dive",
     "system_report": "deep_dive",
@@ -99,8 +116,22 @@ SOURCE_FILE_TO_BUCKET = {
     "email_summary.json": "summarize_email",
     "movie_intro.json": "movie_intro",
     "noise.json": "daily_conversation",
+    "math_drill.json": "math_drill",
     "system_call.json": "system_call",
     "deep_dive.json": "deep_dive",
+}
+
+AUTO_DISCOVERY_SKIP_DIRS = {
+    "__pycache__",
+    "cot",
+    "metal",
+    "metadata_sft_tiny_llm",
+    "scripts",
+}
+
+AUTO_DISCOVERY_SKIP_FILES = {
+    "tokenizer.json",
+    "tokenizer_config.json",
 }
 
 
@@ -108,22 +139,26 @@ def resolve_bucket(category: str, source_file: str) -> str:
     cat_bucket = CATEGORY_TO_BUCKET.get(category)
     if cat_bucket:
         return cat_bucket
+    source_file = source_file.replace("\\", "/")
     source_name = Path(source_file).name
+    source_root = source_file.split("/", 1)[0]
     if source_name in SOURCE_FILE_TO_BUCKET:
         return SOURCE_FILE_TO_BUCKET[source_name]
-    if source_file.startswith("emotion/"):
+    if source_root.startswith("emotion"):
         return "emotion"
-    if source_file.startswith("self/"):
+    if source_root.startswith("self"):
         return "self_awareness"
-    if source_file.startswith("noise/"):
+    if source_root.startswith("noise"):
         return "daily_conversation"
-    if source_file.startswith("system_call/"):
+    if source_root.startswith("math"):
+        return "math_drill"
+    if source_root.startswith("system"):
         return "system_call"
-    if source_file.startswith("movie_intro/") or source_file.startswith("movie/"):
+    if source_root.startswith("movie"):
         return "movie_intro"
-    if source_file.startswith("deep_dive/") or source_file.startswith("deep/"):
+    if source_root.startswith("deep"):
         return "deep_dive"
-    if source_file.startswith("email_summary/"):
+    if source_root.startswith("mail") or source_root.startswith("email"):
         return "summarize_email"
     return "daily_conversation"
 
@@ -174,12 +209,74 @@ def validate_no_manual_special_tokens(row: dict, fields: tuple[str, ...]) -> Non
                 )
 
 
+def expand_file_specs(src_dir: Path, specs: list[str]) -> tuple[list[Path], list[str]]:
+    resolved_files: list[Path] = []
+    missing_specs: list[str] = []
+    seen: set[Path] = set()
+
+    for spec in specs:
+        has_glob = any(ch in spec for ch in "*?[]")
+        if has_glob:
+            matches = sorted(src_dir.glob(spec))
+            if not matches:
+                missing_specs.append(spec)
+                continue
+            for fp in matches:
+                if fp.is_file() and fp.suffix.lower() == ".json" and fp not in seen:
+                    seen.add(fp)
+                    resolved_files.append(fp)
+            continue
+
+        fp = src_dir / spec
+        if fp.is_dir():
+            matches = sorted(fp.glob("*.json"))
+            if not matches:
+                missing_specs.append(spec)
+                continue
+            for mf in matches:
+                if mf not in seen:
+                    seen.add(mf)
+                    resolved_files.append(mf)
+            continue
+
+        if fp.is_file():
+            if fp not in seen:
+                seen.add(fp)
+                resolved_files.append(fp)
+            continue
+
+        missing_specs.append(spec)
+
+    return resolved_files, missing_specs
+
+
+def discover_json_specs(src_dir: Path) -> list[str]:
+    specs: list[str] = []
+    for fp in sorted(src_dir.glob("*.json")):
+        if fp.name in AUTO_DISCOVERY_SKIP_FILES:
+            continue
+        if fp.name.startswith("stats_"):
+            continue
+        specs.append(fp.name)
+
+    for sub in sorted(p for p in src_dir.iterdir() if p.is_dir()):
+        name = sub.name
+        if name.startswith("."):
+            continue
+        if name in AUTO_DISCOVERY_SKIP_DIRS:
+            continue
+        if name.startswith("stf_cot_hf"):
+            continue
+        if any(sub.glob("*.json")):
+            specs.append(f"{name}/*.json")
+    return specs
+
+
 def iter_records(
     src_dir: Path,
     files: list[str],
     allow_missing: bool,
     duplicate_policy: str,
-    invalid_row_policy: str,
     dedupe_by_content: bool,
 ) -> tuple[list[dict], list[str], dict[str, int], list[str], int]:
     rows: list[dict] = []
@@ -190,13 +287,15 @@ def iter_records(
     seen_content_keys: set[tuple[str, str, str, str]] = set()
     duplicate_content_rows = 0
 
-    for name in files:
-        fp = src_dir / name
-        if not fp.exists():
-            if allow_missing:
-                missing.append(name)
-                continue
-            raise FileNotFoundError(f"missing required file: {fp}")
+    file_paths, unresolved_specs = expand_file_specs(src_dir, files)
+    if unresolved_specs:
+        if allow_missing:
+            missing.extend(unresolved_specs)
+        else:
+            raise FileNotFoundError(f"missing required file specs: {', '.join(unresolved_specs)}")
+
+    for fp in file_paths:
+        rel_name = fp.relative_to(src_dir).as_posix()
 
         for obj in load_json_list(fp):
             if not isinstance(obj, dict):
@@ -215,11 +314,9 @@ def iter_records(
             except ValueError as exc:
                 msg = str(exc)
                 invalid_messages.append(msg)
-                if invalid_row_policy == "skip":
-                    continue
-                raise
+                continue
 
-            bucket = resolve_bucket(cat, name)
+            bucket = resolve_bucket(cat, rel_name)
             system = SYSTEM_PROMPTS[bucket]
             text = build_chatml(system, user_input, cot, output)
 
@@ -228,7 +325,7 @@ def iter_records(
                 "category": cat,
                 "sys_bucket": bucket,
                 "system": system,
-                "source_file": name,
+                "source_file": rel_name,
                 "history": history if isinstance(history, list) else [],
                 "input": user_input,
                 "cot": cot,
@@ -273,11 +370,8 @@ def main() -> None:
     parser.add_argument(
         "--files",
         type=str,
-        default=(
-            "emotion.json,self_awareness.json,email_summary.json,movie_intro.json,"
-            "noise.json,system_call.json,deep_dive.json"
-        ),
-        help="Comma-separated JSON file list.",
+        default="auto",
+        help="Comma-separated JSON specs (files/dirs/globs) or 'auto' to scan all dataset folders.",
     )
     parser.add_argument("--out", type=Path, default=default_out, help="Output directory for Dataset.save_to_disk.")
     parser.add_argument(
@@ -295,9 +389,9 @@ def main() -> None:
     parser.add_argument(
         "--invalid-row-policy",
         type=str,
-        default="error",
+        default="skip",
         choices=("error", "skip"),
-        help="How to handle rows containing forbidden manual special tokens.",
+        help="Deprecated: forbidden manual special tokens are always banned (rows are skipped).",
     )
     parser.add_argument(
         "--dedupe-by-content",
@@ -323,13 +417,16 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    file_list = [x.strip() for x in args.files.split(",") if x.strip()]
+    if args.files.strip().lower() == "auto":
+        file_list = discover_json_specs(args.src_dir.resolve())
+        print(f"Auto-discovered {len(file_list)} JSON specs.")
+    else:
+        file_list = [x.strip() for x in args.files.split(",") if x.strip()]
     rows, missing, duplicate_count_by_id, invalid_messages, duplicate_content_rows = iter_records(
         args.src_dir.resolve(),
         file_list,
         allow_missing=args.allow_missing,
         duplicate_policy=args.duplicate_policy,
-        invalid_row_policy=args.invalid_row_policy,
         dedupe_by_content=args.dedupe_by_content,
     )
     if not rows:
@@ -357,7 +454,7 @@ def main() -> None:
         "duplicate_policy": args.duplicate_policy,
         "duplicate_ids": len(duplicate_count_by_id),
         "duplicate_rows_dropped_or_overwritten": int(sum(duplicate_count_by_id.values())),
-        "invalid_row_policy": args.invalid_row_policy,
+        "invalid_row_policy": "skip (forced)",
         "invalid_rows": len(invalid_messages),
         "invalid_examples": invalid_messages[:10],
         "dedupe_by_content": args.dedupe_by_content,
