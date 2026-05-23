@@ -3,276 +3,117 @@
 <head>
   <meta charset="UTF-8"/>
   <style>
-    :root {
-      --dn: #1B2A47;
-      --gb: #98A9D1;
-      --sp: #9374B1;
-      --mg: #D8B868;
-      --rr: #8A3324;
-      --dg: #1B5E34;
-      --ib: #E8EDF5;
-      --sb: #FFF9F0;
-    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: "Times New Roman", Times, serif;
       background: #fff;
-      color: var(--dn);
+      color: #1B2A47;
       padding: 0;
     }
     .title-bar {
-      background: var(--dn);
+      background: #1B2A47;
       color: #fff;
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 13.5px;
+      font-size: 11px;
       font-weight: 800;
       text-align: center;
-      padding: 5px 8px;
-      letter-spacing: 0.2px;
-    }
-    .subtitle {
-      background: var(--ib);
-      color: #4B5563;
-      font-size: 9.5px;
-      text-align: center;
       padding: 3px 6px;
-      border-bottom: 1.5px solid var(--gb);
-      font-style: italic;
-      font-family: Helvetica, Arial, sans-serif;
     }
-    .svg-wrap { padding: 5px 7px 2px; }
-    .param-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
-      padding: 3px 7px 5px;
-    }
-    .param-card {
-      background: var(--ib);
-      border: 1.5px solid var(--gb);
-      border-top: 3px solid var(--dn);
-      border-radius: 4px;
-      padding: 4px 5px;
-      text-align: center;
-    }
-    .pv { font-size: 15px; font-weight: 800; color: var(--rr); line-height: 1; display: block; }
-    .pl { font-size: 8.5px; color: #4B5563; margin-top: 2px; line-height: 1.3; display: block; }
-    .legend-row {
-      display: flex; gap: 6px; flex-wrap: wrap;
-      padding: 2px 7px 5px;
-      align-items: center;
-      border-top: 1.5px solid var(--gb);
-      margin-top: 2px;
-    }
-    .leg { display: flex; align-items: center; gap: 3px; font-size: 8.5px; color: var(--dn); font-family: Helvetica, Arial, sans-serif; }
-    .legsw { width: 12px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    .svg-wrap { padding: 3px 5px 2px; }
   </style>
 </head>
 <body>
 
-<div class="title-bar">Per-Turn Decode Flow — <span style="font-family:'Courier New',monospace;font-weight:400;font-size:12px;">cot_middleware.py</span></div>
-<div class="subtitle">ULTRA-SIMPLIFIED · CotMiddleware × 6 Layers · CotStreamSplitter FSM · 30s Understanding</div>
+<div class="title-bar">Per-Turn Decode Flow — <span style="font-family:'Courier New',monospace;font-size:10px;">cot_middleware.py</span></div>
 
-<!-- ═══ Main Pipeline SVG ═══ -->
 <div class="svg-wrap">
-<svg viewBox="0 0 464 320" xmlns="http://www.w3.org/2000/svg"
+<svg viewBox="0 0 464 82" xmlns="http://www.w3.org/2000/svg"
      style="width:100%;display:block;font-family:'Times New Roman',Times,serif;">
   <defs>
-    <marker id="ar"   markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1B2A47"/></marker>
-    <marker id="arG"  markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1B5E34"/></marker>
-    <marker id="arR"  markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#8A3324"/></marker>
-    <marker id="arM"  markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#D8B868"/></marker>
+    <marker id="ar"  markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 L1,3 Z" fill="#1B2A47"/></marker>
+    <marker id="arG" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 L1,3 Z" fill="#1B5E34"/></marker>
+    <marker id="arR" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 L1,3 Z" fill="#8A3324"/></marker>
   </defs>
 
-  <!-- Outer panel -->
-  <rect x="1" y="1" width="462" height="318" rx="6" fill="#fff" stroke="#1B2A47" stroke-width="1.8"/>
-  <!-- Panel header -->
-  <rect x="1" y="1" width="462" height="22" rx="5" fill="#E8EDF5"/>
-  <text x="232" y="15" font-size="10" fill="#1B2A47" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">CotMiddleware — per-turn orchestration · N_layer = 6</text>
-
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <!-- ROW 1: Main decode pipeline (horizontal) -->
-  <!-- ─────────────────────────────────────────────────────────── -->
+  <!-- ==== Top Row: Main Pipeline ==== -->
 
   <!-- model logits -->
-  <rect x="8" y="32" width="54" height="34" rx="4" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.4"/>
-  <text x="35" y="45" font-size="8.5" fill="#1B2A47" text-anchor="middle" font-weight="700">model</text>
-  <text x="35" y="57" font-size="7.5" fill="#4B5563" text-anchor="middle">logits[1,V]</text>
+  <rect x="4" y="4" width="52" height="28" rx="3" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.2"/>
+  <text x="30" y="16" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="700">model</text>
+  <text x="30" y="26" font-size="6.5" fill="#4B5563" text-anchor="middle">logits</text>
 
-  <!-- → ① -->
-  <line x1="62" y1="49" x2="74" y2="49" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#ar)"/>
+  <line x1="56" y1="18" x2="64" y2="18" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#ar)"/>
 
-  <!-- ① transform_logits / FormatGuard -->
-  <rect x="74" y="26" width="102" height="46" rx="5" fill="#1B2A47" stroke="#1B2A47"/>
-  <text x="125" y="41" font-size="8.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">① transform_logits()</text>
-  <text x="125" y="52" font-size="7.5" fill="#98A9D1" text-anchor="middle">FormatGuard.apply(row)</text>
-  <text x="125" y="63" font-size="7" fill="#D8B868" text-anchor="middle">ban mask + close_bias ramp</text>
+  <!-- ① transform_logits -->
+  <rect x="64" y="2" width="82" height="34" rx="3" fill="#1B2A47"/>
+  <text x="105" y="15" font-size="7.5" fill="#FFF" text-anchor="middle" font-weight="700">① transform_logits</text>
+  <text x="105" y="26" font-size="6.5" fill="#D8B868" text-anchor="middle">FormatGuard(ban+close_bias)</text>
 
-  <!-- → sample -->
-  <line x1="176" y1="49" x2="190" y2="49" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#ar)"/>
+  <line x1="146" y1="18" x2="156" y2="18" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#ar)"/>
 
-  <!-- sample box -->
-  <rect x="190" y="32" width="62" height="34" rx="4" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.4"/>
-  <text x="221" y="46" font-size="8.5" fill="#1B2A47" text-anchor="middle" font-weight="700">sample_tok</text>
-  <text x="221" y="58" font-size="7.5" fill="#4B5563" text-anchor="middle">→ tid (int)</text>
+  <!-- sample -->
+  <rect x="156" y="4" width="56" height="28" rx="3" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.2"/>
+  <text x="184" y="16" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="700">sample</text>
+  <text x="184" y="26" font-size="6.5" fill="#4B5563" text-anchor="middle">→ tid</text>
 
-  <!-- → ③ step -->
-  <line x1="252" y1="49" x2="266" y2="49" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#ar)"/>
+  <line x1="212" y1="18" x2="222" y2="18" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#ar)"/>
 
-  <!-- ③ step(tid) — decode + FSM -->
-  <rect x="266" y="26" width="108" height="46" rx="5" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.5"/>
-  <text x="320" y="41" font-size="8.5" fill="#1B2A47" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">③ step(tid)</text>
-  <text x="320" y="52" font-size="7.5" fill="#1B2A47" text-anchor="middle">decode → splitter.feed()</text>
-  <text x="320" y="63" font-size="7" fill="#1B2A47" text-anchor="middle">→ events · counters</text>
+  <!-- ③ step → FSM -->
+  <rect x="222" y="2" width="100" height="34" rx="3" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.2"/>
+  <text x="272" y="15" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="700">③ FSM step(tid)</text>
+  <text x="272" y="26" font-size="6.5" fill="#1B2A47" text-anchor="middle">decode + splitter.feed</text>
 
-  <!-- → events -->
-  <line x1="374" y1="49" x2="388" y2="49" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#ar)"/>
+  <line x1="322" y1="18" x2="332" y2="18" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#ar)"/>
 
-  <!-- ⑥ Events → UI -->
-  <rect x="388" y="26" width="68" height="46" rx="5" fill="#9374B1" stroke="#1B2A47" stroke-width="1.5"/>
-  <text x="422" y="41" font-size="8.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">⑥ Events</text>
-  <text x="422" y="52" font-size="7.5" fill="#E8EDF5" text-anchor="middle">reasoning →</text>
-  <text x="422" y="63" font-size="7.5" fill="#D8B868" text-anchor="middle">markdown / tok_s</text>
+  <!-- ④ inject_final (triggered between) -->
+  <rect x="332" y="2" width="64" height="34" rx="3" fill="#1B5E34"/>
+  <text x="364" y="15" font-size="7" fill="#FFF" text-anchor="middle" font-weight="700">④ inject</text>
+  <text x="364" y="26" font-size="6" fill="#D1F0DB" text-anchor="middle">&lt;final&gt; prefill</text>
 
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <!-- FormatGuard annotation box (below ①) -->
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <line x1="125" y1="72" x2="125" y2="84" stroke="#8A3324" stroke-width="1" stroke-dasharray="2,1.5"/>
-  <rect x="74" y="84" width="102" height="46" rx="3" fill="#FFF9F0" stroke="#8A3324" stroke-width="1.2"/>
-  <text x="125" y="96" font-size="7.5" fill="#8A3324" text-anchor="middle" font-weight="700">ban ids → −∞:</text>
-  <text x="125" y="107" font-size="7" fill="#4B5563" text-anchor="middle">&lt;|im_start|&gt; · &lt;/s&gt; · &lt;|im_end|&gt;</text>
-  <text x="125" y="118" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="600">close_bias: +4.0 → +16.0</text>
-  <text x="125" y="128" font-size="7" fill="#4B5563" text-anchor="middle">ramp t=1000→2000 (think mode)</text>
+  <line x1="396" y1="18" x2="406" y2="18" stroke="#1B5E34" stroke-width="1.5" marker-end="url(#arG)"/>
 
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <!-- ③ Watchdog branch (down from step) -->
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <line x1="320" y1="72" x2="320" y2="90" stroke="#8A3324" stroke-width="1.2" stroke-dasharray="3,2"/>
-  <text x="340" y="85" font-size="7" fill="#8A3324">think_tok ≥ 2000</text>
+  <!-- ⑥ Events -->
+  <rect x="406" y="2" width="54" height="34" rx="3" fill="#9374B1"/>
+  <text x="433" y="15" font-size="7" fill="#FFF" text-anchor="middle" font-weight="700">⑥ Events</text>
+  <text x="433" y="26" font-size="6" fill="#D8B868" text-anchor="middle">→ UI stream</text>
 
-  <!-- ③ Watchdog box -->
-  <rect x="266" y="90" width="108" height="40" rx="4" fill="#FFF9F0" stroke="#8A3324" stroke-width="1.8"/>
-  <rect x="266" y="90" width="108" height="15" rx="3" fill="#8A3324"/>
-  <text x="320" y="101" font-size="8" fill="#fff" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">③ Budget Watchdog</text>
-  <text x="320" y="115" font-size="7.5" fill="#8A3324" text-anchor="middle">reasoning_budget: 2000 tok</text>
-  <text x="320" y="127" font-size="7" fill="#4B5563" text-anchor="middle">force_done() + emit ⚠ notice</text>
+  <!-- ==== FSM State Chain (compact, bottom band) ==== -->
+  <rect x="4" y="44" width="456" height="34" rx="3" fill="#E8EDF5" stroke="#98A9D1" stroke-width="1"/>
 
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <!-- ④ maybe_inject_final (triggers on "between") -->
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <line x1="320" y1="130" x2="320" y2="148" stroke="#1B5E34" stroke-width="1.2" stroke-dasharray="3,2"/>
-  <text x="342" y="143" font-size="7" fill="#1B5E34" font-style="italic">mode=="between"</text>
-
-  <rect x="236" y="148" width="174" height="44" rx="5" fill="#1B5E34" stroke="#1B5E34"/>
-  <text x="323" y="163" font-size="8.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">④ maybe_inject_final()</text>
-  <text x="323" y="175" font-size="7.5" fill="#D1F0DB" text-anchor="middle">prefill &lt;final&gt;\n → advance caches · 1× / turn</text>
-  <text x="323" y="185" font-size="7" fill="#D1F0DB" text-anchor="middle">~8-tok prefill · &lt;5 ms · new_logits → loop back</text>
-
-  <!-- Loop-back arrow: inject → sample (loop) -->
-  <line x1="236" y1="170" x2="220" y2="170" stroke="#1B5E34" stroke-width="1.2" stroke-dasharray="3,2"/>
-  <line x1="220" y1="170" x2="220" y2="49" stroke="#1B5E34" stroke-width="1.2" stroke-dasharray="3,2"/>
-  <line x1="220" y1="49" x2="252" y2="49" stroke="#1B5E34" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arG)"/>
-  <text x="214" y="118" font-size="7" fill="#1B5E34" text-anchor="middle" transform="rotate(-90,214,118)">new logits</text>
-
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <!-- ⑤ should_break + flush (left column) -->
-  <!-- ─────────────────────────────────────────────────────────── -->
-
-  <!-- dashed line from step to ⑤ -->
-  <line x1="266" y1="108" x2="140" y2="148" stroke="#D8B868" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arM)"/>
-
-  <!-- ⑤ should_break -->
-  <rect x="8" y="148" width="124" height="44" rx="5" fill="#D8B868" stroke="#D8B868"/>
-  <text x="70" y="163" font-size="8.5" fill="#1B2A47" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">⑤ should_break(tid)</text>
-  <text x="70" y="175" font-size="7.5" fill="#1B2A47" text-anchor="middle">stop_ids: {&lt;/final&gt; · &lt;|im_end|&gt;}</text>
-  <text x="70" y="186" font-size="7" fill="#4B5563" text-anchor="middle">final_min_tokens: 16 (ban early close)</text>
-
-  <!-- ⑥ flush -->
-  <line x1="70" y1="192" x2="70" y2="207" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#ar)"/>
-  <rect x="8" y="207" width="124" height="36" rx="4" fill="#9374B1" stroke="#1B2A47" stroke-width="1.5"/>
-  <text x="70" y="221" font-size="8.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="Helvetica,Arial,sans-serif">⑥ flush()</text>
-  <text x="70" y="233" font-size="7.5" fill="#E8EDF5" text-anchor="middle">emit buffer on EOS / max-tok</text>
-  <text x="70" y="243" font-size="7" fill="#D8B868" text-anchor="middle">→ splitter.done</text>
-
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <!-- FSM State Chain (bottom band) -->
-  <!-- ─────────────────────────────────────────────────────────── -->
-  <rect x="8" y="256" width="448" height="56" rx="4" fill="#E8EDF5" stroke="#98A9D1" stroke-width="1.2"/>
-  <text x="16" y="270" font-size="8.5" fill="#1B2A47" font-weight="700" font-family="Helvetica,Arial,sans-serif">CotStreamSplitter FSM:</text>
-
-  <!-- State bubbles -->
   <!-- head -->
-  <rect x="110" y="260" width="40" height="18" rx="9" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.4"/>
-  <text x="130" y="272" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="600">head</text>
-  <!-- → think -->
-  <line x1="150" y1="269" x2="162" y2="269" stroke="#1B2A47" stroke-width="1.2" marker-end="url(#ar)"/>
-  <text x="156" y="265" font-size="6.5" fill="#4B5563" text-anchor="middle">&lt;think&gt;</text>
+  <rect x="16" y="50" width="34" height="15" rx="7" fill="#fff" stroke="#1B2A47" stroke-width="1.2"/>
+  <text x="33" y="60" font-size="6.5" fill="#1B2A47" text-anchor="middle" font-weight="600">head</text>
+  <line x1="50" y1="57" x2="58" y2="57" stroke="#1B2A47" stroke-width="1" marker-end="url(#ar)"/>
+
   <!-- think -->
-  <rect x="162" y="260" width="42" height="18" rx="9" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.4"/>
-  <text x="183" y="272" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="700">think</text>
-  <!-- → between -->
-  <line x1="204" y1="269" x2="216" y2="269" stroke="#1B2A47" stroke-width="1.2" marker-end="url(#ar)"/>
-  <text x="210" y="265" font-size="6.5" fill="#4B5563" text-anchor="middle">&lt;/think&gt;</text>
+  <rect x="58" y="50" width="36" height="15" rx="7" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.2"/>
+  <text x="76" y="60" font-size="6.5" fill="#1B2A47" text-anchor="middle" font-weight="700">think</text>
+  <line x1="94" y1="57" x2="102" y2="57" stroke="#1B2A47" stroke-width="1" marker-end="url(#ar)"/>
+
   <!-- between -->
-  <rect x="216" y="260" width="52" height="18" rx="9" fill="#D8B868" stroke="#1B2A47" stroke-width="1.4"/>
-  <text x="242" y="272" font-size="7.5" fill="#1B2A47" text-anchor="middle" font-weight="700">between</text>
-  <!-- inject badge -->
-  <rect x="224" y="280" width="36" height="10" rx="3" fill="#1B5E34"/>
-  <text x="242" y="287" font-size="6" fill="#fff" text-anchor="middle" font-weight="700">④ inject</text>
-  <!-- → final -->
-  <line x1="268" y1="269" x2="280" y2="269" stroke="#1B2A47" stroke-width="1.2" marker-end="url(#ar)"/>
-  <text x="274" y="265" font-size="6.5" fill="#4B5563" text-anchor="middle">&lt;final&gt;</text>
+  <rect x="102" y="50" width="46" height="15" rx="7" fill="#D8B868" stroke="#1B2A47" stroke-width="1.2"/>
+  <text x="125" y="60" font-size="6.5" fill="#1B2A47" text-anchor="middle" font-weight="700">between</text>
+  <rect x="107" y="66" width="36" height="9" rx="2" fill="#1B5E34"/>
+  <text x="125" y="73" font-size="5" fill="#FFF" text-anchor="middle" font-weight="600">④ inject</text>
+  <line x1="148" y1="57" x2="156" y2="57" stroke="#1B2A47" stroke-width="1" marker-end="url(#ar)"/>
+
   <!-- final -->
-  <rect x="280" y="260" width="42" height="18" rx="9" fill="#1B5E34" stroke="#1B5E34"/>
-  <text x="301" y="272" font-size="7.5" fill="#fff" text-anchor="middle" font-weight="700">final</text>
-  <!-- → done -->
-  <line x1="322" y1="269" x2="334" y2="269" stroke="#1B2A47" stroke-width="1.2" marker-end="url(#ar)"/>
-  <text x="328" y="265" font-size="6.5" fill="#4B5563" text-anchor="middle">&lt;/final&gt;</text>
+  <rect x="156" y="50" width="36" height="15" rx="7" fill="#1B5E34"/>
+  <text x="174" y="60" font-size="6.5" fill="#FFF" text-anchor="middle" font-weight="700">final</text>
+  <line x1="192" y1="57" x2="200" y2="57" stroke="#1B2A47" stroke-width="1" marker-end="url(#ar)"/>
+
   <!-- done -->
-  <rect x="334" y="260" width="42" height="18" rx="9" fill="#1B2A47" stroke="#1B2A47"/>
-  <text x="355" y="272" font-size="7.5" fill="#fff" text-anchor="middle" font-weight="700">done</text>
+  <rect x="200" y="50" width="34" height="15" rx="7" fill="#1B2A47"/>
+  <text x="217" y="60" font-size="6.5" fill="#FFF" text-anchor="middle" font-weight="700">done</text>
 
-  <!-- budget hit arc -->
-  <path d="M183,278 Q183,298 355,298 Q355,280 355,278" stroke="#8A3324" stroke-width="1.1" fill="none" stroke-dasharray="3,2" marker-end="url(#arR)"/>
-  <text x="269" y="308" font-size="7" fill="#8A3324" text-anchor="middle">⚠ 2000 tok → force_done()</text>
+  <!-- Watchdog note -->
+  <text x="270" y="75" font-size="6" fill="#8A3324">think_tok ≥ 2000 → force_done() · FCP EOS penalty in think zone</text>
 
-  <!-- EOS any-state note -->
-  <text x="408" y="272" font-size="7" fill="#1B2A47" text-anchor="middle" font-family="Helvetica,Arial,sans-serif">EOS /</text>
-  <text x="408" y="282" font-size="7" fill="#1B2A47" text-anchor="middle" font-family="Helvetica,Arial,sans-serif">stop_id ⑤</text>
-  <text x="408" y="292" font-size="7" fill="#1B2A47" text-anchor="middle" font-family="Helvetica,Arial,sans-serif">→ done</text>
-
-  <!-- LOOP label at bottom -->
-  <rect x="142" y="252" width="178" height="0" rx="0" fill="none"/>
+  <!-- EOS note -->
+  <text x="416" y="60" font-size="6" fill="#1B2A47" text-anchor="middle">EOS /</text>
+  <text x="416" y="70" font-size="6" fill="#1B2A47" text-anchor="middle">stop → done</text>
 
 </svg>
 </div>
-
-<!-- Parameter reference cards -->
-<div class="param-grid">
-  <div class="param-card">
-    <span class="pv">2000</span>
-    <span class="pl">reasoning_budget<br/>(think tok hard cap)</span>
-  </div>
-  <div class="param-card">
-    <span class="pv">+4→+16</span>
-    <span class="pl">close_bias ramp<br/>(t=1000 to t=2000)</span>
-  </div>
-  <div class="param-card">
-    <span class="pv">16</span>
-    <span class="pl">final_min_tokens<br/>(ban early close)</span>
-  </div>
-</div>
-
-<!-- Legend row -->
-<div class="legend-row">
-  <span style="font-size:8.5px;font-weight:700;color:#1B2A47;font-family:Helvetica,Arial,sans-serif;">Layers:</span>
-  <span class="leg"><span class="legsw" style="background:#1B2A47;"></span>① FormatGuard</span>
-  <span class="leg"><span class="legsw" style="background:#98A9D1;border:1px solid #1B2A47;"></span>③ step/FSM</span>
-  <span class="leg"><span class="legsw" style="background:#8A3324;"></span>③ Watchdog</span>
-  <span class="leg"><span class="legsw" style="background:#1B5E34;"></span>④ inject_final</span>
-  <span class="leg"><span class="legsw" style="background:#D8B868;"></span>⑤ stop</span>
-  <span class="leg"><span class="legsw" style="background:#9374B1;"></span>⑥ flush/events</span>
-</div>
-
 </body>
 </html>

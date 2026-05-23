@@ -1,284 +1,632 @@
-<!-- s_phase1: Architecture + TuckerMoE + Parameter Comparison -->
-<div class="sec">
-  <div class="sh">Phase 1 — Macro Block Architecture &amp; TuckerMoE Design</div>
-  <div class="svgw">
-    <svg viewBox="0 0 580 605" xmlns="http://www.w3.org/2000/svg"
-         style="font-family:'Times New Roman',Times,serif;background:#fff;">
-      <defs>
-        <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#2D3A50"/>
-        </marker>
-        <marker id="arG" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#065F46"/>
-        </marker>
-        <filter id="sf"><feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#0F172A" flood-opacity="0.07"/></filter>
-      </defs>
+<!-- s_phase1: Architecture + TuckerMoE — Hero pipeline + 4 zoom panels -->
+<div class="sec" style="max-width:100%;overflow:visible;">
+  <div class="sh" style="background:#E8EDF5;color:#1B2A47;border-left:6px solid #1B2A47;">Phase 1 — Macro Block Architecture &amp; TuckerMoE Design</div>
+  <div class="sc" style="padding:2mm 3mm;max-width:100%;overflow:visible;">
 
-      <!-- ═══ MACRO BLOCK panel ═══ -->
-      <rect x="5" y="5" width="570" height="295" rx="7"
-            fill="#F8F9FB" stroke="#2B3E6E" stroke-width="1.8" filter="url(#sf)"/>
-      <rect x="7" y="7" width="566" height="32" rx="6" fill="#E8EEF7"/>
-      <text x="290" y="27" font-size="12.5" fill="#152238" text-anchor="middle" font-weight="700">Phase 1: Macro Block × N_macro = 6 &nbsp;(4×Mamba-3 + 1×GQA per block)</text>
+    <div style="display:flex;gap:4mm;align-items:stretch;">
 
-      <!-- X -->
-      <text x="32" y="158" font-size="14" fill="#0F172A" font-style="italic" font-family="Georgia,serif">X</text>
-      <line x1="46" y1="154" x2="66" y2="154" stroke="#2D3A50" stroke-width="2" marker-end="url(#ar)"/>
+      <!-- ══════════════════════════════════════════
+           LEFT: HERO PIPELINE (clean backbone)
+           ══════════════════════════════════════════ -->
+      <div style="flex:0 0 22%;min-width:0;">
+        <svg viewBox="0 0 280 425" xmlns="http://www.w3.org/2000/svg"
+             style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
+          <defs>
+            <marker id="arH" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#2D3A50"/>
+            </marker>
+            <filter id="sfH"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.07"/></filter>
+          </defs>
 
-      <!-- stacked Mamba block shadows -->
-      <rect x="74" y="50" width="310" height="220" rx="7" fill="#EBF0FA" stroke="#8A9DBF" stroke-width="1" stroke-dasharray="8 4" opacity="0.4"/>
-      <rect x="70" y="46" width="310" height="220" rx="7" fill="#EEF2FA" stroke="#6B82B8" stroke-width="1.2" stroke-dasharray="8 4" opacity="0.7"/>
-      <rect x="66" y="42" width="310" height="220" rx="7" fill="#FFFFFF" stroke="#2B4A8F" stroke-width="1.8" stroke-dasharray="8 4"/>
+          <rect x="1" y="1" width="278" height="423" rx="6" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1.2"/>
+          <text x="140" y="15" font-size="11.7" fill="#475569" text-anchor="middle" font-weight="600" font-style="italic">(a) Full Model Pipeline</text>
+          <line x1="8" y1="19" x2="272" y2="19" stroke="#E2E8F0" stroke-width="0.8"/>
 
-      <!-- Mamba-3 × 4 block -->
-      <rect x="76" y="58" width="292" height="76" rx="6" fill="#D8E4F5" stroke="#5B7EBE" stroke-width="1" opacity="0.45"/>
-      <rect x="72" y="54" width="292" height="76" rx="6" fill="#E3ECFB" stroke="#3D6AAA" stroke-width="1.2" opacity="0.75"/>
-      <rect x="68" y="50" width="292" height="76" rx="6" fill="#F0F5FF" stroke="#1E3A8A" stroke-width="1.8"/>
-      <text x="214" y="69" font-size="12" fill="#1E3A8A" text-anchor="middle" font-weight="700">Mamba-3 (SSM Block) × 4</text>
-      <rect x="322" y="52" width="30" height="16" rx="7" fill="#1E3A8A"/>
-      <text x="337" y="64" font-size="9.5" fill="#FFF" text-anchor="middle" font-weight="700">×4</text>
+          <!-- Input Tokens -->
+          <text x="140" y="32" font-size="13.0" fill="#1B2A47" text-anchor="middle" font-weight="700">Input Tokens</text>
+          <line x1="140" y1="35" x2="140" y2="45" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
 
-      <!-- in_proj → Scan → out_proj -->
-      <rect x="80" y="76" width="46" height="32" rx="4" fill="#F0ECFF" stroke="#3B0764" stroke-width="1.4"/>
-      <text x="103" y="88" font-size="9" fill="#3B0764" text-anchor="middle" font-weight="600">in_proj</text>
-      <text x="103" y="100" font-size="8" fill="#5B21B6" text-anchor="middle">(TuckerMoE)</text>
-      <line x1="126" y1="92" x2="138" y2="92" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#ar)"/>
-      <rect x="140" y="76" width="106" height="32" rx="4" fill="#EEF2FF" stroke="#1E3A8A" stroke-width="1.4"/>
-      <text x="193" y="89" font-size="10" fill="#1E3A8A" text-anchor="middle" font-weight="700">Chunk Parallel Scan</text>
-      <text x="193" y="101" font-size="8" fill="#1E40AF" text-anchor="middle">Triton kernel · O(L log L)</text>
-      <line x1="246" y1="92" x2="258" y2="92" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#ar)"/>
-      <rect x="260" y="76" width="52" height="32" rx="4" fill="#F0ECFF" stroke="#3B0764" stroke-width="1.4"/>
-      <text x="286" y="88" font-size="9" fill="#3B0764" text-anchor="middle" font-weight="600">out_proj</text>
-      <text x="286" y="100" font-size="8" fill="#5B21B6" text-anchor="middle">(TuckerMoE)</text>
+          <!-- Embedding -->
+          <rect x="50" y="46" width="180" height="26" rx="5" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.6" filter="url(#sfH)"/>
+          <text x="140" y="58" font-size="13.0" fill="#1E3A8A" text-anchor="middle" font-weight="700">Embedding Layer</text>
+          <text x="140" y="69" font-size="10.4" fill="#3B82F6" text-anchor="middle">V = 32,007  ·  d = 768</text>
+          <line x1="140" y1="72" x2="140" y2="84" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
 
-      <!-- Mamba → GQA -->
-      <line x1="214" y1="130" x2="214" y2="145" stroke="#2D3A50" stroke-width="2" marker-end="url(#ar)"/>
+          <!-- Macro Block — 3-layer stacked depth illusion -->
+          <rect x="14" y="85" width="252" height="226" rx="7" fill="#EBF0FA" stroke="#8A9DBF" stroke-width="0.8" stroke-dasharray="7 4" opacity="0.38"/>
+          <rect x="11" y="82" width="252" height="226" rx="7" fill="#EEF2FA" stroke="#6B82B8" stroke-width="1" stroke-dasharray="7 4" opacity="0.62"/>
+          <rect x="8" y="79" width="252" height="226" rx="7" fill="#F8FAFF" stroke="#2B4A8F" stroke-width="2" stroke-dasharray="7 4"/>
+          <text x="134" y="94" font-size="13.0" fill="#1D4ED8" text-anchor="middle" font-weight="700">Macro Block  ×  N = 6</text>
 
-      <!-- GQA block -->
-      <rect x="68" y="145" width="292" height="85" rx="6" fill="#F0F9FF" stroke="#0C4A6E" stroke-width="1.8"/>
-      <text x="214" y="163" font-size="12" fill="#0C4A6E" text-anchor="middle" font-weight="700">GQA Attention × 1</text>
-      <rect x="82" y="172" width="34" height="30" rx="4" fill="#E0F0FF" stroke="#3B7DD8" stroke-width="1.2"/>
-      <text x="99" y="191" font-size="11" fill="#1E3A8A" text-anchor="middle" font-weight="700">Q</text>
-      <rect x="120" y="172" width="34" height="30" rx="4" fill="#E0F0FF" stroke="#3B7DD8" stroke-width="1.2"/>
-      <text x="137" y="191" font-size="11" fill="#1E3A8A" text-anchor="middle" font-weight="700">K</text>
-      <rect x="158" y="172" width="34" height="30" rx="4" fill="#E0F0FF" stroke="#3B7DD8" stroke-width="1.2"/>
-      <text x="175" y="191" font-size="11" fill="#1E3A8A" text-anchor="middle" font-weight="700">V</text>
-      <line x1="194" y1="187" x2="204" y2="187" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#ar)"/>
-      <rect x="206" y="172" width="74" height="30" rx="4" fill="#E8F7EF" stroke="#064E3B" stroke-width="1.4"/>
-      <text x="243" y="185" font-size="10" fill="#064E3B" text-anchor="middle" font-weight="700">Grouped Query</text>
-      <text x="243" y="197" font-size="9" fill="#065F46" text-anchor="middle">Attn (SDPA)</text>
-      <line x1="280" y1="187" x2="292" y2="187" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#ar)"/>
-      <rect x="294" y="172" width="50" height="30" rx="4" fill="#F0ECFF" stroke="#3B0764" stroke-width="1.4"/>
-      <text x="319" y="185" font-size="9" fill="#3B0764" text-anchor="middle" font-weight="600">o_proj</text>
-      <text x="319" y="197" font-size="8" fill="#5B21B6" text-anchor="middle">(TuckerMoE)</text>
+          <!-- Mamba-3 ×4 — 2-layer stacked -->
+          <rect x="22" y="101" width="224" height="88" rx="5" fill="#D8E4F5" stroke="#5B7EBE" stroke-width="0.8" opacity="0.5"/>
+          <rect x="19" y="98" width="224" height="88" rx="5" fill="#F0F5FF" stroke="#1E3A8A" stroke-width="2"/>
+          <rect x="215" y="100" width="24" height="14" rx="7" fill="#1E3A8A"/>
+          <text x="227" y="111" font-size="11.1" fill="#FFF" text-anchor="middle" font-weight="700">×4</text>
+          <rect x="19" y="98" width="22" height="14" rx="3" fill="#1E3A8A"/>
+          <text x="30" y="109" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">A</text>
+          <text x="131" y="116" font-size="13.7" fill="#1E3A8A" text-anchor="middle" font-weight="700">Mamba-3 Block × 4</text>
+          <text x="131" y="128" font-size="10.4" fill="#334155" text-anchor="middle">Selective SSM · RoPE(B,C) · D-skip</text>
+          <text x="131" y="139" font-size="10.4" fill="#334155" text-anchor="middle">SiLU gate · LayerScale × 2</text>
+          <text x="131" y="150" font-size="10.4" fill="#7C3AED" text-anchor="middle">in_proj / out_proj → (C) TuckerMoE</text>
+          <text x="131" y="161" font-size="9.8" fill="#1D4ED8" text-anchor="middle">Chunk Parallel Scan → (D)</text>
 
-      <!-- X' -->
-      <line x1="384" y1="154" x2="404" y2="154" stroke="#2D3A50" stroke-width="2" marker-end="url(#ar)"/>
-      <text x="414" y="158" font-size="14" fill="#0F172A" font-style="italic" font-family="Georgia,serif">X′</text>
+          <!-- arrow Mamba-3 → GQA -->
+          <line x1="131" y1="186" x2="131" y2="198" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
 
-      <!-- ── Chunk Parallel Scan tree ── -->
-      <rect x="431" y="43" width="140" height="162" rx="5" fill="#EDF2FF" stroke="#2B62C4" stroke-width="1.4"/>
-      <text x="501" y="57" font-size="9.5" fill="#1E3A8A" text-anchor="middle" font-weight="700">Chunk Parallel Scan</text>
-      <text x="501" y="68" font-size="8" fill="#1D4ED8" text-anchor="middle" font-style="italic">depth = O(log n) · L(n,B) = O(log n)</text>
-      <!-- Block labels B₁ B₂ -->
-      <text x="479" y="80" font-size="8.5" fill="#047857" text-anchor="middle" font-weight="700">B₁</text>
-      <text x="521" y="80" font-size="8.5" fill="#047857" text-anchor="middle" font-weight="700">B₂</text>
-      <!-- Block separator dashed -->
-      <line x1="501" y1="82" x2="501" y2="131" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="3,2"/>
-      <!-- B₁ leaf tokens -->
-      <circle cx="467" cy="91" r="7" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.3"/>
-      <text x="467" y="95" font-size="6.5" fill="#374151" text-anchor="middle">t₁</text>
-      <circle cx="485" cy="91" r="7" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.3"/>
-      <text x="485" y="95" font-size="6.5" fill="#374151" text-anchor="middle">t₂</text>
-      <!-- B₂ leaf tokens -->
-      <circle cx="513" cy="91" r="7" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.3"/>
-      <text x="513" y="95" font-size="6.5" fill="#374151" text-anchor="middle">t₃</text>
-      <circle cx="531" cy="91" r="7" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.3"/>
-      <text x="531" y="95" font-size="6.5" fill="#374151" text-anchor="middle">t₄</text>
-      <!-- Edges: leaves → within-block accumulators -->
-      <line x1="467" y1="98" x2="476" y2="112" stroke="#3B62C4" stroke-width="1.1"/>
-      <line x1="485" y1="98" x2="476" y2="112" stroke="#3B62C4" stroke-width="1.1"/>
-      <line x1="513" y1="98" x2="522" y2="112" stroke="#3B62C4" stroke-width="1.1"/>
-      <line x1="531" y1="98" x2="522" y2="112" stroke="#3B62C4" stroke-width="1.1"/>
-      <!-- Level-1: within-block accumulators (green) -->
-      <rect x="462" y="112" width="28" height="14" rx="3" fill="#A7F3D0" stroke="#059669" stroke-width="1.3"/>
-      <text x="476" y="122" font-size="7" fill="#065F46" text-anchor="middle" font-weight="600">u₁:₂</text>
-      <rect x="508" y="112" width="28" height="14" rx="3" fill="#A7F3D0" stroke="#059669" stroke-width="1.3"/>
-      <text x="522" y="122" font-size="7" fill="#065F46" text-anchor="middle" font-weight="600">u₃:₄</text>
-      <!-- Right bracket: ⌈log₂B⌉ Hillis-Steele (intra) -->
-      <line x1="544" y1="91" x2="549" y2="91" stroke="#7C3AED" stroke-width="0.9"/>
-      <line x1="544" y1="126" x2="549" y2="126" stroke="#7C3AED" stroke-width="0.9"/>
-      <line x1="549" y1="91" x2="549" y2="126" stroke="#7C3AED" stroke-width="0.9"/>
-      <text x="552" y="101" font-size="5.5" fill="#7C3AED" text-anchor="start">⌈log₂B⌉</text>
-      <text x="552" y="110" font-size="5" fill="#7C3AED" text-anchor="start" font-style="italic">Hillis-Steele</text>
-      <text x="552" y="118" font-size="5" fill="#7C3AED" text-anchor="start" font-style="italic">(intra)</text>
-      <!-- Edges: accumulators → ⊕ -->
-      <line x1="476" y1="126" x2="499" y2="138" stroke="#D97706" stroke-width="1.2"/>
-      <line x1="522" y1="126" x2="499" y2="138" stroke="#D97706" stroke-width="1.2"/>
-      <!-- ⊕ inter-block merge -->
-      <circle cx="499" cy="144" r="7.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1.6"/>
-      <text x="499" y="148" font-size="10" fill="#92400E" text-anchor="middle" font-weight="700">⊕</text>
-      <!-- Right bracket: log B Bleloch (inter) -->
-      <line x1="544" y1="126" x2="549" y2="126" stroke="#6D28D9" stroke-width="0.9"/>
-      <line x1="544" y1="152" x2="549" y2="152" stroke="#6D28D9" stroke-width="0.9"/>
-      <line x1="549" y1="126" x2="549" y2="152" stroke="#6D28D9" stroke-width="0.9"/>
-      <text x="552" y="136" font-size="5.5" fill="#6D28D9" text-anchor="start">log B</text>
-      <text x="552" y="144" font-size="5" fill="#6D28D9" text-anchor="start" font-style="italic">Bleloch</text>
-      <text x="552" y="151" font-size="5" fill="#6D28D9" text-anchor="start" font-style="italic">(inter)</text>
-      <!-- ⊕ → output -->
-      <line x1="499" y1="152" x2="499" y2="160" stroke="#DC2626" stroke-width="1.3" marker-end="url(#ar)"/>
-      <!-- output y -->
-      <rect x="479" y="160" width="40" height="14" rx="3" fill="#FCA5A5" stroke="#DC2626" stroke-width="1.3"/>
-      <text x="499" y="170" font-size="7" fill="#991B1B" text-anchor="middle" font-weight="700">output y</text>
-      <!-- Bottom note -->
-      <text x="499" y="184" font-size="6.5" fill="#1D4ED8" text-anchor="middle">Total: L(n,B) = O(log n) (Eq. 6)</text>
-      <text x="499" y="197" font-size="6" fill="#6B7280" text-anchor="middle">All blocks scan in parallel → log n depth</text>
+          <!-- Transformer ×1 -->
+          <rect x="19" y="199" width="224" height="62" rx="5" fill="#F0F9FF" stroke="#0C4A6E" stroke-width="2"/>
+          <rect x="19" y="199" width="22" height="14" rx="3" fill="#0C4A6E"/>
+          <text x="30" y="210" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">B</text>
+          <text x="131" y="217" font-size="13.7" fill="#0C4A6E" text-anchor="middle" font-weight="700">Transformer Block × 1</text>
+          <text x="131" y="229" font-size="10.4" fill="#334155" text-anchor="middle">GQA-SDPA · KV-cache</text>
+          <text x="131" y="240" font-size="10.4" fill="#7C3AED" text-anchor="middle">gate / up / down → (C) TuckerMoE</text>
+          <text x="131" y="251" font-size="9.8" fill="#C2410C" text-anchor="middle">LayerScale × 2 · RMSNorm × 2</text>
 
-      <!-- ── Legend (moved down) ── -->
-      <rect x="431" y="209" width="140" height="68" rx="4" fill="#FAFBFC" stroke="#C8CDD8"/>
-      <text x="501" y="223" font-size="10" fill="#152238" text-anchor="middle" font-weight="700">Legend</text>
-      <rect x="439" y="228" width="22" height="10" rx="2" fill="#EEF2FF" stroke="#1E3A8A" stroke-width="1.2"/>
-      <text x="467" y="237" font-size="9" fill="#2D3A50">Mamba-3 (SSM)</text>
-      <rect x="439" y="242" width="22" height="10" rx="2" fill="#F0F9FF" stroke="#0C4A6E" stroke-width="1.2"/>
-      <text x="467" y="251" font-size="9" fill="#2D3A50">GQA Transformer</text>
-      <rect x="439" y="256" width="22" height="10" rx="2" fill="#F0ECFF" stroke="#3B0764" stroke-width="1.2"/>
-      <text x="467" y="265" font-size="9" fill="#2D3A50">TuckerMoE proj.</text>
-      <rect x="439" y="270" width="22" height="10" rx="2" fill="#E8F7EF" stroke="#064E3B" stroke-width="1.2"/>
-      <text x="467" y="279" font-size="9" fill="#2D3A50">GQA Attention</text>
+          <!-- TuckerMoE strip -->
+          <rect x="19" y="269" width="224" height="20" rx="4" fill="#F5EEFF" stroke="#7C3AED" stroke-width="1.6"/>
+          <rect x="19" y="269" width="22" height="20" rx="3" fill="#7C3AED"/>
+          <text x="30" y="282" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">C</text>
+          <text x="131" y="282" font-size="11.1" fill="#5B21B6" text-anchor="middle" font-weight="700">TuckerMoE  ·  82.87% compression</text>
 
-      <text x="290" y="282" font-size="12" fill="#152238" text-anchor="middle" font-weight="700">(a) 30 layers total: 24 Mamba-3 + 6 GQA · d=768</text>
+          <!-- arrow out of Macro Block -->
+          <line x1="131" y1="305" x2="131" y2="318" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
 
-      <!-- ═══ TuckerMoE panel ═══ -->
-      <rect x="5" y="302" width="570" height="220" rx="7"
-            fill="#FAFBFC" stroke="#2B3E6E" stroke-width="1.8" filter="url(#sf)"/>
-      <text x="290" y="320" font-size="12.5" fill="#152238" text-anchor="middle" font-weight="700">TuckerMoE Tensor Decomposition (66 modules · W_e = U_in · G_e · U_out)</text>
+          <!-- Final RMSNorm -->
+          <rect x="65" y="319" width="132" height="22" rx="4" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.4" filter="url(#sfH)"/>
+          <text x="131" y="334" font-size="11.7" fill="#334155" text-anchor="middle" font-weight="600">Final RMSNorm</text>
+          <line x1="131" y1="341" x2="131" y2="352" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
 
-      <!-- Standard MoE cube (dashed) -->
-      <g transform="translate(24,332)">
-        <text x="36" y="-4" font-size="9" fill="#6B7280" text-anchor="middle" font-weight="600">Standard MoE</text>
-        <rect x="0" y="8" width="44" height="44" fill="none" stroke="#9CA3AF" stroke-width="1.8" stroke-dasharray="5 4"/>
-        <path d="M 0,8 L 14,0 L 58,0 L 44,8 Z" fill="none" stroke="#9CA3AF" stroke-width="1.8" stroke-dasharray="5 4"/>
-        <path d="M 44,8 L 58,0 L 58,44 L 44,52 Z" fill="none" stroke="#9CA3AF" stroke-width="1.8" stroke-dasharray="5 4"/>
-        <text x="29" y="37" font-size="7.5" fill="#9CA3AF" text-anchor="middle" font-style="italic">E×d_in×d_out</text>
-      </g>
-      <text x="106" y="373" font-size="20" fill="#6B7280" font-weight="700" text-anchor="middle">→</text>
+          <!-- LM Head trapezoid -->
+          <path d="M 62,353 L 200,353 L 184,373 L 78,373 Z" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.6" filter="url(#sfH)"/>
+          <text x="131" y="363" font-size="11.7" fill="#1E3A8A" text-anchor="middle" font-weight="700">LM Head</text>
+          <text x="131" y="373" font-size="9.8" fill="#3B82F6" text-anchor="middle">weight-tied · tanh-cap(30)</text>
+          <line x1="131" y1="376" x2="131" y2="386" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
 
-      <!-- U_in -->
-      <g transform="translate(118,332)">
-        <path d="M 4,5 L 14,0 L 34,0 L 24,5 Z" fill="#D1D9EE" stroke="#3B4E8A" stroke-width="1.3"/>
-        <path d="M 24,5 L 34,0 L 34,40 L 24,45 Z" fill="#B8C5E0" stroke="#3B4E8A" stroke-width="1.3"/>
-        <rect x="4" y="5" width="20" height="40" fill="#E8EEF8" stroke="#3B4E8A" stroke-width="1.3"/>
-        <text x="14" y="30" font-size="10" fill="#1E2B4A" text-anchor="middle" font-weight="700" font-family="Georgia,serif">U_in</text>
-        <text x="14" y="58" font-size="8" fill="#3B4E8A" text-anchor="middle">d×r₃</text>
-        <text x="14" y="68" font-size="7.5" fill="#3B4E8A" text-anchor="middle">1536×256</text>
-        <text x="32" y="56" font-size="8" fill="#3B4E8A" text-anchor="middle" font-style="italic">shared</text>
-      </g>
-      <line x1="155" y1="370" x2="165" y2="370" stroke="#2D3A50" stroke-width="1.5" marker-end="url(#ar)"/>
+          <!-- Logits -->
+          <text x="131" y="399" font-size="13.7" fill="#1B2A47" text-anchor="middle" font-weight="700">Logits  (V = 32,007)</text>
 
-      <!-- G core -->
-      <g transform="translate(168,328)">
-        <path d="M 4,5 L 14,0 L 34,0 L 24,5 Z" fill="#E8D88A" stroke="#7A5C08" stroke-width="1.3"/>
-        <path d="M 24,5 L 34,0 L 34,44 L 24,49 Z" fill="#D4C070" stroke="#7A5C08" stroke-width="1.3"/>
-        <rect x="4" y="5" width="20" height="44" fill="#F5EFC0" stroke="#7A5C08" stroke-width="1.3"/>
-        <text x="14" y="32" font-size="14" fill="#5C4000" text-anchor="middle" font-weight="700">𝒢</text>
-        <rect x="20" y="-2" width="22" height="12" rx="6" fill="#7A5C08"/>
-        <text x="31" y="7.5" font-size="8" fill="#FFF" text-anchor="middle" font-weight="700">×E</text>
-        <text x="14" y="63" font-size="8" fill="#7A5C08" text-anchor="middle">r₁×r₃×r₂</text>
-        <text x="14" y="73" font-size="7.5" fill="#7A5C08" text-anchor="middle">32×256×512</text>
-        <text x="32" y="63" font-size="8" fill="#7A5C08" text-anchor="middle" font-style="italic">shared</text>
-      </g>
-      <line x1="206" y1="370" x2="216" y2="370" stroke="#2D3A50" stroke-width="1.5" marker-end="url(#ar)"/>
+          <!-- Stats strip -->
+          <rect x="8" y="407" width="264" height="14" rx="3" fill="#EFF7F0" stroke="#1A5C32" stroke-width="1.2"/>
+          <text x="140" y="417" font-size="9.1" fill="#0A3D20" text-anchor="middle" font-weight="700">417M active  ·  2.43B dense-equiv  ·  82.87% compression</text>
+        </svg>
+      </div>
 
-      <!-- U_out -->
-      <g transform="translate(218,332)">
-        <path d="M 4,5 L 14,0 L 40,0 L 30,5 Z" fill="#C8B8E0" stroke="#4A1D7A" stroke-width="1.3"/>
-        <path d="M 30,5 L 40,0 L 40,40 L 30,45 Z" fill="#B0A0D0" stroke="#4A1D7A" stroke-width="1.3"/>
-        <rect x="4" y="5" width="26" height="40" fill="#EAE0F8" stroke="#4A1D7A" stroke-width="1.3"/>
-        <text x="17" y="29" font-size="9" fill="#3B0764" text-anchor="middle" font-weight="700">U_out</text>
-        <text x="17" y="58" font-size="8" fill="#4A1D7A" text-anchor="middle">r₂×d_out</text>
-        <text x="17" y="68" font-size="7.5" fill="#4A1D7A" text-anchor="middle">512×6144</text>
-        <text x="35" y="56" font-size="8" fill="#4A1D7A" text-anchor="middle" font-style="italic">shared</text>
-      </g>
-      <line x1="263" y1="370" x2="273" y2="370" stroke="#2D3A50" stroke-width="1.5" marker-end="url(#ar)"/>
+      <!-- ══════════════════════════════════════════
+           RIGHT: 2×2 ZOOM PANELS
+           ══════════════════════════════════════════ -->
+      <div style="flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:3mm;">
 
-      <!-- ⊗ -->
-      <circle cx="284" cy="370" r="11" fill="#F0F2F5" stroke="#4B5563" stroke-width="1.8"/>
-      <line x1="278" y1="364" x2="290" y2="376" stroke="#4B5563" stroke-width="1.5"/>
-      <line x1="290" y1="364" x2="278" y2="376" stroke="#4B5563" stroke-width="1.5"/>
-      <line x1="296" y1="370" x2="316" y2="370" stroke="#2D3A50" stroke-width="1.8" marker-end="url(#ar)"/>
-      <text x="330" y="367" font-size="12" fill="#0F172A" font-weight="600" font-style="italic" font-family="Georgia,serif">Y_mod</text>
+        <!-- ─── Panel A: Mamba-3 Block ─── -->
+        <div>
+          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+               style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
+            <defs>
+              <marker id="arA" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/>
+              </marker>
+              <marker id="arAb" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1E3A8A"/>
+              </marker>
+              <filter id="sfA"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/></filter>
+            </defs>
 
-      <!-- Top-k Router -->
-      <rect x="340" y="325" width="140" height="76" rx="6" fill="#FFFBF0" stroke="#78350F" stroke-width="1.6" filter="url(#sf)"/>
-      <text x="410" y="344" font-size="10" fill="#78350F" text-anchor="middle" font-weight="700">Top-k Router</text>
-      <g transform="translate(354,390)">
-        <line x1="0" y1="0" x2="112" y2="0" stroke="#D1D5DB" stroke-width="0.6"/>
-        <rect x="2"  y="-20" width="8" height="20" rx="1.5" fill="#92400E" stroke="#78350F" stroke-width="0.6"/>
-        <rect x="14" y="-6"  width="8" height="6"  rx="1.5" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="0.4"/>
-        <rect x="26" y="-16" width="8" height="16" rx="1.5" fill="#92400E" stroke="#78350F" stroke-width="0.6"/>
-        <rect x="38" y="-5"  width="8" height="5"  rx="1.5" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="0.4"/>
-        <rect x="50" y="-8"  width="8" height="8"  rx="1.5" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="0.4"/>
-        <rect x="62" y="-4"  width="8" height="4"  rx="1.5" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="0.4"/>
-        <rect x="74" y="-7"  width="8" height="7"  rx="1.5" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="0.4"/>
-        <rect x="86" y="-3"  width="8" height="3"  rx="1.5" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="0.4"/>
-        <text x="100" y="-2" font-size="7" fill="#9CA3AF" text-anchor="middle">···</text>
-        <text x="56" y="10" font-size="6.5" fill="#78350F" text-anchor="middle">experts (selected = top-2)</text>
-      </g>
-      <path d="M 354,362 L 302,372" fill="none" stroke="#92400E" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
-      <text x="320" y="353" font-size="8" fill="#92400E" font-style="italic">gate weight</text>
+            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+            <rect x="3" y="3" width="554" height="20" rx="4" fill="#EEF2FF"/>
+            <text x="280" y="17" font-size="11.7" fill="#1E3A8A" text-anchor="middle" font-weight="700">(A) Mamba-3 Block — Internal Data-Flow</text>
 
-      <!-- U_expert -->
-      <rect x="18" y="420" width="140" height="46" rx="5" fill="#EFF7F0" stroke="#1A5C32" stroke-width="1.4"/>
-      <text x="88" y="438" font-size="10" fill="#0A3D20" text-anchor="middle" font-weight="700">U_expert[e] — per expert</text>
-      <text x="88" y="452" font-size="9" fill="#1A5C32" text-anchor="middle">E×r₁ = 8×32 (per-expert only)</text>
-      <path d="M 88,420 L 172,384" fill="none" stroke="#1A5C32" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arG)"/>
+            <!-- residual rail (x=38) -->
+            <line x1="38" y1="25" x2="38" y2="222" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="5 3"/>
+            <text x="35" y="24" font-size="9.1" fill="#64748B" text-anchor="end">x_in</text>
 
-      <!-- formula -->
-      <rect x="160" y="428" width="280" height="34" rx="4" fill="#F5F0FF" stroke="#3B0764" stroke-width="1.2"/>
-      <text x="300" y="441" font-size="10" fill="#3B0764" text-anchor="middle" font-weight="700">W_e = U_in · G_e · U_out</text>
-      <text x="300" y="455" font-size="9" fill="#5B21B6" text-anchor="middle">G_e = Σ_r U_exp[e,r]·𝒢[r,:,:]  ·  82.87% compression achieved</text>
+            <!-- z bypass (x=58): splits from in_proj left edge, runs down to SiLU gate level -->
+            <line x1="58" y1="58" x2="58" y2="168" stroke="#2D3A50" stroke-width="1.1" stroke-dasharray="3 2"/>
+            <text x="53" y="116" font-size="9.1" fill="#475569" text-anchor="end">z</text>
+            <!-- z horizontal into gate left edge -->
+            <line x1="58" y1="168" x2="273" y2="168" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
 
-      <!-- routing dim -->
-      <rect x="452" y="428" width="116" height="48" rx="4" fill="#FFF9F0" stroke="#78350F" stroke-width="1.2"/>
-      <text x="510" y="442" font-size="9" fill="#78350F" text-anchor="middle" font-weight="700">Routing dim</text>
-      <text x="510" y="455" font-size="9" fill="#92400E" text-anchor="middle">Dense: ℝ^d=1536</text>
-      <text x="510" y="468" font-size="9.5" fill="#8B1F1F" text-anchor="middle" font-weight="700">Tucker: ℝ^r₃=256 ↓6×</text>
+            <!-- norm_mamba -->
+            <rect x="234" y="25" width="92" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.2" filter="url(#sfA)"/>
+            <text x="280" y="36" font-size="10.4" fill="#334155" text-anchor="middle" font-weight="600">RMSNorm</text>
+            <line x1="280" y1="41" x2="280" y2="49" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arA)"/>
 
-      <text x="290" y="487" font-size="11" fill="#152238" text-anchor="middle" font-weight="700">Shared U_in, 𝒢, U_out across all 8 experts · r=(32,512,256) · top-2 routing</text>
+            <!-- in_proj -->
+            <rect x="206" y="49" width="148" height="18" rx="3" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.4" filter="url(#sfA)"/>
+            <text x="280" y="59" font-size="11.1" fill="#1E3A8A" text-anchor="middle" font-weight="700">in_proj  (Linear + bias)</text>
+            <text x="280" y="70" font-size="9.1" fill="#475569" text-anchor="middle">→  z  ·  x′  ·  B  ·  C  ·  Δ</text>
+            <!-- z splits left from in_proj left edge -->
+            <line x1="206" y1="58" x2="58" y2="58" stroke="#2D3A50" stroke-width="1.1"/>
 
-      <!-- ═══ Parameter Comparison Bar Chart ═══ -->
-      <rect x="5" y="496" width="570" height="102" rx="6"
-            fill="#F8F9FB" stroke="#2B3E6E" stroke-width="1.5"/>
-      <rect x="7" y="498" width="566" height="22" rx="5" fill="#E8EEF7"/>
-      <text x="290" y="512" font-size="11.5" fill="#152238" text-anchor="middle" font-weight="700">Parameter Footprint per Module — Dense MoE vs TuckerMoE (89.8% ↓ per expert)</text>
+            <!-- split B,C→RoPE (left) and x′→x_up (right) from in_proj center bottom -->
+            <line x1="280" y1="67" x2="280" y2="77" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="162" y1="77" x2="390" y2="77" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="162" y1="77" x2="162" y2="85" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <line x1="390" y1="77" x2="390" y2="85" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
 
-      <!-- Dense bar -->
-      <text x="84" y="532" font-size="9" fill="#374151" text-anchor="end" font-weight="700">Dense</text>
-      <text x="84" y="543" font-size="8" fill="#8B1F1F" text-anchor="end">75.5M</text>
-      <rect x="88" y="523" width="477" height="19" rx="3" fill="#9CA8BC"/>
-      <text x="569" y="536" font-size="8.5" fill="#1F2937" text-anchor="end" font-weight="700">8 × W_e (1536 × 6144)</text>
+            <!-- RoPE(B,C) -->
+            <rect x="116" y="86" width="92" height="16" rx="3" fill="#E0F2FE" stroke="#38BDF8" stroke-width="1.3" filter="url(#sfA)"/>
+            <text x="162" y="97" font-size="10.4" fill="#0369A1" text-anchor="middle" font-weight="600">RoPE (B, C)</text>
 
-      <!-- Tucker bar components -->
-      <text x="84" y="557" font-size="9" fill="#0A3D20" text-anchor="end" font-weight="700">Tucker</text>
-      <text x="84" y="568" font-size="8" fill="#0A3D20" text-anchor="end">7.73M</text>
-      <!-- 𝒢: 54.2% of 48.7px = 26px -->
-      <rect x="88" y="547" width="26" height="19" rx="3" fill="#3B4E8A"/>
-      <text x="101" y="560" font-size="7" fill="#FFF" text-anchor="middle" font-weight="700">𝒢</text>
-      <!-- U_out: 40.7% = 20px -->
-      <rect x="115" y="547" width="20" height="19" fill="#4A1D7A"/>
-      <text x="125" y="560" font-size="6.5" fill="#FFF" text-anchor="middle">U_o</text>
-      <!-- U_in: ~3px -->
-      <rect x="136" y="547" width="3" height="19" fill="#1A5C32"/>
-      <!-- 89.8% callout -->
-      <text x="158" y="553" font-size="11.5" fill="#8B1F1F" font-weight="800">89.8% ↓</text>
-      <text x="158" y="566" font-size="9" fill="#8B1F1F">11.3× HBM traffic ↓</text>
-      <!-- right breakdown -->
-      <rect x="296" y="547" width="272" height="32" rx="4" fill="#EFF4E8" stroke="#1A5C32" stroke-width="1.1"/>
-      <text x="432" y="558" font-size="9.5" fill="#0A3D20" text-anchor="middle" font-weight="700">82.87% overall model compression</text>
-      <text x="432" y="572" font-size="9" fill="#1A5C32" text-anchor="middle">417M active params / 2.43B dense-equivalent capacity</text>
-      <!-- component legend -->
-      <text x="88" y="580" font-size="7" fill="#9CA3AF">0</text>
-      <text x="323" y="580" font-size="7" fill="#9CA3AF" text-anchor="middle">37.8M</text>
-      <text x="565" y="580" font-size="7" fill="#9CA3AF" text-anchor="end">75.5M params/module</text>
-    </svg>
+            <!-- x_up_proj TuckerMoE -->
+            <rect x="336" y="86" width="108" height="18" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.4" filter="url(#sfA)"/>
+            <text x="390" y="97" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">x_up_proj  (TuckerMoE)</text>
+
+            <!-- converge both branches → Chunk Scan -->
+            <line x1="162" y1="102" x2="256" y2="110" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <line x1="390" y1="104" x2="304" y2="110" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+
+            <!-- Chunk Parallel Scan — HERO BOX -->
+            <rect x="196" y="111" width="168" height="24" rx="5" fill="#EEF2FF" stroke="#1E3A8A" stroke-width="2" filter="url(#sfA)"/>
+            <text x="280" y="123" font-size="12.3" fill="#1E3A8A" text-anchor="middle" font-weight="700">Chunk Parallel Scan</text>
+            <text x="280" y="133" font-size="9.1" fill="#3B82F6" text-anchor="middle">Triton kernel  ·  O(L log L)  →  see (D)</text>
+            <line x1="280" y1="135" x2="280" y2="143" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arA)"/>
+
+            <!-- y_down + D·x' skip -->
+            <rect x="190" y="144" width="180" height="16" rx="3" fill="#FEF9EE" stroke="#D97706" stroke-width="1.2" filter="url(#sfA)"/>
+            <text x="280" y="155" font-size="10.4" fill="#92400E" text-anchor="middle" font-weight="600">y_down_proj  +  D · x′  (skip)</text>
+            <!-- arrow into SiLU gate top -->
+            <line x1="280" y1="160" x2="280" y2="161" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+
+            <!-- SiLU gate — INLINE at cx=280, cy=168 -->
+            <circle cx="280" cy="168" r="7" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
+            <line x1="275" y1="163" x2="285" y2="173" stroke="#64748B" stroke-width="1.3"/>
+            <line x1="285" y1="163" x2="275" y2="173" stroke="#64748B" stroke-width="1.3"/>
+            <text x="268" y="165" font-size="8.5" fill="#475569" text-anchor="end">×SiLU(z)</text>
+            <!-- gate output down to out_proj -->
+            <line x1="280" y1="175" x2="280" y2="183" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+
+            <!-- out_proj TuckerMoE -->
+            <rect x="196" y="184" width="168" height="18" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.4" filter="url(#sfA)"/>
+            <text x="280" y="195" font-size="11.1" fill="#581C87" text-anchor="middle" font-weight="600">out_proj  (TuckerMoE)  ·  d→d</text>
+            <line x1="280" y1="202" x2="280" y2="209" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+
+            <!-- LayerScale -->
+            <rect x="214" y="210" width="132" height="12" rx="3" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.2" filter="url(#sfA)"/>
+            <text x="280" y="219" font-size="9.8" fill="#C2410C" text-anchor="middle" font-weight="600">LayerScale</text>
+            <line x1="280" y1="222" x2="280" y2="227" stroke="#2D3A50" stroke-width="1.1"/>
+
+            <!-- ⊕ residual -->
+            <circle cx="280" cy="230" r="6" fill="#EFF4FF" stroke="#2B4A8F" stroke-width="1.4"/>
+            <line x1="274" y1="230" x2="286" y2="230" stroke="#2B4A8F" stroke-width="1.4"/>
+            <line x1="280" y1="224" x2="280" y2="236" stroke="#2B4A8F" stroke-width="1.4"/>
+            <line x1="38" y1="230" x2="274" y2="230" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#arAb)"/>
+            <text x="157" y="227" font-size="9.1" fill="#1D4ED8" text-anchor="middle">⊕ residual</text>
+          </svg>
+        </div>
+
+        <!-- ─── Panel C: TuckerMoE Decomposition ─── -->
+        <div>
+          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+               style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
+            <defs>
+              <marker id="arC" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/>
+              </marker>
+              <marker id="arCg" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#065F46"/>
+              </marker>
+              <filter id="sfC"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.07"/></filter>
+            </defs>
+
+            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+            <rect x="3" y="3" width="554" height="20" rx="4" fill="#FFFBF0"/>
+            <text x="280" y="17" font-size="11.7" fill="#78350F" text-anchor="middle" font-weight="700">(C) TuckerMoE — Tensor Decomposition  (W_e = U_in · 𝒢_e · U_out)</text>
+
+            <!-- Standard MoE cube (dashed) -->
+            <text x="44" y="35" font-size="10.4" fill="#9CA3AF" text-anchor="middle" font-weight="600">Standard MoE</text>
+            <rect x="6" y="42" width="44" height="44" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-dasharray="5 4"/>
+            <path d="M 6,42 L 18,34 L 62,34 L 50,42 Z" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-dasharray="5 4"/>
+            <path d="M 50,42 L 62,34 L 62,78 L 50,86 Z" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-dasharray="5 4"/>
+            <text x="28" y="70" font-size="9.8" fill="#9CA3AF" text-anchor="middle" font-style="italic">E×d_in×d_out</text>
+            <text x="28" y="82" font-size="9.1" fill="#9CA3AF" text-anchor="middle">75.5M params</text>
+
+            <!-- arrow → -->
+            <text x="86" y="68" font-size="23.4" fill="#6B7280" font-weight="700" text-anchor="middle">→</text>
+
+            <!-- Tucker: U_in -->
+            <g transform="translate(104,34)">
+              <path d="M 4,5 L 14,0 L 34,0 L 24,5 Z" fill="#D1D9EE" stroke="#3B4E8A" stroke-width="1.2"/>
+              <path d="M 24,5 L 34,0 L 34,42 L 24,47 Z" fill="#B8C5E0" stroke="#3B4E8A" stroke-width="1.2"/>
+              <rect x="4" y="5" width="20" height="42" fill="#E8EEF8" stroke="#3B4E8A" stroke-width="1.2"/>
+              <text x="14" y="31" font-size="13.0" fill="#1E2B4A" text-anchor="middle" font-weight="700" font-family="Georgia,serif">U_in</text>
+              <text x="14" y="60" font-size="9.8" fill="#3B4E8A" text-anchor="middle">d×r₃</text>
+              <text x="14" y="70" font-size="9.1" fill="#3B4E8A" text-anchor="middle">1536×256</text>
+              <text x="30" y="58" font-size="9.1" fill="#6B7280" text-anchor="middle" font-style="italic">shared</text>
+            </g>
+            <line x1="142" y1="62" x2="152" y2="62" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#arC)"/>
+
+            <!-- Tucker: G_e (core tensor) -->
+            <g transform="translate(154,30)">
+              <path d="M 4,5 L 14,0 L 34,0 L 24,5 Z" fill="#E8D88A" stroke="#7A5C08" stroke-width="1.2"/>
+              <path d="M 24,5 L 34,0 L 34,46 L 24,51 Z" fill="#D4C070" stroke="#7A5C08" stroke-width="1.2"/>
+              <rect x="4" y="5" width="20" height="46" fill="#F5EFC0" stroke="#7A5C08" stroke-width="1.2"/>
+              <text x="14" y="34" font-size="16.9" fill="#5C4000" text-anchor="middle" font-weight="700">𝒢</text>
+              <rect x="20" y="-2" width="22" height="12" rx="6" fill="#7A5C08"/>
+              <text x="31" y="7.5" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">×E</text>
+              <text x="14" y="64" font-size="9.8" fill="#7A5C08" text-anchor="middle">r₁×r₃×r₂</text>
+              <text x="14" y="74" font-size="9.1" fill="#7A5C08" text-anchor="middle">32×256×512</text>
+              <text x="30" y="64" font-size="9.1" fill="#6B7280" text-anchor="middle" font-style="italic">shared</text>
+            </g>
+            <line x1="194" y1="62" x2="204" y2="62" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#arC)"/>
+
+            <!-- Tucker: U_out -->
+            <g transform="translate(206,34)">
+              <path d="M 4,5 L 14,0 L 40,0 L 30,5 Z" fill="#C8B8E0" stroke="#4A1D7A" stroke-width="1.2"/>
+              <path d="M 30,5 L 40,0 L 40,42 L 30,47 Z" fill="#B0A0D0" stroke="#4A1D7A" stroke-width="1.2"/>
+              <rect x="4" y="5" width="26" height="42" fill="#EAE0F8" stroke="#4A1D7A" stroke-width="1.2"/>
+              <text x="17" y="30" font-size="11.7" fill="#3B0764" text-anchor="middle" font-weight="700">U_out</text>
+              <text x="17" y="58" font-size="9.8" fill="#4A1D7A" text-anchor="middle">r₂×d_out</text>
+              <text x="17" y="68" font-size="9.1" fill="#4A1D7A" text-anchor="middle">512×6144</text>
+              <text x="33" y="58" font-size="9.1" fill="#6B7280" text-anchor="middle" font-style="italic">shared</text>
+            </g>
+            <line x1="253" y1="62" x2="263" y2="62" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#arC)"/>
+
+            <!-- multiply circle -->
+            <circle cx="274" cy="62" r="10" fill="#F0F2F5" stroke="#4B5563" stroke-width="1.6"/>
+            <line x1="268" y1="56" x2="280" y2="68" stroke="#4B5563" stroke-width="1.4"/>
+            <line x1="280" y1="56" x2="268" y2="68" stroke="#4B5563" stroke-width="1.4"/>
+            <line x1="284" y1="62" x2="304" y2="62" stroke="#2D3A50" stroke-width="1.6" marker-end="url(#arC)"/>
+            <text x="316" y="59" font-size="14.3" fill="#0F172A" font-weight="600" font-style="italic" font-family="Georgia,serif">Y_e</text>
+
+            <!-- U_expert[e] per-expert box -->
+            <rect x="6" y="100" width="144" height="42" rx="5" fill="#EFF7F0" stroke="#1A5C32" stroke-width="1.3" filter="url(#sfC)"/>
+            <text x="78" y="116" font-size="11.1" fill="#0A3D20" text-anchor="middle" font-weight="700">U_expert[e] — per-expert</text>
+            <text x="78" y="128" font-size="10.4" fill="#1A5C32" text-anchor="middle">E × r₁ = 8 × 32</text>
+            <text x="78" y="139" font-size="9.8" fill="#047857" text-anchor="middle">(only small part is expert-specific)</text>
+            <path d="M 120,100 L 172,69" fill="none" stroke="#1A5C32" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arCg)"/>
+
+            <!-- Top-k Router -->
+            <rect x="330" y="28" width="136" height="66" rx="5" fill="#FFFBF0" stroke="#78350F" stroke-width="1.5" filter="url(#sfC)"/>
+            <text x="398" y="44" font-size="11.7" fill="#78350F" text-anchor="middle" font-weight="700">Top-k Router</text>
+            <g transform="translate(342,88)">
+              <line x1="0" y1="0" x2="112" y2="0" stroke="#D1D5DB" stroke-width="0.6"/>
+              <rect x="2"  y="-18" width="8" height="18" rx="1.5" fill="#92400E"/>
+              <rect x="14" y="-6"  width="8" height="6"  rx="1.5" fill="#E5E7EB"/>
+              <rect x="26" y="-14" width="8" height="14" rx="1.5" fill="#92400E"/>
+              <rect x="38" y="-5"  width="8" height="5"  rx="1.5" fill="#E5E7EB"/>
+              <rect x="50" y="-8"  width="8" height="8"  rx="1.5" fill="#E5E7EB"/>
+              <rect x="62" y="-4"  width="8" height="4"  rx="1.5" fill="#E5E7EB"/>
+              <rect x="74" y="-7"  width="8" height="7"  rx="1.5" fill="#E5E7EB"/>
+              <rect x="86" y="-3"  width="8" height="3"  rx="1.5" fill="#E5E7EB"/>
+              <text x="100" y="-2" font-size="9.1" fill="#9CA3AF" text-anchor="middle">···</text>
+              <text x="56" y="10" font-size="8.5" fill="#78350F" text-anchor="middle">top-2 from E=8 experts</text>
+            </g>
+            <path d="M 342,64 L 290,68" fill="none" stroke="#92400E" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arC)"/>
+            <text x="314" y="60" font-size="9.8" fill="#92400E" font-style="italic">gate weight</text>
+
+            <!-- Formula + compression -->
+            <rect x="6" y="148" width="548" height="32" rx="4" fill="#F5F0FF" stroke="#3B0764" stroke-width="1.2"/>
+            <text x="280" y="161" font-size="11.7" fill="#3B0764" text-anchor="middle" font-weight="700">W_e = U_in · 𝒢_e · U_out  ,  𝒢_e = Σ_r U_exp[e,r] · 𝒢[r,:,:]</text>
+            <text x="280" y="174" font-size="10.4" fill="#5B21B6" text-anchor="middle">Shared U_in, 𝒢, U_out across all 8 experts  ·  r = (32, 512, 256)  ·  top-2 routing</text>
+
+            <!-- Compression bar -->
+            <text x="6" y="196" font-size="10.4" fill="#374151" font-weight="700">Dense  75.5M</text>
+            <rect x="74" y="187" width="480" height="14" rx="2" fill="#9CA8BC"/>
+            <text x="6" y="214" font-size="10.4" fill="#0A3D20" font-weight="700">Tucker  7.73M</text>
+            <rect x="74" y="204" width="26" height="14" rx="2" fill="#3B4E8A"/>
+            <rect x="101" y="204" width="20" height="14" fill="#4A1D7A"/>
+            <rect x="122" y="204" width="3" height="14" fill="#1A5C32"/>
+            <text x="138" y="215" font-size="12.3" fill="#8B1F1F" font-weight="800">89.8% ↓</text>
+            <rect x="270" y="202" width="282" height="18" rx="3" fill="#EFF4E8" stroke="#1A5C32" stroke-width="1"/>
+            <text x="411" y="213" font-size="11.1" fill="#0A3D20" text-anchor="middle" font-weight="700">82.87% overall compression  ·  417M / 2.43B dense-equiv</text>
+          </svg>
+        </div>
+
+        <!-- ─── Panel B: Transformer Block ─── -->
+        <div>
+          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+               style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
+            <defs>
+              <marker id="arB" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/>
+              </marker>
+              <marker id="arBb" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1E3A8A"/>
+              </marker>
+              <filter id="sfB"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/></filter>
+            </defs>
+
+            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+            <rect x="3" y="3" width="554" height="20" rx="4" fill="#F0F9FF"/>
+            <text x="280" y="17" font-size="11.7" fill="#0C4A6E" text-anchor="middle" font-weight="700">(B) Transformer Block — Internal Data-Flow</text>
+
+            <!-- Sub-block divider -->
+            <line x1="284" y1="24" x2="284" y2="234" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
+            <text x="142" y="32" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">Attention Sub-block</text>
+            <text x="420" y="32" font-size="10.4" fill="#065F46" text-anchor="middle" font-weight="600">FFN Sub-block</text>
+
+            <!-- ── LEFT: Attention (cx=142) ── -->
+            <line x1="38" y1="36" x2="38" y2="198" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="5 3"/>
+            <text x="35" y="35" font-size="9.1" fill="#64748B" text-anchor="end">x_in</text>
+
+            <!-- norm_attn -->
+            <rect x="96" y="36" width="92" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.2" filter="url(#sfB)"/>
+            <text x="142" y="47" font-size="10.4" fill="#334155" text-anchor="middle" font-weight="600">RMSNorm</text>
+            <line x1="142" y1="52" x2="142" y2="59" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
+
+            <!-- Q/K/V split -->
+            <line x1="142" y1="59" x2="142" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="84" y1="63" x2="200" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="84"  y1="63" x2="84"  y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <line x1="142" y1="63" x2="142" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <line x1="200" y1="63" x2="200" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <rect x="58" y="71" width="52" height="16" rx="3" fill="#DBEAFE" stroke="#60A5FA" stroke-width="1.2" filter="url(#sfB)"/>
+            <text x="84"  y="82" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">Q proj</text>
+            <rect x="116" y="71" width="52" height="16" rx="3" fill="#DBEAFE" stroke="#60A5FA" stroke-width="1.2" filter="url(#sfB)"/>
+            <text x="142" y="82" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">K proj</text>
+            <rect x="174" y="71" width="52" height="16" rx="3" fill="#DBEAFE" stroke="#60A5FA" stroke-width="1.2" filter="url(#sfB)"/>
+            <text x="200" y="82" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">V proj</text>
+
+            <!-- Q/K/V → GQA -->
+            <line x1="84"  y1="87" x2="120" y2="95" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <line x1="142" y1="87" x2="142" y2="95" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <line x1="200" y1="87" x2="164" y2="95" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+
+            <!-- GQA SDPA -->
+            <rect x="100" y="96" width="84" height="24" rx="4" fill="#D1FAE5" stroke="#34D399" stroke-width="1.4" filter="url(#sfB)"/>
+            <text x="142" y="107" font-size="11.1" fill="#065F46" text-anchor="middle" font-weight="700">GQA Attention</text>
+            <text x="142" y="117" font-size="9.1" fill="#059669" text-anchor="middle">SDPA  ·  kv-cache</text>
+            <line x1="142" y1="120" x2="142" y2="128" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
+
+            <!-- o_proj -->
+            <rect x="100" y="129" width="84" height="16" rx="3" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.2" filter="url(#sfB)"/>
+            <text x="142" y="140" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">o_proj (Linear)</text>
+            <line x1="142" y1="145" x2="142" y2="153" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
+
+            <!-- LayerScale attn -->
+            <rect x="106" y="154" width="72" height="12" rx="3" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.1"/>
+            <text x="142" y="163" font-size="9.1" fill="#C2410C" text-anchor="middle" font-weight="600">LayerScale</text>
+            <line x1="142" y1="166" x2="142" y2="174" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+
+            <!-- ⊕ residual 1 -->
+            <circle cx="142" cy="181" r="7" fill="#EFF9F4" stroke="#065F46" stroke-width="1.3"/>
+            <line x1="136" y1="181" x2="148" y2="181" stroke="#065F46" stroke-width="1.4"/>
+            <line x1="142" y1="175" x2="142" y2="187" stroke="#065F46" stroke-width="1.4"/>
+            <line x1="38" y1="181" x2="135" y2="181" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#arBb)"/>
+            <text x="88" y="178" font-size="9.1" fill="#065F46" text-anchor="middle">⊕ residual</text>
+            <line x1="142" y1="188" x2="142" y2="198" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <text x="138" y="207" font-size="9.8" fill="#334155" text-anchor="end">→ mid</text>
+
+            <!-- ── RIGHT: FFN (cx=420) ── -->
+            <line x1="314" y1="36" x2="314" y2="226" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="5 3"/>
+            <text x="311" y="35" font-size="9.1" fill="#64748B" text-anchor="end">mid</text>
+
+            <!-- norm_ffn -->
+            <rect x="374" y="36" width="92" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.2" filter="url(#sfB)"/>
+            <text x="420" y="47" font-size="10.4" fill="#334155" text-anchor="middle" font-weight="600">RMSNorm</text>
+            <line x1="420" y1="52" x2="420" y2="59" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
+
+            <!-- gate / up split -->
+            <line x1="420" y1="59" x2="420" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="378" y1="63" x2="462" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="378" y1="63" x2="378" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <line x1="462" y1="63" x2="462" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <rect x="332" y="71" width="90" height="20" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.3" filter="url(#sfB)"/>
+            <text x="377" y="82" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">gate_proj</text>
+            <text x="377" y="90" font-size="9.1" fill="#7E22CE" text-anchor="middle">(TuckerMoE)</text>
+            <rect x="424" y="71" width="90" height="20" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.3" filter="url(#sfB)"/>
+            <text x="469" y="82" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">up_proj</text>
+            <text x="469" y="90" font-size="9.1" fill="#7E22CE" text-anchor="middle">(TuckerMoE)</text>
+
+            <!-- SiLU × gate -->
+            <line x1="377" y1="91" x2="405" y2="100" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <line x1="469" y1="91" x2="441" y2="100" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+            <circle cx="420" cy="106" r="8" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+            <line x1="415" y1="101" x2="425" y2="111" stroke="#64748B" stroke-width="1.2"/>
+            <line x1="425" y1="101" x2="415" y2="111" stroke="#64748B" stroke-width="1.2"/>
+            <text x="410" y="103" font-size="9.1" fill="#475569" text-anchor="end">SiLU ×</text>
+            <line x1="420" y1="114" x2="420" y2="122" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
+
+            <!-- down_proj TuckerMoE -->
+            <rect x="370" y="123" width="100" height="20" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.3" filter="url(#sfB)"/>
+            <text x="420" y="134" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">down_proj  (TuckerMoE)</text>
+            <line x1="420" y1="143" x2="420" y2="151" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
+
+            <!-- LayerScale ffn -->
+            <rect x="376" y="152" width="88" height="12" rx="3" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.1"/>
+            <text x="420" y="161" font-size="9.1" fill="#C2410C" text-anchor="middle" font-weight="600">LayerScale</text>
+            <line x1="420" y1="164" x2="420" y2="172" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
+
+            <!-- ⊕ residual 2 -->
+            <circle cx="420" cy="179" r="7" fill="#EFF9F4" stroke="#065F46" stroke-width="1.3"/>
+            <line x1="414" y1="179" x2="426" y2="179" stroke="#065F46" stroke-width="1.4"/>
+            <line x1="420" y1="173" x2="420" y2="185" stroke="#065F46" stroke-width="1.4"/>
+            <line x1="314" y1="179" x2="413" y2="179" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#arBb)"/>
+            <text x="364" y="176" font-size="9.1" fill="#065F46" text-anchor="middle">⊕ residual</text>
+            <text x="420" y="202" font-size="9.8" fill="#334155" text-anchor="middle">→ out</text>
+          </svg>
+        </div>
+
+        <!-- ─── Panel D: Chunk Parallel Scan — 3 sub-panels ─── -->
+        <div>
+          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+               style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
+            <defs>
+              <marker id="arD" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/>
+              </marker>
+              <marker id="arDr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#DC2626"/>
+              </marker>
+              <marker id="arDb" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1D4ED8"/>
+              </marker>
+              <filter id="sfD"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/></filter>
+            </defs>
+
+            <!-- outer border + header -->
+            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+            <rect x="3" y="3" width="554" height="18" rx="4" fill="#EEF2FF"/>
+            <text x="280" y="15.5" font-size="11.7" fill="#1D4ED8" text-anchor="middle" font-weight="700">(D) Chunk Parallel Scan  ·  O(log n) depth  ·  Hillis-Steele + Blelloch</text>
+
+            <!-- dividers between sub-panels -->
+            <line x1="188" y1="22" x2="188" y2="235" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="374" y1="22" x2="374" y2="235" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
+
+            <!-- ══ SUB-PANEL (a): Integral-Image Analogy ══ -->
+            <text x="94" y="32" font-size="10.4" fill="#374151" text-anchor="middle" font-weight="700">(a) Integral-Image Analogy</text>
+
+            <text x="12" y="51" font-size="9.1" fill="#6B7280" font-style="italic">x_j</text>
+            <rect x="26" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="35" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">3</text>
+            <rect x="46" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="55" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">1</text>
+            <rect x="66" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="75" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">4</text>
+            <rect x="86" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="95" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">1</text>
+            <rect x="106" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="115" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">5</text>
+            <rect x="126" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="135" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">9</text>
+            <rect x="146" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="155" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">2</text>
+            <rect x="166" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/>
+            <text x="175" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">6</text>
+
+            <text x="12" y="76" font-size="9.1" fill="#6B7280" font-style="italic">P_j</text>
+            <rect x="26" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="35" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">3</text>
+            <rect x="46" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="55" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">4</text>
+            <rect x="66" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="75" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">8</text>
+            <rect x="86" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="95" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">9</text>
+            <rect x="106" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="115" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">14</text>
+            <rect x="126" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="135" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">23</text>
+            <rect x="146" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="155" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">25</text>
+            <rect x="166" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/>
+            <text x="175" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">31</text>
+
+            <text x="12" y="102" font-size="9.1" fill="#6B7280" font-style="italic">u_j</text>
+            <rect x="26" y="88" width="78" height="14" rx="2" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="65" y="99" font-size="9.1" fill="#065F46" text-anchor="middle" font-weight="600">B₁</text>
+            <rect x="106" y="88" width="78" height="14" rx="2" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="145" y="99" font-size="9.1" fill="#9D174D" text-anchor="middle" font-weight="600">B₂</text>
+
+            <rect x="6" y="108" width="176" height="22" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+            <text x="94" y="117" font-size="8.5" fill="#92400E" text-anchor="middle" font-weight="700">u(B₁∪B₂) = u(B₁) ⊕ u(B₂)</text>
+            <text x="94" y="127" font-size="7.8" fill="#92400E" text-anchor="middle">Proposition 1</text>
+
+            <text x="94" y="143" font-size="9.1" fill="#374151" text-anchor="middle">P(i,j) = P_j − P_{i−1}</text>
+            <text x="94" y="154" font-size="9.1" fill="#6B7280" text-anchor="middle">O(1) query after O(n) build</text>
+
+            <!-- ══ SUB-PANEL (b): Sequential ME-SDPA ══ -->
+            <text x="281" y="32" font-size="10.4" fill="#374151" text-anchor="middle" font-weight="700">(b) Sequential  (ME-SDPA)</text>
+
+            <rect x="192" y="37" width="42" height="14" rx="3" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.2"/>
+            <text x="213" y="48" font-size="9.8" fill="#991B1B" text-anchor="middle" font-weight="700">depth O(n)</text>
+
+            <circle cx="235" cy="58" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/>
+            <text x="235" y="62" font-size="9.1" fill="#374151" text-anchor="middle">t₁</text>
+            <circle cx="235" cy="92" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/>
+            <text x="235" y="96" font-size="9.1" fill="#374151" text-anchor="middle">t₂</text>
+            <circle cx="235" cy="126" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/>
+            <text x="235" y="130" font-size="9.1" fill="#374151" text-anchor="middle">t₃</text>
+            <circle cx="235" cy="160" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/>
+            <text x="235" y="164" font-size="9.1" fill="#374151" text-anchor="middle">t₄</text>
+
+            <rect x="249" y="52" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/>
+            <text x="265" y="62" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁</text>
+            <line x1="235" y1="68" x2="235" y2="82" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+            <rect x="249" y="86" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/>
+            <text x="265" y="96" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁:₂</text>
+            <line x1="235" y1="102" x2="235" y2="116" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+            <rect x="249" y="120" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/>
+            <text x="265" y="130" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁:₃</text>
+            <line x1="235" y1="136" x2="235" y2="150" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+            <rect x="249" y="154" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/>
+            <text x="265" y="164" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁:₄</text>
+            <line x1="235" y1="170" x2="235" y2="180" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+            <rect x="211" y="181" width="48" height="13" rx="3" fill="#FCA5A5" stroke="#DC2626" stroke-width="1.2"/>
+            <text x="235" y="191" font-size="9.1" fill="#991B1B" text-anchor="middle" font-weight="700">output y</text>
+
+            <text x="281" y="214" font-size="8.5" fill="#DC2626" text-anchor="middle">Each step waits for all previous steps</text>
+
+            <!-- ══ SUB-PANEL (c): ELSA Two-Level Prefix Scan ══ -->
+            <text x="467" y="32" font-size="10.4" fill="#374151" text-anchor="middle" font-weight="700">(c) ELSA  (Two-Level Prefix Scan)</text>
+
+            <rect x="377" y="37" width="52" height="14" rx="3" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="1.2"/>
+            <text x="403" y="48" font-size="9.8" fill="#1E3A8A" text-anchor="middle" font-weight="700">depth O(log n)</text>
+
+            <circle cx="392" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="392" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₁</text>
+            <circle cx="408" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="408" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₂</text>
+            <circle cx="424" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="424" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₃</text>
+            <circle cx="440" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="440" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₄</text>
+            <circle cx="456" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="456" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₅</text>
+            <circle cx="472" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="472" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₆</text>
+            <circle cx="488" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="488" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₇</text>
+            <circle cx="504" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="504" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₈</text>
+
+            <line x1="392" y1="67" x2="400" y2="82" stroke="#059669" stroke-width="0.9"/>
+            <line x1="408" y1="67" x2="400" y2="82" stroke="#059669" stroke-width="0.9"/>
+            <rect x="392" y="83" width="16" height="12" rx="2" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="400" y="93" font-size="7.8" fill="#065F46" text-anchor="middle">u₁:₂</text>
+
+            <line x1="424" y1="67" x2="432" y2="82" stroke="#DB2777" stroke-width="0.9"/>
+            <line x1="440" y1="67" x2="432" y2="82" stroke="#DB2777" stroke-width="0.9"/>
+            <rect x="424" y="83" width="16" height="12" rx="2" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="432" y="93" font-size="7.8" fill="#9D174D" text-anchor="middle">u₃:₄</text>
+
+            <line x1="456" y1="67" x2="464" y2="82" stroke="#059669" stroke-width="0.9"/>
+            <line x1="472" y1="67" x2="464" y2="82" stroke="#059669" stroke-width="0.9"/>
+            <rect x="456" y="83" width="16" height="12" rx="2" fill="#A7F3D0" stroke="#059669" stroke-width="1"/>
+            <text x="464" y="93" font-size="7.8" fill="#065F46" text-anchor="middle">u₅:₆</text>
+
+            <line x1="488" y1="67" x2="496" y2="82" stroke="#DB2777" stroke-width="0.9"/>
+            <line x1="504" y1="67" x2="496" y2="82" stroke="#DB2777" stroke-width="0.9"/>
+            <rect x="488" y="83" width="16" height="12" rx="2" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/>
+            <text x="496" y="93" font-size="7.8" fill="#9D174D" text-anchor="middle">u₇:₈</text>
+
+            <line x1="380" y1="67" x2="380" y2="95" stroke="#7C3AED" stroke-width="0.8"/>
+            <line x1="516" y1="67" x2="516" y2="95" stroke="#7C3AED" stroke-width="0.8"/>
+            <line x1="380" y1="95" x2="516" y2="95" stroke="#7C3AED" stroke-width="0.8"/>
+            <text x="448" y="103" font-size="7.8" fill="#7C3AED" text-anchor="middle">Hillis-Steele  (intra-chunk)</text>
+
+            <line x1="400" y1="95" x2="416" y2="114" stroke="#1D4ED8" stroke-width="1"/>
+            <line x1="432" y1="95" x2="416" y2="114" stroke="#1D4ED8" stroke-width="1"/>
+            <rect x="406" y="115" width="20" height="12" rx="2" fill="#BFDBFE" stroke="#1D4ED8" stroke-width="1.1"/>
+            <text x="416" y="125" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u(B₁)</text>
+
+            <line x1="464" y1="95" x2="480" y2="114" stroke="#1D4ED8" stroke-width="1"/>
+            <line x1="496" y1="95" x2="480" y2="114" stroke="#1D4ED8" stroke-width="1"/>
+            <rect x="470" y="115" width="20" height="12" rx="2" fill="#BFDBFE" stroke="#1D4ED8" stroke-width="1.1"/>
+            <text x="480" y="125" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u(B₂)</text>
+
+            <line x1="380" y1="112" x2="380" y2="136" stroke="#6D28D9" stroke-width="0.8"/>
+            <line x1="516" y1="112" x2="516" y2="136" stroke="#6D28D9" stroke-width="0.8"/>
+            <line x1="380" y1="136" x2="516" y2="136" stroke="#6D28D9" stroke-width="0.8"/>
+            <text x="448" y="144" font-size="7.8" fill="#6D28D9" text-anchor="middle">Blelloch  (inter-chunk)</text>
+
+            <line x1="416" y1="127" x2="448" y2="150" stroke="#D97706" stroke-width="1"/>
+            <line x1="480" y1="127" x2="448" y2="150" stroke="#D97706" stroke-width="1"/>
+            <circle cx="448" cy="157" r="8" fill="#FEF3C7" stroke="#D97706" stroke-width="1.4"/>
+            <text x="448" y="162" font-size="11.7" fill="#92400E" text-anchor="middle" font-weight="700">⊕</text>
+            <text x="418" y="155" font-size="8.5" fill="#92400E" text-anchor="end">u(B₁)⊕u(B₂)</text>
+
+            <line x1="448" y1="165" x2="448" y2="174" stroke="#1D4ED8" stroke-width="1.3" marker-end="url(#arDb)"/>
+            <rect x="424" y="175" width="48" height="13" rx="3" fill="#BFDBFE" stroke="#1D4ED8" stroke-width="1.2"/>
+            <text x="448" y="185" font-size="9.1" fill="#1E3A8A" text-anchor="middle" font-weight="700">output y</text>
+
+            <rect x="378" y="197" width="176" height="16" rx="3" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="1"/>
+            <text x="466" y="209" font-size="9.8" fill="#1E3A8A" text-anchor="middle" font-weight="700">Total: L(n,B) = O(log n)  (Eq. 6)</text>
+          </svg>
+        </div>
+
+      </div><!-- /2×2 grid -->
+    </div><!-- /flex row -->
+
   </div>
 </div>

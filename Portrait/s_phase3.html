@@ -1,150 +1,109 @@
 <!-- s_phase3.html — Phase 3: Multi-Strategy Speculative Jacobi Decoding (SJD) -->
 <div class="sec">
-  <div class="sh">
-    Phase 3 — Multi-Strategy Speculative Jacobi Decoding (SJD)
-  </div>
+  <div class="sh">Phase 3 — Multi-Strategy Speculative Jacobi Decoding</div>
   <div class="sc" style="padding: 2mm 3mm">
     <!-- Top: Jacobi Iteration Visualization -->
     <div
       style="
         background: #ffffff;
-        border: 2.5px solid #1B2A47;
+        border: 2.5px solid #1b2a47;
         border-radius: 10px;
         padding: 3mm 3.5mm;
         margin-bottom: 2mm;
       "
     >
       <!-- Title bar -->
-      <div style="background:#1B2A47;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:18.2pt;font-weight:800;text-align:center;border-radius:6px;padding:3mm 4mm;margin-bottom:3.5mm;letter-spacing:0.4px;">
+      <div
+        style="
+          background: #1b2a47;
+          color: #fff;
+          font-family: Helvetica, Arial, sans-serif;
+          font-size: 18.2pt;
+          font-weight: 800;
+          text-align: center;
+          border-radius: 6px;
+          padding: 3mm 4mm;
+          margin-bottom: 3.5mm;
+          letter-spacing: 0.4px;
+        "
+      >
         N-gram Accelerated Jacobi Parallel Decoding
       </div>
 
-      <!-- Legend — 4 boxes with label below, matching reference image -->
+      <!-- Legend — compact inline swatches -->
       <div
         style="
           display: flex;
-          gap: 5mm;
+          gap: 3mm;
           justify-content: center;
-          align-items: flex-start;
+          align-items: center;
           margin-bottom: 2mm;
+          font-family: &quot;Times New Roman&quot;, Times, serif;
+          font-size: 15.6pt;
+          color: #1b2a47;
+          font-weight: 600;
         "
       >
-        <div
-          style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5mm;
-          "
-        >
-          <div
-            style="
-              width: 55px;
-              height: 35px;
-              background: #98A9D1;
-              border: 1.5px solid #1B2A47;
-              border-radius: 4px;
-            "
-          ></div>
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
           <span
             style="
-              font-size: 16.9pt;
-              color: #1B2A47;
-              font-weight: 600;
-              text-align: center;
-              line-height: 1.3;
+              display: inline-block;
+              width: 6mm;
+              height: 4mm;
+              background: #98a9d1;
+              border: 1.2px solid #1b2a47;
+              border-radius: 2px;
+              flex-shrink: 0;
             "
-            >committed tokens<br />with KV cache</span
-          >
-        </div>
-        <div
-          style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5mm;
-          "
-        >
-          <div
-            style="
-              width: 55px;
-              height: 35px;
-              background: #1B5E34;
-              border: 1.5px solid #1B5E34;
-              border-radius: 4px;
-            "
-          ></div>
+          ></span>
+          committed (KV cache)
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
           <span
             style="
-              font-size: 16.9pt;
-              color: #1B2A47;
-              font-weight: 600;
-              text-align: center;
-              line-height: 1.3;
+              display: inline-block;
+              width: 6mm;
+              height: 4mm;
+              background: #1b5e34;
+              border: 1.2px solid #1b5e34;
+              border-radius: 2px;
+              flex-shrink: 0;
             "
-            >real-accepted tokens</span
-          >
-        </div>
-        <div
-          style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5mm;
-          "
-        >
-          <div
-            style="
-              width: 55px;
-              height: 35px;
-              background: #9374B1;
-              border: 1.5px solid #1B2A47;
-              border-radius: 4px;
-            "
-          ></div>
+          ></span>
+          real-accepted
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
           <span
             style="
-              font-size: 16.9pt;
-              color: #1B2A47;
-              font-weight: 600;
-              text-align: center;
-              line-height: 1.3;
+              display: inline-block;
+              width: 6mm;
+              height: 4mm;
+              background: #9374b1;
+              border: 1.2px solid #9374b1;
+              border-radius: 2px;
+              flex-shrink: 0;
             "
-            >pseudo-accepted tokens</span
-          >
-        </div>
-        <div
-          style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5mm;
-          "
-        >
-          <div
-            style="
-              width: 55px;
-              height: 35px;
-              background: #8A3324;
-              border: 1.5px solid #8A3324;
-              border-radius: 4px;
-            "
-          ></div>
+          ></span>
+          pseudo-accepted
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
           <span
             style="
-              font-size: 16.9pt;
-              color: #1B2A47;
-              font-weight: 600;
-              text-align: center;
-              line-height: 1.3;
+              display: inline-block;
+              width: 6mm;
+              height: 4mm;
+              background: #8a3324;
+              border: 1.2px solid #8a3324;
+              border-radius: 2px;
+              flex-shrink: 0;
             "
-            >rejected tokens</span
-          >
-        </div>
+          ></span>
+          rejected
+        </span>
       </div>
 
       <svg
-        viewBox="0 58 760 372"
+        viewBox="0 58 760 322"
         xmlns="http://www.w3.org/2000/svg"
         style="
           width: 100%;
@@ -252,7 +211,7 @@
           x1="295"
           y1="78"
           x2="295"
-          y2="400"
+          y2="337"
           stroke="#4B5563"
           stroke-width="2"
           stroke-dasharray="9,4"
@@ -261,7 +220,7 @@
           x1="460"
           y1="78"
           x2="460"
-          y2="400"
+          y2="350"
           stroke="#4B5563"
           stroke-width="2"
           stroke-dasharray="9,4"
@@ -284,7 +243,7 @@
           x="80"
           y="98"
           width="44"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -292,7 +251,7 @@
         />
         <text
           x="102"
-          y="116"
+          y="113"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -304,7 +263,7 @@
           x="127"
           y="98"
           width="58"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -312,7 +271,7 @@
         />
         <text
           x="156"
-          y="116"
+          y="113"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -324,7 +283,7 @@
           x="188"
           y="98"
           width="50"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -332,7 +291,7 @@
         />
         <text
           x="213"
-          y="116"
+          y="113"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -344,7 +303,7 @@
           x="241"
           y="98"
           width="42"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -352,7 +311,7 @@
         />
         <text
           x="262"
-          y="116"
+          y="113"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -365,7 +324,7 @@
           x="305"
           y="98"
           width="38"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -373,7 +332,7 @@
         />
         <text
           x="324"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -385,7 +344,7 @@
           x="347"
           y="98"
           width="50"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -393,7 +352,7 @@
         />
         <text
           x="372"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -406,7 +365,7 @@
           x="402"
           y="98"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -414,7 +373,7 @@
         />
         <text
           x="417"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -426,7 +385,7 @@
           x="435"
           y="98"
           width="22"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -434,7 +393,7 @@
         />
         <text
           x="446"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -447,7 +406,7 @@
           x="470"
           y="98"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -455,7 +414,7 @@
         />
         <text
           x="485"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -467,7 +426,7 @@
           x="503"
           y="98"
           width="36"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -475,7 +434,7 @@
         />
         <text
           x="521"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -487,7 +446,7 @@
           x="542"
           y="98"
           width="36"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -495,7 +454,7 @@
         />
         <text
           x="560"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -507,7 +466,7 @@
           x="581"
           y="98"
           width="46"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -515,7 +474,7 @@
         />
         <text
           x="604"
-          y="116"
+          y="113"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -597,7 +556,7 @@
         <!-- ══════ ITERATION j+1 ══════ -->
         <text
           x="745"
-          y="232"
+          y="207"
           font-size="15"
           fill="#1B2A47"
           font-weight="800"
@@ -609,9 +568,9 @@
         <!-- all 4 prompt tokens (blue) -->
         <rect
           x="80"
-          y="208"
+          y="183"
           width="44"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -619,7 +578,7 @@
         />
         <text
           x="102"
-          y="226"
+          y="198"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -629,9 +588,9 @@
         </text>
         <rect
           x="127"
-          y="208"
+          y="183"
           width="58"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -639,7 +598,7 @@
         />
         <text
           x="156"
-          y="226"
+          y="198"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -649,9 +608,9 @@
         </text>
         <rect
           x="188"
-          y="208"
+          y="183"
           width="50"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -659,7 +618,7 @@
         />
         <text
           x="213"
-          y="226"
+          y="198"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -669,9 +628,9 @@
         </text>
         <rect
           x="241"
-          y="208"
+          y="183"
           width="42"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -679,7 +638,7 @@
         />
         <text
           x="262"
-          y="226"
+          y="198"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -690,9 +649,9 @@
         <!-- block0: def+bubble now committed (blue) — same x as row j -->
         <rect
           x="305"
-          y="208"
+          y="183"
           width="38"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -700,7 +659,7 @@
         />
         <text
           x="324"
-          y="226"
+          y="198"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -710,9 +669,9 @@
         </text>
         <rect
           x="347"
-          y="208"
+          y="183"
           width="50"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -720,7 +679,7 @@
         />
         <text
           x="372"
-          y="226"
+          y="198"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -731,9 +690,9 @@
         <!-- block0: real-accepted (green) — same x as row j T7,T8 -->
         <rect
           x="402"
-          y="208"
+          y="183"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -741,7 +700,7 @@
         />
         <text
           x="417"
-          y="226"
+          y="198"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -751,9 +710,9 @@
         </text>
         <rect
           x="435"
-          y="208"
+          y="183"
           width="22"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -761,7 +720,7 @@
         />
         <text
           x="446"
-          y="226"
+          y="198"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -772,9 +731,9 @@
         <!-- block1: pseudo-accepted (light green) — same x as row j T9,T10,T11 -->
         <rect
           x="470"
-          y="208"
+          y="183"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#9374B1"
           stroke="#9374B1"
@@ -782,7 +741,7 @@
         />
         <text
           x="485"
-          y="226"
+          y="198"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -792,9 +751,9 @@
         </text>
         <rect
           x="503"
-          y="208"
+          y="183"
           width="36"
-          height="27"
+          height="22"
           rx="4"
           fill="#9374B1"
           stroke="#9374B1"
@@ -802,7 +761,7 @@
         />
         <text
           x="521"
-          y="226"
+          y="198"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -812,9 +771,9 @@
         </text>
         <rect
           x="542"
-          y="208"
+          y="183"
           width="36"
-          height="27"
+          height="22"
           rx="4"
           fill="#9374B1"
           stroke="#9374B1"
@@ -822,7 +781,7 @@
         />
         <text
           x="560"
-          y="226"
+          y="198"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -833,9 +792,9 @@
         <!-- block1: rejected (orange) — same x as row j T12 -->
         <rect
           x="581"
-          y="208"
+          y="183"
           width="32"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -843,7 +802,7 @@
         />
         <text
           x="597"
-          y="226"
+          y="198"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -854,7 +813,7 @@
         <!-- j+1 annotations -->
         <text
           x="148"
-          y="258"
+          y="233"
           font-size="10"
           fill="#9374B1"
           font-weight="700"
@@ -864,7 +823,7 @@
         </text>
         <text
           x="148"
-          y="270"
+          y="245"
           font-size="10"
           fill="#9374B1"
           font-weight="700"
@@ -875,9 +834,9 @@
         <!-- cyan dashed arrow: n-gram pool → block0 acceptance point -->
         <line
           x1="74"
-          y1="249"
+          y1="224"
           x2="432"
-          y2="249"
+          y2="224"
           stroke="#9374B1"
           stroke-width="2.2"
           stroke-dasharray="7,4"
@@ -886,16 +845,16 @@
         <!-- solid accepted arrow (block0) -->
         <line
           x1="434"
-          y1="249"
+          y1="224"
           x2="456"
-          y2="249"
+          y2="224"
           stroke="#1B2A47"
           stroke-width="2.2"
           marker-end="url(#p3-arBlack)"
         />
         <text
           x="445"
-          y="263"
+          y="238"
           font-size="10"
           fill="#1B5E34"
           text-anchor="middle"
@@ -905,7 +864,7 @@
         </text>
         <text
           x="445"
-          y="274"
+          y="249"
           font-size="10"
           fill="#1B5E34"
           text-anchor="middle"
@@ -916,9 +875,9 @@
         <!-- dashed gray arrow: pseudo accepted (block1) -->
         <line
           x1="462"
-          y1="249"
+          y1="224"
           x2="524"
-          y2="249"
+          y2="224"
           stroke="#98A9D1"
           stroke-width="2"
           stroke-dasharray="6,3"
@@ -926,7 +885,7 @@
         />
         <text
           x="493"
-          y="263"
+          y="238"
           font-size="10"
           fill="#9374B1"
           text-anchor="middle"
@@ -938,7 +897,7 @@
         <!-- ══════ ITERATION j+2 ══════ -->
         <text
           x="745"
-          y="342"
+          y="292"
           font-size="15"
           fill="#1B2A47"
           font-weight="800"
@@ -950,9 +909,9 @@
         <!-- 8 committed blue tokens (prompt + block0) — all at same x as row j -->
         <rect
           x="80"
-          y="318"
+          y="268"
           width="44"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -960,7 +919,7 @@
         />
         <text
           x="102"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -970,9 +929,9 @@
         </text>
         <rect
           x="127"
-          y="318"
+          y="268"
           width="58"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -980,7 +939,7 @@
         />
         <text
           x="156"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -990,9 +949,9 @@
         </text>
         <rect
           x="188"
-          y="318"
+          y="268"
           width="50"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -1000,7 +959,7 @@
         />
         <text
           x="213"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -1010,9 +969,9 @@
         </text>
         <rect
           x="241"
-          y="318"
+          y="268"
           width="42"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -1020,7 +979,7 @@
         />
         <text
           x="262"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -1030,9 +989,9 @@
         </text>
         <rect
           x="305"
-          y="318"
+          y="268"
           width="38"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -1040,7 +999,7 @@
         />
         <text
           x="324"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -1050,9 +1009,9 @@
         </text>
         <rect
           x="347"
-          y="318"
+          y="268"
           width="50"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -1060,7 +1019,7 @@
         />
         <text
           x="372"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -1070,9 +1029,9 @@
         </text>
         <rect
           x="402"
-          y="318"
+          y="268"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -1080,7 +1039,7 @@
         />
         <text
           x="417"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -1090,9 +1049,9 @@
         </text>
         <rect
           x="435"
-          y="318"
+          y="268"
           width="22"
-          height="27"
+          height="22"
           rx="4"
           fill="#98A9D1"
           stroke="#1B2A47"
@@ -1100,7 +1059,7 @@
         />
         <text
           x="446"
-          y="336"
+          y="283"
           font-size="11"
           fill="#1B2A47"
           text-anchor="middle"
@@ -1111,9 +1070,9 @@
         <!-- block1: real-accepted (green) -->
         <rect
           x="470"
-          y="318"
+          y="268"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -1121,7 +1080,7 @@
         />
         <text
           x="485"
-          y="336"
+          y="283"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -1131,9 +1090,9 @@
         </text>
         <rect
           x="503"
-          y="318"
+          y="268"
           width="36"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -1141,7 +1100,7 @@
         />
         <text
           x="521"
-          y="336"
+          y="283"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -1151,9 +1110,9 @@
         </text>
         <rect
           x="542"
-          y="318"
+          y="268"
           width="32"
-          height="27"
+          height="22"
           rx="4"
           fill="#1B5E34"
           stroke="#1B5E34"
@@ -1161,7 +1120,7 @@
         />
         <text
           x="558"
-          y="336"
+          y="283"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -1172,9 +1131,9 @@
         <!-- block1: rejected (orange) -->
         <rect
           x="578"
-          y="318"
+          y="268"
           width="30"
-          height="27"
+          height="22"
           rx="4"
           fill="#8A3324"
           stroke="#8A3324"
@@ -1182,7 +1141,7 @@
         />
         <text
           x="593"
-          y="336"
+          y="283"
           font-size="11"
           fill="#ffffff"
           text-anchor="middle"
@@ -1193,9 +1152,9 @@
         <!-- j+2: cyan dashed (longer, to block1 boundary) -->
         <line
           x1="74"
-          y1="360"
+          y1="310"
           x2="458"
-          y2="360"
+          y2="310"
           stroke="#9374B1"
           stroke-width="2.2"
           stroke-dasharray="7,4"
@@ -1204,16 +1163,16 @@
         <!-- j+2: accepted arrow (block1, past green tokens) -->
         <line
           x1="610"
-          y1="360"
+          y1="310"
           x2="700"
-          y2="360"
+          y2="310"
           stroke="#1B2A47"
           stroke-width="2.2"
           marker-end="url(#p3-arBlack)"
         />
         <text
           x="655"
-          y="374"
+          y="324"
           font-size="10"
           fill="#1B5E34"
           text-anchor="middle"
@@ -1223,7 +1182,7 @@
         </text>
         <text
           x="655"
-          y="385"
+          y="335"
           font-size="10"
           fill="#1B5E34"
           text-anchor="middle"
@@ -1235,9 +1194,9 @@
         <!-- ── n-gram caching dashed line (bottom) ── -->
         <line
           x1="700"
-          y1="395"
+          y1="337"
           x2="76"
-          y2="395"
+          y2="337"
           stroke="#8A3324"
           stroke-width="2"
           stroke-dasharray="10,5"
@@ -1246,25 +1205,25 @@
         <!-- vertical upward marks at separator positions -->
         <line
           x1="295"
-          y1="395"
+          y1="337"
           x2="295"
-          y2="348"
+          y2="290"
           stroke="#8A3324"
           stroke-width="1.5"
           stroke-dasharray="5,3"
         />
         <line
           x1="460"
-          y1="395"
+          y1="337"
           x2="460"
-          y2="348"
+          y2="290"
           stroke="#8A3324"
           stroke-width="1.5"
           stroke-dasharray="5,3"
         />
         <text
           x="230"
-          y="413"
+          y="355"
           font-size="10.5"
           fill="#8A3324"
           text-anchor="middle"
@@ -1278,7 +1237,7 @@
           x="4"
           y="83"
           width="68"
-          height="318"
+          height="267"
           rx="6"
           fill="#E8EDF5"
           stroke="#9374B1"
@@ -1286,7 +1245,7 @@
         />
         <text
           x="38"
-          y="220"
+          y="210"
           font-size="12.5"
           fill="#9374B1"
           font-weight="800"
@@ -1296,7 +1255,7 @@
         </text>
         <text
           x="38"
-          y="237"
+          y="225"
           font-size="12.5"
           fill="#9374B1"
           font-weight="800"
@@ -1310,7 +1269,7 @@
           x1="703"
           y1="90"
           x2="703"
-          y2="368"
+          y2="337"
           stroke="#8A3324"
           stroke-width="3.5"
           marker-end="url(#p3-arRedDown)"
@@ -1338,401 +1297,574 @@
       "
     >
       <!-- ① N-gram Cache -->
-      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:8px;overflow:hidden;">
-        <div style="background:#1B2A47;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14.3pt;font-weight:700;text-align:center;padding:2.5mm 3mm;border-bottom:2px solid #1B2A47;">
-          ① N-gram Cache (n=4)
-        </div>
-        <div style="padding:2.5mm 3mm;">
-        <svg viewBox="0 0 170 115" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
-          <defs>
-            <marker id="arBlue1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-              <path d="M0,0 L6,3 L0,6 Z" fill="#1B2A47"/>
-            </marker>
-          </defs>
-          <text x="85" y="12" font-size="8.5" fill="#1B2A47" text-anchor="middle" font-weight="700">Query last 3 tokens</text>
-          <rect x="15" y="18" width="40" height="18" rx="3" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.5"/>
-          <text x="35" y="30" font-size="9" fill="#1B2A47" text-anchor="middle" font-family="monospace" font-weight="600">bubble</text>
-          <rect x="58" y="18" width="32" height="18" rx="3" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.5"/>
-          <text x="74" y="30" font-size="9" fill="#1B2A47" text-anchor="middle" font-family="monospace" font-weight="600">sort</text>
-          <rect x="93" y="18" width="32" height="18" rx="3" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.5"/>
-          <text x="109" y="30" font-size="9" fill="#1B2A47" text-anchor="middle" font-family="monospace" font-weight="600">def</text>
-          <line x1="125" y1="27" x2="138" y2="27" stroke="#1B2A47" stroke-width="2.5" marker-end="url(#arBlue1)"/>
-          <rect x="138" y="18" width="25" height="18" rx="3" fill="#98A9D1" stroke="#1B2A47" stroke-width="2"/>
-          <text x="150" y="30" font-size="10" fill="#1B2A47" text-anchor="middle" font-family="monospace" font-weight="700">_</text>
-          <text x="85" y="50" font-size="8" fill="#1B2A47" text-anchor="middle" font-weight="600">Hash Table (4-gram → next token)</text>
-          <rect x="20" y="55" width="130" height="20" rx="2" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.5"/>
-          <line x1="42" y1="55" x2="42" y2="75" stroke="#1B2A47" stroke-width="1.2"/>
-          <line x1="64" y1="55" x2="64" y2="75" stroke="#1B2A47" stroke-width="1.2"/>
-          <line x1="86" y1="55" x2="86" y2="75" stroke="#1B2A47" stroke-width="1.2"/>
-          <line x1="108" y1="55" x2="108" y2="75" stroke="#1B2A47" stroke-width="1.2"/>
-          <line x1="130" y1="55" x2="130" y2="75" stroke="#1B2A47" stroke-width="1.2"/>
-          <circle cx="31" cy="65" r="3" fill="#1B2A47"/>
-          <circle cx="75" cy="65" r="3" fill="#1B2A47"/>
-          <circle cx="119" cy="65" r="3" fill="#1B2A47"/>
-          <rect x="10" y="82" width="150" height="16" rx="3" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.2"/>
-          <text x="85" y="93" font-size="8.5" fill="#1B2A47" text-anchor="middle" font-style="italic">P(tok<tspan baseline-shift="sub" font-size="7">t+1</tspan> | tok<tspan baseline-shift="sub" font-size="7">t-n+1:t</tspan>) · n=4</text>
-          <text x="85" y="107" font-size="8" fill="#1B2A47" text-anchor="middle" font-weight="600">O(1) lookup · ~85% hit rate</text>
-        </svg>
-        </div>
-      </div>
-
-      <!-- ② Suffix Retrieval -->
-      <div style="background:#E8EDF5;border:2px solid #1B5E34;border-radius:8px;overflow:hidden;">
-        <div style="background:#1B5E34;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14.3pt;font-weight:700;text-align:center;padding:2.5mm 3mm;border-bottom:2px solid #1B5E34;">
-          ② Suffix Retrieval (PLD)
-        </div>
-        <div style="padding:2.5mm 3mm;">
-        <svg viewBox="0 0 170 115" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
-          <defs>
-            <marker id="arGreen2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-              <path d="M0,0 L6,3 L0,6 Z" fill="#1B5E34"/>
-            </marker>
-          </defs>
-          <text x="85" y="12" font-size="8.5" fill="#1B5E34" text-anchor="middle" font-weight="700">Find "bubble sort" in history</text>
-          <text x="85" y="24" font-size="8" fill="#1B5E34" text-anchor="middle" font-family="monospace">History:</text>
-          <rect x="20" y="28" width="130" height="16" rx="2" fill="#E8EDF5" stroke="#1B5E34" stroke-width="1.5"/>
-          <text x="85" y="39" font-size="8.5" fill="#1B5E34" text-anchor="middle" font-family="monospace">...implement <tspan fill="#1B5E34" font-weight="700">bubble sort</tspan> def...</text>
-          <text x="85" y="56" font-size="8" fill="#1B5E34" text-anchor="middle" font-family="monospace">Query: "bubble sort"</text>
-          <rect x="42" y="60" width="86" height="16" rx="2" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/>
-          <text x="85" y="71" font-size="9.5" fill="#ffffff" text-anchor="middle" font-family="monospace" font-weight="700">bubble sort</text>
-          <line x1="85" y1="76" x2="85" y2="85" stroke="#1B5E34" stroke-width="2.5" marker-end="url(#arGreen2)"/>
-          <text x="85" y="96" font-size="8" fill="#1B5E34" text-anchor="middle" font-family="monospace">Retrieved: "def"</text>
-          <rect x="67" y="99" width="36" height="16" rx="2" fill="#E8EDF5" stroke="#1B2A47" stroke-width="1.8"/>
-          <text x="85" y="110" font-size="10" fill="#1B2A47" text-anchor="middle" font-family="monospace" font-weight="700">def</text>
-        </svg>
-        </div>
-      </div>
-
-      <!-- ③ SJD Sampling -->
-      <div style="background:#FFF9F0;border:2px solid #D8B868;border-radius:8px;overflow:hidden;">
-        <div style="background:#D8B868;color:#1B2A47;font-family:Helvetica,Arial,sans-serif;font-size:14.3pt;font-weight:700;text-align:center;padding:2.5mm 3mm;border-bottom:2px solid #D8B868;">
-          ③ Jacobi Sampling (p<sub>T</sub> equiv)
-        </div>
-        <div style="padding:2.5mm 3mm;">
-        <svg
-          viewBox="0 0 170 115"
-          xmlns="http://www.w3.org/2000/svg"
-          style="width: 100%; display: block"
-        >
-          <text
-            x="85"
-            y="12"
-            font-size="8.5"
-            fill="#1B2A47"
-            text-anchor="middle"
-            font-weight="600"
-          >
-            Verify draft token "_"
-          </text>
-
-          <!-- Probability bar -->
-          <text
-            x="85"
-            y="26"
-            font-size="8"
-            fill="#1B2A47"
-            text-anchor="middle"
-            font-family="monospace"
-          >
-            p
-            <tspan baseline-shift="sub" font-size="6.5">T</tspan>
-            ("_" | "bubble") = 0.78
-          </text>
-          <rect
-            x="21"
-            y="30"
-            width="128"
-            height="14"
-            rx="2"
-            fill="#fff"
-            stroke="#8A3324"
-            stroke-width="1.8"
-          />
-          <rect x="21" y="30" width="100" height="14" rx="2" fill="#8A3324" />
-          <text
-            x="71"
-            y="39"
-            font-size="8.5"
-            fill="#fff"
-            text-anchor="middle"
-            font-weight="700"
-          >
-            p
-            <tspan baseline-shift="sub" font-size="7">T</tspan>
-            = 0.78
-          </text>
-
-          <!-- Accept example -->
-          <circle cx="45" cy="60" r="3.5" fill="#9374B1" />
-          <text x="53" y="63" font-size="8.5" fill="#9374B1" font-weight="700">
-            u = 0.52 &lt; 0.78
-          </text>
-          <rect
-            x="118"
-            y="55"
-            width="38"
-            height="14"
-            rx="2"
-            fill="#E8EDF5"
-            stroke="#9374B1"
-            stroke-width="1.5"
-          />
-          <text
-            x="137"
-            y="64"
-            font-size="8.5"
-            fill="#9374B1"
-            text-anchor="middle"
-            font-weight="700"
-          >
-            ✓ ACCEPT
-          </text>
-
-          <text
-            x="85"
-            y="78"
-            font-size="8"
-            fill="#9374B1"
-            text-anchor="middle"
-            font-family="monospace"
-          >
-            "_" is kept → continue
-          </text>
-
-          <!-- Reject example -->
-          <circle cx="45" cy="90" r="3.5" fill="#8A3324" />
-          <text x="53" y="93" font-size="8.5" fill="#8A3324" font-weight="700">
-            u = 0.89 &gt; 0.78
-          </text>
-          <rect
-            x="118"
-            y="85"
-            width="38"
-            height="14"
-            rx="2"
-            fill="#FFF9F0"
-            stroke="#8A3324"
-            stroke-width="1.5"
-          />
-          <text
-            x="137"
-            y="94"
-            font-size="8.5"
-            fill="#8A3324"
-            text-anchor="middle"
-            font-weight="700"
-          >
-            ✗ REJECT
-          </text>
-
-          <text
-            x="85"
-            y="108"
-            font-size="8"
-            fill="#8A3324"
-            text-anchor="middle"
-            font-family="monospace"
-          >
-            Resample from p
-            <tspan baseline-shift="sub" font-size="6.5">T</tspan>
-          </text>
-        </svg>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Edge Application + Inference UI Flow ─────────────────────────── -->
-<div class="sec s">
-  <div class="sh">Edge Application — Real-Time On-Device AI Assistant</div>
-  <div class="sc" style="padding: 2mm 3mm">
-    <div style="display: flex; gap: 3.5mm; align-items: flex-start">
-      <!-- LEFT: photo + speed stats -->
-      <div style="flex: 0 0 30%">
-        <img
-          src="user_story2.png"
-          style="
-            width: 100%;
-            border-radius: 6px;
-            display: block;
-            object-fit: cover;
-            max-height: 80mm;
-            border: 1.5px solid #98A9D1;
-          "
-          alt="Mamba Edge AI Assistant on Apple Silicon"
-        />
-        <div
-          style="
-            font-size: 13.0pt;
-            color: #4B5563;
-            text-align: center;
-            margin: 1.5mm 0 2mm;
-            font-style: italic;
-          "
-        >
-          Mamba · Edge &nbsp;·&nbsp; Apple Silicon · Fully Offline
-        </div>
-        <div style="text-align: center; margin: 1.5mm 0 2mm">
-          <img
-            src="audio_flow.png"
-            alt="Audio Flow"
-            style="max-width: 100%; height: auto; border-radius: 4px"
-          />
-          <div
-            style="
-              font-size: 13.0pt;
-              color: #4B5563;
-              margin-top: 1mm;
-              font-style: italic;
-            "
-          >
-            Real-Time Audio Processing Pipeline
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2mm">
-          <div
-            style="
-              background: #E8EDF5;
-              border: 1px solid #98A9D1;
-              border-top: 3px solid #1B2A47;
-              border-radius: 4px;
-              padding: 2mm;
-              text-align: center;
-            "
-          >
-            <span
-              style="
-                font-size: 26.0pt;
-                font-weight: 800;
-                color: #1B2A47;
-                line-height: 1;
-                display: block;
-              "
-              >249</span
-            >
-            <span
-              style="
-                font-size: 11.7pt;
-                color: #4B5563;
-                line-height: 1.3;
-                display: block;
-              "
-              >tok/s prefill · bf16</span
-            >
-          </div>
-          <div
-            style="
-              background: #E8EDF5;
-              border: 1px solid #98A9D1;
-              border-top: 3px solid #1B2A47;
-              border-radius: 4px;
-              padding: 2mm;
-              text-align: center;
-            "
-          >
-            <span
-              style="
-                font-size: 26.0pt;
-                font-weight: 800;
-                color: #1B2A47;
-                line-height: 1;
-                display: block;
-              "
-              >48.1</span
-            >
-            <span
-              style="
-                font-size: 11.7pt;
-                color: #4B5563;
-                line-height: 1.3;
-                display: block;
-              "
-              >tok/s decode · compiled</span
-            >
-          </div>
-          <div
-            style="
-              background: #FFF9F0;
-              border: 1px solid #D8B4A0;
-              border-top: 3px solid #8A3324;
-              border-radius: 4px;
-              padding: 2mm;
-              text-align: center;
-            "
-          >
-            <span
-              style="
-                font-size: 26.0pt;
-                font-weight: 800;
-                color: #8A3324;
-                line-height: 1;
-                display: block;
-              "
-              >3.32×</span
-            >
-            <span
-              style="
-                font-size: 11.7pt;
-                color: #4B5563;
-                line-height: 1.3;
-                display: block;
-              "
-              >SJD speedup (K=16)</span
-            >
-          </div>
-          <div
-            style="
-              background: #E8EDF5;
-              border: 1px solid #98A9D1;
-              border-top: 3px solid #1B5E34;
-              border-radius: 4px;
-              padding: 2mm;
-              text-align: center;
-            "
-          >
-            <span
-              style="
-                font-size: 26.0pt;
-                font-weight: 800;
-                color: #1B5E34;
-                line-height: 1;
-                display: block;
-              "
-              >14.1</span
-            >
-            <span
-              style="
-                font-size: 11.7pt;
-                color: #4B5563;
-                line-height: 1.3;
-                display: block;
-              "
-              >MiB KV @512 steps</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT: Per-Turn Decode Flow diagram (iframe) -->
       <div
         style="
-          flex: 1;
-          min-width: 0;
-          border: 2px solid #98A9D1;
+          background: #e8edf5;
+          border: 2px solid #1b2a47;
           border-radius: 8px;
           overflow: hidden;
         "
       >
-        <iframe
-          src="Per-TurnDecodeFlow.html"
-          style="width: 100%; height: 850px; border: none; display: block"
-          scrolling="no"
-          loading="lazy"
-        ></iframe>
+        <div
+          style="
+            background: #1b2a47;
+            color: #fff;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 14.3pt;
+            font-weight: 700;
+            text-align: center;
+            padding: 2.5mm 3mm;
+            border-bottom: 2px solid #1b2a47;
+          "
+        >
+          ① N-gram Cache (n=4)
+        </div>
+        <div style="padding: 2.5mm 3mm">
+          <svg
+            viewBox="0 0 170 115"
+            xmlns="http://www.w3.org/2000/svg"
+            style="width: 100%; display: block"
+          >
+            <defs>
+              <marker
+                id="arBlue1"
+                markerWidth="6"
+                markerHeight="6"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L6,3 L0,6 Z" fill="#1B2A47" />
+              </marker>
+            </defs>
+            <text
+              x="85"
+              y="12"
+              font-size="8.5"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-weight="700"
+            >
+              Query last 3 tokens
+            </text>
+            <rect
+              x="15"
+              y="18"
+              width="40"
+              height="18"
+              rx="3"
+              fill="#E8EDF5"
+              stroke="#1B2A47"
+              stroke-width="1.5"
+            />
+            <text
+              x="35"
+              y="30"
+              font-size="9"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-family="monospace"
+              font-weight="600"
+            >
+              bubble
+            </text>
+            <rect
+              x="58"
+              y="18"
+              width="32"
+              height="18"
+              rx="3"
+              fill="#E8EDF5"
+              stroke="#1B2A47"
+              stroke-width="1.5"
+            />
+            <text
+              x="74"
+              y="30"
+              font-size="9"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-family="monospace"
+              font-weight="600"
+            >
+              sort
+            </text>
+            <rect
+              x="93"
+              y="18"
+              width="32"
+              height="18"
+              rx="3"
+              fill="#E8EDF5"
+              stroke="#1B2A47"
+              stroke-width="1.5"
+            />
+            <text
+              x="109"
+              y="30"
+              font-size="9"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-family="monospace"
+              font-weight="600"
+            >
+              def
+            </text>
+            <line
+              x1="125"
+              y1="27"
+              x2="138"
+              y2="27"
+              stroke="#1B2A47"
+              stroke-width="2.5"
+              marker-end="url(#arBlue1)"
+            />
+            <rect
+              x="138"
+              y="18"
+              width="25"
+              height="18"
+              rx="3"
+              fill="#98A9D1"
+              stroke="#1B2A47"
+              stroke-width="2"
+            />
+            <text
+              x="150"
+              y="30"
+              font-size="10"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-family="monospace"
+              font-weight="700"
+            >
+              _
+            </text>
+            <text
+              x="85"
+              y="50"
+              font-size="8"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-weight="600"
+            >
+              Hash Table (4-gram → next token)
+            </text>
+            <rect
+              x="20"
+              y="55"
+              width="130"
+              height="20"
+              rx="2"
+              fill="#E8EDF5"
+              stroke="#1B2A47"
+              stroke-width="1.5"
+            />
+            <line
+              x1="42"
+              y1="55"
+              x2="42"
+              y2="75"
+              stroke="#1B2A47"
+              stroke-width="1.2"
+            />
+            <line
+              x1="64"
+              y1="55"
+              x2="64"
+              y2="75"
+              stroke="#1B2A47"
+              stroke-width="1.2"
+            />
+            <line
+              x1="86"
+              y1="55"
+              x2="86"
+              y2="75"
+              stroke="#1B2A47"
+              stroke-width="1.2"
+            />
+            <line
+              x1="108"
+              y1="55"
+              x2="108"
+              y2="75"
+              stroke="#1B2A47"
+              stroke-width="1.2"
+            />
+            <line
+              x1="130"
+              y1="55"
+              x2="130"
+              y2="75"
+              stroke="#1B2A47"
+              stroke-width="1.2"
+            />
+            <circle cx="31" cy="65" r="3" fill="#1B2A47" />
+            <circle cx="75" cy="65" r="3" fill="#1B2A47" />
+            <circle cx="119" cy="65" r="3" fill="#1B2A47" />
+            <rect
+              x="10"
+              y="82"
+              width="150"
+              height="16"
+              rx="3"
+              fill="#E8EDF5"
+              stroke="#1B2A47"
+              stroke-width="1.2"
+            />
+            <text
+              x="85"
+              y="93"
+              font-size="8.5"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-style="italic"
+            >
+              P(tok
+              <tspan baseline-shift="sub" font-size="7">t+1</tspan>
+              | tok
+              <tspan baseline-shift="sub" font-size="7">t-n+1:t</tspan>
+              ) · n=4
+            </text>
+            <text
+              x="85"
+              y="107"
+              font-size="8"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-weight="600"
+            >
+              O(1) lookup · ~85% hit rate
+            </text>
+          </svg>
+        </div>
       </div>
-      <!-- /RIGHT decode flow -->
+
+      <!-- ② Suffix Retrieval -->
+      <div
+        style="
+          background: #e8edf5;
+          border: 2px solid #1b5e34;
+          border-radius: 8px;
+          overflow: hidden;
+        "
+      >
+        <div
+          style="
+            background: #1b5e34;
+            color: #fff;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 14.3pt;
+            font-weight: 700;
+            text-align: center;
+            padding: 2.5mm 3mm;
+            border-bottom: 2px solid #1b5e34;
+          "
+        >
+          ② Suffix Retrieval (PLD)
+        </div>
+        <div style="padding: 2.5mm 3mm">
+          <svg
+            viewBox="0 0 170 115"
+            xmlns="http://www.w3.org/2000/svg"
+            style="width: 100%; display: block"
+          >
+            <defs>
+              <marker
+                id="arGreen2"
+                markerWidth="6"
+                markerHeight="6"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L6,3 L0,6 Z" fill="#1B5E34" />
+              </marker>
+            </defs>
+            <text
+              x="85"
+              y="12"
+              font-size="8.5"
+              fill="#1B5E34"
+              text-anchor="middle"
+              font-weight="700"
+            >
+              Find "bubble sort" in history
+            </text>
+            <text
+              x="85"
+              y="24"
+              font-size="8"
+              fill="#1B5E34"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              History:
+            </text>
+            <rect
+              x="20"
+              y="28"
+              width="130"
+              height="16"
+              rx="2"
+              fill="#E8EDF5"
+              stroke="#1B5E34"
+              stroke-width="1.5"
+            />
+            <text
+              x="85"
+              y="39"
+              font-size="8.5"
+              fill="#1B5E34"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              ...implement
+              <tspan fill="#1B5E34" font-weight="700">bubble sort</tspan>
+              def...
+            </text>
+            <text
+              x="85"
+              y="56"
+              font-size="8"
+              fill="#1B5E34"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              Query: "bubble sort"
+            </text>
+            <rect
+              x="42"
+              y="60"
+              width="86"
+              height="16"
+              rx="2"
+              fill="#1B5E34"
+              stroke="#1B5E34"
+              stroke-width="1.8"
+            />
+            <text
+              x="85"
+              y="71"
+              font-size="9.5"
+              fill="#ffffff"
+              text-anchor="middle"
+              font-family="monospace"
+              font-weight="700"
+            >
+              bubble sort
+            </text>
+            <line
+              x1="85"
+              y1="76"
+              x2="85"
+              y2="85"
+              stroke="#1B5E34"
+              stroke-width="2.5"
+              marker-end="url(#arGreen2)"
+            />
+            <text
+              x="85"
+              y="96"
+              font-size="8"
+              fill="#1B5E34"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              Retrieved: "def"
+            </text>
+            <rect
+              x="67"
+              y="99"
+              width="36"
+              height="16"
+              rx="2"
+              fill="#E8EDF5"
+              stroke="#1B2A47"
+              stroke-width="1.8"
+            />
+            <text
+              x="85"
+              y="110"
+              font-size="10"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-family="monospace"
+              font-weight="700"
+            >
+              def
+            </text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ③ SJD Sampling -->
+      <div
+        style="
+          background: #fff9f0;
+          border: 2px solid #d8b868;
+          border-radius: 8px;
+          overflow: hidden;
+        "
+      >
+        <div
+          style="
+            background: #d8b868;
+            color: #1b2a47;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 14.3pt;
+            font-weight: 700;
+            text-align: center;
+            padding: 2.5mm 3mm;
+            border-bottom: 2px solid #d8b868;
+          "
+        >
+          ③ Jacobi Sampling (p<sub>T</sub> equiv)
+        </div>
+        <div style="padding: 2.5mm 3mm">
+          <svg
+            viewBox="0 0 170 115"
+            xmlns="http://www.w3.org/2000/svg"
+            style="width: 100%; display: block"
+          >
+            <text
+              x="85"
+              y="12"
+              font-size="8.5"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-weight="600"
+            >
+              Verify draft token "_"
+            </text>
+
+            <!-- Probability bar -->
+            <text
+              x="85"
+              y="26"
+              font-size="8"
+              fill="#1B2A47"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              p
+              <tspan baseline-shift="sub" font-size="6.5">T</tspan>
+              ("_" | "bubble") = 0.78
+            </text>
+            <rect
+              x="21"
+              y="30"
+              width="128"
+              height="14"
+              rx="2"
+              fill="#fff"
+              stroke="#8A3324"
+              stroke-width="1.8"
+            />
+            <rect x="21" y="30" width="100" height="14" rx="2" fill="#8A3324" />
+            <text
+              x="71"
+              y="39"
+              font-size="8.5"
+              fill="#fff"
+              text-anchor="middle"
+              font-weight="700"
+            >
+              p
+              <tspan baseline-shift="sub" font-size="7">T</tspan>
+              = 0.78
+            </text>
+
+            <!-- Accept example -->
+            <circle cx="45" cy="60" r="3.5" fill="#9374B1" />
+            <text
+              x="53"
+              y="63"
+              font-size="8.5"
+              fill="#9374B1"
+              font-weight="700"
+            >
+              u = 0.52 &lt; 0.78
+            </text>
+            <rect
+              x="118"
+              y="55"
+              width="38"
+              height="14"
+              rx="2"
+              fill="#E8EDF5"
+              stroke="#9374B1"
+              stroke-width="1.5"
+            />
+            <text
+              x="137"
+              y="64"
+              font-size="8.5"
+              fill="#9374B1"
+              text-anchor="middle"
+              font-weight="700"
+            >
+              ✓ ACCEPT
+            </text>
+
+            <text
+              x="85"
+              y="78"
+              font-size="8"
+              fill="#9374B1"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              "_" is kept → continue
+            </text>
+
+            <!-- Reject example -->
+            <circle cx="45" cy="90" r="3.5" fill="#8A3324" />
+            <text
+              x="53"
+              y="93"
+              font-size="8.5"
+              fill="#8A3324"
+              font-weight="700"
+            >
+              u = 0.89 &gt; 0.78
+            </text>
+            <rect
+              x="118"
+              y="85"
+              width="38"
+              height="14"
+              rx="2"
+              fill="#FFF9F0"
+              stroke="#8A3324"
+              stroke-width="1.5"
+            />
+            <text
+              x="137"
+              y="94"
+              font-size="8.5"
+              fill="#8A3324"
+              text-anchor="middle"
+              font-weight="700"
+            >
+              ✗ REJECT
+            </text>
+
+            <text
+              x="85"
+              y="108"
+              font-size="8"
+              fill="#8A3324"
+              text-anchor="middle"
+              font-family="monospace"
+            >
+              Resample from p
+              <tspan baseline-shift="sub" font-size="6.5">T</tspan>
+            </text>
+          </svg>
+        </div>
+      </div>
     </div>
-    <!-- /flex row -->
   </div>
 </div>

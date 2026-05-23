@@ -190,742 +190,212 @@
       <!-- Decode Speed: Mamba3 vs Pure Transformer -->
       <div style="border:2.5px solid #1b2a47;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;">
         <div style="background:#1b2a47;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:16.9pt;font-weight:700;text-align:center;padding:2.5mm 3mm;">Decode: Mamba3 vs Transformer (M2 Pro, bf16)</div>
-        <table style="width:100%;border-collapse:collapse;font-size:16.9pt;color:#1b2a47;">
+        <table style="width:100%;border-collapse:collapse;font-size:20.8pt;color:#1b2a47;">
           <thead>
             <tr style="border-bottom:1.5px solid #1b2a47;background:#e8edf5;">
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Context</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;color:#8a3324;">Dense Xfmr<br><span style="font-weight:400;font-size:14.3pt;">(tok/s)</span></th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;color:#1b5e34;">Mamba3<br><span style="font-weight:400;font-size:14.3pt;">(tok/s)</span></th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Speedup</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">KV (Xfmr)</th>
+              <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">Context</th>
+              <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;color:#8a3324;">Dense Xfmr<br><span style="font-weight:400;font-size:16.9pt;">(tok/s)</span></th>
+              <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;color:#1b5e34;">Mamba3<br><span style="font-weight:400;font-size:16.9pt;">(tok/s)</span></th>
+              <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">Speedup</th>
+              <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">KV (Xfmr)</th>
             </tr>
           </thead>
           <tbody>
             <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">512</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">35</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">42</td>
-              <td style="padding:2mm 2.5mm;text-align:center;">1.2×</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#4b5563;">112 MiB</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">512</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">35</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">42</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;">1.2×</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#4b5563;">112 MiB</td>
             </tr>
             <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">1,024</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">26</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">42</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;">1.6×</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#4b5563;">224 MiB</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">1,024</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">26</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">42</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">1.6×</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#4b5563;">224 MiB</td>
             </tr>
             <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">4,096</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">11</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">41</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;">3.7×</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#4b5563;">896 MiB</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">4,096</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">11</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">41</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">3.7×</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#4b5563;">896 MiB</td>
             </tr>
             <tr style="border-bottom:2.5px solid #1b2a47;background:#e8edf5;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">32K</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;font-weight:700;">OOM</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:800;color:#1b2a47;background:#d8b868;">40</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:800;color:#1b5e34;">≫40×</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">7.0 GB†</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">32K</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;font-weight:700;">OOM</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#1b2a47;background:#d8b868;">40</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#1b5e34;">≫40×</td>
+              <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">7.0 GB†</td>
             </tr>
           </tbody>
         </table>
-        <div style="padding:1.5mm 2.5mm;font-size:14.3pt;color:#4b5563;font-style:italic;">†Exceeds 16 GB M2 Pro limit. Mamba3 KV: 14.1 MiB (O(1) SSM state)</div>
+        <div style="padding:1.5mm 2.5mm;font-size:15.6pt;color:#4b5563;font-style:italic;">†Exceeds 16 GB M2 Pro limit. Mamba3 KV: 14.1 MiB (O(1) SSM state)</div>
       </div>
     </div>
 
     <!-- Speedup Table (LaTeX style) -->
     <div style="margin-bottom:3mm;border:2.5px solid #1b2a47;border-radius:5px;padding:2.5mm 3mm;background:#fff;font-family:'Times New Roman',Times,serif;">
       <div style="font-size:20.8pt;font-weight:700;color:#1b2a47;text-align:center;margin-bottom:2mm;">Speedup Ratio under Different Conditions (M2 Pro, bf16)</div>
-      <table style="width:100%;border-collapse:collapse;font-size:16.9pt;color:#1b2a47;">
+      <table style="width:100%;border-collapse:collapse;font-size:20.8pt;color:#1b2a47;">
         <thead>
           <tr style="border-top:2.5px solid #1b2a47;border-bottom:1.5px solid #1b2a47;">
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;font-style:italic;">K</th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">AR<br><span style="font-weight:400;font-size:14.3pt;">(tok/s)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">ARL<br><span style="font-weight:400;font-size:14.3pt;">(best cold)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">Greedy<br><span style="font-weight:400;font-size:14.3pt;">(argmax)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">SJD Cold<br><span style="font-weight:400;font-size:14.3pt;">(512 tok)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">SJD Cold<br><span style="font-weight:400;font-size:14.3pt;">(1024 tok)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">SJD Warm<br><span style="font-weight:400;font-size:14.3pt;">(v1 cache)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">Demo<br><span style="font-weight:400;font-size:14.3pt;">(v2, 512)</span></th>
-            <th style="padding:2.2mm 2.5mm;text-align:center;font-weight:700;">Best<br><span style="font-weight:400;font-size:14.3pt;">(2048 tok)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;font-style:italic;">K</th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">AR<br><span style="font-weight:400;font-size:16.9pt;">(tok/s)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">ARL<br><span style="font-weight:400;font-size:16.9pt;">(best cold)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Greedy<br><span style="font-weight:400;font-size:16.9pt;">(argmax)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">SJD Cold<br><span style="font-weight:400;font-size:16.9pt;">(512 tok)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">SJD Cold<br><span style="font-weight:400;font-size:16.9pt;">(1024 tok)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">SJD Warm<br><span style="font-weight:400;font-size:16.9pt;">(v1 cache)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Demo<br><span style="font-weight:400;font-size:16.9pt;">(v2, 512)</span></th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Best<br><span style="font-weight:400;font-size:16.9pt;">(2048 tok)</span></th>
           </tr>
         </thead>
         <tbody>
           <tr style="border-bottom:0.8px solid #98a9d1;">
-            <td style="padding:2.2mm 3mm;text-align:center;font-style:italic;font-weight:700;">1</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">~23†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">1.00†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#8a3324;">0.92×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#8a3324;">0.94×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#8a3324;">0.94×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;font-weight:700;">1</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">~23†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">1.00†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#8a3324;">0.92×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#8a3324;">0.94×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#8a3324;">0.94×†</td>
           </tr>
           <tr style="border-bottom:0.8px solid #98a9d1;background:#E8EDF5;">
-            <td style="padding:2.2mm 3mm;text-align:center;font-style:italic;font-weight:700;">4</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">~22†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">1.28†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.18×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.12×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.38×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.52×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.52×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;font-weight:700;">4</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">~22†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">1.28†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.18×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.12×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.38×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.52×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.52×†</td>
           </tr>
           <tr style="border-bottom:0.8px solid #98a9d1;">
-            <td style="padding:2.2mm 3mm;text-align:center;font-style:italic;font-weight:700;">8</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">17.2<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;">3.61<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.38×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.22×<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:600;">2.37×<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.92×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:600;">2.37×<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;font-weight:700;">8</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">17.2<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">3.61<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.38×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.22×<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:600;">2.37×<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.92×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:600;">2.37×<sup>★</sup></td>
           </tr>
           <!-- K=16 HIGHLIGHT -->
           <tr style="border-bottom:0.8px solid #98a9d1;background:#E8EDF5;">
-            <td style="padding:2.2mm 3mm;text-align:center;font-style:italic;font-weight:700;">16</td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:700;">15.5<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:700;">5.92<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.22×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.68×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:600;">2.92×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:600;color:#1b5e34;">2.49×<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;font-weight:700;color:#8a3324;">3.20×<sup>★</sup></td>
-            <td style="padding:2.2mm 3mm;text-align:center;background:#d8b868;font-weight:800;color:#1b2a47;border-radius:3px;">3.32×<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;font-weight:700;">16</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">15.5<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">5.92<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.22×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.68×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:600;">2.92×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:600;color:#1b5e34;">2.49×<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;color:#8a3324;">3.20×<sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;background:#d8b868;font-weight:800;color:#1b2a47;border-radius:3px;">3.32×<sup>★</sup></td>
           </tr>
           <tr style="border-bottom:0.8px solid #98a9d1;">
-            <td style="padding:2.2mm 3mm;text-align:center;font-style:italic;font-weight:700;">32</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">~15†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">6.70†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">1.05×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">2.80×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">3.10×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">3.02×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">3.10×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;font-weight:700;">32</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">~15†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">6.70†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">1.05×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">2.80×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">3.10×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">3.02×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">3.10×†</td>
           </tr>
           <tr style="border-bottom:2.5px solid #1b2a47;background:#E8EDF5;">
-            <td style="padding:2.2mm 3mm;text-align:center;font-style:italic;font-weight:700;">64</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">~14†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">6.80†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#8a3324;">0.87×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">2.42×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">2.55×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">2.48×†</td>
-            <td style="padding:2.2mm 3mm;text-align:center;color:#4B5563;">—</td>
-            <td style="padding:2.2mm 3mm;text-align:center;">2.55×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;font-weight:700;">64</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">~14†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">6.80†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#8a3324;">0.87×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">2.42×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">2.55×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">2.48×†</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#4B5563;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">2.55×†</td>
           </tr>
         </tbody>
       </table>
-      <div style="font-size:15.6pt;color:#4B5563;margin-top:1.5mm;">
+      <div style="font-size:16.9pt;color:#4B5563;margin-top:1.5mm;">
         <sup>★</sup> measured (M2 Pro, bf16, temp=0.15, top_p=0.85) &ensp;·&ensp; <sup>†</sup> extrapolated from cost model &ensp;·&ensp; AR = auto-regressive baseline tok/s &ensp;·&ensp; ARL = avg. accepted run length &ensp;·&ensp; <strong>Best</strong>: K=16, 2048 tok, cold, 3.32×
       </div>
     </div>
 
-    <!-- Decode Breakdown + Per-Layer Compression: 2-column -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2.5mm;margin-bottom:2.5mm;">
-
-      <!-- Decode Component Breakdown -->
-      <div style="border:2.5px solid #9374b1;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;">
-        <div style="background:#9374b1;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14.3pt;font-weight:700;text-align:center;padding:2mm 3mm;">Decode Component Breakdown (per step)</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13.7pt;color:#1b2a47;">
-          <thead>
-            <tr style="border-bottom:1.5px solid #1b2a47;background:#e8edf5;">
-              <th style="padding:1.5mm 2mm;text-align:left;font-weight:700;">Component</th>
-              <th style="padding:1.5mm 2mm;text-align:center;font-weight:700;">Time</th>
-              <th style="padding:1.5mm 2mm;text-align:center;font-weight:700;">%</th>
-              <th style="padding:1.5mm 2mm;text-align:left;font-weight:700;">Memory</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:1.5mm 2mm;font-weight:600;">Mamba SSM scan</td>
-              <td style="padding:1.5mm 2mm;text-align:center;">9 ms</td>
-              <td style="padding:1.5mm 2mm;text-align:center;font-weight:700;color:#1b5e34;">37.5%</td>
-              <td style="padding:1.5mm 2mm;font-size:12.3pt;color:#4b5563;">O(d_state) const.</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:1.5mm 2mm;font-weight:600;">Tucker MoE</td>
-              <td style="padding:1.5mm 2mm;text-align:center;">11 ms</td>
-              <td style="padding:1.5mm 2mm;text-align:center;font-weight:700;color:#9374b1;">45.8%</td>
-              <td style="padding:1.5mm 2mm;font-size:12.3pt;color:#4b5563;">O(r) Tucker ranks</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:1.5mm 2mm;font-weight:600;">GQA Attention</td>
-              <td style="padding:1.5mm 2mm;text-align:center;">3 ms</td>
-              <td style="padding:1.5mm 2mm;text-align:center;font-weight:700;">12.5%</td>
-              <td style="padding:1.5mm 2mm;font-size:12.3pt;color:#4b5563;">14.1 MiB KV</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:1.5mm 2mm;font-weight:600;">Embed + LM head</td>
-              <td style="padding:1.5mm 2mm;text-align:center;">1 ms</td>
-              <td style="padding:1.5mm 2mm;text-align:center;">4.2%</td>
-              <td style="padding:1.5mm 2mm;font-size:12.3pt;color:#4b5563;">—</td>
-            </tr>
-            <tr style="border-bottom:2.5px solid #1b2a47;background:#d8b868;">
-              <td style="padding:1.5mm 2mm;font-weight:800;color:#1b2a47;">Total</td>
-              <td style="padding:1.5mm 2mm;text-align:center;font-weight:800;color:#1b2a47;">~24 ms</td>
-              <td style="padding:1.5mm 2mm;text-align:center;font-weight:800;color:#1b2a47;">100%</td>
-              <td style="padding:1.5mm 2mm;font-weight:700;color:#1b2a47;">≈42 tok/s</td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="padding:1mm 2mm;font-size:11.7pt;color:#4b5563;font-style:italic;">M2 Pro · bf16 · 417M params · temp=0.15 · no compilation overhead</div>
-      </div>
-
-      <!-- Per-Layer Tucker Compression -->
-      <div style="border:2.5px solid #1b2a47;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;">
-        <div style="background:#1b2a47;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14.3pt;font-weight:700;text-align:center;padding:2mm 3mm;">Tucker Compression by Module Family</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13.0pt;color:#1b2a47;">
-          <thead>
-            <tr style="border-bottom:1.5px solid #1b2a47;background:#e8edf5;">
-              <th style="padding:1.5mm 1.5mm;text-align:left;font-weight:700;">Module</th>
-              <th style="padding:1.5mm 1.5mm;text-align:center;font-weight:700;font-style:italic;">Shape</th>
-              <th style="padding:1.5mm 1.5mm;text-align:center;font-weight:700;">×N</th>
-              <th style="padding:1.5mm 1.5mm;text-align:center;font-weight:700;">Dense</th>
-              <th style="padding:1.5mm 1.5mm;text-align:center;font-weight:700;">Tucker</th>
-              <th style="padding:1.5mm 1.5mm;text-align:center;font-weight:700;">Comp.</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:1.5mm 1.5mm;font-weight:600;font-size:12.3pt;">Mamba x_up proj</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-family:monospace;font-size:11.1pt;">(1536, 6144)</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;">24</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">1.812B</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">186.0M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-weight:800;color:#1b5e34;">89.7%</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:1.5mm 1.5mm;font-weight:600;font-size:12.3pt;">FFN up/gate</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-family:monospace;font-size:11.1pt;">(768, 4608)</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;">12</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">339.7M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">81.1M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-weight:800;color:#1b5e34;">76.1%</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:1.5mm 1.5mm;font-weight:600;font-size:12.3pt;">FFN down</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-family:monospace;font-size:11.1pt;">(4608, 768)</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;">6</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">169.9M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">34.8M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-weight:800;color:#1b5e34;">79.5%</td>
-            </tr>
-            <tr style="border-bottom:2.5px solid #1b2a47;background:#e8edf5;">
-              <td style="padding:1.5mm 1.5mm;font-weight:600;font-size:12.3pt;">Mamba out proj</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-family:monospace;font-size:11.1pt;">(768, 768)</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;">24</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">113.2M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-size:12.3pt;">115.0M</td>
-              <td style="padding:1.5mm 1.5mm;text-align:center;font-weight:800;color:#8a3324;">−1.5%†</td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="padding:1mm 1.5mm;font-size:11.7pt;color:#4b5563;font-style:italic;">†Tucker overhead on small square matrices; retained for arch. consistency. Total compressed: 417M params (2.43B dense equiv).</div>
-      </div>
+    <div style="border:2.5px solid #1b2a47;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;margin-bottom:3mm;">
+      <div style="background:#1b2a47;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:16.9pt;font-weight:700;text-align:center;padding:2.5mm 3mm;">Tucker vs SVD Reconstruction MSE ↓</div>
+      <table style="width:100%;border-collapse:collapse;font-size:20.8pt;color:#1b2a47;">
+        <thead>
+          <tr style="border-bottom:1.5px solid #1b2a47;background:#e8edf5;">
+            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">Compress.</th>
+            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;color:#1b5e34;">Tucker MSE</th>
+            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;color:#8a3324;">SVD MSE</th>
+            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">Δ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:0.8px solid #98a9d1;">
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">70%</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;">0.00050</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">0.00070</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;">+29%</td>
+          </tr>
+          <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">80%</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;">0.00100</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">0.00180</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">+44%</td>
+          </tr>
+          <tr style="border-bottom:0.8px solid #98a9d1;background:#d8b868;">
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#1b2a47;">82.87%★</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#1b2a47;">0.00135</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#8a3324;">0.00247</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#8a3324;">+45.3%</td>
+          </tr>
+          <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">90%</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;">0.00250</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">0.00450</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">+44%</td>
+          </tr>
+          <tr style="border-bottom:2.5px solid #1b2a47;">
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">95%</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1b5e34;">0.00500</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;color:#8a3324;">0.00850</td>
+            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">+41%</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding:1.5mm 2.5mm;font-size:15.6pt;color:#4b5563;font-style:italic;">★ Chosen operating point. Tucker consistently outperforms SVD at 80–95%.</div>
     </div>
 
-    <!-- Tucker vs SVD + Expert Load: 2-column table version -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2.5mm;margin-bottom:3mm;">
-      <!-- Tucker vs SVD table -->
-      <div style="border:2.5px solid #1b2a47;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;">
-        <div style="background:#1b2a47;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:16.9pt;font-weight:700;text-align:center;padding:2.5mm 3mm;">Tucker vs SVD Reconstruction MSE ↓</div>
-        <table style="width:100%;border-collapse:collapse;font-size:16.9pt;color:#1b2a47;">
-          <thead>
-            <tr style="border-bottom:1.5px solid #1b2a47;background:#e8edf5;">
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Compress.</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;color:#1b5e34;">Tucker MSE</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;color:#8a3324;">SVD MSE</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Δ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-style:italic;">70%</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;">0.00050</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">0.00070</td>
-              <td style="padding:2mm 2.5mm;text-align:center;">+29%</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-style:italic;">80%</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;">0.00100</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">0.00180</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;">+44%</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#d8b868;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:800;color:#1b2a47;">82.87%★</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:800;color:#1b2a47;">0.00135</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:800;color:#8a3324;">0.00247</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:800;color:#8a3324;">+45.3%</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-style:italic;">90%</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;">0.00250</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">0.00450</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;">+44%</td>
-            </tr>
-            <tr style="border-bottom:2.5px solid #1b2a47;">
-              <td style="padding:2mm 2.5mm;text-align:center;font-style:italic;">95%</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;">0.00500</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#8a3324;">0.00850</td>
-              <td style="padding:2mm 2.5mm;text-align:center;font-weight:700;">+41%</td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="padding:1.5mm 2.5mm;font-size:14.3pt;color:#4b5563;font-style:italic;">★ Chosen operating point. Tucker consistently outperforms SVD at 80–95%.</div>
-      </div>
-
-      <!-- Expert Load result -->
-      <div style="border:2.5px solid #1b5e34;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;">
-        <div style="background:#1b5e34;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:16.9pt;font-weight:700;text-align:center;padding:2.5mm 3mm;">Expert Load Diagnostics (66 Experts)</div>
-        <table style="width:100%;border-collapse:collapse;font-size:16.9pt;color:#1b2a47;">
-          <thead>
-            <tr style="border-bottom:1.5px solid #1b2a47;background:#e8edf5;">
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Layer Group</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Active Exp.</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Dead Exp.</th>
-              <th style="padding:2mm 2.5mm;text-align:center;font-weight:700;">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:2mm 2.5mm;text-align:center;">L 1–11</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">11/11</td>
-              <td style="padding:2mm 2.5mm;text-align:center;">0</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">✓ PASS</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;background:#e8edf5;">
-              <td style="padding:2mm 2.5mm;text-align:center;">L 12–33</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">22/22</td>
-              <td style="padding:2mm 2.5mm;text-align:center;">0</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">✓ PASS</td>
-            </tr>
-            <tr style="border-bottom:0.8px solid #98a9d1;">
-              <td style="padding:2mm 2.5mm;text-align:center;">L 34–55</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">22/22</td>
-              <td style="padding:2mm 2.5mm;text-align:center;">0</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">✓ PASS</td>
-            </tr>
-            <tr style="border-bottom:2.5px solid #1b2a47;background:#e8edf5;">
-              <td style="padding:2mm 2.5mm;text-align:center;">L 56–66</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">11/11</td>
-              <td style="padding:2mm 2.5mm;text-align:center;">0</td>
-              <td style="padding:2mm 2.5mm;text-align:center;color:#1b5e34;font-weight:700;">✓ PASS</td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="background:#1b5e34;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:18.2pt;font-weight:800;text-align:center;padding:2.5mm 3mm;letter-spacing:0.3pt;">
-          ✓ 0 dead experts — all 66 PASS
+    <!-- Edge Deployment Verification -->
+    <div style="border:2.5px solid #1B5E34;border-radius:5px;overflow:hidden;background:#F0FAF5;margin-bottom:3mm;font-family:'Times New Roman',Times,serif;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1.5px solid #1B5E34;">
+        <div style="text-align:center;padding:2.5mm 1.5mm;border-right:1px solid #A8D5BA;">
+          <div style="font-size:28.6pt;font-weight:800;color:#1B2A47;">14.1 MiB</div>
+          <div style="font-size:15.6pt;color:#4B5563;">KV + SSM State<br><span style="font-style:italic;font-size:13.0pt;">O(1) — constant</span></div>
+        </div>
+        <div style="text-align:center;padding:2.5mm 1.5mm;border-right:1px solid #A8D5BA;">
+          <div style="font-size:28.6pt;font-weight:800;color:#1B5E34;">68 tok/s</div>
+          <div style="font-size:15.6pt;color:#4B5563;">Decode (8-bit)<br><span style="font-style:italic;font-size:13.0pt;">3,800 tok/s prefill</span></div>
+        </div>
+        <div style="text-align:center;padding:2.5mm 1.5mm;border-right:1px solid #A8D5BA;">
+          <div style="font-size:28.6pt;font-weight:800;color:#D8B868;">0</div>
+          <div style="font-size:15.6pt;color:#4B5563;">Dead Experts<br><span style="font-style:italic;font-size:13.0pt;">66/66 full utilization</span></div>
+        </div>
+        <div style="text-align:center;padding:2.5mm 1.5mm;">
+          <div style="font-size:26.0pt;font-weight:800;color:#8A3324;">On-Device</div>
+          <div style="font-size:15.6pt;color:#4B5563;">Fully Offline<br><span style="font-style:italic;font-size:13.0pt;">M2 Pro / iPhone</span></div>
         </div>
       </div>
-    </div>
-
-    <!-- DUMMY OPEN so old closing divs balance — real section below -->
-    <div style="display:none;">
-      <!-- Tucker vs SVD SVG (replaced, kept for structure) -->
-      <div
-        style="
-          flex: 1;
-          border: 2.5px solid #1b2a47;
-          border-radius: 5px;
-          padding: 2mm;
-          background: #ffffff;
-        "
-      >
-        <div style="margin-bottom: 2mm">
-          <svg
-            viewBox="0 0 270 140"
-            xmlns="http://www.w3.org/2000/svg"
-            style="
-              font-family: &quot;Times New Roman&quot;, Times, serif;
-              width: 100%;
-              height: auto;
-            "
-          >
-            <rect
-              x="34"
-              y="10"
-              width="228"
-              height="105"
-              fill="#E8EDF5"
-              stroke="#98A9D1"
-              stroke-width="1.5"
-            />
-            <line
-              x1="34"
-              y1="36"
-              x2="262"
-              y2="36"
-              stroke="#98A9D1"
-              stroke-width="0.8"
-            />
-            <line
-              x1="34"
-              y1="62"
-              x2="262"
-              y2="62"
-              stroke="#98A9D1"
-              stroke-width="0.8"
-            />
-            <line
-              x1="34"
-              y1="88"
-              x2="262"
-              y2="88"
-              stroke="#98A9D1"
-              stroke-width="0.8"
-            />
-            <line
-              x1="103"
-              y1="10"
-              x2="103"
-              y2="115"
-              stroke="#98A9D1"
-              stroke-width="0.8"
-            />
-            <line
-              x1="172"
-              y1="10"
-              x2="172"
-              y2="115"
-              stroke="#98A9D1"
-              stroke-width="0.8"
-            />
-            <line
-              x1="34"
-              y1="115"
-              x2="262"
-              y2="115"
-              stroke="#1B2A47"
-              stroke-width="2"
-            />
-            <line
-              x1="34"
-              y1="10"
-              x2="34"
-              y2="115"
-              stroke="#1B2A47"
-              stroke-width="2"
-            />
-            <text
-              x="34"
-              y="126"
-              font-size="9"
-              fill="#1B2A47"
-              text-anchor="middle"
-            >
-              70%
-            </text>
-            <text
-              x="125"
-              y="126"
-              font-size="9"
-              fill="#1B2A47"
-              text-anchor="middle"
-            >
-              80%
-            </text>
-            <text
-              x="216"
-              y="126"
-              font-size="9"
-              fill="#1B2A47"
-              text-anchor="middle"
-            >
-              90%
-            </text>
-            <text
-              x="262"
-              y="126"
-              font-size="9"
-              fill="#1B2A47"
-              text-anchor="middle"
-            >
-              95%
-            </text>
-            <text
-              x="148"
-              y="137"
-              font-size="10"
-              fill="#1B2A47"
-              text-anchor="middle"
-              font-weight="700"
-            >
-              Compression Ratio
-            </text>
-            <text x="30" y="115" font-size="9" fill="#1B2A47" text-anchor="end">
-              0
-            </text>
-            <text x="30" y="88" font-size="9" fill="#1B2A47" text-anchor="end">
-              .002
-            </text>
-            <text x="30" y="62" font-size="9" fill="#1B2A47" text-anchor="end">
-              .004
-            </text>
-            <text x="30" y="36" font-size="9" fill="#1B2A47" text-anchor="end">
-              .006
-            </text>
-            <text
-              x="10"
-              y="63"
-              font-size="9"
-              fill="#1B2A47"
-              text-anchor="middle"
-              transform="rotate(-90 10 63)"
-            >
-              MSE ↓
-            </text>
-            <!-- Tucker (green) -->
-            <polyline
-              points="34,107 80,104 125,100 151,96 171,92 216,80 262,55"
-              fill="none"
-              stroke="#1B5E34"
-              stroke-width="2.5"
-            />
-            <circle
-              cx="151"
-              cy="96"
-              r="4"
-              fill="#1B5E34"
-              stroke="#FFFFFF"
-              stroke-width="1.5"
-            />
-            <!-- SVD (rust red) -->
-            <polyline
-              points="34,103 80,98 125,90 151,80 171,70 216,44 262,13"
-              fill="none"
-              stroke="#8A3324"
-              stroke-width="2.5"
-              stroke-dasharray="4 2"
-            />
-            <circle
-              cx="151"
-              cy="80"
-              r="4"
-              fill="#8A3324"
-              stroke="#FFFFFF"
-              stroke-width="1.5"
-            />
-            <!-- 82.87% marker -->
-            <line
-              x1="151"
-              y1="10"
-              x2="151"
-              y2="115"
-              stroke="#D8B868"
-              stroke-width="1.5"
-              stroke-dasharray="2 2"
-            />
-            <text
-              x="151"
-              y="18"
-              font-size="9"
-              fill="#D8B868"
-              text-anchor="middle"
-              font-weight="700"
-            >
-              82.87%
-            </text>
-            <text x="167" y="90" font-size="9" fill="#8A3324" font-weight="700">
-              45.3% worse
-            </text>
-            <!-- Legend -->
-            <line
-              x1="37"
-              y1="14"
-              x2="58"
-              y2="14"
-              stroke="#1B5E34"
-              stroke-width="2.5"
-            />
-            <text x="61" y="17" font-size="9" fill="#1B2A47" font-weight="700">
-              Tucker
-            </text>
-            <line
-              x1="37"
-              y1="23"
-              x2="58"
-              y2="23"
-              stroke="#8A3324"
-              stroke-width="2.5"
-              stroke-dasharray="4 2"
-            />
-            <text x="61" y="26" font-size="9" fill="#1B2A47">SVD</text>
-          </svg>
-        </div>
-        <div style="font-size: 13.0pt; color: #1b2a47; text-align: center">
-          Tucker outperforms SVD at 80–95%
-        </div>
-      </div>
-
-      <!-- Zero Expert Collapse stat -->
-      <div
-        style="
-          flex: 1;
-          border: 2.5px solid #1b5e34;
-          border-radius: 5px;
-          padding: 2mm;
-          background: #ffffff;
-          display:flex;flex-direction:column;justify-content:center;align-items:center;
-        "
-      >
-        <div style="margin-bottom: 2mm;width:100%">
-          <svg
-            viewBox="0 0 270 140"
-            xmlns="http://www.w3.org/2000/svg"
-            style="
-              font-family: &quot;Times New Roman&quot;, Times, serif;
-              width: 100%;
-              height: auto;
-            "
-          >
-            <rect
-              x="5"
-              y="5"
-              width="260"
-              height="120"
-              rx="5"
-              fill="#E8EDF5"
-              stroke="#98A9D1"
-              stroke-width="1.5"
-            />
-            <text
-              x="135"
-              y="17"
-              font-size="11"
-              fill="#1B2A47"
-              text-anchor="middle"
-              font-weight="700"
-            >
-              Expert Load (66 experts)
-            </text>
-            <text x="8" y="32" font-size="8" fill="#1B2A47">L1–11</text>
-            <text x="8" y="48" font-size="8" fill="#1B2A47">L12–22</text>
-            <text x="8" y="64" font-size="8" fill="#1B2A47">L23–33</text>
-            <text x="8" y="80" font-size="8" fill="#1B2A47">L34–44</text>
-            <text x="8" y="96" font-size="8" fill="#1B2A47">L45–55</text>
-            <text x="8" y="112" font-size="8" fill="#1B2A47">L56–66</text>
-            <g transform="translate(38,20)">
-              <rect x="0" y="0" width="16" height="10" rx="2" fill="#98A9D1" />
-              <rect x="19" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-              <rect x="38" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="57" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect x="76" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="95" y="0" width="16" height="10" rx="2" fill="#98A9D1" />
-              <rect x="114" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-              <rect x="133" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="152" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect x="171" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="190" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-            </g>
-            <g transform="translate(38,36)">
-              <rect x="0" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-              <rect x="19" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="38" y="0" width="16" height="10" rx="2" fill="#9374B1" />
-              <rect x="57" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="76" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="95" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-              <rect
-                x="114"
-                y="0"
-                width="16"
-                height="10"
-                rx="2"
-                fill="#9374B1"
-              />
-              <rect x="133" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="152" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="171" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-              <rect x="190" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-            </g>
-            <g transform="translate(38,52)">
-              <rect x="0" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="19" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect x="38" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="57" y="0" width="16" height="10" rx="2" fill="#98A9D1" />
-              <rect x="76" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-              <rect x="95" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect x="114" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="133" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="152" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect
-                x="171"
-                y="0"
-                width="16"
-                height="10"
-                rx="2"
-                fill="#98A9D1"
-              />
-              <rect x="190" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-            </g>
-            <g transform="translate(38,68)">
-              <rect x="0" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="19" y="0" width="16" height="10" rx="2" fill="#9374B1" />
-              <rect x="38" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="57" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="76" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-              <rect x="95" y="0" width="16" height="10" rx="2" fill="#9374B1" />
-              <rect x="114" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="133" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="152" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="171" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="190" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-            </g>
-            <g transform="translate(38,84)">
-              <rect x="0" y="0" width="16" height="10" rx="2" fill="#98A9D1" />
-              <rect x="19" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-              <rect x="38" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="57" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect x="76" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="95" y="0" width="16" height="10" rx="2" fill="#98A9D1" />
-              <rect x="114" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-              <rect x="133" y="1" width="16" height="9" rx="2" fill="#98A9D1" />
-              <rect x="152" y="2" width="16" height="8" rx="2" fill="#98A9D1" />
-              <rect
-                x="171"
-                y="0"
-                width="16"
-                height="10"
-                rx="2"
-                fill="#98A9D1"
-              />
-              <rect x="190" y="3" width="16" height="7" rx="2" fill="#98A9D1" />
-            </g>
-            <g transform="translate(38,100)">
-              <rect x="0" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-              <rect x="19" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="38" y="0" width="16" height="10" rx="2" fill="#9374B1" />
-              <rect x="57" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="76" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="95" y="0" width="16" height="10" rx="2" fill="#9374B1" />
-              <rect x="114" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-              <rect x="133" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="152" y="2" width="16" height="8" rx="2" fill="#9374B1" />
-              <rect x="171" y="1" width="16" height="9" rx="2" fill="#9374B1" />
-              <rect x="190" y="3" width="16" height="7" rx="2" fill="#9374B1" />
-            </g>
-            <rect x="7" y="116" width="256" height="11" rx="3" fill="#1B5E34" />
-            <text
-              x="135"
-              y="124"
-              font-size="10"
-              fill="#FFFFFF"
-              text-anchor="middle"
-              font-weight="700"
-            >
-              ✓ 0 dead experts — all 66 PASS
-            </text>
-          </svg>
-        </div>
-        <div style="font-size: 13.0pt; color: #1b2a47; text-align: center">
-          Zero expert collapse across all layers
-        </div>
+      <div style="padding:1.5mm 2.5mm;font-size:13.0pt;color:#1B2A47;text-align:center;font-style:italic;">
+        iOS voice-first AI assistant · 417M params (2.43B→417M, 82.87% compressed) · MLX native · background-executable
       </div>
     </div>
 
@@ -957,18 +427,17 @@
           <span style="font-size: 36.4pt; color: #d8b868; line-height:1; flex-shrink:0;">⚡</span>
           <span style="font-size: 19.5pt; color: #1b2a47; line-height:1.3;"
             >M2 Pro: <span style="font-weight: 700;">3,800 tok/s prefill</span>,
-            <span style="font-weight: 700;">68 tok/s decode</span>; 16K ctx KV under 300 MiB</span
+            <span style="font-weight: 700;">68 tok/s decode</span>; 14.1 MiB KV+SSM state =
+            <span style="font-weight: 700; color: #1B5E34;">background-executable</span>
+          </span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 3mm">
+          <span style="font-size: 36.4pt; color: #8A3324; line-height:1; flex-shrink:0;">◉</span>
+          <span style="font-size: 19.5pt; color: #1b2a47; line-height:1.3;"
+            ><span style="font-weight: 700;">Same compute, larger capacity</span>: 230M active params
+            → 2.4B dense-equiv, validated on iOS voice-first AI assistant</span
           >
         </div>
-      </div>
-    </div>
-    <hr class="hr" />
-    <div class="qrrow">
-      <div class="qrbox">QR<br />Paper &amp; Code</div>
-      <div class="qt">
-        <strong>Paper · Checkpoints · Open-Source Inference</strong><br />
-        Hung-Wei Lai &ensp;·&ensp; LAN, HSIN-AN<br />
-        Chun-Ming Hsu &ensp;·&ensp; Yu-Han Lu &ensp;·&ensp; NKUST CSIE
       </div>
     </div>
   </div>
