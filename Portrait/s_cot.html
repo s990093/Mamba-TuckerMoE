@@ -1,14 +1,14 @@
 <!-- s_cot.html — CoT Inference Format: Universal Palette -->
 <div class="sec">
-  <div class="sh" style="font-size:32pt;">CoT Inference Format — FCP + SFT-GO + SCALe</div>
+  <div class="sh" style="font-size:41.6pt;">CoT Inference Format — FCP + SFT-GO + SCALe</div>
   <div class="sc" style="padding:2mm 0 0 0;">
 
-    <div style="font-family:'Courier New',Courier,monospace;font-size:18pt;line-height:1.50;background:#E8EDF5;border:1.5px solid #98A9D1;border-radius:0 0 5px 5px;overflow:hidden;">
+    <div style="font-family:'Courier New',Courier,monospace;font-size:23.4pt;line-height:1.50;background:#E8EDF5;border:1.5px solid #98A9D1;border-radius:0 0 5px 5px;overflow:hidden;">
 
       <!-- header bar -->
-      <div style="background:#E8EDF5;padding:2mm 5mm;font-family:'Times New Roman',serif;font-size:12pt;font-weight:700;color:#1B2A47;border-bottom:1.5px solid #98A9D1;display:flex;justify-content:space-between;align-items:center;">
+      <div style="background:#E8EDF5;padding:2mm 5mm;font-family:'Times New Roman',serif;font-size:15.6pt;font-weight:700;color:#1B2A47;border-bottom:1.5px solid #98A9D1;display:flex;justify-content:space-between;align-items:center;">
         <span>ChatML Format — Mamba3 · Actual Response</span>
-        <span style="font-size:10pt;color:#1B2A47;font-weight:400;letter-spacing:-0.2pt;">Loss Mask &ensp;·&ensp; Content &ensp;·&ensp; High-Weight Highlight</span>
+        <span style="font-size:13.0pt;color:#1B2A47;font-weight:400;letter-spacing:-0.2pt;">Loss Mask &ensp;·&ensp; Content &ensp;·&ensp; High-Weight Highlight</span>
       </div>
 
       <!-- Grid: each row = [mask cell | content cell] -->
@@ -16,34 +16,34 @@
 
         <!-- Label row -->
         <div style="padding:0 2mm 1mm;text-align:center;border-right:2px solid #98A9D1;">
-          <span style="font-family:'Times New Roman',serif;font-size:11pt;font-weight:700;color:#1B2A47;">Loss Mask</span>
+          <span style="font-family:'Times New Roman',serif;font-size:14.3pt;font-weight:700;color:#1B2A47;">Loss Mask</span>
         </div>
         <div></div>
 
         <!-- Row: system (masked) -->
         <div style="background:#E8EDF5;border:2px solid #98A9D1;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:22pt;color:#9374B1;">⊗</div>
-          <div style="font-size:9pt;color:#1B2A47;font-weight:600;">System (Masked)</div>
+          <div style="font-size:28.6pt;color:#9374B1;">⊗</div>
+          <div style="font-size:11.7pt;color:#1B2A47;font-weight:600;">System (Masked)</div>
         </div>
         <div style="padding:2mm 5mm;display:flex;flex-direction:column;justify-content:center;">
           <div><span style="color:#8A3324;font-weight:700;">&lt;|im_start|&gt;</span><span style="color:#1B2A47;">system</span></div>
-          <div style="color:#4B5563;padding-left:5mm;font-size:13pt;">Mamba · Edge. Summarize &amp; Email mode. Produce direct, structured outputs.<span style="color:#8A3324;font-weight:700;">&lt;|im_end|&gt;</span></div>
+          <div style="color:#4B5563;padding-left:5mm;font-size:16.9pt;">Mamba · Edge. Summarize &amp; Email mode. Produce direct, structured outputs.<span style="color:#8A3324;font-weight:700;">&lt;|im_end|&gt;</span></div>
         </div>
 
         <!-- Row: user (masked) -->
         <div style="background:#E8EDF5;border:2px solid #98A9D1;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:22pt;color:#9374B1;">⊗</div>
-          <div style="font-size:9pt;color:#1B2A47;font-weight:600;">User (Masked)</div>
+          <div style="font-size:28.6pt;color:#9374B1;">⊗</div>
+          <div style="font-size:11.7pt;color:#1B2A47;font-weight:600;">User (Masked)</div>
         </div>
         <div style="padding:2mm 5mm;display:flex;flex-direction:column;justify-content:center;">
           <div><span style="color:#8A3324;font-weight:700;">&lt;|im_start|&gt;</span><span style="color:#1B2A47;">user</span></div>
-          <div style="color:#1B2A47;padding-left:5mm;font-size:13pt;">Cancel my subscription renewal. Reply kindly.<span style="color:#8A3324;font-weight:700;">&lt;|im_end|&gt;</span></div>
+          <div style="color:#1B2A47;padding-left:5mm;font-size:16.9pt;">Cancel my subscription renewal. Reply kindly.<span style="color:#8A3324;font-weight:700;">&lt;|im_end|&gt;</span></div>
         </div>
 
         <!-- Row: assistant start (masked) -->
         <div style="background:#E8EDF5;border:2px solid #98A9D1;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:22pt;color:#9374B1;">⊗</div>
-          <div style="font-size:9pt;color:#1B2A47;font-weight:600;">Assistant (Masked)</div>
+          <div style="font-size:28.6pt;color:#9374B1;">⊗</div>
+          <div style="font-size:11.7pt;color:#1B2A47;font-weight:600;">Assistant (Masked)</div>
         </div>
         <div style="padding:2mm 5mm;display:flex;align-items:center;">
           <span style="color:#8A3324;font-weight:700;">&lt;|im_start|&gt;</span><span style="color:#1B2A47;margin-left:2px;">assistant</span>
@@ -51,15 +51,15 @@
 
         <!-- Row: think zone (FCP) — rust red -->
         <div style="background:#FFF9F0;border:3px solid #8A3324;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:24pt;color:#8A3324;font-weight:900;line-height:1;">✓</div>
-          <div style="font-size:16pt;color:#8A3324;font-weight:800;line-height:1.1;">FCP</div>
-          <div style="font-size:9pt;color:#8A3324;font-weight:600;margin-top:0.5mm;">Loss</div>
-          <div style="font-size:9pt;color:#8A3324;font-weight:600;">Computed</div>
-          <div style="font-size:7.5pt;color:#8A3324;font-weight:700;margin-top:0.5mm;letter-spacing:0.3px;">FCP</div>
+          <div style="font-size:31.2pt;color:#8A3324;font-weight:900;line-height:1;">✓</div>
+          <div style="font-size:20.8pt;color:#8A3324;font-weight:800;line-height:1.1;">FCP</div>
+          <div style="font-size:11.7pt;color:#8A3324;font-weight:600;margin-top:0.5mm;">Loss</div>
+          <div style="font-size:11.7pt;color:#8A3324;font-weight:600;">Computed</div>
+          <div style="font-size:9.8pt;color:#8A3324;font-weight:700;margin-top:0.5mm;letter-spacing:0.3px;">FCP</div>
         </div>
         <div style="padding:0 5mm;">
           <div style="background:#FFF9F0;border-left:4px solid #8A3324;padding:2mm 3mm;position:relative;height:100%;box-sizing:border-box;">
-            <div style="position:absolute;right:2.5mm;top:2mm;background:#8A3324;color:#FFF;font-family:'Times New Roman',serif;font-size:10pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">FCP zone — EOS penalised</div>
+            <div style="position:absolute;right:2.5mm;top:2mm;background:#8A3324;color:#FFF;font-family:'Times New Roman',serif;font-size:13.0pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">FCP zone — EOS penalised</div>
             <div style="color:#1B2A47;font-weight:700;">&lt;think&gt;</div>
             <div style="margin:1.5mm 0;"><span style="background:#E8EDF5;color:#1B2A47;padding:0.3mm 1.8mm;border-radius:2px;font-weight:700;border:1px solid #98A9D1;">Step 1:</span><span style="color:#1B2A47;font-weight:400;"> Decline renewal.</span></div>
             <div style="margin:1.5mm 0;"><span style="background:#E8EDF5;color:#1B2A47;padding:0.3mm 1.8mm;border-radius:2px;font-weight:700;border:1px solid #98A9D1;">Step 2:</span><span style="color:#1B2A47;font-weight:400;"> Request cancellation politely.</span></div>
@@ -69,41 +69,41 @@
 
         <!-- Row: /think SFT-GO — deep green -->
         <div style="background:#1B5E34;border:3px solid #1B5E34;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:20pt;color:#fff;font-weight:700;">✓×8</div>
-          <div style="font-size:8pt;color:#D1F0DB;font-weight:700;">SFT-GO</div>
+          <div style="font-size:26.0pt;color:#fff;font-weight:700;">✓×8</div>
+          <div style="font-size:10.4pt;color:#D1F0DB;font-weight:700;">SFT-GO</div>
         </div>
         <div style="padding:0 5mm;display:flex;align-items:center;">
           <div style="background:#1B5E34;padding:1.5mm 3mm;display:flex;justify-content:space-between;align-items:center;width:100%;">
             <span style="color:#fff;font-weight:700;">&lt;/think&gt;</span>
-            <span style="background:#163d2b;color:#FFF;font-family:'Times New Roman',serif;font-size:11pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">SFT-GO ×8 weight</span>
+            <span style="background:#163d2b;color:#FFF;font-family:'Times New Roman',serif;font-size:14.3pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">SFT-GO ×8 weight</span>
           </div>
         </div>
 
         <!-- Row: final zone (SCALe) — deep navy -->
         <div style="background:#E8EDF5;border:3px solid #1B2A47;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:24pt;color:#1B2A47;font-weight:900;line-height:1;">✓</div>
-          <div style="font-size:14pt;color:#1B2A47;font-weight:800;line-height:1.1;">SCALe</div>
-          <div style="font-size:9pt;color:#1B2A47;font-weight:600;margin-top:0.5mm;">Loss</div>
-          <div style="font-size:9pt;color:#1B2A47;font-weight:600;">Computed</div>
+          <div style="font-size:31.2pt;color:#1B2A47;font-weight:900;line-height:1;">✓</div>
+          <div style="font-size:18.2pt;color:#1B2A47;font-weight:800;line-height:1.1;">SCALe</div>
+          <div style="font-size:11.7pt;color:#1B2A47;font-weight:600;margin-top:0.5mm;">Loss</div>
+          <div style="font-size:11.7pt;color:#1B2A47;font-weight:600;">Computed</div>
         </div>
         <div style="padding:0 5mm;">
           <div style="background:#E8EDF5;border-left:4px solid #1B2A47;padding:2mm 3mm;position:relative;height:100%;box-sizing:border-box;">
-            <div style="position:absolute;right:2.5mm;top:2mm;background:#1B2A47;color:#FFF;font-family:'Times New Roman',serif;font-size:10pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">final zone — SCALe ↑</div>
+            <div style="position:absolute;right:2.5mm;top:2mm;background:#1B2A47;color:#FFF;font-family:'Times New Roman',serif;font-size:13.0pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">final zone — SCALe ↑</div>
             <div style="color:#1B2A47;font-weight:700;">&lt;final&gt;</div>
             <div style="margin:1mm 0;"><span style="background:#D8B868;color:#1B2A47;padding:0.3mm 1.8mm;border-radius:2px;font-weight:700;">**Subject:**</span><span style="color:#1B2A47;"> Subscription Cancellation</span></div>
-            <div style="color:#1B2A47;margin:1mm 0;font-size:13pt;">Dear Support, please cancel my subscription effective immediately. No further charges. <span style="background:#D8B868;color:#1B2A47;padding:0.3mm 1.8mm;border-radius:2px;font-weight:700;">**Regards**</span></div>
+            <div style="color:#1B2A47;margin:1mm 0;font-size:16.9pt;">Dear Support, please cancel my subscription effective immediately. No further charges. <span style="background:#D8B868;color:#1B2A47;padding:0.3mm 1.8mm;border-radius:2px;font-weight:700;">**Regards**</span></div>
           </div>
         </div>
 
         <!-- Row: /final SFT-GO + SCALe max focus — deep green -->
         <div style="background:#1B5E34;border:3px solid #1B5E34;border-right:2px solid #98A9D1;border-radius:4px 0 0 4px;padding:2mm;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <div style="font-size:20pt;color:#fff;font-weight:700;">✓×8</div>
-          <div style="font-size:7.5pt;color:#D1F0DB;font-weight:700;text-align:center;">SFT-GO +<br>SCALe Focus</div>
+          <div style="font-size:26.0pt;color:#fff;font-weight:700;">✓×8</div>
+          <div style="font-size:9.8pt;color:#D1F0DB;font-weight:700;text-align:center;">SFT-GO +<br>SCALe Focus</div>
         </div>
         <div style="padding:0 5mm;display:flex;align-items:center;">
           <div style="background:#1B5E34;padding:1.5mm 3mm;display:flex;justify-content:space-between;align-items:center;width:100%;">
             <span style="color:#fff;font-weight:700;">&lt;/final&gt;<span style="color:#D8B868;">&lt;|im_end|&gt;</span></span>
-            <span style="background:#163d2b;color:#FFF;font-family:'Times New Roman',serif;font-size:11pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">SFT-GO ×8 · SCALe max focus</span>
+            <span style="background:#163d2b;color:#FFF;font-family:'Times New Roman',serif;font-size:14.3pt;font-weight:700;padding:1mm 3.5mm;border-radius:3px;letter-spacing:0.3pt;">SFT-GO ×8 · SCALe max focus</span>
           </div>
         </div>
 
@@ -113,19 +113,19 @@
       <div style="background:#E8EDF5;border-top:1.5px solid #98A9D1;padding:2mm 5mm;display:flex;gap:6mm;flex-wrap:wrap;font-family:'Times New Roman',serif;align-items:center;">
         <div style="display:flex;align-items:center;gap:2mm;">
           <div style="width:10mm;height:5mm;background:#FFF9F0;border:1px solid #D8B4A0;border-left:4px solid #8A3324;border-radius:1px;flex-shrink:0;"></div>
-          <span style="font-size:11pt;color:#1B2A47;font-weight:600;">✓ FCP zone (EOS penalty)</span>
+          <span style="font-size:14.3pt;color:#1B2A47;font-weight:600;">✓ FCP zone (EOS penalty)</span>
         </div>
         <div style="display:flex;align-items:center;gap:2mm;">
           <div style="width:10mm;height:5mm;background:#1B5E34;border-radius:1px;flex-shrink:0;"></div>
-          <span style="font-size:11pt;color:#1B2A47;font-weight:600;">×8 SFT-GO ×8 Weight</span>
+          <span style="font-size:14.3pt;color:#1B2A47;font-weight:600;">×8 SFT-GO ×8 Weight</span>
         </div>
         <div style="display:flex;align-items:center;gap:2mm;">
           <div style="width:10mm;height:5mm;background:#E8EDF5;border:1px solid #98A9D1;border-left:4px solid #1B2A47;border-radius:1px;flex-shrink:0;"></div>
-          <span style="font-size:11pt;color:#1B2A47;font-weight:600;">↑ SCALe Area (↑ focus)</span>
+          <span style="font-size:14.3pt;color:#1B2A47;font-weight:600;">↑ SCALe Area (↑ focus)</span>
         </div>
         <div style="display:flex;align-items:center;gap:2mm;">
           <div style="width:10mm;height:5mm;background:#D8B868;border-radius:1px;flex-shrink:0;"></div>
-          <span style="font-size:11pt;color:#1B2A47;font-weight:600;">High-Weight Highlight</span>
+          <span style="font-size:14.3pt;color:#1B2A47;font-weight:600;">High-Weight Highlight</span>
         </div>
       </div>
 
