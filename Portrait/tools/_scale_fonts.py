@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 FACTOR = 1.3
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 FILES = [HERE / "academic_poster.html"] + sorted(HERE.glob("s_*.html"))
 
 css_pt = re.compile(r"(font-size\s*:\s*)(\d+(?:\.\d+)?)(pt)")

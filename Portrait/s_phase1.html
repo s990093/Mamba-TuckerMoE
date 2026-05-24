@@ -1,15 +1,9 @@
-<!-- s_phase1: Architecture + TuckerMoE — Hero pipeline + 4 zoom panels -->
+<!-- s_phase1 — 4-panel row -->
 <div class="sec" style="max-width:100%;overflow:visible;">
   <div class="sh" style="background:#E8EDF5;color:#1B2A47;border-left:6px solid #1B2A47;">Phase 1 — Macro Block Architecture &amp; TuckerMoE Design</div>
   <div class="sc" style="padding:2mm 3mm;max-width:100%;overflow:visible;">
-
     <div style="display:flex;gap:4mm;align-items:stretch;">
-
-      <!-- ══════════════════════════════════════════
-           LEFT: HERO PIPELINE (clean backbone)
-           ══════════════════════════════════════════ -->
-      <div style="flex:0 0 22%;min-width:0;">
-        <svg viewBox="0 0 280 425" xmlns="http://www.w3.org/2000/svg"
+      <div style="flex:0 0 22%;min-width:0;"><svg viewBox="0 0 280 425" xmlns="http://www.w3.org/2000/svg"
              style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
           <defs>
             <marker id="arH" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
@@ -49,7 +43,7 @@
           <text x="131" y="128" font-size="10.4" fill="#334155" text-anchor="middle">Selective SSM · RoPE(B,C) · D-skip</text>
           <text x="131" y="139" font-size="10.4" fill="#334155" text-anchor="middle">SiLU gate · LayerScale × 2</text>
           <text x="131" y="150" font-size="10.4" fill="#7C3AED" text-anchor="middle">in_proj / out_proj → (C) TuckerMoE</text>
-          <text x="131" y="161" font-size="9.8" fill="#1D4ED8" text-anchor="middle">Chunk Parallel Scan → (D)</text>
+          <text x="131" y="161" font-size="9.8" fill="#1D4ED8" text-anchor="middle">Chunk Parallel Scan</text>
 
           <!-- arrow Mamba-3 → GQA -->
           <line x1="131" y1="186" x2="131" y2="198" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
@@ -89,114 +83,275 @@
           <!-- Stats strip -->
           <rect x="8" y="407" width="264" height="14" rx="3" fill="#EFF7F0" stroke="#1A5C32" stroke-width="1.2"/>
           <text x="140" y="417" font-size="9.1" fill="#0A3D20" text-anchor="middle" font-weight="700">417M active  ·  2.43B dense-equiv  ·  82.87% compression</text>
-        </svg>
-      </div>
-
-      <!-- ══════════════════════════════════════════
-           RIGHT: 2×2 ZOOM PANELS
-           ══════════════════════════════════════════ -->
-      <div style="flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:3mm;">
-
-        <!-- ─── Panel A: Mamba-3 Block ─── -->
-        <div>
-          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+        </svg></div>
+      <div style="flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2mm;align-items:start;">
+        <svg viewBox="0 0 560 680" xmlns="http://www.w3.org/2000/svg"
                style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
             <defs>
-              <marker id="arA" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/>
+              <marker id="arA" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B2A47"/>
               </marker>
-              <marker id="arAb" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1E3A8A"/>
+              <marker id="arAd" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B5E34"/>
               </marker>
-              <filter id="sfA"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/></filter>
             </defs>
 
-            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
-            <rect x="3" y="3" width="554" height="20" rx="4" fill="#EEF2FF"/>
-            <text x="280" y="17" font-size="11.7" fill="#1E3A8A" text-anchor="middle" font-weight="700">(A) Mamba-3 Block — Internal Data-Flow</text>
+            <!-- Outer border -->
+            <rect x="2" y="2" width="556" height="676" rx="6" fill="#FFFDF7" stroke="#1B2A47" stroke-width="1.5"/>
+            <rect x="2" y="2" width="556" height="26" rx="6" fill="#1B365D"/>
+            <rect x="2" y="18" width="556" height="10" fill="#1B365D"/>
+            <text x="280" y="18" font-size="13pt" font-weight="800" fill="#FFF" text-anchor="middle">(A) Mamba-3 Block — Internal Data-Flow</text>
 
-            <!-- residual rail (x=38) -->
-            <line x1="38" y1="25" x2="38" y2="222" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="5 3"/>
-            <text x="35" y="24" font-size="9.1" fill="#64748B" text-anchor="end">x_in</text>
+            <!-- ===== MAIN FLOW (cx=280) ===== -->
 
-            <!-- z bypass (x=58): splits from in_proj left edge, runs down to SiLU gate level -->
-            <line x1="58" y1="58" x2="58" y2="168" stroke="#2D3A50" stroke-width="1.1" stroke-dasharray="3 2"/>
-            <text x="53" y="116" font-size="9.1" fill="#475569" text-anchor="end">z</text>
-            <!-- z horizontal into gate left edge -->
-            <line x1="58" y1="168" x2="273" y2="168" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <!-- x_in -->
+            <text x="280" y="48" font-size="14.3pt" font-weight="700" fill="#8A3324" text-anchor="middle" font-style="italic">x_in</text>
+            <line x1="280" y1="54" x2="280" y2="72" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
 
-            <!-- norm_mamba -->
-            <rect x="234" y="25" width="92" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.2" filter="url(#sfA)"/>
-            <text x="280" y="36" font-size="10.4" fill="#334155" text-anchor="middle" font-weight="600">RMSNorm</text>
-            <line x1="280" y1="41" x2="280" y2="49" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arA)"/>
+            <!-- RMSNorm N -->
+            <circle cx="280" cy="88" r="15" fill="#E8EDF5" stroke="#1B365D" stroke-width="2"/>
+            <text x="280" y="94" text-anchor="middle" font-size="14.3pt" font-weight="700" fill="#1B365D">N</text>
+            <text x="302" y="93" font-size="11.7pt" fill="#1B2A47" font-weight="600">RMSNorm</text>
 
-            <!-- in_proj -->
-            <rect x="206" y="49" width="148" height="18" rx="3" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.4" filter="url(#sfA)"/>
-            <text x="280" y="59" font-size="11.1" fill="#1E3A8A" text-anchor="middle" font-weight="700">in_proj  (Linear + bias)</text>
-            <text x="280" y="70" font-size="9.1" fill="#475569" text-anchor="middle">→  z  ·  x′  ·  B  ·  C  ·  Δ</text>
-            <!-- z splits left from in_proj left edge -->
-            <line x1="206" y1="58" x2="58" y2="58" stroke="#2D3A50" stroke-width="1.1"/>
+            <line x1="280" y1="103" x2="280" y2="126" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
 
-            <!-- split B,C→RoPE (left) and x′→x_up (right) from in_proj center bottom -->
-            <line x1="280" y1="67" x2="280" y2="77" stroke="#2D3A50" stroke-width="1.1"/>
-            <line x1="162" y1="77" x2="390" y2="77" stroke="#2D3A50" stroke-width="1.1"/>
-            <line x1="162" y1="77" x2="162" y2="85" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
-            <line x1="390" y1="77" x2="390" y2="85" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <!-- in_proj trapezoid -->
+            <polygon points="140,130 420,130 470,168 90,168" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.8"/>
+            <text x="280" y="148" text-anchor="middle" font-size="13pt" font-weight="700" fill="#1B365D">in_proj (Linear + bias)</text>
+            <text x="280" y="162" text-anchor="middle" font-size="9.8pt" fill="#475569">z · x' · B · C · Δ</text>
 
-            <!-- RoPE(B,C) -->
-            <rect x="116" y="86" width="92" height="16" rx="3" fill="#E0F2FE" stroke="#38BDF8" stroke-width="1.3" filter="url(#sfA)"/>
-            <text x="162" y="97" font-size="10.4" fill="#0369A1" text-anchor="middle" font-weight="600">RoPE (B, C)</text>
+            <!-- Branch labels -->
+            <text x="110" y="186" font-size="11.7pt" font-weight="700" fill="#8A3324" text-anchor="middle" font-style="italic">z</text>
+            <text x="180" y="186" font-size="11.1pt" font-weight="600" fill="#8A3324" text-anchor="middle" font-style="italic">B, C</text>
+            <text x="280" y="186" font-size="11.1pt" font-weight="600" fill="#8A3324" text-anchor="middle" font-style="italic">Δ, x'</text>
+            <text x="380" y="186" font-size="11.1pt" font-weight="600" fill="#8A3324" text-anchor="middle" font-style="italic">x_up</text>
 
-            <!-- x_up_proj TuckerMoE -->
-            <rect x="336" y="86" width="108" height="18" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.4" filter="url(#sfA)"/>
-            <text x="390" y="97" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">x_up_proj  (TuckerMoE)</text>
+            <!-- z branch: left → curved → multiplier -->
+            <path d="M 95 168 L 95 200 L 40 200 L 40 410 C 40 430 265 430 268 410" fill="none" stroke="#1B2A47" stroke-width="1.8"/>
+            <text x="32" y="310" font-size="9.8pt" fill="#8A3324" font-weight="600" font-style="italic">z bypass</text>
 
-            <!-- converge both branches → Chunk Scan -->
-            <line x1="162" y1="102" x2="256" y2="110" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
-            <line x1="390" y1="104" x2="304" y2="110" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <!-- B,C → RoPE -->
+            <path d="M 180 168 L 180 198" fill="none" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
 
-            <!-- Chunk Parallel Scan — HERO BOX -->
-            <rect x="196" y="111" width="168" height="24" rx="5" fill="#EEF2FF" stroke="#1E3A8A" stroke-width="2" filter="url(#sfA)"/>
-            <text x="280" y="123" font-size="12.3" fill="#1E3A8A" text-anchor="middle" font-weight="700">Chunk Parallel Scan</text>
-            <text x="280" y="133" font-size="9.1" fill="#3B82F6" text-anchor="middle">Triton kernel  ·  O(L log L)  →  see (D)</text>
-            <line x1="280" y1="135" x2="280" y2="143" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arA)"/>
+            <!-- Δ, x' → center -->
+            <path d="M 280 168 L 280 232" fill="none" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
 
-            <!-- y_down + D·x' skip -->
-            <rect x="190" y="144" width="180" height="16" rx="3" fill="#FEF9EE" stroke="#D97706" stroke-width="1.2" filter="url(#sfA)"/>
-            <text x="280" y="155" font-size="10.4" fill="#92400E" text-anchor="middle" font-weight="600">y_down_proj  +  D · x′  (skip)</text>
-            <!-- arrow into SiLU gate top -->
-            <line x1="280" y1="160" x2="280" y2="161" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <!-- x_up → right -->
+            <path d="M 380 168 L 380 198" fill="none" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
 
-            <!-- SiLU gate — INLINE at cx=280, cy=168 -->
-            <circle cx="280" cy="168" r="7" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
-            <line x1="275" y1="163" x2="285" y2="173" stroke="#64748B" stroke-width="1.3"/>
-            <line x1="285" y1="163" x2="275" y2="173" stroke="#64748B" stroke-width="1.3"/>
-            <text x="268" y="165" font-size="8.5" fill="#475569" text-anchor="end">×SiLU(z)</text>
-            <!-- gate output down to out_proj -->
-            <line x1="280" y1="175" x2="280" y2="183" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <!-- RoPE -->
+            <rect x="120" y="202" width="120" height="32" rx="4" fill="#FCE4D6" stroke="#1B2A47" stroke-width="1.6"/>
+            <text x="180" y="224" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#1B2A47">RoPE (B, C)</text>
+            <path d="M 180 234 L 180 256 C 180 262 235 262 235 254" fill="none" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arA)"/>
 
-            <!-- out_proj TuckerMoE -->
-            <rect x="196" y="184" width="168" height="18" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.4" filter="url(#sfA)"/>
-            <text x="280" y="195" font-size="11.1" fill="#581C87" text-anchor="middle" font-weight="600">out_proj  (TuckerMoE)  ·  d→d</text>
-            <line x1="280" y1="202" x2="280" y2="209" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arA)"/>
+            <!-- x_up_proj MoE -->
+            <polygon points="320,202 440,202 465,236 295,236" fill="#F3E8FF" stroke="#9374B1" stroke-width="1.6"/>
+            <text x="380" y="222" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#581C87">x_up_proj (TuckerMoE)</text>
+            <path d="M 380 236 L 380 256 C 380 262 325 262 325 254" fill="none" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arA)"/>
 
-            <!-- LayerScale -->
-            <rect x="214" y="210" width="132" height="12" rx="3" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.2" filter="url(#sfA)"/>
-            <text x="280" y="219" font-size="9.8" fill="#C2410C" text-anchor="middle" font-weight="600">LayerScale</text>
-            <line x1="280" y1="222" x2="280" y2="227" stroke="#2D3A50" stroke-width="1.1"/>
+            <!-- Chunk Parallel Scan -->
+            <rect x="110" y="260" width="340" height="44" rx="5" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="2.2"/>
+            <text x="280" y="282" text-anchor="middle" font-size="14.3pt" font-weight="700" fill="#1D4ED8">Chunk Parallel Scan</text>
+            <text x="280" y="298" text-anchor="middle" font-size="9.1pt" fill="#5B21B6">Triton kernel · O(L log L) · Hillis-Steele + Blelloch</text>
 
-            <!-- ⊕ residual -->
-            <circle cx="280" cy="230" r="6" fill="#EFF4FF" stroke="#2B4A8F" stroke-width="1.4"/>
-            <line x1="274" y1="230" x2="286" y2="230" stroke="#2B4A8F" stroke-width="1.4"/>
-            <line x1="280" y1="224" x2="280" y2="236" stroke="#2B4A8F" stroke-width="1.4"/>
-            <line x1="38" y1="230" x2="274" y2="230" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#arAb)"/>
-            <text x="157" y="227" font-size="9.1" fill="#1D4ED8" text-anchor="middle">⊕ residual</text>
-          </svg>
-        </div>
+            <line x1="280" y1="304" x2="280" y2="330" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
 
-        <!-- ─── Panel C: TuckerMoE Decomposition ─── -->
-        <div>
-          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+            <!-- y_down_proj -->
+            <polygon points="130,335 430,335 400,365 160,365" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.8"/>
+            <text x="280" y="354" text-anchor="middle" font-size="13pt" font-weight="700" fill="#1B365D">y_down_proj + D · x' (skip)</text>
+            <line x1="280" y1="365" x2="280" y2="385" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+
+            <!-- SiLU σ -->
+            <circle cx="280" cy="400" r="14" fill="#FFF9F0" stroke="#D8B868" stroke-width="2"/>
+            <text x="280" y="407" text-anchor="middle" font-size="15.6pt" font-weight="700" fill="#1B2A47">σ</text>
+            <text x="245" y="403" font-size="11.7pt" fill="#1B2A47" font-weight="600">SiLU</text>
+            <text x="300" y="403" font-size="11.7pt" fill="#8A3324" font-weight="600" font-style="italic">Y</text>
+
+            <line x1="280" y1="414" x2="280" y2="438" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+
+            <!-- out_proj -->
+            <polygon points="160,442 400,442 375,470 185,470" fill="#F3E8FF" stroke="#9374B1" stroke-width="1.8"/>
+            <text x="280" y="460" text-anchor="middle" font-size="13pt" font-weight="700" fill="#581C87">out_proj (TuckerMoE) · d → d</text>
+            <line x1="280" y1="470" x2="280" y2="490" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+
+            <!-- LayerScale S -->
+            <circle cx="280" cy="505" r="13" fill="#FFF9F0" stroke="#D8B868" stroke-width="1.8"/>
+            <text x="280" y="511" text-anchor="middle" font-size="13pt" font-weight="700" fill="#8B6914">S</text>
+            <text x="302" y="510" font-size="10.4pt" fill="#1B2A47" font-weight="600">LayerScale</text>
+
+            <line x1="280" y1="518" x2="280" y2="533" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+
+            <!-- ⊕ -->
+            <circle cx="280" cy="548" r="13" fill="#EFF7F0" stroke="#1B5E34" stroke-width="2"/>
+            <line x1="272" y1="548" x2="288" y2="548" stroke="#1B5E34" stroke-width="1.8"/>
+            <line x1="280" y1="540" x2="280" y2="556" stroke="#1B5E34" stroke-width="1.8"/>
+
+            <!-- Curved residual loop -->
+            <path d="M 280 68 C 280 50 30 50 30 88 L 30 548 C 30 570 260 570 268 548" fill="none" stroke="#98A9D1" stroke-width="1.6" stroke-dasharray="7 5" marker-end="url(#arAd)"/>
+            <text x="54" y="310" font-size="10.4pt" fill="#1B5E34" font-weight="700" transform="rotate(-90,54,310)">⊕ residual</text>
+
+            <!-- output -->
+            <line x1="280" y1="561" x2="280" y2="585" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+            <text x="280" y="598" font-size="11.7pt" font-weight="700" fill="#1B2A47" text-anchor="middle" font-style="italic">→ out</text>
+
+            <!-- ══════════ LEGEND ══════════ -->
+            <line x1="10" y1="610" x2="550" y2="610" stroke="#CBD5E1" stroke-width="0.8"/>
+
+            <polygon points="15,620 55,620 62,632 8,632" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+            <text x="72" y="628" font-size="9.8pt" font-weight="600" fill="#1B2A47" text-anchor="start">Linear</text>
+
+            <rect x="130" y="620" width="48" height="14" rx="3" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="1"/>
+            <text x="188" y="628" font-size="9.8pt" font-weight="600" fill="#1B2A47" text-anchor="start">Sequence</text>
+
+            <polygon points="260,620 308,620 300,632 252,632" fill="#F3E8FF" stroke="#9374B1" stroke-width="1"/>
+            <text x="318" y="628" font-size="9.8pt" font-weight="600" fill="#1B2A47" text-anchor="start">MIMO MoE</text>
+
+            <circle cx="418" cy="628" r="6" fill="#E8EDF5" stroke="#1B365D" stroke-width="1"/>
+            <text x="432" y="628" font-size="9.8pt" font-weight="600" fill="#1B2A47" text-anchor="start">Norm/Act/x/⊕</text>
+          </svg><svg viewBox="0 0 560 710" xmlns="http://www.w3.org/2000/svg"
+               style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
+            <defs>
+              <marker id="arB" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B2A47"/>
+              </marker>
+              <marker id="arBd" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B5E34"/>
+              </marker>
+            </defs>
+
+            <!-- Outer border -->
+            <rect x="2" y="2" width="556" height="706" rx="6" fill="#FFFDF7" stroke="#1B2A47" stroke-width="1.5"/>
+            <rect x="2" y="2" width="556" height="24" rx="6" fill="#0C4A6E"/>
+            <rect x="2" y="16" width="556" height="10" fill="#0C4A6E"/>
+            <text x="280" y="17" font-size="13pt" font-weight="800" fill="#FFF" text-anchor="middle">(B) Transformer Block — Internal Data-Flow</text>
+
+            <!-- ===== INPUT ===== -->
+            <text x="280" y="46" font-size="14.3pt" font-weight="700" fill="#8A3324" text-anchor="middle" font-style="italic">x_in</text>
+            <line x1="280" y1="52" x2="280" y2="70" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arB)"/>
+
+            <!-- ═══ ATTENTION SUB-BLOCK ═══ -->
+            <text x="280" y="86" font-size="11.7pt" font-weight="700" fill="#1B365D" text-anchor="middle">Attention Sub-block</text>
+
+            <!-- RMSNorm N -->
+            <circle cx="280" cy="104" r="13" fill="#E8EDF5" stroke="#1B365D" stroke-width="1.8"/>
+            <text x="280" y="109" text-anchor="middle" font-size="13pt" font-weight="700" fill="#1B365D">N</text>
+            <text x="300" y="108" font-size="10.4pt" fill="#1B2A47" font-weight="600">RMSNorm</text>
+            <line x1="280" y1="117" x2="280" y2="136" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arB)"/>
+
+            <!-- Q/K/V splitter node -->
+            <circle cx="280" cy="142" r="4" fill="#1B2A47"/>
+            <line x1="210" y1="142" x2="350" y2="142" stroke="#1B2A47" stroke-width="1.3"/>
+            <line x1="210" y1="142" x2="210" y2="154" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+            <line x1="280" y1="142" x2="280" y2="154" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+            <line x1="350" y1="142" x2="350" y2="154" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+
+            <!-- Q/K/V proj -->
+            <rect x="170" y="158" width="80" height="22" rx="3" fill="#AED5EB" stroke="#3B82F6" stroke-width="1.5"/>
+            <text x="210" y="174" text-anchor="middle" font-size="10.4pt" font-weight="700" fill="#1B365D">Q proj</text>
+            <rect x="240" y="158" width="80" height="22" rx="3" fill="#AED5EB" stroke="#3B82F6" stroke-width="1.5"/>
+            <text x="280" y="174" text-anchor="middle" font-size="10.4pt" font-weight="700" fill="#1B365D">K proj</text>
+            <rect x="310" y="158" width="80" height="22" rx="3" fill="#AED5EB" stroke="#3B82F6" stroke-width="1.5"/>
+            <text x="350" y="174" text-anchor="middle" font-size="10.4pt" font-weight="700" fill="#1B365D">V proj</text>
+
+            <!-- Converge → GQA -->
+            <line x1="210" y1="180" x2="210" y2="190" stroke="#1B2A47" stroke-width="1.2"/>
+            <line x1="280" y1="180" x2="280" y2="190" stroke="#1B2A47" stroke-width="1.2"/>
+            <line x1="350" y1="180" x2="350" y2="190" stroke="#1B2A47" stroke-width="1.2"/>
+            <line x1="210" y1="190" x2="350" y2="190" stroke="#1B2A47" stroke-width="1.2"/>
+            <line x1="280" y1="190" x2="280" y2="200" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arB)"/>
+
+            <!-- GQA Attention -->
+            <rect x="160" y="204" width="240" height="36" rx="4" fill="#F5CE9F" stroke="#1B2A47" stroke-width="1.6"/>
+            <text x="280" y="220" text-anchor="middle" font-size="13pt" font-weight="700" fill="#1B2A47">GQA Attention</text>
+            <text x="280" y="234" text-anchor="middle" font-size="9.1pt" fill="#475569">SDPA · kv-cache · RoPE</text>
+            <line x1="280" y1="240" x2="280" y2="258" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arB)"/>
+
+            <!-- o_proj -->
+            <rect x="180" y="262" width="200" height="22" rx="3" fill="#AED5EB" stroke="#3B82F6" stroke-width="1.5"/>
+            <text x="280" y="278" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#1B365D">o_proj (Linear)</text>
+            <line x1="280" y1="284" x2="280" y2="300" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arB)"/>
+
+            <!-- LayerScale S -->
+            <circle cx="280" cy="314" r="10" fill="#FFF9F0" stroke="#D8B868" stroke-width="1.6"/>
+            <text x="280" y="319" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#8B6914">S</text>
+            <text x="298" y="318" font-size="9.8pt" fill="#1B2A47" font-weight="600">LayerScale</text>
+            <line x1="280" y1="324" x2="280" y2="338" stroke="#1B2A47" stroke-width="1.5"/>
+
+            <!-- ⊕ residual 1 -->
+            <circle cx="280" cy="350" r="11" fill="#EFF7F0" stroke="#1B5E34" stroke-width="1.8"/>
+            <line x1="272" y1="350" x2="288" y2="350" stroke="#1B5E34" stroke-width="1.5"/>
+            <line x1="280" y1="342" x2="280" y2="358" stroke="#1B5E34" stroke-width="1.5"/>
+
+            <!-- Curved residual 1 -->
+            <path d="M 280 66 C 280 52 30 52 30 104 L 30 350 C 30 368 255 368 268 350" fill="none" stroke="#98A9D1" stroke-width="1.4" stroke-dasharray="6 5" marker-end="url(#arBd)"/>
+            <text x="55" y="225" font-size="9.8pt" fill="#1B5E34" font-weight="700" transform="rotate(-90,55,225)">⊕ residual</text>
+
+            <!-- mid arrow -->
+            <line x1="280" y1="361" x2="280" y2="382" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arB)"/>
+            <text x="280" y="392" font-size="10.4pt" fill="#8A3324" text-anchor="middle" font-style="italic">mid</text>
+
+            <!-- ═══ FFN SUB-BLOCK ═══ -->
+            <text x="280" y="410" font-size="11.7pt" font-weight="700" fill="#1B5E34" text-anchor="middle">FFN Sub-block (SwiGLU)</text>
+
+            <!-- RMSNorm -->
+            <circle cx="280" cy="426" r="11" fill="#E8EDF5" stroke="#1B365D" stroke-width="1.8"/>
+            <text x="280" y="431" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#1B365D">N</text>
+            <text x="298" y="430" font-size="9.8pt" fill="#1B2A47" font-weight="600">RMSNorm</text>
+            <line x1="280" y1="437" x2="280" y2="455" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arB)"/>
+
+            <!-- gate/up split -->
+            <circle cx="280" cy="460" r="4" fill="#1B2A47"/>
+            <line x1="220" y1="460" x2="340" y2="460" stroke="#1B2A47" stroke-width="1.3"/>
+            <line x1="220" y1="460" x2="220" y2="470" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+            <line x1="340" y1="460" x2="340" y2="470" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+
+            <!-- gate_proj -->
+            <rect x="170" y="474" width="100" height="26" rx="3" fill="#D2C4E6" stroke="#9374B1" stroke-width="1.5"/>
+            <text x="220" y="488" text-anchor="middle" font-size="10.4pt" font-weight="700" fill="#581C87">gate_proj</text>
+            <text x="220" y="497" text-anchor="middle" font-size="7.8pt" fill="#7E22CE">TuckerMoE</text>
+
+            <!-- up_proj -->
+            <rect x="290" y="474" width="100" height="26" rx="3" fill="#D2C4E6" stroke="#9374B1" stroke-width="1.5"/>
+            <text x="340" y="488" text-anchor="middle" font-size="10.4pt" font-weight="700" fill="#581C87">up_proj</text>
+            <text x="340" y="497" text-anchor="middle" font-size="7.8pt" fill="#7E22CE">TuckerMoE</text>
+
+            <!-- Converge → SiLU × -->
+            <line x1="220" y1="500" x2="220" y2="520" stroke="#1B2A47" stroke-width="1.3"/>
+            <line x1="340" y1="500" x2="340" y2="520" stroke="#1B2A47" stroke-width="1.3"/>
+            <line x1="220" y1="520" x2="330" y2="520" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+            <line x1="340" y1="520" x2="330" y2="520" stroke="#1B2A47" stroke-width="1.3" marker-end="url(#arB)"/>
+
+            <!-- SiLU σ -->
+            <circle cx="280" cy="525" r="10" fill="#FFF" stroke="#1B2A47" stroke-width="1.5"/>
+            <text x="280" y="530" text-anchor="middle" font-size="11.1pt" font-weight="700" fill="#1B2A47">σ</text>
+            <text x="258" y="528" font-size="9.1pt" fill="#1B2A47" font-weight="600">SiLU</text>
+
+            <line x1="280" y1="535" x2="280" y2="550" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arB)"/>
+
+            <!-- down_proj -->
+            <rect x="180" y="554" width="200" height="22" rx="3" fill="#D2C4E6" stroke="#9374B1" stroke-width="1.5"/>
+            <text x="280" y="570" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#581C87">down_proj (TuckerMoE)</text>
+            <line x1="280" y1="576" x2="280" y2="592" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arB)"/>
+
+            <!-- LayerScale S -->
+            <circle cx="280" cy="604" r="10" fill="#FFF9F0" stroke="#D8B868" stroke-width="1.6"/>
+            <text x="280" y="609" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#8B6914">S</text>
+            <text x="298" y="608" font-size="9.1pt" fill="#1B2A47" font-weight="600">LayerScale</text>
+            <line x1="280" y1="614" x2="280" y2="628" stroke="#1B2A47" stroke-width="1.5"/>
+
+            <!-- ⊕ residual 2 -->
+            <circle cx="280" cy="640" r="11" fill="#EFF7F0" stroke="#1B5E34" stroke-width="1.8"/>
+            <line x1="272" y1="640" x2="288" y2="640" stroke="#1B5E34" stroke-width="1.5"/>
+            <line x1="280" y1="632" x2="280" y2="648" stroke="#1B5E34" stroke-width="1.5"/>
+
+            <!-- Curved residual 2 (from mid entry) -->
+            <path d="M 280 398 C 320 398 500 398 500 426 L 500 640 C 500 658 305 658 292 640" fill="none" stroke="#98A9D1" stroke-width="1.4" stroke-dasharray="6 5" marker-end="url(#arBd)"/>
+            <text x="470" y="520" font-size="9.8pt" fill="#1B5E34" font-weight="700" transform="rotate(-90,470,520)">⊕ residual</text>
+
+            <!-- output -->
+            <line x1="280" y1="651" x2="280" y2="675" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arB)"/>
+            <text x="280" y="688" font-size="11.7pt" font-weight="700" fill="#1B2A47" text-anchor="middle" font-style="italic">→ out</text>
+          </svg><svg viewBox="0 0 560 240" xmlns="http://www.w3.org/2000/svg"
                style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
             <defs>
               <marker id="arC" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
@@ -208,7 +363,7 @@
               <filter id="sfC"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.07"/></filter>
             </defs>
 
-            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+            <rect x="1" y="1" width="558" height="239" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
             <rect x="3" y="3" width="554" height="20" rx="4" fill="#FFFBF0"/>
             <text x="280" y="17" font-size="11.7" fill="#78350F" text-anchor="middle" font-weight="700">(C) TuckerMoE — Tensor Decomposition  (W_e = U_in · 𝒢_e · U_out)</text>
 
@@ -295,151 +450,21 @@
             <text x="314" y="60" font-size="9.8" fill="#92400E" font-style="italic">gate weight</text>
 
             <!-- Formula + compression -->
-            <rect x="6" y="148" width="548" height="32" rx="4" fill="#F5F0FF" stroke="#3B0764" stroke-width="1.2"/>
-            <text x="280" y="161" font-size="11.7" fill="#3B0764" text-anchor="middle" font-weight="700">W_e = U_in · 𝒢_e · U_out  ,  𝒢_e = Σ_r U_exp[e,r] · 𝒢[r,:,:]</text>
-            <text x="280" y="174" font-size="10.4" fill="#5B21B6" text-anchor="middle">Shared U_in, 𝒢, U_out across all 8 experts  ·  r = (32, 512, 256)  ·  top-2 routing</text>
+            <rect x="6" y="168" width="548" height="32" rx="4" fill="#F5F0FF" stroke="#3B0764" stroke-width="1.2"/>
+            <text x="280" y="181" font-size="11.7" fill="#3B0764" text-anchor="middle" font-weight="700">W_e = U_in · 𝒢_e · U_out  ,  𝒢_e = Σ_r U_exp[e,r] · 𝒢[r,:,:]</text>
+            <text x="280" y="194" font-size="10.4" fill="#5B21B6" text-anchor="middle">Shared U_in, 𝒢, U_out across all 8 experts  ·  r = (32, 512, 256)  ·  top-2 routing</text>
 
             <!-- Compression bar -->
-            <text x="6" y="196" font-size="10.4" fill="#374151" font-weight="700">Dense  75.5M</text>
-            <rect x="74" y="187" width="480" height="14" rx="2" fill="#9CA8BC"/>
-            <text x="6" y="214" font-size="10.4" fill="#0A3D20" font-weight="700">Tucker  7.73M</text>
-            <rect x="74" y="204" width="26" height="14" rx="2" fill="#3B4E8A"/>
-            <rect x="101" y="204" width="20" height="14" fill="#4A1D7A"/>
-            <rect x="122" y="204" width="3" height="14" fill="#1A5C32"/>
-            <text x="138" y="215" font-size="12.3" fill="#8B1F1F" font-weight="800">89.8% ↓</text>
-            <rect x="270" y="202" width="282" height="18" rx="3" fill="#EFF4E8" stroke="#1A5C32" stroke-width="1"/>
-            <text x="411" y="213" font-size="11.1" fill="#0A3D20" text-anchor="middle" font-weight="700">82.87% overall compression  ·  417M / 2.43B dense-equiv</text>
-          </svg>
-        </div>
-
-        <!-- ─── Panel B: Transformer Block ─── -->
-        <div>
-          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
-               style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
-            <defs>
-              <marker id="arB" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/>
-              </marker>
-              <marker id="arBb" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1E3A8A"/>
-              </marker>
-              <filter id="sfB"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/></filter>
-            </defs>
-
-            <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
-            <rect x="3" y="3" width="554" height="20" rx="4" fill="#F0F9FF"/>
-            <text x="280" y="17" font-size="11.7" fill="#0C4A6E" text-anchor="middle" font-weight="700">(B) Transformer Block — Internal Data-Flow</text>
-
-            <!-- Sub-block divider -->
-            <line x1="284" y1="24" x2="284" y2="234" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
-            <text x="142" y="32" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">Attention Sub-block</text>
-            <text x="420" y="32" font-size="10.4" fill="#065F46" text-anchor="middle" font-weight="600">FFN Sub-block</text>
-
-            <!-- ── LEFT: Attention (cx=142) ── -->
-            <line x1="38" y1="36" x2="38" y2="198" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="5 3"/>
-            <text x="35" y="35" font-size="9.1" fill="#64748B" text-anchor="end">x_in</text>
-
-            <!-- norm_attn -->
-            <rect x="96" y="36" width="92" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.2" filter="url(#sfB)"/>
-            <text x="142" y="47" font-size="10.4" fill="#334155" text-anchor="middle" font-weight="600">RMSNorm</text>
-            <line x1="142" y1="52" x2="142" y2="59" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
-
-            <!-- Q/K/V split -->
-            <line x1="142" y1="59" x2="142" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
-            <line x1="84" y1="63" x2="200" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
-            <line x1="84"  y1="63" x2="84"  y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <line x1="142" y1="63" x2="142" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <line x1="200" y1="63" x2="200" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <rect x="58" y="71" width="52" height="16" rx="3" fill="#DBEAFE" stroke="#60A5FA" stroke-width="1.2" filter="url(#sfB)"/>
-            <text x="84"  y="82" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">Q proj</text>
-            <rect x="116" y="71" width="52" height="16" rx="3" fill="#DBEAFE" stroke="#60A5FA" stroke-width="1.2" filter="url(#sfB)"/>
-            <text x="142" y="82" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">K proj</text>
-            <rect x="174" y="71" width="52" height="16" rx="3" fill="#DBEAFE" stroke="#60A5FA" stroke-width="1.2" filter="url(#sfB)"/>
-            <text x="200" y="82" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">V proj</text>
-
-            <!-- Q/K/V → GQA -->
-            <line x1="84"  y1="87" x2="120" y2="95" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <line x1="142" y1="87" x2="142" y2="95" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <line x1="200" y1="87" x2="164" y2="95" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-
-            <!-- GQA SDPA -->
-            <rect x="100" y="96" width="84" height="24" rx="4" fill="#D1FAE5" stroke="#34D399" stroke-width="1.4" filter="url(#sfB)"/>
-            <text x="142" y="107" font-size="11.1" fill="#065F46" text-anchor="middle" font-weight="700">GQA Attention</text>
-            <text x="142" y="117" font-size="9.1" fill="#059669" text-anchor="middle">SDPA  ·  kv-cache</text>
-            <line x1="142" y1="120" x2="142" y2="128" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
-
-            <!-- o_proj -->
-            <rect x="100" y="129" width="84" height="16" rx="3" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.2" filter="url(#sfB)"/>
-            <text x="142" y="140" font-size="10.4" fill="#1E3A8A" text-anchor="middle" font-weight="600">o_proj (Linear)</text>
-            <line x1="142" y1="145" x2="142" y2="153" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
-
-            <!-- LayerScale attn -->
-            <rect x="106" y="154" width="72" height="12" rx="3" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.1"/>
-            <text x="142" y="163" font-size="9.1" fill="#C2410C" text-anchor="middle" font-weight="600">LayerScale</text>
-            <line x1="142" y1="166" x2="142" y2="174" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-
-            <!-- ⊕ residual 1 -->
-            <circle cx="142" cy="181" r="7" fill="#EFF9F4" stroke="#065F46" stroke-width="1.3"/>
-            <line x1="136" y1="181" x2="148" y2="181" stroke="#065F46" stroke-width="1.4"/>
-            <line x1="142" y1="175" x2="142" y2="187" stroke="#065F46" stroke-width="1.4"/>
-            <line x1="38" y1="181" x2="135" y2="181" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#arBb)"/>
-            <text x="88" y="178" font-size="9.1" fill="#065F46" text-anchor="middle">⊕ residual</text>
-            <line x1="142" y1="188" x2="142" y2="198" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <text x="138" y="207" font-size="9.8" fill="#334155" text-anchor="end">→ mid</text>
-
-            <!-- ── RIGHT: FFN (cx=420) ── -->
-            <line x1="314" y1="36" x2="314" y2="226" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="5 3"/>
-            <text x="311" y="35" font-size="9.1" fill="#64748B" text-anchor="end">mid</text>
-
-            <!-- norm_ffn -->
-            <rect x="374" y="36" width="92" height="16" rx="3" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.2" filter="url(#sfB)"/>
-            <text x="420" y="47" font-size="10.4" fill="#334155" text-anchor="middle" font-weight="600">RMSNorm</text>
-            <line x1="420" y1="52" x2="420" y2="59" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
-
-            <!-- gate / up split -->
-            <line x1="420" y1="59" x2="420" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
-            <line x1="378" y1="63" x2="462" y2="63" stroke="#2D3A50" stroke-width="1.1"/>
-            <line x1="378" y1="63" x2="378" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <line x1="462" y1="63" x2="462" y2="70" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <rect x="332" y="71" width="90" height="20" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.3" filter="url(#sfB)"/>
-            <text x="377" y="82" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">gate_proj</text>
-            <text x="377" y="90" font-size="9.1" fill="#7E22CE" text-anchor="middle">(TuckerMoE)</text>
-            <rect x="424" y="71" width="90" height="20" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.3" filter="url(#sfB)"/>
-            <text x="469" y="82" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">up_proj</text>
-            <text x="469" y="90" font-size="9.1" fill="#7E22CE" text-anchor="middle">(TuckerMoE)</text>
-
-            <!-- SiLU × gate -->
-            <line x1="377" y1="91" x2="405" y2="100" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <line x1="469" y1="91" x2="441" y2="100" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-            <circle cx="420" cy="106" r="8" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
-            <line x1="415" y1="101" x2="425" y2="111" stroke="#64748B" stroke-width="1.2"/>
-            <line x1="425" y1="101" x2="415" y2="111" stroke="#64748B" stroke-width="1.2"/>
-            <text x="410" y="103" font-size="9.1" fill="#475569" text-anchor="end">SiLU ×</text>
-            <line x1="420" y1="114" x2="420" y2="122" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
-
-            <!-- down_proj TuckerMoE -->
-            <rect x="370" y="123" width="100" height="20" rx="3" fill="#F3E8FF" stroke="#A855F7" stroke-width="1.3" filter="url(#sfB)"/>
-            <text x="420" y="134" font-size="9.8" fill="#581C87" text-anchor="middle" font-weight="600">down_proj  (TuckerMoE)</text>
-            <line x1="420" y1="143" x2="420" y2="151" stroke="#2D3A50" stroke-width="1.2" marker-end="url(#arB)"/>
-
-            <!-- LayerScale ffn -->
-            <rect x="376" y="152" width="88" height="12" rx="3" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.1"/>
-            <text x="420" y="161" font-size="9.1" fill="#C2410C" text-anchor="middle" font-weight="600">LayerScale</text>
-            <line x1="420" y1="164" x2="420" y2="172" stroke="#2D3A50" stroke-width="1.1" marker-end="url(#arB)"/>
-
-            <!-- ⊕ residual 2 -->
-            <circle cx="420" cy="179" r="7" fill="#EFF9F4" stroke="#065F46" stroke-width="1.3"/>
-            <line x1="414" y1="179" x2="426" y2="179" stroke="#065F46" stroke-width="1.4"/>
-            <line x1="420" y1="173" x2="420" y2="185" stroke="#065F46" stroke-width="1.4"/>
-            <line x1="314" y1="179" x2="413" y2="179" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#arBb)"/>
-            <text x="364" y="176" font-size="9.1" fill="#065F46" text-anchor="middle">⊕ residual</text>
-            <text x="420" y="202" font-size="9.8" fill="#334155" text-anchor="middle">→ out</text>
-          </svg>
-        </div>
-
-        <!-- ─── Panel D: Chunk Parallel Scan — 3 sub-panels ─── -->
-        <div>
-          <svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
+            <text x="6" y="218" font-size="10.4" fill="#374151" font-weight="700">Dense  75.5M</text>
+            <rect x="74" y="209" width="500" height="14" rx="2" fill="#9CA8BC"/>
+            <text x="6" y="236" font-size="10.4" fill="#0A3D20" font-weight="700">Tucker  7.73M</text>
+            <rect x="74" y="226" width="26" height="14" rx="2" fill="#3B4E8A"/>
+            <rect x="101" y="226" width="20" height="14" fill="#4A1D7A"/>
+            <rect x="122" y="226" width="3" height="14" fill="#1A5C32"/>
+            <text x="138" y="237" font-size="12.3" fill="#8B1F1F" font-weight="800">89.8% ↓</text>
+            <rect x="270" y="224" width="320" height="18" rx="3" fill="#EFF4E8" stroke="#1A5C32" stroke-width="1"/>
+            <text x="411" y="235" font-size="11.1" fill="#0A3D20" text-anchor="middle" font-weight="700">82.87% overall compression  ·  417M / 2.43B dense-equiv</text>
+          </svg><svg viewBox="0 0 560 238" xmlns="http://www.w3.org/2000/svg"
                style="font-family:'Times New Roman',Times,serif;width:100%;display:block;">
             <defs>
               <marker id="arD" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
@@ -623,10 +648,7 @@
             <rect x="378" y="197" width="176" height="16" rx="3" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="1"/>
             <text x="466" y="209" font-size="9.8" fill="#1E3A8A" text-anchor="middle" font-weight="700">Total: L(n,B) = O(log n)  (Eq. 6)</text>
           </svg>
-        </div>
-
-      </div><!-- /2×2 grid -->
-    </div><!-- /flex row -->
-
+      </div>
+    </div>
   </div>
 </div>

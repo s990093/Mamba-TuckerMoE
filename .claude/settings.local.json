@@ -97,7 +97,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/s_phase1.html)",
       "Bash(open *)",
       "Bash(git -C /Users/hungwei/Desktop/Proj/Mamba3-XR log --oneline -5)",
-      "Bash(git -C /Users/hungwei/Desktop/Proj/Mamba3-XR diff HEAD Portrait/s_phase1.html)"
+      "Bash(git -C /Users/hungwei/Desktop/Proj/Mamba3-XR diff HEAD Portrait/s_phase1.html)",
+      "Bash(curl -s http://localhost:8080/s_phase2.html)"
     ]
   }
 }

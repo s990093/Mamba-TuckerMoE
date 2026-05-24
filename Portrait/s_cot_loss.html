@@ -1,0 +1,247 @@
+<!-- s_cot_loss.html — ③ CoT Loss Design: 5-Weights Product + FCP + MoE Aux
+     Importable slot. Covers all 6 mechanisms from SF_loss.md.
+-->
+<div class="sec" style="max-width:100%;overflow:visible;">
+    <div class="sh" style="background:#E8EDF5;color:#1B2A47;border-left:6px solid #1B2A47;">③ CoT Loss Design — 5-Weights Product + FCP + MoE Aux</div>
+    <div class="sc" style="padding:1.5mm 2.5mm;max-width:100%;overflow:visible;">
+
+    <!-- Pain points bar -->
+    <div style="display:flex;gap:2mm;margin-bottom:3mm;flex-wrap:wrap;">
+      <div style="flex:1;min-width:0;background:#FFF4F2;border:1.5px solid #8A3324;border-radius:6px;padding:2mm 2.5mm;text-align:center;">
+        <div style="font-size:11.7pt;font-weight:700;color:#8A3324;font-family:Arial,Helvetica,sans-serif;">Pain Point: EOS Collapse</div>
+        <div style="font-size:10.4pt;color:#92400E;">Model emits premature EOS inside &lt;think&gt; → FCP penalty</div>
+      </div>
+      <div style="flex:1;min-width:0;background:#FFF9F0;border:1.5px solid #1B365D;border-radius:6px;padding:2mm 2.5mm;text-align:center;">
+        <div style="font-size:11.7pt;font-weight:700;color:#1B365D;font-family:Arial,Helvetica,sans-serif;">Pain Point: Suffix Blur</div>
+        <div style="font-size:10.4pt;color:#3B4E8A;">Late tokens in &lt;final&gt; get equal weight → Final-SW decay</div>
+      </div>
+      <div style="flex:1;min-width:0;background:#F5F0FF;border:1.5px solid #9374B1;border-radius:6px;padding:2mm 2.5mm;text-align:center;">
+        <div style="font-size:11.7pt;font-weight:700;color:#9374B1;font-family:Arial,Helvetica,sans-serif;">Pain Point: Freq Dominance</div>
+        <div style="font-size:10.4pt;color:#581C87;">High-freq tokens drown signal → PDL inverse-weight</div>
+      </div>
+      <div style="flex:1;min-width:0;background:#EFF7F0;border:1.5px solid #1B5E34;border-radius:6px;padding:2mm 2.5mm;text-align:center;">
+        <div style="font-size:11.7pt;font-weight:700;color:#1B5E34;font-family:Arial,Helvetica,sans-serif;">Pain Point: Entropy Waste</div>
+        <div style="font-size:10.4pt;color:#064E3B;">Model wastes capacity on easy tokens → InfoEntropy focus</div>
+      </div>
+    </div>
+
+    <!-- Full Loss Formula -->
+    <div style="background:#E8EDF5;border:3px solid #1B2A47;border-radius:8px;padding:3mm 4mm;margin-bottom:3mm;text-align:center;">
+      <div style="font-family:'Times New Roman',Times,serif;font-size:33.8pt;font-weight:700;color:#1B2A47;line-height:1.45;">
+        ℒ<sub style="font-size:20.8pt;">total</sub> = <sup>1</sup>/<sub style="font-size:19.5pt;">N</sub>Σ<span style="font-size:22.1pt;">⏟</span><sub style="font-size:16.9pt;">t</sub>[<span style="color:#1B365D;">w<sub>scale</sub></span>·<span style="color:#1B5E34;">w<sub>sftgo</sub></span>·<span style="color:#5B21B6;">w<sub>final</sub></span>·<span style="color:#D8B868;">w<sub>pdl</sub></span>·<span style="color:#8A3324;">w<sub>ie</sub></span>]·ℓ<sub>CE</sub> + <span style="color:#8A3324;">λL<sub>FCP</sub></span> + <span style="color:#9374B1;">αL<sub>lb</sub>+βL<sub>z</sub></span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:6fr 5fr;gap:3mm;">
+
+      <!-- LEFT: ChatML zone map -->
+      <div style="background:#FFF;border:2px solid #1B2A47;border-radius:6px;overflow:hidden;">
+        <div style="background:#1B2A47;padding:2mm 3mm;">
+          <div style="font-size:14.3pt;font-weight:800;color:#FFF;font-family:Arial,Helvetica,sans-serif;">CoT ChatML Format — Activation Zones</div>
+        </div>
+
+        <!-- System / User / Assistant header (masked) -->
+        <div style="display:grid;grid-template-columns:72px 1fr 180px;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#E8EDF5;border-right:1px solid #98A9D1;display:flex;align-items:center;justify-content:center;padding:1.5mm 2mm;gap:1mm;">
+            <svg width="16" height="16"><ellipse cx="8" cy="8" rx="7" ry="4.5" stroke="#9CA3AF" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="#9CA3AF"/><line x1="1.5" y1="1.5" x2="14.5" y2="14.5" stroke="#9CA3AF" stroke-width="1.5"/></svg>
+            <span style="font-size:10.4pt;color:#6B7280;font-weight:700;">Masked</span>
+          </div>
+          <div style="background:#F3F5F8;padding:1.5mm 2.5mm;display:flex;align-items:center;gap:1.5mm;flex-wrap:wrap;">
+            <span style="font-family:monospace;font-size:10.4pt;font-weight:700;color:#374151;">&lt;|im_start|&gt;system</span>
+            <span style="font-size:9.1pt;color:#9CA3AF;">…</span>
+            <span style="font-family:monospace;font-size:10.4pt;font-weight:700;color:#374151;">&lt;|im_start|&gt;user</span>
+            <span style="font-size:9.1pt;color:#9CA3AF;">…</span>
+            <span style="font-family:monospace;font-size:10.4pt;font-weight:700;color:#374151;">&lt;|im_start|&gt;assistant</span>
+          </div>
+          <div style="background:#F3F5F8;display:flex;align-items:center;justify-content:flex-end;padding-right:2mm;">
+            <span style="font-size:10.4pt;color:#9CA3AF;font-family:Arial,Helvetica,sans-serif;font-weight:600;">w = 1.0 (all)</span>
+          </div>
+        </div>
+
+        <!-- <think> zone — FCP + SFT-GO(step) + SCALe -->
+        <div style="display:grid;grid-template-columns:72px 1fr 180px;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#FFF2EE;border-right:2px solid #8A3324;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2mm 1mm;gap:0.6mm;">
+            <span style="background:#8A3324;color:#FFF;border-radius:3px;padding:1px 5px;font-weight:800;font-size:11.7pt;">FCP</span>
+            <span style="font-size:9.8pt;color:#8A3324;font-weight:700;">+ SCALe</span>
+            <span style="font-size:9.1pt;color:#8A3324;font-weight:600;">+ SFT-GO×2.5</span>
+          </div>
+          <div style="background:#FFF4F2;border-top:2px solid #8A3324;border-bottom:2px solid #8A3324;padding:2mm 2.5mm;">
+            <div style="font-family:monospace;font-size:13pt;font-weight:700;color:#8A3324;">&lt;think&gt;</div>
+            <div style="font-size:10.4pt;color:#374151;line-height:2.2;margin-top:1.2mm;">
+              <span style="background:#FEF3C7;color:#92400E;padding:1px 4px;border-radius:2px;font-weight:800;">Step 1:</span> Decline &nbsp;
+              <span style="background:#FEF3C7;color:#92400E;padding:1px 4px;border-radius:2px;font-weight:800;">Step 2:</span> Cancel politely &nbsp;
+              <span style="background:#FEF3C7;color:#92400E;padding:1px 4px;border-radius:2px;font-weight:800;">Step 3:</span> Confirm
+              <div style="margin-top:0.8mm;">
+                <span style="background:#D8B868;color:#1B2A47;font-size:9.8pt;padding:0 4px;border-radius:2px;font-weight:700;">SFT-GO ×2.5 step</span>
+                <span style="color:#8A3324;font-weight:700;margin-left:2mm;">FCP λ=0.2 EOS penalty</span>
+                <span style="color:#1B365D;font-weight:700;margin-left:2mm;">SCALe 1.0→0.3</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFF4F2;border-top:2px solid #8A3324;border-bottom:2px solid #8A3324;display:flex;align-items:flex-start;justify-content:flex-end;padding:2mm 2mm 0 0;">
+            <div style="font-size:10.4pt;color:#8A3324;font-weight:600;text-align:right;line-height:1.3;">FCP: suppress EOS<br/>SCALe: w 1.0→0.3<br/>SFT-GO: step×2.5</div>
+          </div>
+        </div>
+
+        <!-- </think> — SFT-GO ×8 -->
+        <div style="display:grid;grid-template-columns:72px 1fr 180px;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#1B5E34;border-right:2px solid #145028;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2mm 1mm;gap:0.4mm;">
+            <span style="font-size:14.3pt;color:#FFF;font-weight:900;">×8</span>
+            <span style="font-size:9.8pt;color:#A7F3D0;font-weight:700;">SFT-GO</span>
+          </div>
+          <div style="background:#1B5E34;padding:2mm 2.5mm;display:flex;align-items:center;">
+            <span style="font-family:monospace;font-size:14.3pt;font-weight:800;color:#FFF;">&lt;/think&gt;</span>
+          </div>
+          <div style="background:#1B5E34;display:flex;align-items:center;justify-content:flex-end;padding-right:2mm;">
+            <span style="background:#145028;color:#FFF;font-size:11.1pt;font-weight:800;padding:2px 6px;border-radius:3px;">Boundary ×8</span>
+          </div>
+        </div>
+
+        <!-- <final> — 4 weights active: SCALe + Final-SW + PDL + InfoEntropy -->
+        <div style="display:grid;grid-template-columns:72px 1fr 180px;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#DAE8F5;border-right:2px solid #1B365D;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5mm 1mm;gap:0.6mm;">
+            <span style="background:#1B365D;color:#FFF;border-radius:3px;padding:1.5px 4px;font-weight:800;font-size:9.8pt;">SCALe</span>
+            <span style="background:#5B21B6;color:#FFF;border-radius:3px;padding:1.5px 4px;font-weight:800;font-size:9.8pt;">Final-SW</span>
+            <span style="background:#D8B868;color:#1B2A47;border-radius:3px;padding:1.5px 4px;font-weight:800;font-size:9.8pt;">PDL</span>
+            <span style="background:#8A3324;color:#FFF;border-radius:3px;padding:1.5px 4px;font-weight:800;font-size:9.8pt;">InfoEnt</span>
+          </div>
+          <div style="background:#EAF3FB;border-top:2px solid #1B365D;border-bottom:2px solid #1B365D;padding:2mm 2.5mm;">
+            <div style="font-family:monospace;font-size:13pt;font-weight:700;color:#1B365D;">&lt;final&gt;</div>
+            <div style="font-size:10.4pt;color:#374151;margin-top:1.2mm;line-height:2.2;">
+              <span style="background:#1B365D;color:#FFF;padding:1.5px 4px;border-radius:3px;font-weight:800;">"Subject:"</span> Subscription Cancellation
+              <span style="color:#1B365D;font-weight:700;">w=1.00</span><br/>
+              <span style="background:#2D548C;color:#FFF;padding:1.5px 4px;border-radius:3px;font-weight:800;">"Dear,"</span> please cancel my subscription
+              <span style="color:#2D548C;font-weight:700;">w=0.82</span><br/>
+              <span style="background:#5479A6;color:#FFF;padding:1.5px 4px;border-radius:3px;font-weight:800;">"immediately."</span> No further charges
+              <span style="color:#5479A6;font-weight:700;">w=0.61</span><br/>
+              <span style="background:#8AABC5;color:#FFF;padding:1.5px 4px;border-radius:3px;font-weight:800;">"Regards"</span>
+              <span style="color:#8AABC5;font-weight:700;">w=0.38</span>
+            </div>
+            <!-- decay legend -->
+            <div style="display:flex;align-items:center;gap:1.5mm;margin-top:1.5mm;">
+              <span style="font-size:9.8pt;font-weight:700;color:#1B365D;font-family:Arial,Helvetica,sans-serif;">Final-SW:</span>
+              <span style="display:inline-block;width:14px;height:7px;background:#1B365D;border-radius:1px;"></span>
+              <span style="display:inline-block;width:14px;height:7px;background:#2D548C;border-radius:1px;"></span>
+              <span style="display:inline-block;width:14px;height:7px;background:#5479A6;border-radius:1px;"></span>
+              <span style="display:inline-block;width:14px;height:7px;background:#8AABC5;border-radius:1px;"></span>
+              <span style="font-size:9.1pt;color:#5479A6;">1.0→0.38</span>
+            </div>
+            <div style="display:flex;gap:3mm;margin-top:1mm;">
+              <span style="background:#FFF9F0;border:1px solid #D8B868;padding:1px 5px;border-radius:3px;font-size:9.1pt;color:#7A5C08;font-weight:700;">PDL: ∝freq<sup>−0.4</sup></span>
+              <span style="background:#FFF2EE;border:1px solid #8A3324;padding:1px 5px;border-radius:3px;font-size:9.1pt;color:#8A3324;font-weight:700;">IE: ∝(1−H)<sup>0.5</sup></span>
+            </div>
+          </div>
+          <div style="background:#EAF3FB;border-top:2px solid #1B365D;border-bottom:2px solid #1B365D;display:flex;align-items:flex-start;justify-content:flex-end;padding:2mm 2mm 0 0;">
+            <div style="font-size:9.8pt;color:#1B365D;font-weight:600;text-align:right;line-height:1.3;">4 weights<br/>active in<br/>&lt;final&gt;</div>
+          </div>
+        </div>
+
+        <!-- </final><|im_end|> — SFT-GO ×8 -->
+        <div style="display:grid;grid-template-columns:72px 1fr 180px;border-bottom:2px solid #1B2A47;align-items:stretch;">
+          <div style="background:#1B5E34;border-right:2px solid #145028;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2mm 1mm;gap:0.4mm;">
+            <span style="font-size:14.3pt;color:#FFF;font-weight:900;">×8</span>
+            <span style="font-size:9.8pt;color:#A7F3D0;font-weight:700;">SFT-GO</span>
+          </div>
+          <div style="background:#1B5E34;padding:2mm 2.5mm;display:flex;align-items:center;">
+            <span style="font-family:monospace;font-size:14.3pt;font-weight:800;color:#FFF;">&lt;/final&gt;&lt;|im_end|&gt;</span>
+          </div>
+          <div style="background:#1B5E34;display:flex;align-items:center;justify-content:flex-end;padding-right:2mm;">
+            <span style="background:#145028;color:#FFF;font-size:10.4pt;font-weight:800;padding:2px 5px;border-radius:3px;text-align:right;line-height:1.3;">SFT-GO ×8<br/>SCALe focus</span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="display:flex;align-items:center;gap:2.5mm;padding:2mm 3mm;background:#F7F9FC;flex-wrap:wrap;">
+          <span style="font-size:10.4pt;font-weight:700;color:#1B2A47;font-family:Arial,Helvetica,sans-serif;">Weights:</span>
+          <span style="display:flex;align-items:center;gap:1mm;"><span style="width:9px;height:9px;background:#FFF4F2;border:1.5px solid #8A3324;border-radius:2px;"></span><span style="font-size:10.4pt;color:#8A3324;font-weight:700;">FCP</span></span>
+          <span style="display:flex;align-items:center;gap:1mm;"><span style="width:9px;height:9px;background:#1B5E34;border-radius:2px;"></span><span style="font-size:10.4pt;color:#1B5E34;font-weight:700;">SFT-GO</span></span>
+          <span style="display:flex;align-items:center;gap:1mm;"><span style="width:9px;height:9px;background:#EAF3FB;border:1.5px solid #1B365D;border-radius:2px;"></span><span style="font-size:10.4pt;color:#1B365D;font-weight:700;">SCALe</span></span>
+          <span style="display:flex;align-items:center;gap:1mm;"><span style="width:9px;height:9px;background:#F5F0FF;border:1.5px solid #5B21B6;border-radius:2px;"></span><span style="font-size:10.4pt;color:#5B21B6;font-weight:700;">Final-SW</span></span>
+          <span style="display:flex;align-items:center;gap:1mm;"><span style="width:9px;height:9px;background:#FFF9F0;border:1.5px solid #D8B868;border-radius:2px;"></span><span style="font-size:10.4pt;color:#7A5C08;font-weight:700;">PDL</span></span>
+          <span style="display:flex;align-items:center;gap:1mm;"><span style="width:9px;height:9px;background:#FFF2EE;border:1.5px solid #D35400;border-radius:2px;"></span><span style="font-size:10.4pt;color:#D35400;font-weight:700;">InfoEnt</span></span>
+        </div>
+      </div>
+
+      <!-- RIGHT: 6 technique cards (2 rows × 3 cols) + stats -->
+      <div style="display:flex;flex-direction:column;gap:1.5mm;">
+
+        <!-- Row 1: FCP | SFT-GO | SCALe -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5mm;">
+          <!-- FCP -->
+          <div style="background:#FFFDF7;border:1.5px solid #8A3324;border-radius:5px;padding:2mm;">
+            <div style="display:flex;align-items:center;gap:1mm;margin-bottom:1mm;">
+              <span style="background:#8A3324;color:#FFF;padding:1mm 2.5mm;border-radius:3px;font-size:11.7pt;font-weight:800;">FCP</span>
+              <span style="font-size:18.2pt;font-weight:800;color:#8A3324;">λ=0.2</span>
+            </div>
+            <div style="font-size:9.8pt;color:#8A3324;font-weight:600;margin-bottom:0.5mm;">EOS suppressed in &lt;think&gt;</div>
+            <div style="font-family:'Times New Roman',Times,serif;font-size:10.4pt;color:#92400E;">max(P(EOS|t)−δ, 0)²</div>
+          </div>
+
+          <!-- SFT-GO -->
+          <div style="background:#FFFDF7;border:1.5px solid #1B5E34;border-radius:5px;padding:2mm;">
+            <div style="display:flex;align-items:center;gap:1mm;margin-bottom:1mm;">
+              <span style="background:#1B5E34;color:#FFF;padding:1mm 2.5mm;border-radius:3px;font-size:11.7pt;font-weight:800;">SFT-GO</span>
+            </div>
+            <div style="font-size:9.8pt;color:#1B5E34;font-weight:600;margin-bottom:0.5mm;">Structure token boost</div>
+            <div style="display:flex;gap:2mm;">
+              <span style="font-size:14.3pt;font-weight:800;color:#1B5E34;">×8</span><span style="font-size:9.1pt;color:#5C7B9E;">boundary</span>
+              <span style="font-size:14.3pt;font-weight:800;color:#1B5E34;">×2.5</span><span style="font-size:9.1pt;color:#5C7B9E;">step</span>
+            </div>
+          </div>
+
+          <!-- SCALe -->
+          <div style="background:#FFFDF7;border:1.5px solid #1B365D;border-radius:5px;padding:2mm;">
+            <div style="display:flex;align-items:center;gap:1mm;margin-bottom:1mm;">
+              <span style="background:#1B365D;color:#FFF;padding:1mm 2.5mm;border-radius:3px;font-size:11.7pt;font-weight:800;">SCALe</span>
+            </div>
+            <div style="font-size:9.8pt;color:#1B365D;font-weight:600;">Cosine anneal think→final</div>
+            <div style="font-family:'Times New Roman',Times,serif;font-size:10.4pt;color:#3B4E8A;margin-bottom:0.5mm;">w = 0.3 + 0.35·(1+cos πs/S)</div>
+            <div style="font-size:9.1pt;color:#5C7B9E;">think: 1.0 → 0.3 | final: 1.0</div>
+          </div>
+        </div>
+
+        <!-- Row 2: Final-SW | PDL | InfoEntropy -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5mm;">
+          <!-- Final-SW -->
+          <div style="background:#FFFDF7;border:1.5px solid #5B21B6;border-radius:5px;padding:2mm;">
+            <div style="display:flex;align-items:center;gap:1mm;margin-bottom:1mm;">
+              <span style="background:#5B21B6;color:#FFF;padding:1mm 2.5mm;border-radius:3px;font-size:9.8pt;font-weight:800;">Final-SW</span>
+            </div>
+            <div style="font-size:9.8pt;color:#5B21B6;font-weight:600;margin-bottom:0.5mm;">Prefix focus in &lt;final&gt;</div>
+            <div style="font-family:'Times New Roman',Times,serif;font-size:9.8pt;color:#6D28D9;">λe<sup>−i/τ</sup>+(1−λ)(1−i/L)</div>
+            <div style="font-size:9.1pt;color:#8B5CF6;">η=0.1, λ=0.8, warmup 500</div>
+          </div>
+
+          <!-- PDL -->
+          <div style="background:#FFFDF7;border:1.5px solid #D8B868;border-radius:5px;padding:2mm;">
+            <div style="display:flex;align-items:center;gap:1mm;margin-bottom:1mm;">
+              <span style="background:#D8B868;color:#1B2A47;padding:1mm 2.5mm;border-radius:3px;font-size:9.8pt;font-weight:800;">PDL</span>
+            </div>
+            <div style="font-size:9.8pt;color:#7A5C08;font-weight:600;margin-bottom:0.5mm;">Low-freq token boost</div>
+            <div style="font-family:'Times New Roman',Times,serif;font-size:9.8pt;color:#92400E;">( (f+ε)/f<sub>max</sub> )<sup>−α</sup></div>
+            <div style="font-size:9.1pt;color:#B45309;">α=0.4, precomputed table</div>
+          </div>
+
+          <!-- InfoEntropy -->
+          <div style="background:#FFFDF7;border:1.5px solid #D35400;border-radius:5px;padding:2mm;">
+            <div style="display:flex;align-items:center;gap:1mm;margin-bottom:1mm;">
+              <span style="background:#D35400;color:#FFF;padding:1mm 2.5mm;border-radius:3px;font-size:9.8pt;font-weight:800;">InfoEnt</span>
+            </div>
+            <div style="font-size:9.8pt;color:#D35400;font-weight:600;margin-bottom:0.5mm;">Entropy-guided focus</div>
+            <div style="font-family:'Times New Roman',Times,serif;font-size:9.8pt;color:#C2410C;">(1 − H/log<sub>e</sub>V)<sup>γ</sup></div>
+            <div style="font-size:9.1pt;color:#EA580C;">γ=0.5, dynamic per-step</div>
+          </div>
+        </div>
+
+        <!-- Trigger info + stats -->
+        <div style="background:#1B2A47;border-radius:5px;padding:2.5mm;text-align:center;">
+          <div style="font-size:11.1pt;color:#98A9D1;">20,078 samples | 281 avg tok | 13M total | 52.9 struct tok/sample</div>
+          <div style="font-size:10.4pt;color:#FFF;margin-top:1mm;font-weight:700;">Trigger: val PPL ≤ 16 → progressive warmup 500 steps</div>
+          <div style="font-size:9.1pt;color:#93A3B8;margin-top:0.5mm;">Final-SW + PDL + InfoEntropy enabled together via ENABLE_FINAL_ENHANCE</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>

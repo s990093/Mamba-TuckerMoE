@@ -40,100 +40,26 @@
 
     <!-- Three-stage training summary -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;">
-      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:6px;padding:2mm;text-align:center;">
-        <div style="font-size:18.2pt;font-weight:800;color:#1B2A47;">①</div>
-        <div style="font-size:13pt;font-weight:700;color:#1E3A8A;">FineWeb-Edu</div>
-        <div style="font-size:9pt;color:#374151;">Knowledge pretraining<br/>General text corpus</div>
+      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:6px;padding:3mm;text-align:center;">
+        <div style="font-size:24.7pt;font-weight:800;color:#1B2A47;">①</div>
+        <div style="font-size:18.2pt;font-weight:700;color:#1E3A8A;">FineWeb-Edu</div>
+        <div style="font-size:14.3pt;color:#374151;">Knowledge pretraining<br/>General text corpus</div>
       </div>
-      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:6px;padding:2mm;text-align:center;">
-        <div style="font-size:18.2pt;font-weight:800;color:#1B2A47;">②</div>
-        <div style="font-size:13pt;font-weight:700;color:#92400E;">UltraChat 200k</div>
-        <div style="font-size:9pt;color:#374151;">Instruction alignment<br/>Conversational SFT</div>
+      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:6px;padding:3mm;text-align:center;">
+        <div style="font-size:24.7pt;font-weight:800;color:#1B2A47;">②</div>
+        <div style="font-size:18.2pt;font-weight:700;color:#92400E;">UltraChat 200k</div>
+        <div style="font-size:14.3pt;color:#374151;">Instruction alignment<br/>Conversational SFT</div>
       </div>
-      <div style="background:#FFF9F0;border:2px solid #8A3324;border-radius:6px;padding:2mm;text-align:center;">
-        <div style="font-size:18.2pt;font-weight:800;color:#8A3324;">③</div>
-        <div style="font-size:13pt;font-weight:700;color:#8A3324;">Custom CoT 13M tok</div>
-        <div style="font-size:9pt;color:#374151;">&lt;think&gt; → &lt;final&gt; format<br/>Structured reasoning</div>
+      <div style="background:#FFF9F0;border:2px solid #8A3324;border-radius:6px;padding:3mm;text-align:center;">
+        <div style="font-size:24.7pt;font-weight:800;color:#8A3324;">③</div>
+        <div style="font-size:18.2pt;font-weight:700;color:#8A3324;">Custom CoT 13M tok</div>
+        <div style="font-size:14.3pt;color:#374151;">&lt;think&gt; → &lt;final&gt; format<br/>Structured reasoning</div>
       </div>
     </div>
 
-    <!-- CoT Loss Design — FCP + SFT-GO + SCALe -->
-    <div style="margin-top:3mm;padding-top:2.5mm;border-top:2px solid #98A9D1;">
-      <div style="font-family:Helvetica,Arial,sans-serif;font-size:18.2pt;font-weight:700;color:#1B2A47;text-align:center;margin-bottom:2mm;">③ CoT Loss Design — FCP + SFT-GO + SCALe</div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2.5mm;">
-
-        <!-- LEFT: Annotated example -->
-        <div style="background:#F8FAFC;border:1.5px solid #98A9D1;border-radius:5px;padding:3mm;">
-          <div style="font-size:13pt;font-weight:800;color:#1B2A47;text-align:center;margin-bottom:2mm;">Weighted Token Annotation (train_000018)</div>
-          <div style="font-family:monospace;font-size:9.5pt;line-height:1.9;">
-            <span style="color:#9CA3AF;">&lt;assistant&gt;</span>
-            <br/>
-            <span style="background:#FFEDD5;color:#8A3324;padding:0 2px;border-radius:2px;font-weight:700;">&lt;think&gt;</span>
-            <span style="background:#FFEDD5;color:#C2410C;padding:0 2px;border-radius:2px;">
-            <br/>&nbsp;Step 1:</span><span style="background:#FEF3C7;color:#B45309;padding:0 2px;font-size:8pt;">×2.5</span><span style="background:#FFEDD5;color:#C2410C;"> **Decline renewal** — Request cancellation.<br/>
-            &nbsp;Step 2:</span><span style="background:#FEF3C7;color:#B45309;padding:0 2px;font-size:8pt;">×2.5</span><span style="background:#FFEDD5;color:#C2410C;"> **Politely state decision**.<br/>
-            &nbsp;Step 3:</span><span style="background:#FEF3C7;color:#B45309;padding:0 2px;font-size:8pt;">×2.5</span><span style="background:#FFEDD5;color:#C2410C;"> **No excuses**.<br/>
-            &nbsp;Step 4:</span><span style="background:#FEF3C7;color:#B45309;padding:0 2px;font-size:8pt;">×2.5</span><span style="background:#FFEDD5;color:#C2410C;"> **Confirm cancellation**.</span>
-            <span style="background:#FFEDD5;color:#C2410C;"><br/></span>
-            <span style="background:#DCFCE7;color:#1B5E34;padding:0 2px;border-radius:2px;font-weight:700;">&lt;/think&gt;</span><span style="background:#DCFCE7;color:#166534;padding:0 2px;font-size:8pt;">×8</span>
-            <br/>
-            <span style="background:#fff;color:#111827;padding:0 2px;border:1px solid #D1D5DB;border-radius:2px;font-weight:700;">&lt;final&gt;</span>
-            <span style="background:#fff;color:#374151;padding:0 2px;">
-            <br/>**Subject:** Re: Subscription Renewal<br/>
-            **Dear Support,** ... cancel ... no charges.<br/>
-            **Regards**</span>
-            <br/>
-            <span style="background:#DCFCE7;color:#1B5E34;padding:0 2px;border-radius:2px;font-weight:700;">&lt;/final&gt;</span><span style="background:#DCFCE7;color:#166534;padding:0 2px;font-size:8pt;">×8</span>
-            <span style="background:#DCFCE7;color:#1B5E34;padding:0 2px;border-radius:2px;font-weight:700;">&lt;|im_end|&gt;</span><span style="background:#DCFCE7;color:#166534;padding:0 2px;font-size:8pt;">×8</span>
-
-            <div style="margin-top:2mm;font-size:8pt;color:#9CA3AF;text-align:center;">
-              <span style="background:#FFEDD5;padding:0 4px;border-radius:3px;">think zone</span>
-              &nbsp;
-              <span style="background:#DCFCE7;padding:0 4px;border-radius:3px;">boundary</span>
-              &nbsp;
-              <span style="background:#fff;padding:0 4px;border:1px solid #D1D5DB;border-radius:3px;">final zone</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT: Visual key numbers only -->
-        <div style="display:flex;flex-direction:column;gap:2mm;justify-content:center;">
-
-          <div style="background:#FFF9F0;border-radius:5px;padding:2.5mm;text-align:center;">
-            <div style="font-size:22.1pt;font-weight:800;color:#8A3324;">FCP</div>
-            <div style="font-size:10.4pt;color:#92400E;font-weight:700;margin-top:0.5mm;">Format Compliance Penalty</div>
-            <div style="font-size:9pt;color:#6B7280;margin-top:1mm;">
-              壓制 <span style="background:#FFEDD5;padding:0 3px;border-radius:2px;">think zone</span> EOS<br/>
-              <span style="font-size:15.6pt;font-weight:800;color:#8A3324;">λ = 0.2</span>
-            </div>
-          </div>
-
-          <div style="background:#F0FDF4;border-radius:5px;padding:2.5mm;text-align:center;">
-            <div style="font-size:22.1pt;font-weight:800;color:#1B5E34;">SFT-GO</div>
-            <div style="font-size:10.4pt;color:#064E3B;font-weight:700;margin-top:0.5mm;">Structure Token Groups</div>
-            <div style="font-size:9pt;color:#6B7280;margin-top:1mm;">
-              邊界 <span style="font-size:15.6pt;font-weight:800;color:#1B5E34;">×8</span><br/>
-              結構 <span style="font-size:15.6pt;font-weight:800;color:#1B5E34;">×2.5</span>
-            </div>
-          </div>
-
-          <div style="background:#EFF6FF;border-radius:5px;padding:2.5mm;text-align:center;">
-            <div style="font-size:22.1pt;font-weight:800;color:#1B2A47;">SCALe</div>
-            <div style="font-size:10.4pt;color:#1E40AF;font-weight:700;margin-top:0.5mm;">Scheduled Cosine Anneal</div>
-            <div style="font-size:9pt;color:#6B7280;margin-top:1mm;">
-              think <span style="font-size:15.6pt;font-weight:800;color:#1B2A47;">1.0 → 0.3</span><br/>
-              final <span style="font-size:15.6pt;font-weight:800;color:#1B2A47;">恆 1.0</span>
-            </div>
-          </div>
-
-          <div style="background:#1B2A47;border-radius:5px;padding:2mm;text-align:center;">
-            <div style="font-size:8pt;color:#98A9D1;">20,078 samples &nbsp;|&nbsp; 281 avg tok &nbsp;|&nbsp; 13M total &nbsp;|&nbsp; 52.9 struct tok/samp</div>
-          </div>
-
-        </div>
-      </div>
-
+    <!-- Detailed CoT Loss Design → see s_cot_loss.html -->
+    <div style="margin-top:3mm;padding-top:2.5mm;border-top:2px solid #98A9D1;text-align:center;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:14.3pt;font-weight:700;color:#1B2A47;">Detailed CoT Loss Design (FCP + SFT-GO + SCALe + Final-SW + PDL + InfoEntropy) → s_cot_loss.html</div>
     </div>
 
   </div>

@@ -21,14 +21,14 @@ _FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
 # ── Generation defaults ────────────────────────────────────────────────────────
 PROMPT    ?= Who are you?
 MODE      ?= self_awareness
-TEMP      ?= 0.15     # 微調：給予極小幅度的彈性，避免字詞過度僵化
+TEMP      ?= 0.3     # 微調：給予極小幅度的彈性，避免字詞過度僵化
 MAX_TOK   ?= 512      # 保持：符合 v2 SFT 規範的預算
 SEED      ?= 0
 STREAM    ?= 1
 NO_THINK  ?= 0
 
 # Sampling knobs (針對 400M 級別混合架構最佳化)
-TOP_K          ?= 20      # 縮緊 (原本 40)：暴力切斷長尾，不讓小模型有機會選到奇怪的碎 Token
+TOP_K          ?= 40      # 縮緊 (原本 40)：暴力切斷長尾，不讓小模型有機會選到奇怪的碎 Token
 TOP_P          ?= 0.85    # 縮緊 (原本 0.9)：配合 MIN_P 進行雙重保險
 MIN_P          ?= 0.08    # 強化 (原本 0.05)：更激進地過濾掉那些絕對機率低於最高機率 8% 的毒藥選項
 REP_PEN        ?= 1.32    # 微調 (原本 1.1)：稍微加重，避免連續標點符號或單字重複

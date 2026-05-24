@@ -1,0 +1,333 @@
+AI 海報生成 Prompt（Q1 / NeurIPS / ICLR Poster Style）
+設計一張「超高密度、學術論文等級」的 AI 訓練 Loss 架構海報，主題是：
+
+「CoT SFT Loss Engineering Architecture」
+副標題：
+“Final-SW + InfoEntropy + Power-Law Decay for Long-CoT Language Model Finetuning”
+風格必須接近：
+
+NeurIPS / ICLR / ICML poster
+Apple ML Research 圖表風格
+高密度 technical infographic
+深色科技感背景
+精緻數學與系統架構混合視覺
+16:9 橫式構圖
+白色 + 藍色 + 紫色 + 綠色 + 橘色 科研色系
+不要卡通感
+不要 marketing style
+必須像真正 ML 論文海報
+整體是：
+「大型 Loss Pipeline + 多區塊數學視覺化 + Token Weight Heatmap + Sequence Architecture」
+海報解析度：
+
+7680 × 4320
+4K/8K quality。
+海報整體布局（非常重要）
+整張海報分成：
+
+┌────────────────────────────────────────────┐
+│ Header                                    │
+├────────────────────────────────────────────┤
+│ 左側：Loss Pipeline                        │
+│ 中央：Token Weight Distribution 主圖       │
+│ 右側：啟用機制 / 協同效果                  │
+├────────────────────────────────────────────┤
+│ 中下：數學曲線圖群                         │
+├────────────────────────────────────────────┤
+│ 下方：Heatmap + Metrics                    │
+└────────────────────────────────────────────┘
+必須高度模組化。
+每個區塊都有：
+
+明確標題
+小公式
+小註解
+顏色編碼
+token 區域標記
+整體非常 dense。
+頂部 Header（最上方）
+標題：
+
+CoT SFT Loss Architecture
+(Final-SW + InfoEntropy + Power-Law Decay)
+副標題：
+
+Adaptive Prefix Weighting for Long-CoT Language Models
+右上角：
+
+Mamba3-TuckerMoE Finetuning Pipeline
+背景：
+
+深灰黑
+帶 subtle grid
+有微弱藍紫漸層 glow
+論文風
+第一區：Sequence Structure（最上方細長條）
+畫一條完整 token sequence：
+
+<bos> <think> reasoning tokens ... </think> <final> answer tokens ... </final> <|im_end|>
+每個區域顏色：
+區域顏色think淡綠final淡藍structure token淡紅normal token灰白
+在 sequence 上方標：
+
+L_final = 399 tokens
+下方有：
+
+Position Index
+0 ---- 120 ---- 350 ---- 351 ---- 750 ---- 751 ---- 752
+這條 sequence 必須像 Transformer sequence visualization。
+第二區：Loss Pipeline（左側大型垂直流程圖）
+這區是：
+
+五層權重如何乘上 CE Loss
+從上到下：
+Block 1
+大框：
+
+per-token CE Loss ℓ_CE(t)
+shape [B, T]
+白色框。
+Block 2 — SCALe
+綠色框。
+標題：
+
+① SCALe w_scale(t)
+內容：
+
+think region:
+1.0 → 0.3
+(cosine annealing)
+小型曲線：
+下降曲線。
+旁邊標：
+
+Only active in <think>
+Block 3 — SFT-GO
+紫色框。
+內容：
+
+</think>
+</final>
+<|im_end|>
+
+× 8.0
+要畫成 spike。
+Block 4 — Final-SW
+藍色框。
+標題：
+
+③ Final-SW
+Adaptive Prefix Decay
+公式：
+
+τ = η · L_final
+w = λ·exp(-i/τ) + (1-λ)(1-i/L)
+畫：
+
+指數衰減
+線性衰減
+混合曲線
+並標：
+
+Front tokens emphasized
+Block 5 — Power-Law Decay
+橘色框。
+內容：
+
+w_pdl ∝ freq(token)^(-α)
+畫：
+log-log 頻率分布圖。
+低頻 token：
+亮橘。
+高頻 token：
+暗灰。
+旁邊註解：
+
+Rare semantic tokens amplified
+Block 6 — InfoEntropy
+紅色框。
+公式：
+
+H = -Σ p log p
+w_ie = (1 - H/logV)^γ
+畫：
+Entropy curve。
+左邊：
+
+confident prediction
+low entropy
+右邊：
+
+uncertain prediction
+high entropy
+並標：
+
+Hard tokens receive larger gradients
+最下方
+所有箭頭最後匯聚：
+
+Weighted CE Loss
+公式：
+
+Σ (Π w_k(t)) · ℓ_CE(t)
+下面：
+
+Token-centric normalization
+第三區：Main Weight Distribution（中央最大主圖）
+這是整張海報核心。
+畫：
+
+token position vs weight multiplier
+X 軸：
+
+Position Index
+Y 軸：
+
+Multiplier (log scale)
+至少六條線：
+顏色曲線綠SCALe紫SFT-GO藍Final-SW橘PDL紅InfoEntropy黑Final Combined Weight
+sequence 背景要有：
+
+<think> 區域綠底
+<final> 區域藍底
+structure token 紅線
+圖上要看到：
+
+SCALe 在 think 區下降
+SFT-GO spike
+Final-SW 在 final 區衰減
+PDL 波動
+InfoEntropy 波動
+最終黑線為乘積結果
+必須是：
+
+「一眼看出不同 loss mask 在不同 token 上作用」
+這是核心。
+第四區：Final-SW Length Adaptation（中下左）
+畫：
+不同 L_final 下的衰減曲線。
+四條線：
+L_final64128256512
+顏色：
+紅橘綠藍。
+旁邊標：
+
+τ = η · L_final
+並註解：
+
+Longer answers decay slower
+Short answers focus on first tokens
+第五區：Power-Law Distribution（中下中）
+畫：
+log-log token frequency chart。
+X：
+
+token frequency
+Y：
+
+PDL weight
+大量紫色點雲。
+虛線：
+
+w ∝ freq^-α
+要有：
+
+common tokens
+rare semantic tokens
+標註。
+像真正 NLP frequency analysis。
+第六區：InfoEntropy Visualization（中下右）
+畫：
+Entropy vs Weight。
+左邊：
+低 entropy。
+右邊：
+高 entropy。
+曲線：
+平滑 S 型下降。
+標：
+
+Model confidence
+以及：
+
+Gradient focus on uncertain positions
+第七區：Token Heatmap（下方大型）
+畫：
+
+sequence heatmap
+列：
+
+SCALe
+SFT-GO
+Final-SW
+PDL
+InfoEntropy
+Combined Weight
+欄：
+token positions。
+不同顏色熱力。
+效果：
+
+think 前面亮綠
+structure token 紫色 spike
+final 前綴亮藍
+PDL 雜訊橘色
+entropy 紅色紋理
+最下方：
+
+Combined Weight
+要非常亮眼。
+第八區：Training Trigger Mechanism（右下）
+流程圖：
+
+Monitor Validation PPL
+        ↓
+PPL ≤ 16 ?
+        ↓
+Enable Enhancements
+        ↓
+Linear Warmup α
+        ↓
+Activate:
+• Final-SW
+• Power-Law Decay
+• InfoEntropy
+畫：
+decision diamond。
+論文系統圖風格。
+第九區：Metrics Panel（最底部）
+小型 dashboard：
+
+final_prefix_acc
+final_weight_mean
+ie_weight_mean
+pdl_weight_mean
+val_ce_loss
+像 TensorBoard scalar cards。
+整體視覺要求（非常重要）
+必須：
+
+極度清晰
+超高資訊密度
+學術 poster 感
+不要空白太多
+所有區塊對齊
+大量細節
+有 subtle glow
+有細 grid
+有精緻數學排版
+類似 NVIDIA / DeepMind / Apple ML figure
+不要：
+
+卡通
+扁平化簡報風
+可愛 icon
+emoji
+marketing banner
+而是：
+
+「真正 ML Research Poster」
+感覺像：
+
+NeurIPS Best Paper Figure
+等級。 幫我根據圖片跟文字畫出對應html

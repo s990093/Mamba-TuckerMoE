@@ -168,7 +168,7 @@
     <!-- Training Loss Curve — full width -->
     <div style="margin-bottom:2.5mm;">
       <img
-        src="ce_loss.png"
+        src="assets/ce_loss.png"
         style="
           width: 100%;
           height: auto;
@@ -372,31 +372,6 @@
         </tbody>
       </table>
       <div style="padding:1.5mm 2.5mm;font-size:15.6pt;color:#4b5563;font-style:italic;">★ Chosen operating point. Tucker consistently outperforms SVD at 80–95%.</div>
-    </div>
-
-    <!-- Edge Deployment Verification -->
-    <div style="border:2.5px solid #1B5E34;border-radius:5px;overflow:hidden;background:#F0FAF5;margin-bottom:3mm;font-family:'Times New Roman',Times,serif;">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1.5px solid #1B5E34;">
-        <div style="text-align:center;padding:2.5mm 1.5mm;border-right:1px solid #A8D5BA;">
-          <div style="font-size:28.6pt;font-weight:800;color:#1B2A47;">14.1 MiB</div>
-          <div style="font-size:15.6pt;color:#4B5563;">KV + SSM State<br><span style="font-style:italic;font-size:13.0pt;">O(1) — constant</span></div>
-        </div>
-        <div style="text-align:center;padding:2.5mm 1.5mm;border-right:1px solid #A8D5BA;">
-          <div style="font-size:28.6pt;font-weight:800;color:#1B5E34;">68 tok/s</div>
-          <div style="font-size:15.6pt;color:#4B5563;">Decode (8-bit)<br><span style="font-style:italic;font-size:13.0pt;">3,800 tok/s prefill</span></div>
-        </div>
-        <div style="text-align:center;padding:2.5mm 1.5mm;border-right:1px solid #A8D5BA;">
-          <div style="font-size:28.6pt;font-weight:800;color:#D8B868;">0</div>
-          <div style="font-size:15.6pt;color:#4B5563;">Dead Experts<br><span style="font-style:italic;font-size:13.0pt;">66/66 full utilization</span></div>
-        </div>
-        <div style="text-align:center;padding:2.5mm 1.5mm;">
-          <div style="font-size:26.0pt;font-weight:800;color:#8A3324;">On-Device</div>
-          <div style="font-size:15.6pt;color:#4B5563;">Fully Offline<br><span style="font-style:italic;font-size:13.0pt;">M2 Pro / iPhone</span></div>
-        </div>
-      </div>
-      <div style="padding:1.5mm 2.5mm;font-size:13.0pt;color:#1B2A47;text-align:center;font-style:italic;">
-        iOS voice-first AI assistant · 417M params (2.43B→417M, 82.87% compressed) · MLX native · background-executable
-      </div>
     </div>
 
     <!-- Key takeaways with universal palette -->

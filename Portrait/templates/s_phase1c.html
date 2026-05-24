@@ -1,0 +1,514 @@
+<!-- s_phase1c.html — Panel C: TuckerMoE Decomposition -->
+<div>
+  <svg
+    viewBox="0 0 560 240"
+    xmlns="http://www.w3.org/2000/svg"
+    style="
+      font-family: &quot;Times New Roman&quot;, Times, serif;
+      width: 100%;
+      display: block;
+    "
+  >
+    <defs>
+      <marker
+        id="arC"
+        markerWidth="7"
+        markerHeight="7"
+        refX="6"
+        refY="3.5"
+        orient="auto"
+      >
+        <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50" />
+      </marker>
+      <marker
+        id="arCg"
+        markerWidth="7"
+        markerHeight="7"
+        refX="6"
+        refY="3.5"
+        orient="auto"
+      >
+        <path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#065F46" />
+      </marker>
+      <filter id="sfC">
+        <feDropShadow
+          dx="0"
+          dy="1"
+          stdDeviation="1.5"
+          flood-color="#0F172A"
+          flood-opacity="0.07"
+        />
+      </filter>
+    </defs>
+
+    <rect
+      x="1"
+      y="1"
+      width="558"
+      height="239"
+      rx="5"
+      fill="#FAFBFC"
+      stroke="#CBD5E1"
+      stroke-width="1"
+    />
+    <rect x="3" y="3" width="554" height="20" rx="4" fill="#FFFBF0" />
+    <text
+      x="280"
+      y="17"
+      font-size="11.7"
+      fill="#78350F"
+      text-anchor="middle"
+      font-weight="700"
+    >
+      (C) TuckerMoE — Tensor Decomposition (W_e = U_in · 𝒢_e · U_out)
+    </text>
+
+    <!-- Standard MoE cube (dashed) -->
+    <text
+      x="44"
+      y="35"
+      font-size="10.4"
+      fill="#9CA3AF"
+      text-anchor="middle"
+      font-weight="600"
+    >
+      Standard MoE
+    </text>
+    <rect
+      x="6"
+      y="42"
+      width="44"
+      height="44"
+      fill="none"
+      stroke="#9CA3AF"
+      stroke-width="1.6"
+      stroke-dasharray="5 4"
+    />
+    <path
+      d="M 6,42 L 18,34 L 62,34 L 50,42 Z"
+      fill="none"
+      stroke="#9CA3AF"
+      stroke-width="1.6"
+      stroke-dasharray="5 4"
+    />
+    <path
+      d="M 50,42 L 62,34 L 62,78 L 50,86 Z"
+      fill="none"
+      stroke="#9CA3AF"
+      stroke-width="1.6"
+      stroke-dasharray="5 4"
+    />
+    <text
+      x="28"
+      y="70"
+      font-size="9.8"
+      fill="#9CA3AF"
+      text-anchor="middle"
+      font-style="italic"
+    >
+      E×d_in×d_out
+    </text>
+    <text x="28" y="82" font-size="9.1" fill="#9CA3AF" text-anchor="middle">
+      75.5M params
+    </text>
+
+    <!-- arrow → -->
+    <text
+      x="86"
+      y="68"
+      font-size="23.4"
+      fill="#6B7280"
+      font-weight="700"
+      text-anchor="middle"
+    >
+      →
+    </text>
+
+    <!-- Tucker: U_in -->
+    <g transform="translate(104,34)">
+      <path
+        d="M 4,5 L 14,0 L 34,0 L 24,5 Z"
+        fill="#D1D9EE"
+        stroke="#3B4E8A"
+        stroke-width="1.2"
+      />
+      <path
+        d="M 24,5 L 34,0 L 34,42 L 24,47 Z"
+        fill="#B8C5E0"
+        stroke="#3B4E8A"
+        stroke-width="1.2"
+      />
+      <rect
+        x="4"
+        y="5"
+        width="20"
+        height="42"
+        fill="#E8EEF8"
+        stroke="#3B4E8A"
+        stroke-width="1.2"
+      />
+      <text
+        x="14"
+        y="31"
+        font-size="13.0"
+        fill="#1E2B4A"
+        text-anchor="middle"
+        font-weight="700"
+        font-family="Georgia,serif"
+      >
+        U_in
+      </text>
+      <text x="14" y="60" font-size="9.8" fill="#3B4E8A" text-anchor="middle">
+        d×r₃
+      </text>
+      <text x="14" y="70" font-size="9.1" fill="#3B4E8A" text-anchor="middle">
+        1536×256
+      </text>
+      <text
+        x="30"
+        y="58"
+        font-size="9.1"
+        fill="#6B7280"
+        text-anchor="middle"
+        font-style="italic"
+      >
+        shared
+      </text>
+    </g>
+    <line
+      x1="142"
+      y1="62"
+      x2="152"
+      y2="62"
+      stroke="#2D3A50"
+      stroke-width="1.4"
+      marker-end="url(#arC)"
+    />
+
+    <!-- Tucker: G_e (core tensor) -->
+    <g transform="translate(154,30)">
+      <path
+        d="M 4,5 L 14,0 L 34,0 L 24,5 Z"
+        fill="#E8D88A"
+        stroke="#7A5C08"
+        stroke-width="1.2"
+      />
+      <path
+        d="M 24,5 L 34,0 L 34,46 L 24,51 Z"
+        fill="#D4C070"
+        stroke="#7A5C08"
+        stroke-width="1.2"
+      />
+      <rect
+        x="4"
+        y="5"
+        width="20"
+        height="46"
+        fill="#F5EFC0"
+        stroke="#7A5C08"
+        stroke-width="1.2"
+      />
+      <text
+        x="14"
+        y="34"
+        font-size="16.9"
+        fill="#5C4000"
+        text-anchor="middle"
+        font-weight="700"
+      >
+        𝒢
+      </text>
+      <rect x="20" y="-2" width="22" height="12" rx="6" fill="#7A5C08" />
+      <text
+        x="31"
+        y="7.5"
+        font-size="10.4"
+        fill="#FFF"
+        text-anchor="middle"
+        font-weight="700"
+      >
+        ×E
+      </text>
+      <text x="14" y="64" font-size="9.8" fill="#7A5C08" text-anchor="middle">
+        r₁×r₃×r₂
+      </text>
+      <text x="14" y="74" font-size="9.1" fill="#7A5C08" text-anchor="middle">
+        32×256×512
+      </text>
+      <text
+        x="30"
+        y="64"
+        font-size="9.1"
+        fill="#6B7280"
+        text-anchor="middle"
+        font-style="italic"
+      >
+        shared
+      </text>
+    </g>
+    <line
+      x1="194"
+      y1="62"
+      x2="204"
+      y2="62"
+      stroke="#2D3A50"
+      stroke-width="1.4"
+      marker-end="url(#arC)"
+    />
+
+    <!-- Tucker: U_out -->
+    <g transform="translate(206,34)">
+      <path
+        d="M 4,5 L 14,0 L 40,0 L 30,5 Z"
+        fill="#C8B8E0"
+        stroke="#4A1D7A"
+        stroke-width="1.2"
+      />
+      <path
+        d="M 30,5 L 40,0 L 40,42 L 30,47 Z"
+        fill="#B0A0D0"
+        stroke="#4A1D7A"
+        stroke-width="1.2"
+      />
+      <rect
+        x="4"
+        y="5"
+        width="26"
+        height="42"
+        fill="#EAE0F8"
+        stroke="#4A1D7A"
+        stroke-width="1.2"
+      />
+      <text
+        x="17"
+        y="30"
+        font-size="11.7"
+        fill="#3B0764"
+        text-anchor="middle"
+        font-weight="700"
+      >
+        U_out
+      </text>
+      <text x="17" y="58" font-size="9.8" fill="#4A1D7A" text-anchor="middle">
+        r₂×d_out
+      </text>
+      <text x="17" y="68" font-size="9.1" fill="#4A1D7A" text-anchor="middle">
+        512×6144
+      </text>
+      <text
+        x="33"
+        y="58"
+        font-size="9.1"
+        fill="#6B7280"
+        text-anchor="middle"
+        font-style="italic"
+      >
+        shared
+      </text>
+    </g>
+    <line
+      x1="253"
+      y1="62"
+      x2="263"
+      y2="62"
+      stroke="#2D3A50"
+      stroke-width="1.4"
+      marker-end="url(#arC)"
+    />
+
+    <!-- multiply circle -->
+    <circle
+      cx="274"
+      cy="62"
+      r="10"
+      fill="#F0F2F5"
+      stroke="#4B5563"
+      stroke-width="1.6"
+    />
+    <line
+      x1="268"
+      y1="56"
+      x2="280"
+      y2="68"
+      stroke="#4B5563"
+      stroke-width="1.4"
+    />
+    <line
+      x1="280"
+      y1="56"
+      x2="268"
+      y2="68"
+      stroke="#4B5563"
+      stroke-width="1.4"
+    />
+    <line
+      x1="284"
+      y1="62"
+      x2="304"
+      y2="62"
+      stroke="#2D3A50"
+      stroke-width="1.6"
+      marker-end="url(#arC)"
+    />
+    <text
+      x="316"
+      y="59"
+      font-size="14.3"
+      fill="#0F172A"
+      font-weight="600"
+      font-style="italic"
+      font-family="Georgia,serif"
+    >
+      Y_e
+    </text>
+
+    <!-- U_expert[e] per-expert box -->
+    <rect
+      x="6"
+      y="100"
+      width="144"
+      height="42"
+      rx="5"
+      fill="#EFF7F0"
+      stroke="#1A5C32"
+      stroke-width="1.3"
+      filter="url(#sfC)"
+    />
+    <text
+      x="78"
+      y="116"
+      font-size="11.1"
+      fill="#0A3D20"
+      text-anchor="middle"
+      font-weight="700"
+    >
+      U_expert[e] — per-expert
+    </text>
+    <text x="78" y="128" font-size="10.4" fill="#1A5C32" text-anchor="middle">
+      E × r₁ = 8 × 32
+    </text>
+    <text x="78" y="139" font-size="9.8" fill="#047857" text-anchor="middle">
+      (only small part is expert-specific)
+    </text>
+    <path
+      d="M 120,100 L 172,69"
+      fill="none"
+      stroke="#1A5C32"
+      stroke-width="1.3"
+      stroke-dasharray="4 3"
+      marker-end="url(#arCg)"
+    />
+
+    <!-- Top-k Router -->
+    <rect
+      x="330"
+      y="28"
+      width="136"
+      height="66"
+      rx="5"
+      fill="#FFFBF0"
+      stroke="#78350F"
+      stroke-width="1.5"
+      filter="url(#sfC)"
+    />
+    <text
+      x="398"
+      y="44"
+      font-size="11.7"
+      fill="#78350F"
+      text-anchor="middle"
+      font-weight="700"
+    >
+      Top-k Router
+    </text>
+    <g transform="translate(342,88)">
+      <line x1="0" y1="0" x2="112" y2="0" stroke="#D1D5DB" stroke-width="0.6" />
+      <rect x="2" y="-18" width="8" height="18" rx="1.5" fill="#92400E" />
+      <rect x="14" y="-6" width="8" height="6" rx="1.5" fill="#E5E7EB" />
+      <rect x="26" y="-14" width="8" height="14" rx="1.5" fill="#92400E" />
+      <rect x="38" y="-5" width="8" height="5" rx="1.5" fill="#E5E7EB" />
+      <rect x="50" y="-8" width="8" height="8" rx="1.5" fill="#E5E7EB" />
+      <rect x="62" y="-4" width="8" height="4" rx="1.5" fill="#E5E7EB" />
+      <rect x="74" y="-7" width="8" height="7" rx="1.5" fill="#E5E7EB" />
+      <rect x="86" y="-3" width="8" height="3" rx="1.5" fill="#E5E7EB" />
+      <text x="100" y="-2" font-size="9.1" fill="#9CA3AF" text-anchor="middle">
+        ···
+      </text>
+      <text x="56" y="10" font-size="8.5" fill="#78350F" text-anchor="middle">
+        top-2 from E=8 experts
+      </text>
+    </g>
+    <path
+      d="M 342,64 L 290,68"
+      fill="none"
+      stroke="#92400E"
+      stroke-width="1.3"
+      stroke-dasharray="4 3"
+      marker-end="url(#arC)"
+    />
+    <text x="314" y="60" font-size="9.8" fill="#92400E" font-style="italic">
+      gate weight
+    </text>
+
+    <!-- Formula + compression -->
+    <rect
+      x="6"
+      y="168"
+      width="548"
+      height="32"
+      rx="4"
+      fill="#F5F0FF"
+      stroke="#3B0764"
+      stroke-width="1.2"
+    />
+    <text
+      x="280"
+      y="181"
+      font-size="11.7"
+      fill="#3B0764"
+      text-anchor="middle"
+      font-weight="700"
+    >
+      W_e = U_in · 𝒢_e · U_out , 𝒢_e = Σ_r U_exp[e,r] · 𝒢[r,:,:]
+    </text>
+    <text x="280" y="194" font-size="10.4" fill="#5B21B6" text-anchor="middle">
+      Shared U_in, 𝒢, U_out across all 8 experts · r = (32, 512, 256) · top-2
+      routing
+    </text>
+
+    <!-- Compression bar -->
+    <text x="6" y="218" font-size="10.4" fill="#374151" font-weight="700">
+      Dense 75.5M
+    </text>
+    <rect x="74" y="209" width="500" height="14" rx="2" fill="#9CA8BC" />
+    <text x="6" y="236" font-size="10.4" fill="#0A3D20" font-weight="700">
+      Tucker 7.73M
+    </text>
+    <rect x="74" y="226" width="26" height="14" rx="2" fill="#3B4E8A" />
+    <rect x="101" y="226" width="20" height="14" fill="#4A1D7A" />
+    <rect x="122" y="226" width="3" height="14" fill="#1A5C32" />
+    <text x="138" y="237" font-size="12.3" fill="#8B1F1F" font-weight="800">
+      89.8% ↓
+    </text>
+    <rect
+      x="270"
+      y="224"
+      width="320"
+      height="18"
+      rx="3"
+      fill="#EFF4E8"
+      stroke="#1A5C32"
+      stroke-width="1"
+    />
+    <text
+      x="411"
+      y="235"
+      font-size="11.1"
+      fill="#0A3D20"
+      text-anchor="middle"
+      font-weight="700"
+    >
+      82.87% overall compression · 417M / 2.43B dense-equiv
+    </text>
+  </svg>
+</div>
