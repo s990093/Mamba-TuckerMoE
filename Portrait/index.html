@@ -6263,23 +6263,22 @@
 
         /* ═══════════ 3D TILT ON CARDS ═══════════ */
         document
-          .querySelectorAll(".card,.stat-box,.tech-card,.ps-card")
+          .querySelectorAll(".stat-box,.tech-card")
           .forEach(function (card) {
             card.addEventListener("mousemove", function (e) {
               var rect = card.getBoundingClientRect();
               var x = (e.clientX - rect.left) / rect.width - 0.5;
               var y = (e.clientY - rect.top) / rect.height - 0.5;
-              var intensity = 5;
               card.style.transform =
-                "perspective(800px) rotateY(" +
-                x * intensity +
+                "perspective(600px) rotateY(" +
+                x * 4 +
                 "deg) rotateX(" +
-                -y * intensity +
-                "deg) translateZ(2px)";
+                -y * 4 +
+                "deg) translateZ(1px)";
             });
             card.addEventListener("mouseleave", function () {
               card.style.transform =
-                "perspective(800px) rotateY(0deg) rotateX(0deg) translateZ(0)";
+                "perspective(600px) rotateY(0deg) rotateX(0deg) translateZ(0)";
             });
           });
 
