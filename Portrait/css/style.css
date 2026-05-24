@@ -710,21 +710,6 @@ table.data-table .gold { background: rgba(216,184,104,0.15); }
   font-size: 1rem;
   margin-bottom: 0.3rem;
 }
-.tech-card {
-  background: #fffdf7;
-  border: 1.5px solid;
-  border-radius: 5px;
-  padding: 0.75rem;
-}
-.tech-card .tag {
-  display: inline-block;
-  color: #fff;
-  padding: 0.2rem 0.6rem;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  margin-right: 0.4rem;
-}
 
 /* ── Highlight box ── */
 .hl-box {
@@ -880,14 +865,18 @@ table.data-table .gold { background: rgba(216,184,104,0.15); }
     grid-template-columns: 1fr;
   }
   .section {
-    padding: 1.5rem 0;
+    padding: 2rem 0;
   }
   .container {
     padding: 0 0.75rem;
   }
-  table.data-table {
-    font-size: 0.7rem;
-  }
+  .sec-title { font-size: clamp(1rem, 3vw, 1.2rem); padding-left: 0.75rem; }
+  .sec-title .sec-icon { width: 28px; height: 28px; font-size: 0.75rem; border-radius: 6px; }
+  .card-body { padding: 0.75rem 1rem; }
+  .hl-box { padding: 0.75rem 1rem; }
+  .conclusion-list { padding: 0.75rem 0.75rem; }
+  .conclusion-icon { width: 32px; height: 32px; font-size: 1rem; border-radius: 8px; }
+  table.data-table { font-size: 0.68rem; }
   table.data-table th,
   table.data-table td {
     padding: 0.3rem 0.35rem;

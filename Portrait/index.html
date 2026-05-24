@@ -4,21 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hybrid Mamba-TuckerMoE for On-Device LLM Inference</title>
+    <meta name="description" content="Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid State Space Models — 82.87% compression, 3.32× speculative decoding speedup on Apple Silicon" />
+    <meta name="theme-color" content="#1b2a47" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mamba3-XR" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231b2a47'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-family='serif' font-size='18' font-weight='900' fill='%23d8b868'>M</text></svg>" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='36' fill='%231b2a47'/><text x='50%25' y='57%25' dominant-baseline='middle' text-anchor='middle' font-family='serif' font-size='100' font-weight='900' fill='%23d8b868'>M</text></svg>" />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <!-- ═══ NAVBAR ═══ -->
     <nav class="navbar">
-      <div class="navbar-inner">
-        <a href="#hero">Home</a>
-        <a href="#problems">Motivation</a>
-        <a href="#phase1">Architecture</a>
-        <a href="#phase2">Training</a>
-        <a href="#cot-loss">CoT Loss</a>
-        <a href="#phase3">Decoding</a>
-        <a href="#edge">Edge App</a>
-        <a href="#results">Results</a>
-      </div>
+  <div class="navbar-inner">
+    <a href="#hero">&#x2302; Home</a>
+    <a href="#problems">&#x26A0; Motivation</a>
+    <a href="#phase1">&#x2699; Architecture</a>
+    <a href="#phase2">&#x2693; Training</a>
+    <a href="#cot-loss">&#x2697; CoT Loss</a>
+    <a href="#phase3">&#x26A1; Decoding</a>
+    <a href="#edge">&#x1F4F1; Edge App</a>
+    <a href="#results">&#x1F4CA; Results</a>
+  </div>
     </nav>
 
 <!-- ═══ HERO ═══ -->
@@ -170,7 +177,7 @@
     <section class="section" id="phase1">
       <div class="container">
         <h2 class="sec-title">
-          Phase 1 — Macro Block Architecture &amp; TuckerMoE Design
+          <span class="sec-icon">&#x2699;</span><span>Phase 1 — Macro Block Architecture &amp; TuckerMoE Design</span>
         </h2>
 
         <div class="card">
@@ -3079,7 +3086,7 @@
     <section class="section" id="phase2">
       <div class="container">
         <h2 class="sec-title">
-          Phase 2 — Multi-Stage Training &amp; CoT Loss Design
+          <span class="sec-icon">&#x2693;</span><span>Phase 2 — Multi-Stage Training &amp; CoT Loss Design</span>
         </h2>
 
         <!-- Loss Formulas -->
@@ -3230,7 +3237,7 @@
     <section class="section" id="cot-loss">
       <div class="container">
         <h2 class="sec-title">
-          CoT Loss Design — 5-Weights Product + FCP + MoE Aux
+          <span class="sec-icon">&#x2697;</span><span>CoT Loss Design — 5-Weights Product + FCP + MoE Aux</span>
         </h2>
 
         <!-- Pain points -->
@@ -4035,7 +4042,7 @@
     <section class="section" id="phase3">
       <div class="container">
         <h2 class="sec-title">
-          Phase 3 — Multi-Strategy Speculative Jacobi Decoding
+          <span class="sec-icon">&#x26A1;</span><span>Phase 3 — Multi-Strategy Speculative Jacobi Decoding</span>
         </h2>
 
         <!-- Jacobi Visualization -->
@@ -5173,7 +5180,7 @@
     <section class="section" id="edge">
       <div class="container">
         <h2 class="sec-title">
-          Edge Application — Real-Time On-Device AI Assistant
+          <span class="sec-icon">&#x1F4F1;</span><span>Edge Application — Real-Time On-Device AI Assistant</span>
         </h2>
 
         <div class="flex-row">
@@ -5559,7 +5566,7 @@
     <section class="section" id="results">
       <div class="container">
         <h2 class="sec-title">
-          Main Results, Compression Study &amp; Conclusion
+          <span class="sec-icon">&#x1F4CA;</span><span>Main Results, Compression Study &amp; Conclusion</span>
         </h2>
 
         <!-- Key Stats -->
