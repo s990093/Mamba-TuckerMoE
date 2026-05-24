@@ -1,0 +1,1292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hybrid Mamba-TuckerMoE for On-Device LLM Inference</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ═══ NAVBAR ═══ -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="#hero">Home</a>
+    <a href="#problems">Motivation</a>
+    <a href="#phase1">Architecture</a>
+    <a href="#phase2">Training</a>
+    <a href="#cot-loss">CoT Loss</a>
+    <a href="#phase3">Decoding</a>
+    <a href="#edge">Edge App</a>
+    <a href="#results">Results</a>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<header class="hero" id="hero">
+  <div class="container">
+    <img class="hero-logo" src="assets/NKUST_Logo.png" alt="NKUST" onerror="this.style.display='none'" />
+    <h1>Hybrid Mamba-TuckerMoE for On-Device LLM Inference</h1>
+    <p class="subtitle">Joint Tucker Decomposition MoE &middot; Multi-Strategy Speculative Decoding &middot; Resource-Constrained Devices</p>
+    <p class="authors">Hung-Wei Lai &middot; Hsin-An Lan &middot; Chun-Ming Hsu &middot; Yu-Han Lu</p>
+    <p class="affiliation">Department of Computer Science and Information Engineering, National Kaohsiung University of Science and Technology, Kaohsiung, Taiwan</p>
+  </div>
+</header>
+
+<!-- ═══ PROBLEMS → SOLUTIONS ═══ -->
+<section class="section" id="problems">
+  <div class="container">
+    <div class="ps-grid">
+      <div class="ps-card problems">
+        <div class="ps-card-header">PROBLEMS — Deployment Bottlenecks</div>
+        <div class="ps-card-body">
+          <p style="margin-bottom:0.4rem;"><span class="num">1.</span> Attention <strong>O(N²·d)</strong> — step <em>t</em> scans all <em>t–1</em> past tokens; 16K seq = <strong class="acc">256×</strong> cost of early steps</p>
+          <p style="margin-bottom:0.4rem;"><span class="num">2.</span> KV Cache <strong>O(N)</strong> — 30-layer Transformer @16K = <strong class="acc">~1.4 GiB</strong>; exceeds Apple Silicon 16 GB headroom</p>
+          <p><span class="num">3.</span> MoE weight volume <strong>E×</strong> — 8 experts × 1536 × 6144 = <strong class="acc">75.5M</strong> per projection; per-expert SVD ignores cross-expert redundancy</p>
+        </div>
+      </div>
+      <div class="ps-arrow">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="arrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#8A3324"/>
+              <stop offset="45%" style="stop-color:#D8B868"/>
+              <stop offset="100%" style="stop-color:#1B5E34"/>
+            </linearGradient>
+          </defs>
+          <polygon points="2,24 14,32 2,40" fill="#8A3324" opacity="0.4"/>
+          <polygon points="14,18 30,32 14,46" fill="#D8B868" opacity="0.7"/>
+          <polygon points="28,10 58,32 28,54" fill="url(#arrGrad)"/>
+        </svg>
+      </div>
+      <div class="ps-card solutions">
+        <div class="ps-card-header">SOLUTIONS — Hybrid Mamba-TuckerMoE</div>
+        <div class="ps-card-body">
+          <p style="margin-bottom:0.4rem;"><span class="num">1.</span> Mamba-3 SSM <strong>O(1)</strong> decode state — <strong class="grn">9.0 MiB</strong> fixed, independent of sequence length</p>
+          <p style="margin-bottom:0.4rem;"><span class="num">2.</span> 4:1 Hybrid ratio — <strong class="grn">80%</strong> KV reduction; only 6 Transformer layers @16K = <strong class="grn">288 MiB</strong></p>
+          <p><span class="num">3.</span> TuckerMoE joint 3-way decomp. — <strong class="grn">82.87%</strong> compression; shared U²,U³ jointly optimized across all experts</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PHASE 1: Architecture ═══ -->
+<section class="section" id="phase1">
+  <div class="container">
+    <h2 class="sec-title">Phase 1 — Macro Block Architecture &amp; TuckerMoE Design</h2>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="grid-4" style="align-items:start;">
+          <!-- (a) Full Model Pipeline -->
+          <div class="svg-container">
+<svg viewBox="0 0 280 425" xmlns="http://www.w3.org/2000/svg" style="font-family:'Times New Roman',Times,serif;">
+  <defs>
+    <marker id="arH" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#2D3A50"/></marker>
+  </defs>
+  <rect x="1" y="1" width="278" height="423" rx="6" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="140" y="15" font-size="11.7" fill="#475569" text-anchor="middle" font-weight="600" font-style="italic">(a) Full Model Pipeline</text>
+  <line x1="8" y1="19" x2="272" y2="19" stroke="#E2E8F0" stroke-width="0.8"/>
+  <text x="140" y="32" font-size="13.0" fill="#1B2A47" text-anchor="middle" font-weight="700">Input Tokens</text>
+  <line x1="140" y1="35" x2="140" y2="45" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
+  <rect x="50" y="46" width="180" height="26" rx="5" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.6"/>
+  <text x="140" y="58" font-size="13.0" fill="#1E3A8A" text-anchor="middle" font-weight="700">Embedding Layer</text>
+  <text x="140" y="69" font-size="10.4" fill="#3B82F6" text-anchor="middle">V = 32,007 · d = 768</text>
+  <line x1="140" y1="72" x2="140" y2="84" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
+  <!-- Macro Block -->
+  <rect x="14" y="85" width="252" height="226" rx="7" fill="#EBF0FA" stroke="#8A9DBF" stroke-width="0.8" stroke-dasharray="7 4" opacity="0.38"/>
+  <rect x="11" y="82" width="252" height="226" rx="7" fill="#EEF2FA" stroke="#6B82B8" stroke-width="1" stroke-dasharray="7 4" opacity="0.62"/>
+  <rect x="8" y="79" width="252" height="226" rx="7" fill="#F8FAFF" stroke="#2B4A8F" stroke-width="2" stroke-dasharray="7 4"/>
+  <text x="134" y="94" font-size="13.0" fill="#1D4ED8" text-anchor="middle" font-weight="700">Macro Block × N = 6</text>
+  <!-- Mamba-3 ×4 -->
+  <rect x="22" y="101" width="224" height="88" rx="5" fill="#D8E4F5" stroke="#5B7EBE" stroke-width="0.8" opacity="0.5"/>
+  <rect x="19" y="98" width="224" height="88" rx="5" fill="#F0F5FF" stroke="#1E3A8A" stroke-width="2"/>
+  <rect x="215" y="100" width="24" height="14" rx="7" fill="#1E3A8A"/>
+  <text x="227" y="111" font-size="11.1" fill="#FFF" text-anchor="middle" font-weight="700">×4</text>
+  <rect x="19" y="98" width="22" height="14" rx="3" fill="#1E3A8A"/>
+  <text x="30" y="109" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">A</text>
+  <text x="131" y="116" font-size="13.7" fill="#1E3A8A" text-anchor="middle" font-weight="700">Mamba-3 Block × 4</text>
+  <text x="131" y="128" font-size="10.4" fill="#334155" text-anchor="middle">Selective SSM · RoPE(B,C) · D-skip</text>
+  <text x="131" y="139" font-size="10.4" fill="#334155" text-anchor="middle">SiLU gate · LayerScale × 2</text>
+  <text x="131" y="150" font-size="10.4" fill="#7C3AED" text-anchor="middle">in_proj / out_proj → (C) TuckerMoE</text>
+  <text x="131" y="161" font-size="9.8" fill="#1D4ED8" text-anchor="middle">Chunk Parallel Scan</text>
+  <line x1="131" y1="186" x2="131" y2="198" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
+  <!-- Transformer ×1 -->
+  <rect x="19" y="199" width="224" height="62" rx="5" fill="#F0F9FF" stroke="#0C4A6E" stroke-width="2"/>
+  <rect x="19" y="199" width="22" height="14" rx="3" fill="#0C4A6E"/>
+  <text x="30" y="210" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">B</text>
+  <text x="131" y="217" font-size="13.7" fill="#0C4A6E" text-anchor="middle" font-weight="700">Transformer Block × 1</text>
+  <text x="131" y="229" font-size="10.4" fill="#334155" text-anchor="middle">GQA-SDPA · KV-cache</text>
+  <text x="131" y="240" font-size="10.4" fill="#7C3AED" text-anchor="middle">gate / up / down → (C) TuckerMoE</text>
+  <text x="131" y="251" font-size="9.8" fill="#C2410C" text-anchor="middle">LayerScale × 2 · RMSNorm × 2</text>
+  <!-- TuckerMoE strip -->
+  <rect x="19" y="269" width="224" height="20" rx="4" fill="#F5EEFF" stroke="#7C3AED" stroke-width="1.6"/>
+  <rect x="19" y="269" width="22" height="20" rx="3" fill="#7C3AED"/>
+  <text x="30" y="282" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">C</text>
+  <text x="131" y="282" font-size="11.1" fill="#5B21B6" text-anchor="middle" font-weight="700">TuckerMoE · 82.87% compression</text>
+  <line x1="131" y1="305" x2="131" y2="318" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
+  <!-- Final RMSNorm -->
+  <rect x="65" y="319" width="132" height="22" rx="4" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.4"/>
+  <text x="131" y="334" font-size="11.7" fill="#334155" text-anchor="middle" font-weight="600">Final RMSNorm</text>
+  <line x1="131" y1="341" x2="131" y2="352" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
+  <!-- LM Head -->
+  <path d="M 62,353 L 200,353 L 184,373 L 78,373 Z" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.6"/>
+  <text x="131" y="363" font-size="11.7" fill="#1E3A8A" text-anchor="middle" font-weight="700">LM Head</text>
+  <text x="131" y="373" font-size="9.8" fill="#3B82F6" text-anchor="middle">weight-tied · tanh-cap(30)</text>
+  <line x1="131" y1="376" x2="131" y2="386" stroke="#2D3A50" stroke-width="2" marker-end="url(#arH)"/>
+  <text x="131" y="399" font-size="13.7" fill="#1B2A47" text-anchor="middle" font-weight="700">Logits (V = 32,007)</text>
+  <rect x="8" y="407" width="264" height="14" rx="3" fill="#EFF7F0" stroke="#1A5C32" stroke-width="1.2"/>
+  <text x="140" y="417" font-size="9.1" fill="#0A3D20" text-anchor="middle" font-weight="700">417M active · 2.43B dense-equiv · 82.87% compression</text>
+</svg>
+          </div>
+          <!-- (b) Mamba-3 Block Internal -->
+          <div class="svg-container">
+<svg viewBox="0 0 560 620" xmlns="http://www.w3.org/2000/svg" style="font-family:'Times New Roman',Times,serif;">
+  <defs>
+    <marker id="arA" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B2A47"/></marker>
+    <marker id="arAd" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B5E34"/></marker>
+  </defs>
+  <rect x="2" y="2" width="556" height="616" rx="6" fill="#FFFDF7" stroke="#1B2A47" stroke-width="1.5"/>
+  <rect x="2" y="2" width="556" height="26" rx="6" fill="#1B365D"/>
+  <rect x="2" y="18" width="556" height="10" fill="#1B365D"/>
+  <text x="280" y="18" font-size="13pt" font-weight="800" fill="#FFF" text-anchor="middle">(A) Mamba-3 Block — Internal Data-Flow</text>
+  <text x="280" y="48" font-size="14.3pt" font-weight="700" fill="#8A3324" text-anchor="middle" font-style="italic">x_in</text>
+  <line x1="280" y1="54" x2="280" y2="72" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+  <circle cx="280" cy="88" r="15" fill="#E8EDF5" stroke="#1B365D" stroke-width="2"/>
+  <text x="280" y="94" text-anchor="middle" font-size="14.3pt" font-weight="700" fill="#1B365D">N</text>
+  <text x="302" y="93" font-size="11.7pt" fill="#1B2A47" font-weight="600">RMSNorm</text>
+  <line x1="280" y1="103" x2="280" y2="126" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+  <polygon points="140,130 420,130 470,168 90,168" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.8"/>
+  <text x="280" y="148" text-anchor="middle" font-size="13pt" font-weight="700" fill="#1B365D">in_proj (Linear + bias)</text>
+  <text x="280" y="162" text-anchor="middle" font-size="9.8pt" fill="#475569">z · x' · B · C · Δ</text>
+  <text x="110" y="186" font-size="11.7pt" font-weight="700" fill="#8A3324" text-anchor="middle" font-style="italic">z</text>
+  <text x="180" y="186" font-size="11.1pt" font-weight="600" fill="#8A3324" text-anchor="middle" font-style="italic">B, C</text>
+  <text x="280" y="186" font-size="11.1pt" font-weight="600" fill="#8A3324" text-anchor="middle" font-style="italic">Δ, x'</text>
+  <text x="380" y="186" font-size="11.1pt" font-weight="600" fill="#8A3324" text-anchor="middle" font-style="italic">x_up</text>
+  <path d="M 95 168 L 95 200 L 40 200 L 40 350 C 40 370 265 370 268 350" fill="none" stroke="#1B2A47" stroke-width="1.8"/>
+  <path d="M 180 168 L 180 198" fill="none" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+  <path d="M 280 168 L 280 232" fill="none" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+  <path d="M 380 168 L 380 198" fill="none" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+  <rect x="120" y="202" width="120" height="32" rx="4" fill="#FCE4D6" stroke="#1B2A47" stroke-width="1.6"/>
+  <text x="180" y="224" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#1B2A47">RoPE (B, C)</text>
+  <path d="M 180 234 L 180 256 C 180 262 235 262 235 254" fill="none" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arA)"/>
+  <polygon points="320,202 440,202 465,236 295,236" fill="#F3E8FF" stroke="#9374B1" stroke-width="1.6"/>
+  <text x="380" y="222" text-anchor="middle" font-size="11.7pt" font-weight="700" fill="#581C87">x_up_proj (TuckerMoE)</text>
+  <path d="M 380 236 L 380 256 C 380 262 325 262 325 254" fill="none" stroke="#1B2A47" stroke-width="1.5" marker-end="url(#arA)"/>
+  <rect x="110" y="260" width="340" height="44" rx="5" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="2.2"/>
+  <text x="280" y="282" text-anchor="middle" font-size="14.3pt" font-weight="700" fill="#1D4ED8">Chunk Parallel Scan</text>
+  <text x="280" y="298" text-anchor="middle" font-size="9.1pt" fill="#5B21B6">Triton kernel · O(L log L) · Hillis-Steele + Blelloch</text>
+  <line x1="280" y1="304" x2="280" y2="330" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+  <polygon points="130,335 430,335 400,365 160,365" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.8"/>
+  <text x="280" y="354" text-anchor="middle" font-size="13pt" font-weight="700" fill="#1B365D">y_down_proj + D · x' (skip)</text>
+  <line x1="280" y1="365" x2="280" y2="385" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+  <circle cx="280" cy="400" r="14" fill="#FFF9F0" stroke="#D8B868" stroke-width="2"/>
+  <text x="280" y="407" text-anchor="middle" font-size="15.6pt" font-weight="700" fill="#1B2A47">σ</text>
+  <text x="245" y="403" font-size="11.7pt" fill="#1B2A47" font-weight="600">SiLU</text>
+  <text x="300" y="403" font-size="11.7pt" fill="#8A3324" font-weight="600" font-style="italic">Y</text>
+  <line x1="280" y1="414" x2="280" y2="438" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+  <polygon points="160,442 400,442 375,470 185,470" fill="#F3E8FF" stroke="#9374B1" stroke-width="1.8"/>
+  <text x="280" y="460" text-anchor="middle" font-size="13pt" font-weight="700" fill="#581C87">out_proj (TuckerMoE) · d → d</text>
+  <line x1="280" y1="470" x2="280" y2="490" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+  <circle cx="280" cy="505" r="13" fill="#FFF9F0" stroke="#D8B868" stroke-width="1.8"/>
+  <text x="280" y="511" text-anchor="middle" font-size="13pt" font-weight="700" fill="#8B6914">S</text>
+  <text x="302" y="510" font-size="10.4pt" fill="#1B2A47" font-weight="600">LayerScale</text>
+  <line x1="280" y1="518" x2="280" y2="533" stroke="#1B2A47" stroke-width="1.8" marker-end="url(#arA)"/>
+  <circle cx="280" cy="548" r="13" fill="#EFF7F0" stroke="#1B5E34" stroke-width="2"/>
+  <line x1="272" y1="548" x2="288" y2="548" stroke="#1B5E34" stroke-width="1.8"/>
+  <line x1="280" y1="540" x2="280" y2="556" stroke="#1B5E34" stroke-width="1.8"/>
+  <path d="M 280 68 C 280 50 30 50 30 88 L 30 548 C 30 570 260 570 268 548" fill="none" stroke="#98A9D1" stroke-width="1.6" stroke-dasharray="7 5" marker-end="url(#arAd)"/>
+  <line x1="280" y1="561" x2="280" y2="585" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#arA)"/>
+  <text x="280" y="598" font-size="11.7pt" font-weight="700" fill="#1B2A47" text-anchor="middle" font-style="italic">→ out</text>
+</svg>
+          </div>
+          <!-- (c) TuckerMoE Decomposition -->
+          <div class="svg-container">
+<svg viewBox="0 0 560 240" xmlns="http://www.w3.org/2000/svg" style="font-family:'Times New Roman',Times,serif;">
+  <defs>
+    <marker id="arC" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/></marker>
+    <marker id="arCg" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#065F46"/></marker>
+  </defs>
+  <rect x="1" y="1" width="558" height="239" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+  <rect x="3" y="3" width="554" height="20" rx="4" fill="#FFFBF0"/>
+  <text x="280" y="17" font-size="11.7" fill="#78350F" text-anchor="middle" font-weight="700">(C) TuckerMoE — Tensor Decomposition (W_e = U_in · 𝒢_e · U_out)</text>
+  <text x="44" y="35" font-size="10.4" fill="#9CA3AF" text-anchor="middle" font-weight="600">Standard MoE</text>
+  <rect x="6" y="42" width="44" height="44" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <path d="M 6,42 L 18,34 L 62,34 L 50,42 Z" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <path d="M 50,42 L 62,34 L 62,78 L 50,86 Z" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text x="28" y="70" font-size="9.8" fill="#9CA3AF" text-anchor="middle" font-style="italic">E×d_in×d_out</text>
+  <text x="28" y="82" font-size="9.1" fill="#9CA3AF" text-anchor="middle">75.5M params</text>
+  <text x="86" y="68" font-size="23.4" fill="#6B7280" font-weight="700" text-anchor="middle">→</text>
+  <!-- U_in -->
+  <g transform="translate(104,34)">
+    <path d="M 4,5 L 14,0 L 34,0 L 24,5 Z" fill="#D1D9EE" stroke="#3B4E8A" stroke-width="1.2"/>
+    <path d="M 24,5 L 34,0 L 34,42 L 24,47 Z" fill="#B8C5E0" stroke="#3B4E8A" stroke-width="1.2"/>
+    <rect x="4" y="5" width="20" height="42" fill="#E8EEF8" stroke="#3B4E8A" stroke-width="1.2"/>
+    <text x="14" y="31" font-size="13.0" fill="#1E2B4A" text-anchor="middle" font-weight="700">U_in</text>
+    <text x="14" y="60" font-size="9.8" fill="#3B4E8A" text-anchor="middle">d×r₃</text>
+    <text x="14" y="70" font-size="9.1" fill="#3B4E8A" text-anchor="middle">1536×256</text>
+    <text x="30" y="58" font-size="9.1" fill="#6B7280" text-anchor="middle" font-style="italic">shared</text>
+  </g>
+  <line x1="142" y1="62" x2="152" y2="62" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#arC)"/>
+  <!-- Core tensor -->
+  <g transform="translate(154,30)">
+    <path d="M 4,5 L 14,0 L 34,0 L 24,5 Z" fill="#E8D88A" stroke="#7A5C08" stroke-width="1.2"/>
+    <path d="M 24,5 L 34,0 L 34,46 L 24,51 Z" fill="#D4C070" stroke="#7A5C08" stroke-width="1.2"/>
+    <rect x="4" y="5" width="20" height="46" fill="#F5EFC0" stroke="#7A5C08" stroke-width="1.2"/>
+    <text x="14" y="34" font-size="16.9" fill="#5C4000" text-anchor="middle" font-weight="700">𝒢</text>
+    <rect x="20" y="-2" width="22" height="12" rx="6" fill="#7A5C08"/>
+    <text x="31" y="7.5" font-size="10.4" fill="#FFF" text-anchor="middle" font-weight="700">×E</text>
+    <text x="14" y="64" font-size="9.8" fill="#7A5C08" text-anchor="middle">r₁×r₃×r₂</text>
+    <text x="14" y="74" font-size="9.1" fill="#7A5C08" text-anchor="middle">32×256×512</text>
+  </g>
+  <line x1="194" y1="62" x2="204" y2="62" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#arC)"/>
+  <!-- U_out -->
+  <g transform="translate(206,34)">
+    <path d="M 4,5 L 14,0 L 40,0 L 30,5 Z" fill="#C8B8E0" stroke="#4A1D7A" stroke-width="1.2"/>
+    <path d="M 30,5 L 40,0 L 40,42 L 30,47 Z" fill="#B0A0D0" stroke="#4A1D7A" stroke-width="1.2"/>
+    <rect x="4" y="5" width="26" height="42" fill="#EAE0F8" stroke="#4A1D7A" stroke-width="1.2"/>
+    <text x="17" y="30" font-size="11.7" fill="#3B0764" text-anchor="middle" font-weight="700">U_out</text>
+    <text x="17" y="58" font-size="9.8" fill="#4A1D7A" text-anchor="middle">r₂×d_out</text>
+    <text x="17" y="68" font-size="9.1" fill="#4A1D7A" text-anchor="middle">512×6144</text>
+  </g>
+  <line x1="253" y1="62" x2="263" y2="62" stroke="#2D3A50" stroke-width="1.4" marker-end="url(#arC)"/>
+  <circle cx="274" cy="62" r="10" fill="#F0F2F5" stroke="#4B5563" stroke-width="1.6"/>
+  <line x1="268" y1="56" x2="280" y2="68" stroke="#4B5563" stroke-width="1.4"/>
+  <line x1="280" y1="56" x2="268" y2="68" stroke="#4B5563" stroke-width="1.4"/>
+  <line x1="284" y1="62" x2="304" y2="62" stroke="#2D3A50" stroke-width="1.6" marker-end="url(#arC)"/>
+  <text x="316" y="59" font-size="14.3" fill="#0F172A" font-weight="600" font-style="italic">Y_e</text>
+  <!-- Per-expert box -->
+  <rect x="6" y="100" width="144" height="42" rx="5" fill="#EFF7F0" stroke="#1A5C32" stroke-width="1.3"/>
+  <text x="78" y="116" font-size="11.1" fill="#0A3D20" text-anchor="middle" font-weight="700">U_expert[e] — per-expert</text>
+  <text x="78" y="128" font-size="10.4" fill="#1A5C32" text-anchor="middle">E × r₁ = 8 × 32</text>
+  <text x="78" y="139" font-size="9.8" fill="#047857" text-anchor="middle">(only small part is expert-specific)</text>
+  <path d="M 120,100 L 172,69" fill="none" stroke="#1A5C32" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arCg)"/>
+  <!-- Top-k Router -->
+  <rect x="330" y="28" width="136" height="66" rx="5" fill="#FFFBF0" stroke="#78350F" stroke-width="1.5"/>
+  <text x="398" y="44" font-size="11.7" fill="#78350F" text-anchor="middle" font-weight="700">Top-k Router</text>
+  <g transform="translate(342,88)">
+    <line x1="0" y1="0" x2="112" y2="0" stroke="#D1D5DB" stroke-width="0.6"/>
+    <rect x="2" y="-18" width="8" height="18" rx="1.5" fill="#92400E"/>
+    <rect x="14" y="-6" width="8" height="6" rx="1.5" fill="#E5E7EB"/>
+    <rect x="26" y="-14" width="8" height="14" rx="1.5" fill="#92400E"/>
+    <rect x="38" y="-5" width="8" height="5" rx="1.5" fill="#E5E7EB"/>
+    <rect x="50" y="-8" width="8" height="8" rx="1.5" fill="#E5E7EB"/>
+    <rect x="62" y="-4" width="8" height="4" rx="1.5" fill="#E5E7EB"/>
+    <rect x="74" y="-7" width="8" height="7" rx="1.5" fill="#E5E7EB"/>
+    <rect x="86" y="-3" width="8" height="3" rx="1.5" fill="#E5E7EB"/>
+    <text x="100" y="-2" font-size="9.1" fill="#9CA3AF" text-anchor="middle">···</text>
+    <text x="56" y="10" font-size="8.5" fill="#78350F" text-anchor="middle">top-2 from E=8 experts</text>
+  </g>
+  <path d="M 342,64 L 290,68" fill="none" stroke="#92400E" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arC)"/>
+  <text x="314" y="60" font-size="9.8" fill="#92400E" font-style="italic">gate weight</text>
+  <!-- Formula -->
+  <rect x="6" y="168" width="548" height="32" rx="4" fill="#F5F0FF" stroke="#3B0764" stroke-width="1.2"/>
+  <text x="280" y="181" font-size="11.7" fill="#3B0764" text-anchor="middle" font-weight="700">W_e = U_in · 𝒢_e · U_out , 𝒢_e = Σ_r U_exp[e,r] · 𝒢[r,:,:]</text>
+  <text x="280" y="194" font-size="10.4" fill="#5B21B6" text-anchor="middle">Shared U_in, 𝒢, U_out across all 8 experts · r = (32, 512, 256) · top-2 routing</text>
+  <!-- Compression bar -->
+  <text x="6" y="218" font-size="10.4" fill="#374151" font-weight="700">Dense 75.5M</text>
+  <rect x="74" y="209" width="500" height="14" rx="2" fill="#9CA8BC"/>
+  <text x="6" y="236" font-size="10.4" fill="#0A3D20" font-weight="700">Tucker 7.73M</text>
+  <rect x="74" y="226" width="26" height="14" rx="2" fill="#3B4E8A"/>
+  <rect x="101" y="226" width="20" height="14" fill="#4A1D7A"/>
+  <rect x="122" y="226" width="3" height="14" fill="#1A5C32"/>
+  <text x="138" y="237" font-size="12.3" fill="#8B1F1F" font-weight="800">89.8% ↓</text>
+  <rect x="270" y="224" width="320" height="18" rx="3" fill="#EFF4E8" stroke="#1A5C32" stroke-width="1"/>
+  <text x="411" y="235" font-size="11.1" fill="#0A3D20" text-anchor="middle" font-weight="700">82.87% overall compression · 417M / 2.43B dense-equiv</text>
+</svg>
+          </div>
+          <!-- (d) Chunk Parallel Scan -->
+          <div class="svg-container">
+<svg viewBox="0 0 560 240" xmlns="http://www.w3.org/2000/svg" style="font-family:'Times New Roman',Times,serif;">
+  <defs>
+    <marker id="arD" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#2D3A50"/></marker>
+    <marker id="arDr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#DC2626"/></marker>
+    <marker id="arDb" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 L1.5,3.5 Z" fill="#1D4ED8"/></marker>
+  </defs>
+  <rect x="1" y="1" width="558" height="236" rx="5" fill="#FAFBFC" stroke="#CBD5E1" stroke-width="1"/>
+  <rect x="3" y="3" width="554" height="18" rx="4" fill="#EEF2FF"/>
+  <text x="280" y="15.5" font-size="11.7" fill="#1D4ED8" text-anchor="middle" font-weight="700">(D) Chunk Parallel Scan · O(log n) depth · Hillis-Steele + Blelloch</text>
+  <line x1="188" y1="22" x2="188" y2="235" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="374" y1="22" x2="374" y2="235" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
+  <!-- (a) Integral Image -->
+  <text x="94" y="32" font-size="10.4" fill="#374151" text-anchor="middle" font-weight="700">(a) Integral-Image Analogy</text>
+  <text x="12" y="51" font-size="9.1" fill="#6B7280" font-style="italic">x_j</text>
+  <rect x="26" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="35" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">3</text>
+  <rect x="46" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="55" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">1</text>
+  <rect x="66" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="75" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">4</text>
+  <rect x="86" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="95" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">1</text>
+  <rect x="106" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="115" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">5</text>
+  <rect x="126" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="135" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">9</text>
+  <rect x="146" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="155" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">2</text>
+  <rect x="166" y="41" width="18" height="14" rx="2" fill="#E0F2FE" stroke="#0284C7" stroke-width="0.8"/><text x="175" y="52" font-size="9.1" fill="#0C4A6E" text-anchor="middle">6</text>
+  <text x="12" y="76" font-size="9.1" fill="#6B7280" font-style="italic">P_j</text>
+  <rect x="26" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="35" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">3</text>
+  <rect x="46" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="55" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">4</text>
+  <rect x="66" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="75" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">8</text>
+  <rect x="86" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="95" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">9</text>
+  <rect x="106" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="115" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">14</text>
+  <rect x="126" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="135" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">23</text>
+  <rect x="146" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="155" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">25</text>
+  <rect x="166" y="65" width="18" height="14" rx="2" fill="#D1FAE5" stroke="#059669" stroke-width="0.8"/><text x="175" y="76" font-size="9.1" fill="#065F46" text-anchor="middle">31</text>
+  <text x="12" y="102" font-size="9.1" fill="#6B7280" font-style="italic">u_j</text>
+  <rect x="26" y="88" width="78" height="14" rx="2" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="65" y="99" font-size="9.1" fill="#065F46" text-anchor="middle" font-weight="600">B₁</text>
+  <rect x="106" y="88" width="78" height="14" rx="2" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="145" y="99" font-size="9.1" fill="#9D174D" text-anchor="middle" font-weight="600">B₂</text>
+  <rect x="6" y="108" width="176" height="22" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <text x="94" y="117" font-size="8.5" fill="#92400E" text-anchor="middle" font-weight="700">u(B₁∪B₂) = u(B₁) ⊕ u(B₂)</text>
+  <text x="94" y="127" font-size="7.8" fill="#92400E" text-anchor="middle">Proposition 1</text>
+  <text x="94" y="143" font-size="9.1" fill="#374151" text-anchor="middle">P(i,j) = P_j − P_{i−1}</text>
+  <text x="94" y="154" font-size="9.1" fill="#6B7280" text-anchor="middle">O(1) query after O(n) build</text>
+  <!-- (b) Sequential -->
+  <text x="281" y="32" font-size="10.4" fill="#374151" text-anchor="middle" font-weight="700">(b) Sequential (ME-SDPA)</text>
+  <rect x="192" y="37" width="42" height="14" rx="3" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.2"/>
+  <text x="213" y="48" font-size="9.8" fill="#991B1B" text-anchor="middle" font-weight="700">depth O(n)</text>
+  <circle cx="235" cy="58" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/><text x="235" y="62" font-size="9.1" fill="#374151" text-anchor="middle">t₁</text>
+  <circle cx="235" cy="92" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/><text x="235" y="96" font-size="9.1" fill="#374151" text-anchor="middle">t₂</text>
+  <circle cx="235" cy="126" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/><text x="235" y="130" font-size="9.1" fill="#374151" text-anchor="middle">t₃</text>
+  <circle cx="235" cy="160" r="10" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.2"/><text x="235" y="164" font-size="9.1" fill="#374151" text-anchor="middle">t₄</text>
+  <rect x="249" y="52" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/><text x="265" y="62" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁</text>
+  <line x1="235" y1="68" x2="235" y2="82" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+  <rect x="249" y="86" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/><text x="265" y="96" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁:₂</text>
+  <line x1="235" y1="102" x2="235" y2="116" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+  <rect x="249" y="120" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/><text x="265" y="130" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁:₃</text>
+  <line x1="235" y1="136" x2="235" y2="150" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+  <rect x="249" y="154" width="32" height="12" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="0.8"/><text x="265" y="164" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u₁:₄</text>
+  <line x1="235" y1="170" x2="235" y2="180" stroke="#DC2626" stroke-width="1.3" marker-end="url(#arDr)"/>
+  <rect x="211" y="181" width="48" height="13" rx="3" fill="#FCA5A5" stroke="#DC2626" stroke-width="1.2"/>
+  <text x="235" y="191" font-size="9.1" fill="#991B1B" text-anchor="middle" font-weight="700">output y</text>
+  <text x="281" y="214" font-size="8.5" fill="#DC2626" text-anchor="middle">Each step waits for all previous steps</text>
+  <!-- (c) ELSA -->
+  <text x="467" y="32" font-size="10.4" fill="#374151" text-anchor="middle" font-weight="700">(c) ELSA (Two-Level Prefix Scan)</text>
+  <rect x="377" y="37" width="52" height="14" rx="3" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="1.2"/>
+  <text x="403" y="48" font-size="9.8" fill="#1E3A8A" text-anchor="middle" font-weight="700">depth O(log n)</text>
+  <circle cx="392" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="392" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₁</text>
+  <circle cx="408" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="408" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₂</text>
+  <circle cx="424" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="424" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₃</text>
+  <circle cx="440" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="440" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₄</text>
+  <circle cx="456" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="456" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₅</text>
+  <circle cx="472" cy="60" r="7" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="472" y="64" font-size="7.8" fill="#065F46" text-anchor="middle">t₆</text>
+  <circle cx="488" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="488" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₇</text>
+  <circle cx="504" cy="60" r="7" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="504" y="64" font-size="7.8" fill="#9D174D" text-anchor="middle">t₈</text>
+  <line x1="392" y1="67" x2="400" y2="82" stroke="#059669" stroke-width="0.9"/><line x1="408" y1="67" x2="400" y2="82" stroke="#059669" stroke-width="0.9"/>
+  <rect x="392" y="83" width="16" height="12" rx="2" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="400" y="93" font-size="7.8" fill="#065F46" text-anchor="middle">u₁:₂</text>
+  <line x1="424" y1="67" x2="432" y2="82" stroke="#DB2777" stroke-width="0.9"/><line x1="440" y1="67" x2="432" y2="82" stroke="#DB2777" stroke-width="0.9"/>
+  <rect x="424" y="83" width="16" height="12" rx="2" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="432" y="93" font-size="7.8" fill="#9D174D" text-anchor="middle">u₃:₄</text>
+  <line x1="456" y1="67" x2="464" y2="82" stroke="#059669" stroke-width="0.9"/><line x1="472" y1="67" x2="464" y2="82" stroke="#059669" stroke-width="0.9"/>
+  <rect x="456" y="83" width="16" height="12" rx="2" fill="#A7F3D0" stroke="#059669" stroke-width="1"/><text x="464" y="93" font-size="7.8" fill="#065F46" text-anchor="middle">u₅:₆</text>
+  <line x1="488" y1="67" x2="496" y2="82" stroke="#DB2777" stroke-width="0.9"/><line x1="504" y1="67" x2="496" y2="82" stroke="#DB2777" stroke-width="0.9"/>
+  <rect x="488" y="83" width="16" height="12" rx="2" fill="#FBCFE8" stroke="#DB2777" stroke-width="1"/><text x="496" y="93" font-size="7.8" fill="#9D174D" text-anchor="middle">u₇:₈</text>
+  <line x1="380" y1="67" x2="380" y2="95" stroke="#7C3AED" stroke-width="0.8"/><line x1="516" y1="67" x2="516" y2="95" stroke="#7C3AED" stroke-width="0.8"/>
+  <line x1="380" y1="95" x2="516" y2="95" stroke="#7C3AED" stroke-width="0.8"/>
+  <text x="448" y="103" font-size="7.8" fill="#7C3AED" text-anchor="middle">Hillis-Steele (intra-chunk)</text>
+  <line x1="400" y1="95" x2="416" y2="114" stroke="#1D4ED8" stroke-width="1"/><line x1="432" y1="95" x2="416" y2="114" stroke="#1D4ED8" stroke-width="1"/>
+  <rect x="406" y="115" width="20" height="12" rx="2" fill="#BFDBFE" stroke="#1D4ED8" stroke-width="1.1"/><text x="416" y="125" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u(B₁)</text>
+  <line x1="464" y1="95" x2="480" y2="114" stroke="#1D4ED8" stroke-width="1"/><line x1="496" y1="95" x2="480" y2="114" stroke="#1D4ED8" stroke-width="1"/>
+  <rect x="470" y="115" width="20" height="12" rx="2" fill="#BFDBFE" stroke="#1D4ED8" stroke-width="1.1"/><text x="480" y="125" font-size="7.8" fill="#1E3A8A" text-anchor="middle">u(B₂)</text>
+  <line x1="380" y1="112" x2="380" y2="136" stroke="#6D28D9" stroke-width="0.8"/><line x1="516" y1="112" x2="516" y2="136" stroke="#6D28D9" stroke-width="0.8"/>
+  <line x1="380" y1="136" x2="516" y2="136" stroke="#6D28D9" stroke-width="0.8"/>
+  <text x="448" y="144" font-size="7.8" fill="#6D28D9" text-anchor="middle">Blelloch (inter-chunk)</text>
+  <line x1="416" y1="127" x2="448" y2="150" stroke="#D97706" stroke-width="1"/><line x1="480" y1="127" x2="448" y2="150" stroke="#D97706" stroke-width="1"/>
+  <circle cx="448" cy="157" r="8" fill="#FEF3C7" stroke="#D97706" stroke-width="1.4"/>
+  <text x="448" y="161" font-size="8.5" fill="#92400E" text-anchor="middle" font-weight="700">⊕</text>
+  <text x="448" y="172" font-size="8.5" fill="#92400E" text-anchor="middle" font-weight="700">u(B₁∪B₂)</text>
+  <rect x="377" y="180" width="180" height="18" rx="3" fill="#EEF2FF" stroke="#1D4ED8" stroke-width="1"/>
+  <text x="467" y="193" font-size="8.5" fill="#1E3A8A" text-anchor="middle" font-weight="700">total complexity: O(L log L)</text>
+  <rect x="377" y="202" width="180" height="14" rx="3" fill="#F3F4F6" stroke="#6B7280" stroke-width="0.8"/>
+  <text x="467" y="212" font-size="7.5" fill="#6B7280" text-anchor="middle">Triton kernel · L = 256 chunks</text>
+</svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PHASE 2: Training ═══ -->
+<section class="section" id="phase2">
+  <div class="container">
+    <h2 class="sec-title">Phase 2 — Multi-Stage Training &amp; CoT Loss Design</h2>
+
+    <!-- Loss Formulas -->
+    <div class="grid-2" style="margin-bottom:1.25rem;">
+      <div style="background:#E8EDF5;border:3px solid #1B2A47;border-radius:8px;padding:1.5rem 1rem;text-align:center;">
+        <div style="background:#1B2A47;color:#FFF;display:inline-block;padding:0.3rem 1.2rem;border-radius:5px;font-family:Helvetica,Arial,sans-serif;font-size:1.15rem;font-weight:800;margin-bottom:0.75rem;">Pre-train Loss</div>
+        <div style="font-family:'Times New Roman',Times,serif;font-size:clamp(1.2rem,2.5vw,2rem);font-weight:700;color:#1B2A47;line-height:1.5;">
+          &#x2112;<sub>pre</sub> = &#x2112;<sub>Cross-Entropy</sub> + &#x3b1;&middot;&#x2112;<sub>Load-Balance</sub> + &#x3b2;&middot;&#x2112;<sub>Router-Z</sub>
+        </div>
+      </div>
+      <div style="background:#FFF9F0;border:3px solid #8A3324;border-radius:8px;padding:1.5rem 1rem;text-align:center;">
+        <div style="background:#8A3324;color:#FFF;display:inline-block;padding:0.3rem 1.2rem;border-radius:5px;font-family:Helvetica,Arial,sans-serif;font-size:1.15rem;font-weight:800;margin-bottom:0.75rem;">CoT SFT Loss</div>
+        <div style="font-family:'Times New Roman',Times,serif;font-size:clamp(1.2rem,2.5vw,2rem);font-weight:700;color:#8A3324;line-height:1.5;">
+          &#x2112;<sub>total</sub> = &#x2112;<sub>Weighted-Scaled-CE</sub> + &#x3bb;&middot;&#x2112;<sub>Format-Penalty</sub> + &#x3b1;&middot;&#x2112;<sub>Load-Balance</sub> + &#x3b2;&middot;&#x2112;<sub>Router-Z</sub>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three-stage training -->
+    <div class="grid-3">
+      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:6px;padding:1.25rem;text-align:center;">
+        <div style="font-size:1.5rem;font-weight:800;color:#1B2A47;">&#x2460;</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#1E3A8A;">FineWeb-Edu</div>
+        <div style="font-size:0.9rem;color:#374151;">Knowledge pretraining<br/>General text corpus</div>
+      </div>
+      <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:6px;padding:1.25rem;text-align:center;">
+        <div style="font-size:1.5rem;font-weight:800;color:#1B2A47;">&#x2461;</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#92400E;">UltraChat 200k</div>
+        <div style="font-size:0.9rem;color:#374151;">Instruction alignment<br/>Conversational SFT</div>
+      </div>
+      <div style="background:#FFF9F0;border:2px solid #8A3324;border-radius:6px;padding:1.25rem;text-align:center;">
+        <div style="font-size:1.5rem;font-weight:800;color:#8A3324;">&#x2462;</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#8A3324;">Custom CoT 13M tok</div>
+        <div style="font-size:0.9rem;color:#374151;">&lt;think&gt; → &lt;final&gt; format<br/>Structured reasoning</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CoT LOSS DESIGN ═══ -->
+<section class="section" id="cot-loss">
+  <div class="container">
+    <h2 class="sec-title">CoT Loss Design — 5-Weights Product + FCP + MoE Aux</h2>
+
+    <!-- Pain points -->
+    <div class="badge-row">
+      <div class="badge" style="background:#FFF4F2;border:1.5px solid #8A3324;">
+        <div style="font-weight:700;color:#8A3324;">Pain Point: EOS Collapse</div>
+        <div style="font-size:0.75rem;color:#92400E;">Model emits premature EOS → FCP penalty</div>
+      </div>
+      <div class="badge" style="background:#FFF9F0;border:1.5px solid #1B365D;">
+        <div style="font-weight:700;color:#1B365D;">Pain Point: Suffix Blur</div>
+        <div style="font-size:0.75rem;color:#3B4E8A;">Late tokens get equal weight → Final-SW</div>
+      </div>
+      <div class="badge" style="background:#F5F0FF;border:1.5px solid #9374B1;">
+        <div style="font-weight:700;color:#9374B1;">Pain Point: Freq Dominance</div>
+        <div style="font-size:0.75rem;color:#581C87;">High-freq drown signal → PDL inverse</div>
+      </div>
+      <div class="badge" style="background:#EFF7F0;border:1.5px solid #1B5E34;">
+        <div style="font-weight:700;color:#1B5E34;">Pain Point: Entropy Waste</div>
+        <div style="font-size:0.75rem;color:#064E3B;">Model wastes capacity → InfoEntropy</div>
+      </div>
+    </div>
+
+    <!-- Full Loss -->
+    <div style="background:#E8EDF5;border:3px solid #1B2A47;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;text-align:center;overflow-x:auto;">
+      <div style="font-family:'Times New Roman',Times,serif;font-size:clamp(1rem,2vw,1.75rem);font-weight:700;color:#1B2A47;line-height:1.5;white-space:nowrap;">
+        &#x2112;<sub>total</sub> = <sup>1</sup>/<sub>N</sub>&Sigma;<sub>t</sub>[<span style="color:#1B365D;">w<sub>scale</sub></span>&middot;<span style="color:#1B5E34;">w<sub>sftgo</sub></span>&middot;<span style="color:#5B21B6;">w<sub>final</sub></span>&middot;<span style="color:#D8B868;">w<sub>pdl</sub></span>&middot;<span style="color:#8A3324;">w<sub>ie</sub></span>]&middot;&#x2113;<sub>CE</sub> + <span style="color:#8A3324;">&#x3bb;L<sub>FCP</sub></span> + <span style="color:#9374B1;">&#x3b1;L<sub>lb</sub>+&#x3b2;L<sub>z</sub></span>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- ChatML Format Map -->
+      <div style="background:#FFF;border:2px solid #1B2A47;border-radius:6px;overflow:hidden;">
+        <div style="background:#1B2A47;padding:0.5rem 0.75rem;font-size:0.95rem;font-weight:800;color:#FFF;font-family:Helvetica,Arial,sans-serif;">CoT ChatML Format — Activation Zones</div>
+        <!-- Masked -->
+        <div style="display:grid;grid-template-columns:80px 1fr auto;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#E8EDF5;display:flex;align-items:center;justify-content:center;padding:0.4rem;gap:0.25rem;">
+            <span style="font-size:0.7rem;color:#6B7280;font-weight:700;">Masked</span>
+          </div>
+          <div style="background:#F3F5F8;padding:0.4rem 0.6rem;display:flex;align-items:center;gap:0.4rem;">
+            <span class="mono" style="font-size:0.7rem;font-weight:700;color:#374151;">&lt;|im_start|&gt;system</span>
+            <span style="font-size:0.7rem;color:#9CA3AF;">...</span>
+            <span class="mono" style="font-size:0.7rem;font-weight:700;color:#374151;">&lt;|im_start|&gt;user</span>
+            <span style="font-size:0.7rem;color:#9CA3AF;">...</span>
+            <span class="mono" style="font-size:0.7rem;font-weight:700;color:#374151;">&lt;|im_start|&gt;assistant</span>
+          </div>
+          <div style="background:#F3F5F8;display:flex;align-items:center;padding-right:0.6rem;"><span style="font-size:0.7rem;color:#9CA3AF;">w = 1.0 (all)</span></div>
+        </div>
+        <!-- <think> zone -->
+        <div style="display:grid;grid-template-columns:80px 1fr auto;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#FFF2EE;border-right:2px solid #8A3324;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.4rem 0.25rem;gap:0.15rem;">
+            <span style="background:#8A3324;color:#FFF;border-radius:3px;padding:1px 4px;font-weight:800;font-size:0.7rem;">FCP</span>
+            <span style="font-size:0.65rem;color:#8A3324;font-weight:700;">+ SCALe</span>
+            <span style="font-size:0.6rem;color:#8A3324;">+ SFT-GO</span>
+          </div>
+          <div style="background:#FFF4F2;border-top:2px solid #8A3324;border-bottom:2px solid #8A3324;padding:0.4rem 0.6rem;">
+            <div class="mono" style="font-size:0.85rem;font-weight:700;color:#8A3324;">&lt;think&gt;</div>
+            <div style="font-size:0.7rem;color:#374151;margin-top:0.3rem;">
+              <span style="background:#FEF3C7;color:#92400E;padding:1px 4px;border-radius:2px;font-weight:800;">Step 1:</span> Decline
+              <span style="background:#FEF3C7;color:#92400E;padding:1px 4px;border-radius:2px;font-weight:800;">Step 2:</span> Cancel politely
+              <span style="background:#FEF3C7;color:#92400E;padding:1px 4px;border-radius:2px;font-weight:800;">Step 3:</span> Confirm
+            </div>
+          </div>
+          <div style="background:#FFF4F2;border-top:2px solid #8A3324;border-bottom:2px solid #8A3324;display:flex;align-items:flex-start;padding:0.4rem 0.5rem 0 0;">
+            <div style="font-size:0.65rem;color:#8A3324;font-weight:600;text-align:right;line-height:1.3;">FCP &#x3bb;=0.2<br/>SCALe 1.0→0.3<br/>SFT-GO ×2.5</div>
+          </div>
+        </div>
+        <!-- </think> SFT-GO ×8 -->
+        <div style="display:grid;grid-template-columns:80px 1fr auto;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#1B5E34;border-right:2px solid #145028;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.4rem 0.25rem;">
+            <span style="font-size:0.9rem;color:#FFF;font-weight:900;">×8</span>
+            <span style="font-size:0.65rem;color:#A7F3D0;font-weight:700;">SFT-GO</span>
+          </div>
+          <div style="background:#1B5E34;padding:0.5rem;display:flex;align-items:center;">
+            <span class="mono" style="font-size:0.9rem;font-weight:800;color:#FFF;">&lt;/think&gt;</span>
+          </div>
+          <div style="background:#1B5E34;display:flex;align-items:center;padding-right:0.5rem;">
+            <span style="background:#145028;color:#FFF;font-size:0.7rem;font-weight:800;padding:2px 5px;border-radius:3px;">Boundary ×8</span>
+          </div>
+        </div>
+        <!-- <final> zone -->
+        <div style="display:grid;grid-template-columns:80px 1fr auto;border-bottom:1px solid #D1D9E6;align-items:stretch;">
+          <div style="background:#DAE8F5;border-right:2px solid #1B365D;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.6rem 0.25rem;gap:0.15rem;">
+            <span style="background:#1B365D;color:#FFF;border-radius:3px;padding:1px 4px;font-weight:800;font-size:0.6rem;">SCALe</span>
+            <span style="background:#5B21B6;color:#FFF;border-radius:3px;padding:1px 4px;font-weight:800;font-size:0.6rem;">Final-SW</span>
+            <span style="background:#D8B868;color:#1B2A47;border-radius:3px;padding:1px 4px;font-weight:800;font-size:0.6rem;">PDL</span>
+            <span style="background:#8A3324;color:#FFF;border-radius:3px;padding:1px 4px;font-weight:800;font-size:0.6rem;">InfoEnt</span>
+          </div>
+          <div style="background:#EAF3FB;border-top:2px solid #1B365D;border-bottom:2px solid #1B365D;padding:0.5rem 0.6rem;">
+            <div class="mono" style="font-size:0.85rem;font-weight:700;color:#1B365D;">&lt;final&gt;</div>
+            <div style="font-size:0.7rem;color:#374151;line-height:1.8;">
+              "Subject:" Subscription Cancellation <span style="color:#1B365D;font-weight:700;">w=1.00</span><br/>
+              "Dear," please cancel <span style="color:#2D548C;font-weight:700;">w=0.82</span><br/>
+              "immediately." No further charges <span style="color:#5479A6;font-weight:700;">w=0.61</span><br/>
+              "Regards" <span style="color:#8AABC5;font-weight:700;">w=0.38</span>
+            </div>
+          </div>
+          <div style="background:#EAF3FB;border-top:2px solid #1B365D;border-bottom:2px solid #1B365D;display:flex;align-items:flex-start;padding:0.5rem 0.5rem 0 0;">
+            <div style="font-size:0.65rem;color:#1B365D;font-weight:600;text-align:right;line-height:1.3;">4 weights<br/>active in<br/>&lt;final&gt;</div>
+          </div>
+        </div>
+        <!-- </final><|im_end|> -->
+        <div style="display:grid;grid-template-columns:80px 1fr auto;border-bottom:2px solid #1B2A47;align-items:stretch;">
+          <div style="background:#1B5E34;border-right:2px solid #145028;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.4rem 0.25rem;">
+            <span style="font-size:0.9rem;color:#FFF;font-weight:900;">×8</span>
+            <span style="font-size:0.65rem;color:#A7F3D0;font-weight:700;">SFT-GO</span>
+          </div>
+          <div style="background:#1B5E34;padding:0.5rem;display:flex;align-items:center;">
+            <span class="mono" style="font-size:0.9rem;font-weight:800;color:#FFF;">&lt;/final&gt;&lt;|im_end|&gt;</span>
+          </div>
+          <div style="background:#1B5E34;display:flex;align-items:center;padding-right:0.5rem;">
+            <span style="background:#145028;color:#FFF;font-size:0.65rem;font-weight:800;padding:2px 4px;border-radius:3px;">SFT-GO ×8<br/>SCALe focus</span>
+          </div>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.75rem;background:#F7F9FC;flex-wrap:wrap;font-size:0.7rem;">
+          <span style="font-weight:700;color:#1B2A47;">Weights:</span>
+          <span style="display:flex;align-items:center;gap:0.2rem;"><span style="width:9px;height:9px;background:#FFF4F2;border:1.5px solid #8A3324;border-radius:2px;"></span><span style="color:#8A3324;font-weight:700;">FCP</span></span>
+          <span style="display:flex;align-items:center;gap:0.2rem;"><span style="width:9px;height:9px;background:#1B5E34;border-radius:2px;"></span><span style="color:#1B5E34;font-weight:700;">SFT-GO</span></span>
+          <span style="display:flex;align-items:center;gap:0.2rem;"><span style="width:9px;height:9px;background:#EAF3FB;border:1.5px solid #1B365D;border-radius:2px;"></span><span style="color:#1B365D;font-weight:700;">SCALe</span></span>
+          <span style="display:flex;align-items:center;gap:0.2rem;"><span style="width:9px;height:9px;background:#F5F0FF;border:1.5px solid #5B21B6;border-radius:2px;"></span><span style="color:#5B21B6;font-weight:700;">Final-SW</span></span>
+          <span style="display:flex;align-items:center;gap:0.2rem;"><span style="width:9px;height:9px;background:#FFF9F0;border:1.5px solid #D8B868;border-radius:2px;"></span><span style="color:#7A5C08;font-weight:700;">PDL</span></span>
+          <span style="display:flex;align-items:center;gap:0.2rem;"><span style="width:9px;height:9px;background:#FFF2EE;border:1.5px solid #D35400;border-radius:2px;"></span><span style="color:#D35400;font-weight:700;">InfoEnt</span></span>
+        </div>
+      </div>
+
+      <!-- 6 Technique Cards -->
+      <div>
+        <div class="tech-grid" style="margin-bottom:0.5rem;">
+          <div class="tech-card" style="border-color:#8A3324;">
+            <span class="tag" style="background:#8A3324;">FCP</span> <strong style="font-size:1rem;color:#8A3324;">&#x3bb;=0.2</strong>
+            <div style="font-size:0.7rem;color:#8A3324;font-weight:600;">EOS suppressed in &lt;think&gt;</div>
+            <div style="font-family:'Times New Roman',serif;font-size:0.72rem;color:#92400E;">max(P(EOS|t)−&#x3b4;, 0)²</div>
+          </div>
+          <div class="tech-card" style="border-color:#1B5E34;">
+            <span class="tag" style="background:#1B5E34;">SFT-GO</span>
+            <div style="font-size:0.7rem;color:#1B5E34;font-weight:600;">Structure token boost</div>
+            <div><span style="font-size:0.9rem;font-weight:800;color:#1B5E34;">×8</span> <span style="font-size:0.65rem;color:#5C7B9E;">boundary</span> <span style="font-size:0.9rem;font-weight:800;color:#1B5E34;">×2.5</span> <span style="font-size:0.65rem;color:#5C7B9E;">step</span></div>
+          </div>
+          <div class="tech-card" style="border-color:#1B365D;">
+            <span class="tag" style="background:#1B365D;">SCALe</span>
+            <div style="font-size:0.7rem;color:#1B365D;font-weight:600;">Cosine anneal think→final</div>
+            <div style="font-family:'Times New Roman',serif;font-size:0.7rem;color:#3B4E8A;">w = 0.3 + 0.35·(1+cos πs/S)</div>
+            <div style="font-size:0.65rem;color:#5C7B9E;">think: 1.0 → 0.3 | final: 1.0</div>
+          </div>
+        </div>
+        <div class="tech-grid" style="margin-bottom:0.5rem;">
+          <div class="tech-card" style="border-color:#5B21B6;">
+            <span class="tag" style="background:#5B21B6;font-size:0.65rem;">Final-SW</span>
+            <div style="font-size:0.7rem;color:#5B21B6;font-weight:600;">Prefix focus in &lt;final&gt;</div>
+            <div style="font-family:'Times New Roman',serif;font-size:0.7rem;color:#6D28D9;">&#x3bb;e<sup>−i/τ</sup>+(1−&#x3bb;)(1−i/L)</div>
+            <div style="font-size:0.65rem;color:#8B5CF6;">η=0.1, &#x3bb;=0.8, warmup 500</div>
+          </div>
+          <div class="tech-card" style="border-color:#D8B868;">
+            <span class="tag" style="background:#D8B868;color:#1B2A47;font-size:0.65rem;">PDL</span>
+            <div style="font-size:0.7rem;color:#7A5C08;font-weight:600;">Low-freq token boost</div>
+            <div style="font-family:'Times New Roman',serif;font-size:0.7rem;color:#92400E;">((f+&#x3b5;)/f<sub>max</sub>)<sup>−&#x3b1;</sup></div>
+            <div style="font-size:0.65rem;color:#B45309;">&#x3b1;=0.4, precomputed table</div>
+          </div>
+          <div class="tech-card" style="border-color:#D35400;">
+            <span class="tag" style="background:#D35400;font-size:0.65rem;">InfoEnt</span>
+            <div style="font-size:0.7rem;color:#D35400;font-weight:600;">Entropy-guided focus</div>
+            <div style="font-family:'Times New Roman',serif;font-size:0.7rem;color:#C2410C;">(1 − H/log<sub>e</sub>V)<sup>&#x3b3;</sup></div>
+            <div style="font-size:0.65rem;color:#EA580C;">&#x3b3;=0.5, dynamic per-step</div>
+          </div>
+        </div>
+        <!-- Stats -->
+        <div style="background:#1B2A47;border-radius:5px;padding:0.65rem 0.75rem;text-align:center;">
+          <div style="font-size:0.78rem;color:#98A9D1;">20,078 samples | 281 avg tok | 13M total | 52.9 struct tok/sample</div>
+          <div style="font-size:0.72rem;color:#FFF;margin-top:0.25rem;font-weight:700;">Trigger: val PPL ≤ 16 → progressive warmup 500 steps</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PHASE 3: Speculative Decoding ═══ -->
+<section class="section" id="phase3">
+  <div class="container">
+    <h2 class="sec-title">Phase 3 — Multi-Strategy Speculative Jacobi Decoding</h2>
+
+    <!-- Jacobi Visualization -->
+    <div class="card">
+      <div class="card-body">
+        <div style="background:#1B2A47;color:#FFF;font-family:Helvetica,Arial,sans-serif;font-size:1.1rem;font-weight:800;text-align:center;border-radius:6px;padding:0.65rem;margin-bottom:1rem;">
+          N-gram Accelerated Jacobi Parallel Decoding
+        </div>
+        <!-- Legend -->
+        <div class="legend-row">
+          <span style="display:inline-flex;align-items:center;gap:0.3rem;"><span class="legend-swatch" style="background:#98A9D1;border-color:#1B2A47;"></span> committed</span>
+          <span style="display:inline-flex;align-items:center;gap:0.3rem;"><span class="legend-swatch" style="background:#1B5E34;border-color:#1B5E34;"></span> real-accepted</span>
+          <span style="display:inline-flex;align-items:center;gap:0.3rem;"><span class="legend-swatch" style="background:#9374B1;border-color:#9374B1;"></span> pseudo-accepted</span>
+          <span style="display:inline-flex;align-items:center;gap:0.3rem;"><span class="legend-swatch" style="background:#8A3324;border-color:#8A3324;"></span> rejected</span>
+        </div>
+        <div class="svg-container" style="overflow-x:auto;">
+<svg viewBox="0 58 760 322" xmlns="http://www.w3.org/2000/svg" style="font-family:'Times New Roman',Times,serif;min-width:760px;">
+  <defs>
+    <marker id="p3-arBlack" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#1B2A47"/></marker>
+    <marker id="p3-arGray" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#98A9D1"/></marker>
+    <marker id="p3-arCyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#9374B1"/></marker>
+    <marker id="p3-arRedDown" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L8,0 L4,8 Z" fill="#8A3324"/></marker>
+    <marker id="p3-arRedLeft" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto"><path d="M8,0 L0,4 L8,8 Z" fill="#8A3324"/></marker>
+  </defs>
+  <text x="740" y="64" font-size="10.5" fill="#8A3324" font-weight="700" text-anchor="middle">iteration idx</text>
+  <text x="185" y="72" font-size="11.5" fill="#1B2A47" font-weight="700" text-anchor="middle">prompt</text>
+  <text x="377" y="72" font-size="12" fill="#1B2A47" font-weight="900" text-anchor="middle">block 0</text>
+  <text x="565" y="72" font-size="12" fill="#1B2A47" font-weight="900" text-anchor="middle">block 1</text>
+  <line x1="295" y1="78" x2="295" y2="337" stroke="#4B5563" stroke-width="2" stroke-dasharray="9,4"/>
+  <line x1="460" y1="78" x2="460" y2="350" stroke="#4B5563" stroke-width="2" stroke-dasharray="9,4"/>
+  <!-- Iteration j -->
+  <text x="745" y="122" font-size="15" fill="#1B2A47" font-weight="800" text-anchor="middle" font-style="italic">j</text>
+  <rect x="80" y="98" width="44" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="102" y="113" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">&lt;bos&gt;</text>
+  <rect x="127" y="98" width="58" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="156" y="113" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">Implement</text>
+  <rect x="188" y="98" width="50" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="213" y="113" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">bubble</text>
+  <rect x="241" y="98" width="42" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="262" y="113" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">sort</text>
+  <rect x="305" y="98" width="38" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="324" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">def</text>
+  <rect x="347" y="98" width="50" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="372" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">bubble</text>
+  <rect x="402" y="98" width="30" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="417" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">_</text>
+  <rect x="435" y="98" width="22" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="446" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">\n</text>
+  <rect x="470" y="98" width="30" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="485" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">(</text>
+  <rect x="503" y="98" width="36" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="521" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">arr</text>
+  <rect x="542" y="98" width="36" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="560" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">arr</text>
+  <rect x="581" y="98" width="46" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="604" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">range</text>
+  <line x1="400" y1="138" x2="455" y2="138" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#p3-arBlack)"/>
+  <text x="427" y="152" font-size="10" fill="#1B5E34" text-anchor="middle" font-weight="700">accepted, commit KV</text>
+  <!-- Iteration j+1 -->
+  <text x="745" y="207" font-size="15" fill="#1B2A47" font-weight="800" text-anchor="middle" font-style="italic">j + 1</text>
+  <rect x="80" y="183" width="44" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="102" y="198" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">&lt;bos&gt;</text>
+  <rect x="127" y="183" width="58" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="156" y="198" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">Implement</text>
+  <rect x="188" y="183" width="50" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="213" y="198" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">bubble</text>
+  <rect x="241" y="183" width="42" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="262" y="198" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">sort</text>
+  <rect x="305" y="183" width="38" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="324" y="198" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">def</text>
+  <rect x="347" y="183" width="50" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="372" y="198" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">bubble</text>
+  <rect x="402" y="183" width="30" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="417" y="198" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">_</text>
+  <rect x="435" y="183" width="22" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="446" y="198" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">sort</text>
+  <rect x="470" y="183" width="30" height="22" rx="4" fill="#9374B1" stroke="#9374B1" stroke-width="1.8"/><text x="485" y="198" font-size="11" fill="#fff" text-anchor="middle" font-weight="600">(</text>
+  <rect x="503" y="183" width="36" height="22" rx="4" fill="#9374B1" stroke="#9374B1" stroke-width="1.8"/><text x="521" y="198" font-size="11" fill="#fff" text-anchor="middle" font-weight="600">arr</text>
+  <rect x="542" y="183" width="36" height="22" rx="4" fill="#9374B1" stroke="#9374B1" stroke-width="1.8"/><text x="560" y="198" font-size="11" fill="#fff" text-anchor="middle" font-weight="600">arr</text>
+  <rect x="581" y="183" width="32" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="597" y="198" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">\n</text>
+  <line x1="74" y1="224" x2="432" y2="224" stroke="#9374B1" stroke-width="2.2" stroke-dasharray="7,4" marker-end="url(#p3-arCyan)"/>
+  <line x1="434" y1="224" x2="456" y2="224" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#p3-arBlack)"/>
+  <text x="230" y="238" font-size="10" fill="#9374B1" text-anchor="middle" font-weight="700">n-gram matching and parallel verification</text>
+  <!-- Iteration j+2 -->
+  <text x="745" y="292" font-size="15" fill="#1B2A47" font-weight="800" text-anchor="middle" font-style="italic">j + 2</text>
+  <rect x="80" y="268" width="44" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="102" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">&lt;bos&gt;</text>
+  <rect x="127" y="268" width="58" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="156" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">Implement</text>
+  <rect x="188" y="268" width="50" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="213" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">bubble</text>
+  <rect x="241" y="268" width="42" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="262" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">sort</text>
+  <rect x="305" y="268" width="38" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="324" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">def</text>
+  <rect x="347" y="268" width="50" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="372" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">bubble</text>
+  <rect x="402" y="268" width="30" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="417" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">_</text>
+  <rect x="435" y="268" width="22" height="22" rx="4" fill="#98A9D1" stroke="#1B2A47" stroke-width="1.8"/><text x="446" y="283" font-size="11" fill="#1B2A47" text-anchor="middle" font-weight="700">sort</text>
+  <rect x="470" y="268" width="30" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="485" y="283" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">(</text>
+  <rect x="503" y="268" width="36" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="521" y="283" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">arr</text>
+  <rect x="542" y="268" width="32" height="22" rx="4" fill="#1B5E34" stroke="#1B5E34" stroke-width="1.8"/><text x="558" y="283" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">)</text>
+  <rect x="578" y="268" width="30" height="22" rx="4" fill="#8A3324" stroke="#8A3324" stroke-width="1.8"/><text x="593" y="283" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">:</text>
+  <line x1="74" y1="310" x2="458" y2="310" stroke="#9374B1" stroke-width="2.2" stroke-dasharray="7,4" marker-end="url(#p3-arCyan)"/>
+  <line x1="610" y1="310" x2="700" y2="310" stroke="#1B2A47" stroke-width="2.2" marker-end="url(#p3-arBlack)"/>
+  <text x="655" y="324" font-size="10" fill="#1B5E34" text-anchor="middle" font-weight="700">accepted, commit KV</text>
+  <!-- n-gram pool -->
+  <rect x="4" y="83" width="68" height="267" rx="6" fill="#E8EDF5" stroke="#9374B1" stroke-width="2.5"/>
+  <text x="38" y="210" font-size="12.5" fill="#9374B1" font-weight="800" text-anchor="middle">n-gram</text>
+  <text x="38" y="225" font-size="12.5" fill="#9374B1" font-weight="800" text-anchor="middle">pool</text>
+  <line x1="703" y1="90" x2="703" y2="337" stroke="#8A3324" stroke-width="3.5" marker-end="url(#p3-arRedDown)"/>
+  <text x="740" y="80" font-size="14" fill="#8A3324" font-weight="900" text-anchor="middle">...</text>
+</svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy Components -->
+    <div class="grid-3">
+      <div class="card">
+        <div style="background:#1B2A47;color:#FFF;font-family:Helvetica,Arial,sans-serif;font-size:0.9rem;font-weight:700;text-align:center;padding:0.5rem;">N-gram Cache (n=4)</div>
+        <div class="card-body" style="font-size:0.8rem;">
+          <p>Query last 3 tokens → Hash Table (4-gram → next token)</p>
+          <p style="margin-top:0.25rem;"><strong>O(1) lookup · ~85% hit rate</strong></p>
+        </div>
+      </div>
+      <div class="card">
+        <div style="background:#1B5E34;color:#FFF;font-family:Helvetica,Arial,sans-serif;font-size:0.9rem;font-weight:700;text-align:center;padding:0.5rem;">Suffix Retrieval (PLD)</div>
+        <div class="card-body" style="font-size:0.8rem;">
+          <p>Find matching suffixes in history for draft tokens</p>
+          <p style="margin-top:0.25rem;"><strong>Leverages past decoding context</strong></p>
+        </div>
+      </div>
+      <div class="card">
+        <div style="background:#D8B868;color:#1B2A47;font-family:Helvetica,Arial,sans-serif;font-size:0.9rem;font-weight:700;text-align:center;padding:0.5rem;">Jacobi Sampling (p<sub>T</sub>)</div>
+        <div class="card-body" style="font-size:0.8rem;">
+          <p>Accept/reject draft tokens based on p<sub>T</sub> probability</p>
+          <p style="margin-top:0.25rem;"><strong>u &lt; p<sub>T</sub> → ACCEPT, else resample</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ EDGE APPLICATION ═══ -->
+<section class="section" id="edge">
+  <div class="container">
+    <h2 class="sec-title">Edge Application — Real-Time On-Device AI Assistant</h2>
+
+    <div class="flex-row">
+      <div style="flex:0 0 200px;text-align:center;">
+        <img src="assets/user_story2.png" style="width:100%;border-radius:6px;border:1.5px solid #98A9D1;" alt="Mamba Edge AI" onerror="this.style.display='none'" />
+        <div style="font-size:0.85rem;font-weight:700;color:#1B2A47;margin-top:0.4rem;">Mamba · Edge</div>
+        <div style="font-size:0.7rem;color:#4B5563;font-style:italic;">Apple Silicon · Fully Offline</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <!-- Three Guards -->
+        <div class="grid-3" style="margin-bottom:0.75rem;">
+          <div style="background:#FFF9F0;border:2px solid #8A3324;border-radius:8px;padding:0.75rem;">
+            <div style="font-size:1rem;font-weight:800;color:#1B2A47;">Format Guard</div>
+            <div class="mono" style="font-size:0.7rem;color:#1B2A47;">ban &lt;|im_start|&gt; &lt;/s&gt;</div>
+            <div class="mono" style="font-size:0.7rem;color:#1B2A47;">close_bias 4 → 16 ramp</div>
+          </div>
+          <div style="background:#E8EDF5;border:2px solid #1B2A47;border-radius:8px;padding:0.75rem;">
+            <div style="font-size:1rem;font-weight:800;color:#1B2A47;">Watchdog</div>
+            <div class="mono" style="font-size:0.7rem;color:#1B2A47;">think_tok ≥ 2000</div>
+            <div class="mono" style="font-size:0.7rem;color:#8A3324;">→ force_done()</div>
+          </div>
+          <div style="background:#E8EDF5;border:2px solid #1B5E34;border-radius:8px;padding:0.75rem;">
+            <div style="font-size:1rem;font-weight:800;color:#1B2A47;">Token Budget</div>
+            <div class="mono" style="font-size:0.7rem;color:#1B2A47;">reasoning_budget = 2000</div>
+            <div class="mono" style="font-size:0.7rem;color:#1B2A47;">final_min_tokens = 16</div>
+          </div>
+        </div>
+        <!-- FSM Pipeline -->
+        <div class="svg-container">
+<svg viewBox="0 0 560 80" xmlns="http://www.w3.org/2000/svg" style="font-family:'Times New Roman',Times,serif;">
+  <defs>
+    <marker id="ea" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B2A47"/></marker>
+    <marker id="eag" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#1B5E34"/></marker>
+  </defs>
+  <rect x="4" y="8" width="52" height="44" rx="8" fill="#E8EDF5" stroke="#1B2A47" stroke-width="2"/>
+  <text x="30" y="26" font-size="16" fill="#1B2A47" text-anchor="middle" font-weight="800">PROMPT</text>
+  <text x="30" y="40" font-size="9" fill="#4B5563" text-anchor="middle" font-weight="600">user input</text>
+  <line x1="56" y1="30" x2="78" y2="30" stroke="#1B2A47" stroke-width="2.5" marker-end="url(#ea)"/>
+  <rect x="78" y="4" width="76" height="52" rx="8" fill="#98A9D1" stroke="#1B2A47" stroke-width="2"/>
+  <text x="116" y="22" font-size="16" fill="#1B2A47" text-anchor="middle" font-weight="800">&lt;think&gt;</text>
+  <text x="116" y="36" font-size="9.5" fill="#1B2A47" text-anchor="middle" font-weight="600">think enter</text>
+  <line x1="154" y1="30" x2="176" y2="30" stroke="#1B2A47" stroke-width="2.5" marker-end="url(#ea)"/>
+  <rect x="176" y="4" width="88" height="52" rx="8" fill="#E8EDF5" stroke="#1B2A47" stroke-width="2"/>
+  <circle cx="204" cy="28" r="8" fill="none" stroke="#1B2A47" stroke-width="2"/>
+  <line x1="198" y1="22" x2="210" y2="34" stroke="#1B2A47" stroke-width="1.8"/>
+  <line x1="198" y1="34" x2="210" y2="22" stroke="#1B2A47" stroke-width="1.8" opacity="0.4"/>
+  <text x="245" y="22" font-size="15" fill="#1B2A47" text-anchor="middle" font-weight="800">reasoning</text>
+  <text x="245" y="36" font-size="9" fill="#1B2A47" text-anchor="middle">CoT step-by-step</text>
+  <line x1="264" y1="30" x2="286" y2="30" stroke="#1B2A47" stroke-width="2.5" marker-end="url(#ea)"/>
+  <rect x="286" y="4" width="72" height="52" rx="8" fill="#D8B868" stroke="#1B2A47" stroke-width="2"/>
+  <text x="322" y="22" font-size="16" fill="#1B2A47" text-anchor="middle" font-weight="800">&lt;/think&gt;</text>
+  <text x="322" y="36" font-size="9.5" fill="#1B2A47" text-anchor="middle" font-weight="600">think exit</text>
+  <line x1="358" y1="30" x2="380" y2="30" stroke="#1B5E34" stroke-width="2.5" marker-end="url(#eag)"/>
+  <rect x="380" y="4" width="72" height="52" rx="8" fill="#1B5E34" stroke="#1B5E34" stroke-width="2"/>
+  <polygon points="412,12 408,28 414,28 410,44 420,24 414,24 418,12" fill="#D8B868"/>
+  <text x="416" y="55" font-size="9" fill="#D1F0DB" text-anchor="middle" font-weight="600">inject</text>
+  <line x1="452" y1="30" x2="474" y2="30" stroke="#1B5E34" stroke-width="2.5" marker-end="url(#eag)"/>
+  <rect x="474" y="4" width="76" height="52" rx="8" fill="#1B5E34" stroke="#1B5E34" stroke-width="2"/>
+  <circle cx="496" cy="24" r="10" fill="none" stroke="#D8B868" stroke-width="2.5"/>
+  <polyline points="491,24 495,28 501,19" fill="none" stroke="#D8B868" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="529" y="22" font-size="14" fill="#FFF" text-anchor="middle" font-weight="800">answer</text>
+  <text x="529" y="36" font-size="9.5" fill="#D1F0DB" text-anchor="middle" font-weight="600">&lt;/final&gt;</text>
+</svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ RESULTS ═══ -->
+<section class="section" id="results">
+  <div class="container">
+    <h2 class="sec-title">Main Results, Compression Study &amp; Conclusion</h2>
+
+    <!-- Key Stats -->
+    <div class="stat-row">
+      <div class="stat-box" style="background:#E8EDF5;border-color:#1B2A47;">
+        <div class="stat-num" style="color:#1B2A47;">82.87%</div>
+        <div class="stat-label">Compression<br/>2.43B→417M</div>
+      </div>
+      <div class="stat-box" style="background:#FFF9F0;border-color:#D8B868;">
+        <div class="stat-num" style="color:#1B2A47;">~90%</div>
+        <div class="stat-label">Inference Cost<br/>Reduction</div>
+      </div>
+      <div class="stat-box" style="background:#E8EDF5;border-color:#98A9D1;">
+        <div class="stat-num" style="color:#1B2A47;">2.4B</div>
+        <div class="stat-label">Dense-Equiv<br/>Capacity</div>
+      </div>
+      <div class="stat-box" style="background:#E8EDF5;border-color:#1B5E34;">
+        <div class="stat-num" style="color:#1B5E34;">0.00135</div>
+        <div class="stat-label">Tucker MSE<br/>@ 82.87%</div>
+      </div>
+      <div class="stat-box" style="background:#FFF9F0;border-color:#8A3324;">
+        <div class="stat-num" style="color:#8A3324;">0.00247</div>
+        <div class="stat-label">SVD MSE<br/><span style="color:#8A3324;font-weight:700;">45.3% worse</span></div>
+      </div>
+    </div>
+
+    <!-- CE Loss Curve -->
+    <div style="margin-bottom:1rem;">
+      <img class="fig-img" src="assets/ce_loss.png" alt="CE Loss Curve" onerror="this.style.display='none'" />
+      <p class="fig-caption">Training progression: Pre-train → Indie Mode SFT → CoT SFT (v1→v2)</p>
+    </div>
+
+    <!-- Decode Comparison Table -->
+    <div class="table-wrap">
+      <div class="table-title">Decode: Mamba3 vs Transformer (M2 Pro, bf16)</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Context</th><th style="color:#8A3324;">Dense Xfmr<br/><span style="font-weight:400;font-size:0.8rem;">(tok/s)</span></th>
+            <th style="color:#1B5E34;">Mamba3<br/><span style="font-weight:400;font-size:0.8rem;">(tok/s)</span></th>
+            <th>Speedup</th><th>KV (Xfmr)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><em>512</em></td><td style="color:#8A3324;">35</td><td class="gn">42</td><td>1.2×</td><td>112 MiB</td></tr>
+          <tr><td><em>1,024</em></td><td style="color:#8A3324;">26</td><td class="gn">42</td><td class="hl">1.6×</td><td>224 MiB</td></tr>
+          <tr><td><em>4,096</em></td><td style="color:#8A3324;">11</td><td class="gn">41</td><td class="hl">3.7×</td><td>896 MiB</td></tr>
+          <tr><td><em>32K</em></td><td class="acc">OOM</td><td style="font-weight:800;color:#1B2A47;background:#D8B868;">40</td><td class="gn" style="font-weight:800;">≫40×</td><td style="color:#8A3324;">7.0 GB†</td></tr>
+        </tbody>
+      </table>
+      <div style="padding:0.4rem 0.6rem;font-size:0.8rem;color:#4B5563;font-style:italic;">†Exceeds 16 GB M2 Pro limit. Mamba3 KV: 14.1 MiB (O(1) SSM state)</div>
+    </div>
+
+    <!-- Speedup Table -->
+    <div class="table-wrap">
+      <div class="table-title">Speedup Ratio under Different Conditions (M2 Pro, bf16)</div>
+      <div style="overflow-x:auto;">
+      <table class="data-table" style="min-width:700px;">
+        <thead>
+          <tr>
+            <th><em>K</em></th>
+            <th>AR<br/><span style="font-weight:400;font-size:0.75rem;">(tok/s)</span></th>
+            <th>ARL</th><th>Greedy</th>
+            <th>SJD Cold<br/><span style="font-weight:400;font-size:0.75rem;">(512)</span></th>
+            <th>SJD Cold<br/><span style="font-weight:400;font-size:0.75rem;">(1024)</span></th>
+            <th>SJD Warm<br/><span style="font-weight:400;font-size:0.75rem;">(v1)</span></th>
+            <th>Demo<br/><span style="font-weight:400;font-size:0.75rem;">(v2,512)</span></th>
+            <th>Best<br/><span style="font-weight:400;font-size:0.75rem;">(2048)</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><em>1</em></td><td>~23†</td><td>1.00†</td><td style="color:#8A3324;">0.92×†</td><td style="color:#8A3324;">0.94×†</td><td>—</td><td>—</td><td>—</td><td style="color:#8A3324;">0.94×†</td></tr>
+          <tr><td><em>4</em></td><td>~22†</td><td>1.28†</td><td>1.18×†</td><td>1.12×†</td><td>1.38×†</td><td>1.52×†</td><td>—</td><td>1.52×†</td></tr>
+          <tr><td><em>8</em></td><td>17.2★</td><td>3.61★</td><td>1.38×†</td><td>1.22×★</td><td>2.37×★</td><td>1.92×†</td><td>—</td><td>2.37×★</td></tr>
+          <tr class="gold"><td><em>16</em></td><td>15.5★</td><td>5.92★</td><td>1.22×†</td><td>1.68×†</td><td>2.92×†</td><td class="gn">2.49×★</td><td class="acc">3.20×★</td><td style="font-weight:800;color:#1B2A47;">3.32×★</td></tr>
+          <tr><td><em>32</em></td><td>~15†</td><td>6.70†</td><td>1.05×†</td><td>2.80×†</td><td>3.10×†</td><td>3.02×†</td><td>—</td><td>3.10×†</td></tr>
+          <tr><td><em>64</em></td><td>~14†</td><td>6.80†</td><td style="color:#8A3324;">0.87×†</td><td>2.42×†</td><td>2.55×†</td><td>2.48×†</td><td>—</td><td>2.55×†</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div style="font-size:0.8rem;color:#4B5563;padding:0.5rem 0.6rem;">
+        ★ measured (M2 Pro, bf16, temp=0.15, top_p=0.85) · † extrapolated · <strong>Best: K=16, 2048 tok, cold, 3.32×</strong>
+      </div>
+    </div>
+
+    <!-- Tucker vs SVD -->
+    <div class="table-wrap">
+      <div class="table-title">Tucker vs SVD Reconstruction MSE ↓</div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Compress.</th><th style="color:#1B5E34;">Tucker MSE</th><th style="color:#8A3324;">SVD MSE</th><th>Δ</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><em>70%</em></td><td class="gn">0.00050</td><td style="color:#8A3324;">0.00070</td><td>+29%</td></tr>
+          <tr><td><em>80%</em></td><td class="gn">0.00100</td><td style="color:#8A3324;">0.00180</td><td class="hl">+44%</td></tr>
+          <tr class="gold"><td style="font-weight:800;">82.87%★</td><td style="font-weight:800;">0.00135</td><td class="acc" style="font-weight:800;">0.00247</td><td class="acc" style="font-weight:800;">+45.3%</td></tr>
+          <tr><td><em>90%</em></td><td class="gn">0.00250</td><td style="color:#8A3324;">0.00450</td><td class="hl">+44%</td></tr>
+          <tr><td><em>95%</em></td><td class="gn">0.00500</td><td style="color:#8A3324;">0.00850</td><td class="hl">+41%</td></tr>
+        </tbody>
+      </table>
+      <div style="padding:0.4rem 0.6rem;font-size:0.8rem;color:#4B5563;font-style:italic;">★ Chosen operating point. Tucker consistently outperforms SVD at 80–95%.</div>
+    </div>
+
+    <!-- Conclusion -->
+    <div class="hl-box ice">
+      <div class="conclusion-list">
+        <div class="conclusion-item">
+          <span class="conclusion-icon" style="color:#D8B868;">★</span>
+          <span><strong>First joint 3-way Tucker</strong> across all MoE experts in hybrid SSM-Transformer</span>
+        </div>
+        <div class="conclusion-item">
+          <span class="conclusion-icon" style="color:#1B5E34;">✓</span>
+          <span><strong style="color:#1B5E34;">Zero expert collapse</strong> — FCP + SFT-GO + SCALe ensure structured CoT</span>
+        </div>
+        <div class="conclusion-item">
+          <span class="conclusion-icon" style="color:#D8B868;">⚡</span>
+          <span>M2 Pro: <strong>3,800 tok/s prefill</strong>, <strong>68 tok/s decode</strong>; 14.1 MiB KV+SSM state = <strong style="color:#1B5E34;">background-executable</strong></span>
+        </div>
+        <div class="conclusion-item">
+          <span class="conclusion-icon" style="color:#8A3324;">◉</span>
+          <span><strong>Same compute, larger capacity</strong>: 230M active params → 2.4B dense-equiv, validated on iOS voice-first AI assistant</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div class="container">
+    <p>Hybrid Mamba-TuckerMoE for On-Device LLM Inference</p>
+    <p style="margin-top:0.25rem;">Hung-Wei Lai · Hsin-An Lan · Chun-Ming Hsu · Yu-Han Lu — NKUST, Taiwan</p>
+  </div>
+</footer>
+
+<!-- Progress Bar -->
+<div id="progress-bar"></div>
+
+<!-- Back to Top -->
+<button id="back-to-top" title="Back to top" aria-label="Back to top">&#x2191;</button>
+
+<!-- Particle Canvas -->
+<canvas id="particles-canvas"></canvas>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   SCROLL-BASED ANIMATIONS + PARTICLES + INTERACTIVITY
+   ═══════════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  /* ═══════════ SCROLL PROGRESS BAR ═══════════ */
+  var progressBar = document.getElementById('progress-bar');
+  window.addEventListener('scroll', function() {
+    var winH = document.documentElement.scrollHeight - window.innerHeight;
+    progressBar.style.width = winH > 0 ? (window.scrollY / winH * 100) + '%' : '0%';
+  });
+
+  /* ═══════════ BACK TO TOP ═══════════ */
+  var backBtn = document.getElementById('back-to-top');
+  window.addEventListener('scroll', function() {
+    backBtn.classList.toggle('visible', window.scrollY > 500);
+  });
+  backBtn.addEventListener('click', function() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  /* ═══════════ CANVAS PARTICLES ═══════════ */
+  (function() {
+    var canvas = document.getElementById('particles-canvas');
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var maxP = 70;
+    var mouseX = -100, mouseY = -100;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    document.addEventListener('mousemove', function(e) {
+      mouseX = e.clientX; mouseY = e.clientY;
+    });
+
+    for (var i = 0; i < maxP; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 2 + 0.5,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        opacity: Math.random() * 0.4 + 0.1,
+        color: ['#98a9d1','#d8b868','#9374b1','#1b5e34'][Math.floor(Math.random()*4)]
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(function(p) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+
+        var dx = mouseX - p.x, dy = mouseY - p.y;
+        var dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist < 150) {
+          p.x -= dx * 0.008;
+          p.y -= dy * 0.008;
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.opacity;
+        ctx.fill();
+
+        // Connect nearby particles
+        for (var j = i+1; j < particles.length; j++) {
+          var q = particles[j];
+          var dd = (p.x-q.x)*(p.x-q.x)+(p.y-q.y)*(p.y-q.y);
+          if (dd < 10000) {
+            ctx.beginPath();
+            ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+            ctx.strokeStyle = '#98a9d1';
+            ctx.globalAlpha = Math.max(0, 0.08 - dd/130000);
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      });
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(draw);
+    }
+    draw();
+  })();
+
+  /* ═══════════ RIPPLE CLICK ═══════════ */
+  document.querySelectorAll('.card,.stat-box,.tech-card,.ps-card,.table-wrap').forEach(function(el) {
+    el.classList.add('ripple-container');
+    el.addEventListener('click', function(e) {
+      var ripple = document.createElement('span');
+      ripple.className = 'ripple-effect';
+      var rect = el.getBoundingClientRect();
+      var size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+      el.appendChild(ripple);
+      setTimeout(function() { ripple.remove(); }, 700);
+    });
+  });
+
+  /* ═══════════ ORBIT DECORATIONS IN HERO ═══════════ */
+  (function() {
+    var hero = document.querySelector('.hero');
+    if (!hero) return;
+    var ring = document.createElement('div');
+    ring.className = 'orbit-ring';
+    ring.style.cssText = 'width:380px;height:380px;top:15%;right:-10%;animation:rotateSlow 20s linear infinite;';
+    hero.appendChild(ring);
+
+    var ring2 = document.createElement('div');
+    ring2.className = 'orbit-ring';
+    ring2.style.cssText = 'width:220px;height:220px;top:55%;left:-5%;animation:rotateSlowR 14s linear infinite;';
+    hero.appendChild(ring2);
+
+    for (var i = 0; i < 8; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'orbit-dot';
+      dot.style.cssText = 'top:'+(hero.offsetHeight*0.15)+'px;left:'+(hero.offsetWidth*0.15)+'px;'+
+        'background:var(--mustard-gold);opacity:'+(0.3+Math.random()*0.4)+';'+
+        'animation:orbit'+(i%3+1)+' '+(8+i*3)+'s linear infinite;';
+      hero.appendChild(dot);
+    }
+  })();
+
+  /* ═══════════ SCROLL-REVEAL OBSERVER ═══════════ */
+  var revealObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('reveal-visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
+
+  var allEls = document.querySelectorAll('.card,.stat-box,.tech-card,.badge,.table-wrap,.hl-box,.ps-card');
+  var elIdx = 0;
+  var staggerMap = ['delay-1','delay-2','delay-3','delay-4','delay-1','delay-2','delay-3','delay-4','delay-5','delay-2','delay-3','delay-1'];
+  allEls.forEach(function(el) {
+    el.classList.add('reveal','reveal-up');
+    el.classList.add(staggerMap[elIdx % staggerMap.length]);
+    revealObserver.observe(el);
+    elIdx++;
+  });
+
+  document.querySelectorAll('.sec-title').forEach(function(el) {
+    el.classList.add('reveal','reveal-left');
+    el.classList.add('delay-2');
+    revealObserver.observe(el);
+  });
+
+  /* Section content reveals */
+  document.querySelectorAll('.grid-2>div,.grid-3>div,.grid-4>div').forEach(function(el,i) {
+    el.classList.add('reveal','reveal-up');
+    el.classList.add('delay-'+(i%4+1));
+    revealObserver.observe(el);
+  });
+
+  document.querySelectorAll('.conclusion-item').forEach(function(el,i) {
+    el.classList.add('reveal');
+    el.classList.add('delay-'+(i+2));
+    revealObserver.observe(el);
+  });
+
+  document.querySelectorAll('.stat-box').forEach(function(el,i) {
+    el.classList.add('reveal','reveal-scale');
+    el.classList.add('delay-'+(i%5+1));
+    revealObserver.observe(el);
+  });
+
+  /* ═══════════ NAVBAR SCROLL ═══════════ */
+  var navbar = document.querySelector('.navbar');
+  var navLinks = document.querySelectorAll('.navbar a');
+  var sectionEls = [];
+  navLinks.forEach(function(link) {
+    var href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      var target = document.querySelector(href);
+      if (target) sectionEls.push({ link: link, el: target });
+    }
+  });
+
+  window.addEventListener('scroll', function() {
+    var sY = window.scrollY;
+    navbar.classList.toggle('scrolled', sY > 60);
+
+    var current = '';
+    sectionEls.forEach(function(s) {
+      if (sY >= s.el.offsetTop - 150) current = s.link.getAttribute('href');
+    });
+    navLinks.forEach(function(l) {
+      l.classList.toggle('active', l.getAttribute('href') === current);
+    });
+  });
+
+  navLinks.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      var t = document.querySelector(this.getAttribute('href'));
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  /* ═══════════ STATS COUNTER ═══════════ */
+  function animateCount(el, target, suffix, decimals) {
+    var start = 0, duration = 2000, startTime = null;
+    function step(ts) {
+      if (!startTime) startTime = ts;
+      var p = Math.min((ts-startTime)/duration, 1);
+      var e = 1 - Math.pow(1-p, 4);
+      el.textContent = (e*target).toFixed(decimals)+suffix;
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = target.toFixed(decimals)+suffix;
+    }
+    requestAnimationFrame(step);
+  }
+
+  var countObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('.stat-num').forEach(function(num) {
+          var txt = num.textContent.trim();
+          var m = txt.match(/^([\d.]+)(%?)$/);
+          if (m) {
+            var val = parseFloat(m[1]), suf = m[2]||'';
+            var dec = val < 100 && val % 1 !== 0 ? 5 : 0;
+            num.textContent = '0'+suf;
+            animateCount(num, val, suf, dec);
+          }
+        });
+        countObs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.4 });
+  document.querySelectorAll('.stat-row').forEach(function(r) { countObs.observe(r); });
+
+  /* ═══════════ SVG STROKE-DRAW ═══════════ */
+  var svgObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var svg = entry.target;
+        var lines = svg.querySelectorAll('line[stroke],path[stroke],polygon[stroke],rect[stroke]');
+        lines.forEach(function(line,i) {
+          if (line.hasAttribute('stroke-dasharray')) return;
+          try {
+            var len = line.getTotalLength ? line.getTotalLength() : 200;
+            line.style.strokeDasharray = len;
+            line.style.strokeDashoffset = len;
+            line.style.transition = 'stroke-dashoffset '+(1+i*0.15)+'s ease-in-out';
+            requestAnimationFrame(function() { line.style.strokeDashoffset = '0'; });
+          } catch(e) {}
+        });
+        svgObs.unobserve(svg);
+      }
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.svg-container svg').forEach(function(s) { svgObs.observe(s); });
+
+  /* ═══════════ TABLE ROW STAGGER ═══════════ */
+  document.querySelectorAll('table.data-table tbody tr').forEach(function(tr,i) {
+    tr.style.cssText = 'opacity:0;transform:translateX(-18px);transition:opacity 0.45s ease,transform 0.45s ease;';
+    tr.style.transitionDelay = (i*0.06)+'s';
+  });
+  var tblObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('tbody tr').forEach(function(tr,i) {
+          setTimeout(function() { tr.style.opacity='1';tr.style.transform='translateX(0)'; }, i*70);
+        });
+        tblObs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.table-wrap').forEach(function(t) { tblObs.observe(t); });
+
+  /* ═══════════ PARALLAX HERO ═══════════ */
+  var heroEl = document.querySelector('.hero');
+  if (heroEl) {
+    window.addEventListener('scroll', function() {
+      var s = window.scrollY;
+      if (s < window.innerHeight) {
+        heroEl.style.transform = 'translateY('+(s*0.15)+'px)';
+        heroEl.style.opacity = Math.max(0.4, 1 - s/window.innerHeight);
+      }
+    });
+  }
+
+  /* ═══════════ 3D TILT ON CARDS ═══════════ */
+  document.querySelectorAll('.card,.stat-box,.tech-card,.ps-card').forEach(function(card) {
+    card.addEventListener('mousemove', function(e) {
+      var rect = card.getBoundingClientRect();
+      var x = (e.clientX - rect.left) / rect.width - 0.5;
+      var y = (e.clientY - rect.top) / rect.height - 0.5;
+      var intensity = 5;
+      card.style.transform = 'perspective(800px) rotateY('+(x*intensity)+'deg) rotateX('+(-y*intensity)+'deg) translateZ(2px)';
+    });
+    card.addEventListener('mouseleave', function() {
+      card.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg) translateZ(0)';
+    });
+  });
+
+  /* ═══════════ SECTION BACKGROUND SHIFT ═══════════ */
+  document.querySelectorAll('.section').forEach(function(sec,i) {
+    sec.style.transition = 'background 0.8s ease';
+    sec.addEventListener('mouseenter', function() {
+      sec.style.background = i%2===0 ? '#fcfdfe' : '#f4f6f9';
+    });
+    sec.addEventListener('mouseleave', function() {
+      sec.style.background = '';
+    });
+  });
+
+})();
+</script>
+
+</body>
+</html>
