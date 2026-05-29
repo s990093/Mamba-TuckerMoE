@@ -135,6 +135,17 @@ def main():
                         "ARL/K_cur ratio).")
     p.add_argument("--K_min", type=int, default=4)
     p.add_argument("--K_max", type=int, default=16)
+    p.add_argument("--cot_caches", type=str, default=None,
+                   help="Path to a pkl baked by bake_cot_caches: pre-warms "
+                        "the lookahead-branch draft source with think + "
+                        "final n-grams harvested from the training corpus. "
+                        "Phase is auto-tracked via </think>/<final> "
+                        "marker tokens.")
+    p.add_argument("--cot_bucket", type=str, default=None,
+                   help="(v2 cot_caches only) bucket key whose per-category "
+                        "caches/retriever should drive the cot_ngram + "
+                        "cot_retriever slots.  Defaults to the bundle's "
+                        "baked default_bucket.")
     p.add_argument("--dtype", default="fp32", choices=list(DTYPE_MAP),
                    help="fp32 = strict byte-equal; bf16 = soft (warn on drift).")
     p.add_argument("--no-eos-stop", action="store_true",
@@ -216,6 +227,8 @@ def main():
             use_retrieval=args.use_retrieval,
             adaptive_K=args.adaptive_K,
             K_min=args.K_min, K_max=args.K_max,
+            cot_caches=args.cot_caches,
+            cot_bucket=args.cot_bucket,
             stop_token_ids=sorted(stop_set),
             no_eos_stop=args.no_eos_stop,
         )
@@ -250,6 +263,8 @@ def main():
             feat.append("rt")
         if args.adaptive_K:
             feat.append("aK")
+        if args.cot_caches:
+            feat.append("cot")
         feat_tag = "+".join(feat) if feat else "-"
         print(
             f"[verify] K={K:3d} {feat_tag} tree_B={tree_B} "

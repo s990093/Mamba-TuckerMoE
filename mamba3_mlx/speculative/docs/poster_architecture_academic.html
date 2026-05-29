@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Poster — Training-Free Speculative Jacobi Decoding for Mamba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f1f3f5;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .poster-canvas {
+            width: 1920px;
+            height: 1080px;
+            background: #ffffff;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            padding: 2.2rem 3rem;
+            position: relative;
+            transform-origin: top left;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .title-font { font-family: 'Libre Baskerville', serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .box {
+            background: #ffffff;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .box-title {
+            position: absolute;
+            top: -15px;
+            left: 24px;
+            background: #ffffff;
+            padding: 0 12px;
+            font-weight: 800;
+            font-size: 1.0rem;
+            color: #212529;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        svg { overflow: visible; }
+        .word-token { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; }
+        .math { font-family: 'Libre Baskerville', serif; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <svg style="width:0;height:0;position:absolute;">
+        <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#adb5bd" /></marker>
+            <marker id="arrow-slot0" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1864ab" /></marker>
+            <marker id="arrow-slot1" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5f3dc4" /></marker>
+            <marker id="arrow-slot1-alt" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#d9480f" /></marker>
+            <marker id="arrow-slot2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2b8a3e" /></marker>
+            <marker id="arrow-dark" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#212529" /></marker>
+            <marker id="arrow-teal" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#0ca678" /></marker>
+            <marker id="arrow-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#868e96" /></marker>
+            <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#d9480f" /></marker>
+            <marker id="arrow-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#e03131" /></marker>
+            <marker id="arrow-accept" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2b8a3e" /></marker>
+            <marker id="arrow-reject" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#e03131" /></marker>
+            <linearGradient id="gradient-think" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f3f0ff" /><stop offset="100%" stop-color="#e5dbff" />
+            </linearGradient>
+            <linearGradient id="gradient-final" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#fff4e6" /><stop offset="100%" stop-color="#ffe8cc" />
+            </linearGradient>
+            <linearGradient id="grad-seq" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#fff5f5"/><stop offset="100%" stop-color="#ffe3e3"/>
+            </linearGradient>
+            <linearGradient id="grad-scan" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#e6fcf5"/><stop offset="100%" stop-color="#c3fae8"/>
+            </linearGradient>
+            <linearGradient id="grad-slot0" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#e7f5ff"/><stop offset="100%" stop-color="#d0ebff"/>
+            </linearGradient>
+            <linearGradient id="grad-slot1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f3f0ff"/><stop offset="100%" stop-color="#e5dbff"/>
+            </linearGradient>
+            <linearGradient id="grad-slot2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ebfbee"/><stop offset="100%" stop-color="#d3f9d8"/>
+            </linearGradient>
+            <linearGradient id="grad-fallback" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f8f9fa"/><stop offset="100%" stop-color="#f1f3f5"/>
+            </linearGradient>
+            <filter id="shadow-soft" x="-5%" y="-5%" width="110%" height="110%">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.07"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="poster-canvas" style="transform: scale(min(calc(100vw / 1920), calc(100vh / 1080)));">
+
+        <!-- ═══════════ HEADER ═══════════ -->
+        <header class="text-center mb-5">
+            <h1 class="text-4xl font-bold title-font text-[#212529]">Training-Free Speculative Jacobi Decoding for Mamba</h1>
+            <p class="text-lg text-[#868e96] mt-1 font-medium">Multi-Source Draft Assembly &bull; Associative Parallel-Prefix Verification &bull; Phase-Aware CoT Caching</p>
+        </header>
+
+        <!-- ═══════════ ROW 1: JACOBI BUILDER + MAMBA TREE VERIFY ═══════════ -->
+        <div class="flex flex-[2] gap-6 mb-5">
+
+            <!-- LEFT: Jacobi Branch Builder (enhanced) -->
+            <div class="flex-1 box p-4 pt-9 border-[#ced4da] z-10 shadow-[0_0_30px_rgba(0,0,0,0.05)] flex flex-col">
+                <span class="box-title">Jacobi Branch Builder</span>
+                <p class="text-center text-[11px] text-gray-400 mb-1">Decorrelated sequences from independent draft components — K-1 tokens per slot, priority: 0→1→2→3+</p>
+                <div class="flex-1 w-full flex flex-col items-center justify-center">
+                    <svg width="100%" height="100%" viewBox="0 0 620 410">
+
+                        <!-- Background lane highlights -->
+                        <rect x="148" y="16" width="440" height="52" rx="8" fill="url(#grad-slot0)" opacity="0.5"/>
+                        <rect x="148" y="96" width="440" height="52" rx="8" fill="url(#grad-slot1)" opacity="0.6"/>
+                        <rect x="148" y="200" width="440" height="52" rx="8" fill="url(#grad-slot2)" opacity="0.5"/>
+                        <rect x="148" y="305" width="440" height="52" rx="8" fill="url(#grad-fallback)" opacity="0.7"/>
+
+                        <!-- Root Context token -->
+                        <rect x="18" y="158" width="82" height="46" rx="10" fill="#343a40" filter="url(#shadow-soft)"/>
+                        <text x="59" y="177" fill="#fff" class="word-token" text-anchor="middle" font-size="14">"am"</text>
+                        <text x="59" y="195" fill="#adb5bd" font-size="11" font-weight="bold" text-anchor="middle">Context t</text>
+
+                        <!-- Diverging paths with styled curves -->
+                        <path d="M 108 181 Q 130 181 130 42 T 152 42" fill="none" stroke="#1864ab" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.7"/>
+                        <path d="M 108 181 Q 130 181 130 122 T 152 122" fill="none" stroke="#5f3dc4" stroke-width="3.5"/>
+                        <path d="M 108 181 Q 130 181 130 226 T 152 226" fill="none" stroke="#2b8a3e" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.7"/>
+                        <path d="M 108 181 Q 130 181 130 330 T 152 330" fill="none" stroke="#adb5bd" stroke-width="2" stroke-dasharray="3,3" opacity="0.5"/>
+
+                        <!-- Priority badges -->
+                        <rect x="152" y="8" width="22" height="16" rx="8" fill="#1864ab"/>
+                        <text x="163" y="20" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">P0</text>
+
+                        <rect x="152" y="88" width="22" height="16" rx="8" fill="#5f3dc4"/>
+                        <text x="163" y="100" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">P1</text>
+
+                        <rect x="152" y="192" width="22" height="16" rx="8" fill="#2b8a3e"/>
+                        <text x="163" y="204" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">P2</text>
+
+                        <rect x="152" y="296" width="22" height="16" rx="8" fill="#adb5bd"/>
+                        <text x="163" y="308" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">P3</text>
+
+                        <!-- Slot 0: Suffix Retriever (PLD) -->
+                        <text x="178" y="22" fill="#1864ab" font-weight="800" font-size="11">Slot 0 — PLD Suffix Retriever</text>
+                        <!-- Token chain -->
+                        <rect x="178" y="28" width="52" height="30" rx="7" fill="#fff" stroke="#1864ab" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="204" y="47" fill="#1864ab" class="word-token" style="font-size:12px" text-anchor="middle">"an"</text>
+                        <path d="M 235 43 L 252 43" fill="none" stroke="#1864ab" stroke-width="2" marker-end="url(#arrow-slot0)"/>
+                        <rect x="257" y="28" width="62" height="30" rx="7" fill="#fff" stroke="#1864ab" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="288" y="47" fill="#1864ab" class="word-token" style="font-size:12px" text-anchor="middle">"LLM"</text>
+                        <path d="M 324 43 L 341 43" fill="none" stroke="#1864ab" stroke-width="2" marker-end="url(#arrow-slot0)"/>
+                        <rect x="346" y="28" width="72" height="30" rx="7" fill="#fff" stroke="#1864ab" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="382" y="47" fill="#1864ab" class="word-token" style="font-size:12px" text-anchor="middle">"model"</text>
+                        <!-- Annotation -->
+                        <rect x="432" y="28" width="152" height="30" rx="7" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5"/>
+                        <text x="508" y="40" fill="#1864ab" font-size="9" text-anchor="middle">longest-suffix scan in buf</text>
+                        <text x="508" y="53" fill="#1864ab" font-size="9" font-weight="bold" text-anchor="middle">recency-biased, O(window)</text>
+
+                        <!-- Slot 1: CoT Lookahead (Phase-Aware) -->
+                        <text x="178" y="102" fill="#5f3dc4" font-weight="800" font-size="11">Slot 1 — CoT Lookahead (Phase-Aware, Pre-warmed)</text>
+                        <rect x="178" y="108" width="62" height="30" rx="7" fill="#fff" stroke="#5f3dc4" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="209" y="127" fill="#5f3dc4" class="word-token" style="font-size:12px" text-anchor="middle">"Step"</text>
+                        <path d="M 245 123 L 262 123" fill="none" stroke="#5f3dc4" stroke-width="2.5" marker-end="url(#arrow-slot1)"/>
+                        <rect x="267" y="108" width="52" height="30" rx="7" fill="#fff" stroke="#5f3dc4" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="293" y="127" fill="#5f3dc4" class="word-token" style="font-size:12px" text-anchor="middle">"1:"</text>
+                        <path d="M 324 123 L 341 123" fill="none" stroke="#5f3dc4" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-slot1)"/>
+                        <rect x="346" y="108" width="62" height="30" rx="7" fill="#f3f0ff" stroke="#5f3dc4" stroke-width="1.5" stroke-dasharray="4"/>
+                        <text x="377" y="127" fill="#9775fa" class="word-token" style="font-size:11px" text-anchor="middle">"First"</text>
+                        <!-- Phase badge -->
+                        <rect x="432" y="108" width="152" height="30" rx="7" fill="#f3f0ff" stroke="#d0bfff" stroke-width="1.5"/>
+                        <text x="508" y="120" fill="#5f3dc4" font-size="9" text-anchor="middle">think.pkl / final.pkl (O(1))</text>
+                        <text x="508" y="133" fill="#5f3dc4" font-size="9" font-weight="bold" text-anchor="middle">offline freq-ranked ngrams</text>
+
+                        <!-- Slot 2: Runtime N-Gram -->
+                        <text x="178" y="206" fill="#2b8a3e" font-weight="800" font-size="11">Slot 2 — Runtime N-Gram (MRU, n=4)</text>
+                        <rect x="178" y="212" width="52" height="30" rx="7" fill="#fff" stroke="#2b8a3e" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="204" y="231" fill="#2b8a3e" class="word-token" style="font-size:12px" text-anchor="middle">"an"</text>
+                        <path d="M 235 227 L 252 227" fill="none" stroke="#2b8a3e" stroke-width="2" marker-end="url(#arrow-slot2)"/>
+                        <rect x="257" y="212" width="44" height="30" rx="7" fill="#fff" stroke="#2b8a3e" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="279" y="231" fill="#2b8a3e" class="word-token" style="font-size:12px" text-anchor="middle">"AI"</text>
+                        <path d="M 306 227 L 323 227" fill="none" stroke="#2b8a3e" stroke-width="2" marker-end="url(#arrow-slot2)"/>
+                        <rect x="328" y="212" width="98" height="30" rx="7" fill="#fff" stroke="#2b8a3e" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="377" y="231" fill="#2b8a3e" class="word-token" style="font-size:12px" text-anchor="middle">"assistant"</text>
+                        <!-- Annotation -->
+                        <rect x="432" y="212" width="152" height="30" rx="7" fill="#ebfbee" stroke="#b2f2bb" stroke-width="1.5"/>
+                        <text x="508" y="224" fill="#2b8a3e" font-size="9" text-anchor="middle">updated every verify round</text>
+                        <text x="508" y="237" fill="#2b8a3e" font-size="9" font-weight="bold" text-anchor="middle">LRU eviction, max 8192 keys</text>
+
+                        <!-- Slot 3+: Fallback -->
+                        <text x="178" y="308" fill="#868e96" font-weight="800" font-size="11">Slot 3+ — Carry Seed / Top-k Diversity</text>
+                        <rect x="178" y="315" width="52" height="28" rx="7" fill="#fff" stroke="#adb5bd" stroke-width="1.5"/>
+                        <text x="204" y="333" fill="#868e96" class="word-token" style="font-size:11px" text-anchor="middle">"am"</text>
+                        <path d="M 235 329 L 252 329" fill="none" stroke="#adb5bd" stroke-width="1.5" marker-end="url(#arrow)"/>
+                        <rect x="257" y="315" width="40" height="28" rx="7" fill="#fff" stroke="#adb5bd" stroke-width="1.5"/>
+                        <text x="277" y="333" fill="#868e96" class="word-token" style="font-size:11px" text-anchor="middle">"I"</text>
+                        <path d="M 302 329 L 319 329" fill="none" stroke="#adb5bd" stroke-width="1.5" marker-end="url(#arrow)"/>
+                        <rect x="324" y="315" width="86" height="28" rx="7" fill="#fff" stroke="#adb5bd" stroke-width="1.5"/>
+                        <text x="367" y="333" fill="#868e96" class="word-token" style="font-size:11px" text-anchor="middle">"right?"</text>
+                        <!-- Annotation -->
+                        <rect x="432" y="313" width="152" height="30" rx="7" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1.5"/>
+                        <text x="508" y="325" fill="#868e96" font-size="9" text-anchor="middle">prev accepted or top-k sample</text>
+                        <text x="508" y="338" fill="#adb5bd" font-size="9" text-anchor="middle">fallback diversity</text>
+
+                        <!-- Batch forward bracket -->
+                        <path d="M 596 24 L 612 24 L 612 352 L 596 352" fill="none" stroke="#ced4da" stroke-width="2.5"/>
+                        <text x="615" y="188" font-weight="bold" font-size="12" fill="#868e96" transform="rotate(90,615,188)" text-anchor="middle">Batch Forward (W=tree_B, K)</text>
+
+                        <!-- Bottom legend bar -->
+                        <rect x="18" y="378" width="568" height="22" rx="5" fill="#f8f9fa" stroke="#e9ecef" stroke-width="1"/>
+                        <circle cx="38" cy="389" r="5" fill="#1864ab"/>
+                        <text x="48" y="393" fill="#495057" font-size="9">PLD: prompt lookback</text>
+                        <circle cx="148" cy="389" r="5" fill="#5f3dc4"/>
+                        <text x="158" y="393" fill="#495057" font-size="9">CoT phase-gated</text>
+                        <circle cx="258" cy="389" r="5" fill="#2b8a3e"/>
+                        <text x="268" y="393" fill="#495057" font-size="9">Runtime n-gram</text>
+                        <circle cx="368" cy="389" r="5" fill="#adb5bd"/>
+                        <text x="378" y="393" fill="#495057" font-size="9">Fallback seed</text>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- RIGHT: Mamba Tree Verify — VERTICAL: Sequential TOP, Scan BOTTOM (maximized) -->
+            <div class="flex-[1.15] box p-4 pt-9 border-[#ced4da] z-10 flex flex-col bg-[#fafafa]">
+                <span class="box-title text-[#0ca678]">Mamba Parallel Verify — Associative Scan</span>
+
+                <div class="flex-1 w-full flex flex-col justify-center">
+                    <svg width="100%" height="100%" viewBox="0 0 820 440">
+
+                        <!-- ═══ TOP SECTION: Sequential Bottleneck (compact horizontal) ═══ -->
+                        <rect x="8" y="4" width="804" height="108" rx="12" fill="url(#grad-seq)" stroke="#ffc9c9" stroke-width="2"/>
+                        <text x="415" y="26" class="title-font" font-weight="bold" font-size="16" fill="#fa5252" text-anchor="middle">Autoregressive Decode — Sequential O(N) Steps</text>
+
+                        <!-- Sequential chain: horizontal, compact -->
+                        <!-- Step label -->
+                        <text x="28" y="55" fill="#fa5252" font-size="10" font-weight="bold">Step t</text>
+                        <!-- Token boxes connected by arrows -->
+                        <rect x="20" y="60" width="62" height="36" rx="7" fill="#fff" stroke="#fa5252" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="51" y="82" class="mono font-bold" fill="#fa5252" font-size="13" text-anchor="middle">h_t</text>
+
+                        <path d="M 87 78 L 118 78" fill="none" stroke="#fa5252" stroke-width="2.5" marker-end="url(#arrow-red)"/>
+                        <text x="102" y="70" fill="#fa5252" font-size="9" text-anchor="middle">serial</text>
+
+                        <rect x="123" y="60" width="72" height="36" rx="7" fill="#fff" stroke="#fa5252" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="159" y="82" class="mono font-bold" fill="#fa5252" font-size="13" text-anchor="middle">h_{t+1}</text>
+
+                        <path d="M 200 78 L 231 78" fill="none" stroke="#fa5252" stroke-width="2.5" marker-end="url(#arrow-red)"/>
+                        <text x="215" y="70" fill="#fa5252" font-size="9" text-anchor="middle">serial</text>
+
+                        <rect x="236" y="60" width="72" height="36" rx="7" fill="#fff" stroke="#fa5252" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="272" y="82" class="mono font-bold" fill="#fa5252" font-size="13" text-anchor="middle">h_{t+2}</text>
+
+                        <path d="M 313 78 L 344 78" fill="none" stroke="#fa5252" stroke-width="2.5" marker-end="url(#arrow-red)"/>
+                        <text x="328" y="70" fill="#fa5252" font-size="9" text-anchor="middle">serial</text>
+
+                        <rect x="349" y="60" width="72" height="36" rx="7" fill="#fff" stroke="#fa5252" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="385" y="82" class="mono font-bold" fill="#fa5252" font-size="13" text-anchor="middle">h_{t+3}</text>
+
+                        <text x="440" y="78" fill="#fa5252" font-size="18" font-weight="bold">· · ·</text>
+
+                        <rect x="482" y="60" width="62" height="36" rx="7" fill="#fff" stroke="#fa5252" stroke-width="2" stroke-dasharray="5"/>
+                        <text x="513" y="82" class="mono font-bold" fill="#ffa8a8" font-size="13" text-anchor="middle">h_{t+K}</text>
+
+                        <!-- Cost badge -->
+                        <rect x="568" y="52" width="230" height="52" rx="8" fill="#fff5f5" stroke="#ff6b6b" stroke-width="1.5"/>
+                        <text x="683" y="70" fill="#fa5252" font-weight="bold" font-size="12" text-anchor="middle">K × forward_pass</text>
+                        <text x="683" y="85" fill="#fa5252" font-size="10" text-anchor="middle">depth = O(N) — each step must wait</text>
+                        <text x="683" y="98" fill="#c92a2a" font-size="10" font-weight="bold" text-anchor="middle">~50 ms/step on M2 Pro (bf16)</text>
+
+                        <!-- VS / transformation arrow -->
+                        <line x1="415" y1="116" x2="415" y2="138" stroke="#ced4da" stroke-width="2" stroke-dasharray="4"/>
+                        <polygon points="408,134 422,134 415,142" fill="#0ca678"/>
+                        <rect x="370" y="118" width="90" height="22" rx="11" fill="#0ca678"/>
+                        <text x="415" y="133" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle">Replace with ↓</text>
+
+                        <!-- ═══ BOTTOM SECTION: Associative Prefix Scan (MAXIMIZED) ═══ -->
+                        <rect x="8" y="144" width="804" height="290" rx="14" fill="url(#grad-scan)" stroke="#20c997" stroke-width="2.5"/>
+                        <text x="415" y="168" class="title-font" font-weight="bold" font-size="18" fill="#0ca678" text-anchor="middle">Associative Parallel-Prefix Scan — Depth O(log N)</text>
+
+                        <!-- Operator formula -->
+                        <rect x="230" y="178" width="370" height="28" rx="14" fill="#fff" stroke="#0ca678" stroke-width="1.5"/>
+                        <text x="415" y="197" class="math" fill="#0ca678" font-size="13" text-anchor="middle">e = (A, B)     e₁ ⊗ e₂ = (A₂·A₁,  A₂·B₁ + B₂)</text>
+
+                        <!-- Level 0: Input nodes row -->
+                        <text x="80" y="225" fill="#495057" font-size="11" font-weight="bold" text-anchor="middle">Inputs</text>
+
+                        <rect x="140" y="212" width="90" height="32" rx="8" fill="#343a40" filter="url(#shadow-soft)"/>
+                        <text x="185" y="232" class="mono font-bold" fill="#fff" font-size="12" text-anchor="middle">(A₁, B₁)</text>
+
+                        <rect x="290" y="212" width="90" height="32" rx="8" fill="#343a40" filter="url(#shadow-soft)"/>
+                        <text x="335" y="232" class="mono font-bold" fill="#fff" font-size="12" text-anchor="middle">(A₂, B₂)</text>
+
+                        <rect x="440" y="212" width="90" height="32" rx="8" fill="#343a40" filter="url(#shadow-soft)"/>
+                        <text x="485" y="232" class="mono font-bold" fill="#fff" font-size="12" text-anchor="middle">(A₃, B₃)</text>
+
+                        <rect x="590" y="212" width="90" height="32" rx="8" fill="#343a40" filter="url(#shadow-soft)"/>
+                        <text x="635" y="232" class="mono font-bold" fill="#fff" font-size="12" text-anchor="middle">(A₄, B₄)</text>
+
+                        <!-- Level 1: Pair-wise combine -->
+                        <text x="80" y="278" fill="#0ca678" font-size="10" font-weight="bold" text-anchor="middle">Level 1</text>
+
+                        <!-- Cross arrows: left→right neighbor -->
+                        <path d="M 185 244 C 185 268, 335 268, 335 270" fill="none" stroke="#0ca678" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+                        <path d="M 335 244 C 335 268, 485 268, 485 270" fill="none" stroke="#0ca678" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+                        <path d="M 485 244 C 485 268, 635 268, 635 270" fill="none" stroke="#0ca678" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+
+                        <!-- Passthrough verticals -->
+                        <line x1="185" y1="244" x2="185" y2="270" stroke="#adb5bd" stroke-width="1.5"/>
+                        <line x1="335" y1="244" x2="335" y2="270" stroke="#adb5bd" stroke-width="1.5"/>
+                        <line x1="485" y1="244" x2="485" y2="270" stroke="#adb5bd" stroke-width="1.5"/>
+                        <line x1="635" y1="244" x2="635" y2="270" stroke="#adb5bd" stroke-width="1.5"/>
+
+                        <!-- ⊗ operators level 1 -->
+                        <circle cx="335" cy="265" r="12" fill="#fff" stroke="#0ca678" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="335" y="270" font-weight="bold" font-size="14" fill="#0ca678" text-anchor="middle">⊗</text>
+                        <circle cx="485" cy="265" r="12" fill="#fff" stroke="#0ca678" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="485" y="270" font-weight="bold" font-size="14" fill="#0ca678" text-anchor="middle">⊗</text>
+                        <circle cx="635" cy="265" r="12" fill="#fff" stroke="#0ca678" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="635" y="270" font-weight="bold" font-size="14" fill="#0ca678" text-anchor="middle">⊗</text>
+
+                        <!-- Level 1 output nodes -->
+                        <rect x="130" y="282" width="110" height="30" rx="7" fill="#fff" stroke="#0ca678" stroke-width="2"/>
+                        <text x="185" y="301" class="mono font-bold" fill="#0ca678" font-size="11" text-anchor="middle">(A₁, B₁)</text>
+
+                        <rect x="280" y="282" width="110" height="30" rx="7" fill="#fff" stroke="#0ca678" stroke-width="2"/>
+                        <text x="335" y="301" class="mono font-bold" fill="#0ca678" font-size="11" text-anchor="middle">(A₂₁, B₂₁)</text>
+
+                        <rect x="430" y="282" width="110" height="30" rx="7" fill="#fff" stroke="#0ca678" stroke-width="2"/>
+                        <text x="485" y="301" class="mono font-bold" fill="#0ca678" font-size="11" text-anchor="middle">(A₃₂, B₃₂)</text>
+
+                        <rect x="580" y="282" width="110" height="30" rx="7" fill="#fff" stroke="#0ca678" stroke-width="2"/>
+                        <text x="635" y="301" class="mono font-bold" fill="#0ca678" font-size="11" text-anchor="middle">(A₄₃, B₄₃)</text>
+
+                        <!-- Level 2: Stride-2 combine -->
+                        <text x="80" y="355" fill="#0ca678" font-size="10" font-weight="bold" text-anchor="middle">Level 2</text>
+
+                        <path d="M 185 312 C 185 344, 485 344, 485 346" fill="none" stroke="#0ca678" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+                        <path d="M 335 312 C 335 344, 635 344, 635 346" fill="none" stroke="#0ca678" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+
+                        <line x1="185" y1="312" x2="185" y2="346" stroke="#adb5bd" stroke-width="1.5"/>
+                        <line x1="335" y1="312" x2="335" y2="346" stroke="#adb5bd" stroke-width="1.5"/>
+                        <line x1="485" y1="312" x2="485" y2="346" stroke="#adb5bd" stroke-width="1.5"/>
+                        <line x1="635" y1="312" x2="635" y2="346" stroke="#adb5bd" stroke-width="1.5"/>
+
+                        <circle cx="485" cy="341" r="12" fill="#fff" stroke="#0ca678" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="485" y="346" font-weight="bold" font-size="14" fill="#0ca678" text-anchor="middle">⊗</text>
+                        <circle cx="635" cy="341" r="12" fill="#fff" stroke="#0ca678" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="635" y="346" font-weight="bold" font-size="14" fill="#0ca678" text-anchor="middle">⊗</text>
+
+                        <!-- Final h states — prominent -->
+                        <rect x="142" y="356" width="86" height="44" rx="10" fill="#12b886" filter="url(#shadow-soft)"/>
+                        <text x="185" y="381" class="mono font-bold" fill="#fff" font-size="17" text-anchor="middle">h_t</text>
+
+                        <rect x="292" y="356" width="86" height="44" rx="10" fill="#12b886" filter="url(#shadow-soft)"/>
+                        <text x="335" y="381" class="mono font-bold" fill="#fff" font-size="17" text-anchor="middle">h_{t+1}</text>
+
+                        <rect x="442" y="356" width="86" height="44" rx="10" fill="#12b886" filter="url(#shadow-soft)"/>
+                        <text x="485" y="381" class="mono font-bold" fill="#fff" font-size="17" text-anchor="middle">h_{t+2}</text>
+
+                        <rect x="592" y="356" width="86" height="44" rx="10" fill="#12b886" filter="url(#shadow-soft)"/>
+                        <text x="635" y="381" class="mono font-bold" fill="#fff" font-size="17" text-anchor="middle">h_{t+3}</text>
+
+                        <!-- Key result banner -->
+                        <rect x="130" y="406" width="560" height="24" rx="8" fill="#fff" stroke="#0ca678" stroke-width="1.5"/>
+                        <text x="410" y="422" fill="#0ca678" font-weight="bold" font-size="12" text-anchor="middle">All K hidden states in ONE pass — depth O(log₂K), no replay forward</text>
+
+                        <!-- Optimization callout -->
+                        <rect x="700" y="160" width="105" height="60" rx="8" fill="#fff" stroke="#20c997" stroke-width="1.5"/>
+                        <text x="752" y="176" fill="#0ca678" font-weight="bold" font-size="10" text-anchor="middle">Optimizations</text>
+                        <text x="752" y="190" fill="#0ca678" font-size="8" text-anchor="middle">① shrink_chunk</text>
+                        <text x="752" y="202" fill="#0ca678" font-size="8" text-anchor="middle">Lc=L → 16× cost cut</text>
+                        <text x="752" y="214" fill="#0ca678" font-size="8" text-anchor="middle">② per-pos h extract</text>
+
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ ROW 2: ACCEPT/REJECT VISUAL + CACHE STRUCTURES ═══════════ -->
+        <div class="flex gap-6 mb-5" style="flex: 1.05;">
+
+            <!-- LEFT: SJD Accept/Reject Visual -->
+            <div class="flex-1 box p-4 pt-9 border-[#ced4da] z-10 flex flex-col">
+                <span class="box-title">SJD Rejection-Sampling — Accept / Reject Flow</span>
+                <div class="flex-1 w-full flex flex-col justify-center">
+                    <svg width="100%" height="100%" viewBox="0 0 840 230">
+
+                        <!-- Header label -->
+                        <text x="12" y="16" fill="#868e96" font-weight="bold" font-size="10">Prompt: "I am" → K=4 draft guess = ["an", "LLM", "model"]   |   Verify forward → logits for each position</text>
+
+                        <!-- ═══ TOP: Draft tokens with acceptance/rejection decisions ═══ -->
+
+                        <!-- Token 0: "an" → ACCEPT -->
+                        <rect x="12" y="24" width="130" height="72" rx="10" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="77" y="42" fill="#2b8a3e" font-size="10" font-weight="bold" text-anchor="middle">g₀ = "an"</text>
+                        <rect x="26" y="50" width="100" height="16" rx="4" fill="#d3f9d8"/>
+                        <text x="76" y="62" fill="#2b8a3e" font-size="9" text-anchor="middle">p_T(g₀) = 0.87</text>
+                        <text x="76" y="80" fill="#2b8a3e" font-size="9" text-anchor="middle">u₀ = 0.41 &lt; 0.87</text>
+                        <!-- Accept badge -->
+                        <rect x="30" y="84" width="92" height="18" rx="9" fill="#2b8a3e"/>
+                        <text x="76" y="97" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">✓ ACCEPTED</text>
+
+                        <!-- Arrow between tokens -->
+                        <path d="M 148 60 L 172 60" fill="none" stroke="#2b8a3e" stroke-width="2" marker-end="url(#arrow-accept)"/>
+
+                        <!-- Token 1: "LLM" → ACCEPT -->
+                        <rect x="177" y="24" width="130" height="72" rx="10" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="242" y="42" fill="#2b8a3e" font-size="10" font-weight="bold" text-anchor="middle">g₁ = "LLM"</text>
+                        <rect x="191" y="50" width="100" height="16" rx="4" fill="#d3f9d8"/>
+                        <text x="241" y="62" fill="#2b8a3e" font-size="9" text-anchor="middle">p_T(g₁) = 0.72</text>
+                        <text x="241" y="80" fill="#2b8a3e" font-size="9" text-anchor="middle">u₁ = 0.33 &lt; 0.72</text>
+                        <rect x="195" y="84" width="92" height="18" rx="9" fill="#2b8a3e"/>
+                        <text x="241" y="97" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">✓ ACCEPTED</text>
+
+                        <!-- Arrow between tokens -->
+                        <path d="M 313 60 L 337 60" fill="none" stroke="#e03131" stroke-width="2" marker-end="url(#arrow-reject)"/>
+
+                        <!-- Token 2: "model" → REJECT -->
+                        <rect x="342" y="24" width="130" height="72" rx="10" fill="#fff5f5" stroke="#e03131" stroke-width="2.5" filter="url(#shadow-soft)"/>
+                        <text x="407" y="42" fill="#e03131" font-size="10" font-weight="bold" text-anchor="middle">g₂ = "model"</text>
+                        <rect x="356" y="50" width="100" height="16" rx="4" fill="#ffe3e3"/>
+                        <text x="406" y="62" fill="#e03131" font-size="9" text-anchor="middle">p_T(g₂) = 0.61</text>
+                        <text x="406" y="80" fill="#e03131" font-size="9" text-anchor="middle">u₂ = 0.85 &gt; 0.61</text>
+                        <rect x="360" y="84" width="92" height="18" rx="9" fill="#e03131"/>
+                        <text x="406" y="97" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">✗ REJECTED</text>
+
+                        <!-- Resample arc -->
+                        <path d="M 407 96 Q 407 140 560 140" fill="none" stroke="#e03131" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrow-reject)"/>
+                        <text x="490" y="128" fill="#e03131" font-size="9" text-anchor="middle">resample from residual</text>
+
+                        <!-- Resample box -->
+                        <rect x="488" y="24" width="170" height="72" rx="10" fill="#fff4e6" stroke="#d9480f" stroke-width="2" filter="url(#shadow-soft)"/>
+                        <text x="573" y="40" fill="#d9480f" font-size="10" font-weight="bold" text-anchor="middle">Residual Resample</text>
+                        <text x="573" y="55" fill="#868e96" font-size="9" text-anchor="middle">q(x) = max(0, p_T - p_D) / Z</text>
+                        <text x="573" y="68" fill="#868e96" font-size="9" text-anchor="middle">exclude "model" → draw new</text>
+                        <rect x="510" y="74" width="126" height="18" rx="9" fill="#d9480f"/>
+                        <text x="573" y="87" fill="#fff" font-size="9" font-weight="bold" text-anchor="middle">→ emits "system"</text>
+
+                        <!-- compiled_accept kernel -->
+                        <rect x="672" y="24" width="158" height="72" rx="10" fill="#fff" stroke="#495057" stroke-width="1.5" filter="url(#shadow-soft)"/>
+                        <text x="751" y="40" fill="#343a40" font-weight="bold" font-size="10" text-anchor="middle">JIT compiled_accept</text>
+                        <text x="751" y="54" fill="#868e96" font-size="9" text-anchor="middle">filter + index + uniform</text>
+                        <text x="751" y="66" fill="#868e96" font-size="9" text-anchor="middle">→ 1 Metal dispatch</text>
+                        <text x="751" y="78" fill="#0ca678" font-size="9" font-weight="bold" text-anchor="middle">O(K) parallel</text>
+                        <!-- Arrow to compiled_accept -->
+                        <path d="M 342 42 L 320 20 L 690 20 L 672 42" fill="none" stroke="#495057" stroke-width="1.5" stroke-dasharray="4"/>
+
+                        <!-- ═══ BOTTOM: Emitted sequence result ═══ -->
+                        <line x1="12" y1="112" x2="826" y2="112" stroke="#e9ecef" stroke-width="1.5"/>
+                        <text x="12" y="126" fill="#868e96" font-weight="bold" font-size="10">Emitted sequence:</text>
+
+                        <!-- Emitted "an" -->
+                        <rect x="100" y="116" width="62" height="30" rx="7" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2"/>
+                        <text x="131" y="135" fill="#2b8a3e" class="mono" font-weight="bold" font-size="12" text-anchor="middle">"an"</text>
+
+                        <path d="M 166 131 L 186 131" fill="none" stroke="#2b8a3e" stroke-width="2" marker-end="url(#arrow-accept)"/>
+
+                        <!-- Emitted "LLM" -->
+                        <rect x="191" y="116" width="62" height="30" rx="7" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2"/>
+                        <text x="222" y="135" fill="#2b8a3e" class="mono" font-weight="bold" font-size="12" text-anchor="middle">"LLM"</text>
+
+                        <path d="M 257 131 L 277 131" fill="none" stroke="#e03131" stroke-width="2" stroke-dasharray="5" marker-end="url(#arrow-reject)"/>
+                        <text x="270" y="123" fill="#e03131" font-size="8">reject</text>
+
+                        <!-- Resampled "system" -->
+                        <rect x="282" y="116" width="80" height="30" rx="7" fill="#fff4e6" stroke="#d9480f" stroke-width="2"/>
+                        <text x="322" y="135" fill="#d9480f" class="mono" font-weight="bold" font-size="12" text-anchor="middle">"system"</text>
+                        <text x="322" y="154" fill="#d9480f" font-size="8" text-anchor="middle">resampled</text>
+
+                        <!-- Result bar -->
+                        <rect x="12" y="165" width="590" height="56" rx="8" fill="#f8f9fa" stroke="#e9ecef" stroke-width="1.5"/>
+                        <text x="30" y="183" fill="#343a40" font-size="11"><tspan font-weight="bold">Round result:</tspan> m=3 emitted tokens, ARL=3.0 this round</text>
+                        <text x="30" y="198" fill="#868e96" font-size="10">Accept rule: u_i &lt; p_T(g_i | logits[i]) → accept;  else resample from residual q(x)</text>
+                        <text x="30" y="212" fill="#495057" font-size="10"><tspan font-weight="bold">Guarantee:</tspan> emitted distribution = target p_T exactly (no quality loss)</text>
+
+                        <!-- ARL formula box -->
+                        <rect x="616" y="165" width="218" height="56" rx="8" fill="#fff4e6" stroke="#d9480f" stroke-width="2"/>
+                        <text x="725" y="182" fill="#d9480f" font-weight="bold" font-size="13" text-anchor="middle">E[ARL] ≈ K · p̄</text>
+                        <text x="725" y="198" fill="#868e96" font-size="10" text-anchor="middle">p̄ ≈ avg accept rate</text>
+                        <text x="725" y="212" fill="#d9480f" font-size="10" font-weight="bold" text-anchor="middle">p̄ = 0.6 → ARL ≈ K·0.6</text>
+
+                    </svg>
+                </div>
+            </div>
+
+            <!-- RIGHT: Cache Data Structures -->
+            <div class="flex-1 box p-4 pt-9 border-[#ced4da] z-10 flex flex-col">
+                <span class="box-title">Cache Data Structures</span>
+                <div class="flex-1 w-full flex flex-col justify-center">
+                    <svg width="100%" height="100%" viewBox="0 0 780 370">
+
+                        <!-- ═══ NGramCache ═══ -->
+                        <rect x="5" y="2" width="380" height="175" rx="10" fill="#ebfbee" stroke="#b2f2bb" stroke-width="1.5"/>
+                        <text x="195" y="22" fill="#2b8a3e" font-weight="bold" font-size="13" text-anchor="middle">NGramCache (n=4, key_len=3, max_cont=4)</text>
+
+                        <rect x="15" y="32" width="100" height="28" rx="4" fill="#fff" stroke="#2b8a3e" stroke-width="1.5"/>
+                        <text x="65" y="49" fill="#2b8a3e" font-weight="bold" font-size="10" text-anchor="middle">OrderedDict(key)</text>
+                        <text x="125" y="52" font-size="14" fill="#adb5bd">→</text>
+                        <rect x="140" y="32" width="110" height="28" rx="4" fill="#fff" stroke="#2b8a3e" stroke-width="1.5"/>
+                        <text x="195" y="49" fill="#2b8a3e" font-weight="bold" font-size="10" text-anchor="middle">list[int] MRU-first</text>
+
+                        <rect x="15" y="70" width="280" height="85" rx="6" fill="#fff" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="155" y="85" fill="#868e96" font-size="9" font-weight="bold" text-anchor="middle">Example entries (runtime-updated):</text>
+
+                        <rect x="25" y="92" width="120" height="18" rx="3" fill="#f8f9fa" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="85" y="105" fill="#343a40" font-size="9" text-anchor="middle">("I","am","an")</text>
+                        <text x="152" y="105" fill="#adb5bd" font-size="9">→</text>
+                        <rect x="160" y="92" width="125" height="18" rx="3" fill="#ebfbee" stroke="#b2f2bb" stroke-width="1"/>
+                        <text x="222" y="105" fill="#2b8a3e" font-size="9" text-anchor="middle">[LLM, AI, right?]</text>
+
+                        <rect x="25" y="114" width="120" height="18" rx="3" fill="#f8f9fa" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="85" y="127" fill="#343a40" font-size="9" text-anchor="middle">("Step","1",":")</text>
+                        <text x="152" y="127" fill="#adb5bd" font-size="9">→</text>
+                        <rect x="160" y="114" width="125" height="18" rx="3" fill="#f3f0ff" stroke="#d0bfff" stroke-width="1"/>
+                        <text x="222" y="127" fill="#5f3dc4" font-size="9" text-anchor="middle">[Define, Let, We]</text>
+
+                        <rect x="25" y="136" width="120" height="18" rx="3" fill="#f8f9fa" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="85" y="149" fill="#343a40" font-size="9" text-anchor="middle">...</text>
+                        <text x="152" y="149" fill="#adb5bd" font-size="9">→</text>
+                        <rect x="160" y="136" width="125" height="18" rx="3" fill="#f8f9fa" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="222" y="149" fill="#868e96" font-size="9" text-anchor="middle">max_entries=8192</text>
+
+                        <rect x="310" y="32" width="70" height="122" rx="6" fill="#fff" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="345" y="48" fill="#343a40" font-weight="bold" font-size="9" text-anchor="middle">Methods</text>
+                        <text x="345" y="64" fill="#2b8a3e" font-size="8" text-anchor="middle">query(key)</text>
+                        <text x="345" y="78" fill="#2b8a3e" font-size="8" text-anchor="middle">→ MRU tok</text>
+                        <line x1="320" y1="84" x2="370" y2="84" stroke="#e9ecef"/>
+                        <text x="345" y="96" fill="#2b8a3e" font-size="8" text-anchor="middle">query_topk</text>
+                        <text x="345" y="110" fill="#2b8a3e" font-size="8" text-anchor="middle">→ top-k list</text>
+                        <line x1="320" y1="116" x2="370" y2="116" stroke="#e9ecef"/>
+                        <text x="345" y="128" fill="#2b8a3e" font-size="8" text-anchor="middle">update_sequence</text>
+                        <text x="345" y="142" fill="#2b8a3e" font-size="8" text-anchor="middle">to_state/from</text>
+
+                        <!-- ═══ SuffixRetriever ═══ -->
+                        <rect x="5" y="185" width="380" height="180" rx="10" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5"/>
+                        <text x="195" y="205" fill="#1864ab" font-weight="bold" font-size="13" text-anchor="middle">SuffixRetriever (max_window=4096, max_suffix=8)</text>
+
+                        <rect x="15" y="218" width="350" height="55" rx="6" fill="#fff" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="190" y="233" fill="#868e96" font-size="9" font-weight="bold" text-anchor="middle">buf: list[int] — rolling buffer (prompt + generated)</text>
+
+                        <rect x="20" y="240" width="28" height="22" rx="3" fill="#f8f9fa" stroke="#dee2e6"/><text x="34" y="255" fill="#343a40" font-size="9" text-anchor="middle">I</text>
+                        <rect x="51" y="240" width="28" height="22" rx="3" fill="#f8f9fa" stroke="#dee2e6"/><text x="65" y="255" fill="#343a40" font-size="9" text-anchor="middle">am</text>
+                        <rect x="82" y="240" width="28" height="22" rx="3" fill="#e7f5ff" stroke="#1864ab" stroke-width="1.5"/><text x="96" y="255" fill="#1864ab" font-size="9" font-weight="bold">an</text>
+                        <rect x="113" y="240" width="38" height="22" rx="3" fill="#e7f5ff" stroke="#1864ab" stroke-width="1.5"/><text x="132" y="255" fill="#1864ab" font-size="9" font-weight="bold">LLM</text>
+                        <rect x="154" y="240" width="48" height="22" rx="3" fill="#f8f9fa" stroke="#dee2e6"/><text x="178" y="255" fill="#868e96" font-size="8" text-anchor="middle">model</text>
+                        <text x="215" y="255" fill="#adb5bd" font-size="9">...</text>
+
+                        <rect x="285" y="240" width="75" height="30" rx="5" fill="#fff" stroke="#1864ab" stroke-width="1.5"/>
+                        <text x="322" y="253" fill="#1864ab" font-size="9" font-weight="bold" text-anchor="middle">query(tail, K-1)</text>
+                        <text x="322" y="265" fill="#868e96" font-size="8" text-anchor="middle">longest suffix → cont.</text>
+
+                        <rect x="15" y="285" width="350" height="68" rx="6" fill="#fff" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="190" y="300" fill="#868e96" font-size="9" font-weight="bold" text-anchor="middle">query(["I", "am", "an"], K-1) → ["LLM", "model", ...]</text>
+                        <line x1="25" y1="308" x2="355" y2="308" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="32" y="322" fill="#343a40" font-size="9">① Scan buf from <tspan font-weight="bold">max_suffix↓min_suffix</tspan>:</text>
+                        <text x="44" y="336" fill="#1864ab" font-size="9">L=3: ["I","am","an"] match @ index 3 → cont = buf[6:6+K-1]</text>
+                        <text x="32" y="350" fill="#343a40" font-size="9">② <tspan fill="#868e96">Recency-biased: scans buf from right; first hit wins</tspan></text>
+
+                        <!-- ═══ CoTPhaseTracker ═══ -->
+                        <rect x="395" y="2" width="380" height="175" rx="10" fill="#f3f0ff" stroke="#d0bfff" stroke-width="1.5"/>
+                        <text x="585" y="22" fill="#5f3dc4" font-weight="bold" font-size="13" text-anchor="middle">CoTPhaseTracker (state machine)</text>
+
+                        <text x="585" y="46" fill="#868e96" font-size="9" text-anchor="middle"><tspan font-weight="bold">State:</tspan> think | final | other</text>
+
+                        <rect x="410" y="58" width="100" height="40" rx="8" fill="#fff" stroke="#5f3dc4" stroke-width="2.5"/>
+                        <text x="460" y="75" fill="#5f3dc4" font-weight="bold" font-size="12" text-anchor="middle">THINK</text>
+                        <text x="460" y="90" fill="#5f3dc4" font-size="9" text-anchor="middle">active: think_cache</text>
+
+                        <path d="M 510 78 L 545 78" fill="none" stroke="#adb5bd" stroke-width="2" marker-end="url(#arrow-gray)"/>
+                        <text x="527" y="72" fill="#868e96" font-size="8" text-anchor="middle">&lt;/think&gt;</text>
+
+                        <rect x="550" y="58" width="100" height="40" rx="8" fill="#fff" stroke="#adb5bd" stroke-width="2"/>
+                        <text x="600" y="75" fill="#868e96" font-weight="bold" font-size="12" text-anchor="middle">OTHER</text>
+                        <text x="600" y="90" fill="#868e96" font-size="9" text-anchor="middle">active: None</text>
+
+                        <path d="M 600 98 Q 600 115 530 130" fill="none" stroke="#d9480f" stroke-width="2" marker-end="url(#arrow-orange)"/>
+                        <text x="565" y="118" fill="#d9480f" font-size="8">&lt;final&gt;</text>
+
+                        <rect x="450" y="120" width="100" height="40" rx="8" fill="#fff" stroke="#d9480f" stroke-width="2.5"/>
+                        <text x="500" y="137" fill="#d9480f" font-weight="bold" font-size="12" text-anchor="middle">FINAL</text>
+                        <text x="500" y="152" fill="#d9480f" font-size="9" text-anchor="middle">active: final_cache</text>
+
+                        <path d="M 450 140 L 415 140" fill="none" stroke="#adb5bd" stroke-width="2" marker-end="url(#arrow-gray)"/>
+                        <text x="432" y="134" fill="#868e96" font-size="8" text-anchor="middle">&lt;/final&gt;</text>
+
+                        <path d="M 550 78 Q 585 55 510 58" fill="none" stroke="#5f3dc4" stroke-width="2" marker-end="url(#arrow-slot1)"/>
+                        <text x="545" y="52" fill="#5f3dc4" font-size="8" text-anchor="middle">&lt;think&gt;</text>
+
+                        <rect x="410" y="168" width="160" height="15" rx="3" fill="#f8f9fa"/>
+                        <text x="490" y="178" fill="#868e96" font-size="8" text-anchor="middle">&lt;think&gt; &lt;/think&gt; &lt;final&gt; &lt;/final&gt;</text>
+
+                        <!-- ═══ cot_caches pickle ═══ -->
+                        <rect x="395" y="185" width="380" height="180" rx="10" fill="#fff4e6" stroke="#ffc078" stroke-width="1.5"/>
+                        <text x="585" y="205" fill="#d9480f" font-weight="bold" font-size="13" text-anchor="middle">cot_caches_n4.pkl — Serialized Bundle</text>
+
+                        <rect x="410" y="218" width="350" height="135" rx="6" fill="#fff" stroke="#e9ecef" stroke-width="1"/>
+                        <text x="420" y="236" fill="#343a40" font-size="9"><tspan font-weight="bold">{</tspan></text>
+                        <text x="430" y="250" fill="#5f3dc4" font-size="9"><tspan font-weight="bold">"think"</tspan>: NGramCache.to_state(),</text>
+                        <text x="430" y="266" fill="#d9480f" font-size="9"><tspan font-weight="bold">"final"</tspan>: NGramCache.to_state(),</text>
+                        <text x="430" y="282" fill="#0ca678" font-size="9"><tspan font-weight="bold">"args"</tspan>: {</text>
+                        <text x="440" y="296" fill="#868e96" font-size="8">ngram_n: 4, max_cont: 4,</text>
+                        <text x="440" y="308" fill="#868e96" font-size="8">n_samples: N, n_think_tokens: ...,</text>
+                        <text x="440" y="320" fill="#868e96" font-size="8">n_final_tokens: ...</text>
+                        <text x="430" y="332" fill="#0ca678" font-size="9"><tspan font-weight="bold">},</tspan></text>
+                        <text x="430" y="346" fill="#343a40" font-size="9"><tspan font-weight="bold">}</tspan></text>
+
+                        <rect x="640" y="220" width="105" height="32" rx="6" fill="#d9480f"/>
+                        <text x="692" y="235" fill="#fff" font-weight="bold" font-size="11" text-anchor="middle">~2 MB, n=4</text>
+                        <text x="692" y="248" fill="#fff" font-size="8" text-anchor="middle">freq-ranked top-K</text>
+
+                        <text x="585" y="365" fill="#868e96" font-size="9" text-anchor="middle">load_cot_caches() → (think_cache, final_cache, markers) → CoTPhaseTracker</text>
+
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ ROW 3: DRAFT CACHE ECOSYSTEM ═══════════ -->
+        <div class="box p-4 pt-9 border-[#ced4da] bg-white z-10" style="flex: 1.15;">
+            <span class="box-title">Draft Cache Ecosystem — Offline Baking + Runtime Sources</span>
+
+            <div class="flex gap-5 h-full mt-1">
+
+                <!-- COLUMN A: Offline Baking Pipeline -->
+                <div class="flex-[1.8] rounded-xl bg-[#fffbf0] border-2 border-[#ffc078] p-3 flex flex-col relative">
+                    <div class="font-bold text-[#d9480f] text-sm mb-1.5 text-center">Offline Baking (run once per checkpoint)</div>
+                    <div class="flex-1 flex items-center justify-center">
+                        <svg width="100%" height="100%" viewBox="0 0 400 240">
+                            <rect x="5" y="5" width="180" height="95" rx="8" fill="#fff" stroke="#d9480f" stroke-width="1.5"/>
+                            <text x="95" y="25" fill="#d9480f" font-weight="bold" font-size="11" text-anchor="middle">bake_cache.py</text>
+                            <text x="95" y="42" fill="#868e96" font-size="9" text-anchor="middle">Model AR-sampling on</text>
+                            <text x="95" y="54" fill="#868e96" font-size="9" text-anchor="middle">4 lifestyle prompts</text>
+                            <rect x="15" y="62" width="160" height="14" rx="3" fill="#f8f9fa"/><text x="95" y="73" fill="#343a40" font-size="8" text-anchor="middle">6,144 tokens, ~6 min, → 40 KB .pkl</text>
+                            <text x="95" y="94" fill="#d9480f" font-weight="bold" font-size="9" text-anchor="middle">demo_cache_v2.pkl {ngram, retriever}</text>
+
+                            <path d="M 192 52 L 212 52 L 212 30 L 225 30" fill="none" stroke="#d9480f" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+                            <rect x="5" y="115" width="180" height="115" rx="8" fill="#fff" stroke="#d9480f" stroke-width="1.5"/>
+                            <text x="95" y="135" fill="#d9480f" font-weight="bold" font-size="11" text-anchor="middle">bake_cot_caches.py</text>
+                            <text x="95" y="152" fill="#868e96" font-size="9" text-anchor="middle">Reads CoT training .bin / JSON</text>
+                            <text x="95" y="164" fill="#868e96" font-size="9" text-anchor="middle">No model inference needed</text>
+                            <rect x="15" y="172" width="160" height="13" rx="3" fill="#f3f0ff"/><text x="95" y="182" fill="#5f3dc4" font-size="8" text-anchor="middle">&lt;think&gt; slice → think_cache (freq-ranked)</text>
+                            <rect x="15" y="188" width="160" height="13" rx="3" fill="#fff4e6"/><text x="95" y="198" fill="#d9480f" font-size="8" text-anchor="middle">&lt;final&gt; slice → final_cache (freq-ranked)</text>
+                            <text x="95" y="220" fill="#d9480f" font-weight="bold" font-size="9" text-anchor="middle">cot_caches_n4.pkl {think, final, markers}</text>
+
+                            <path d="M 192 172 L 212 172 L 212 155 L 225 155" fill="none" stroke="#5f3dc4" stroke-width="1.5" marker-end="url(#arrow-slot1)"/>
+
+                            <rect x="230" y="5" width="165" height="225" rx="8" fill="#fffbeb" stroke="#fcc419" stroke-width="1.5"/>
+                            <text x="312" y="25" fill="#343a40" font-weight="bold" font-size="11" text-anchor="middle">Output Artifacts</text>
+                            <line x1="245" y1="34" x2="380" y2="34" stroke="#e9ecef"/>
+                            <text x="312" y="52" fill="#343a40" font-weight="bold" font-size="10" text-anchor="middle">demo_cache_v2.pkl</text>
+                            <text x="312" y="64" fill="#868e96" font-size="8" text-anchor="middle">{ngram, retriever}, ~40 KB</text>
+                            <text x="312" y="76" fill="#868e96" font-size="8" text-anchor="middle">Load in ~1 ms at startup</text>
+                            <line x1="245" y1="85" x2="380" y2="85" stroke="#e9ecef"/>
+                            <text x="312" y="103" fill="#343a40" font-weight="bold" font-size="10" text-anchor="middle">cot_caches_n4.pkl</text>
+                            <text x="312" y="115" fill="#868e96" font-size="8" text-anchor="middle">{think, final, markers}, ~2 MB</text>
+                            <text x="312" y="127" fill="#868e96" font-size="8" text-anchor="middle">Frequency-weighted, n=4</text>
+                            <line x1="245" y1="136" x2="380" y2="136" stroke="#e9ecef"/>
+                            <text x="312" y="154" fill="#343a40" font-weight="bold" font-size="10" text-anchor="middle">Runtime caches</text>
+                            <text x="312" y="166" fill="#868e96" font-size="8" text-anchor="middle">NGramCache — update per round</text>
+                            <text x="312" y="178" fill="#868e96" font-size="8" text-anchor="middle">SuffixRetriever — extend per round</text>
+                            <text x="312" y="190" fill="#868e96" font-size="8" text-anchor="middle">CoTPhaseTracker — observe phase</text>
+                            <line x1="245" y1="199" x2="380" y2="199" stroke="#e9ecef"/>
+                            <text x="312" y="216" fill="#0ca678" font-weight="bold" font-size="9" text-anchor="middle">Serializable to_state()/from_state()</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- COLUMN B: Runtime Cache Sources (3 slots) -->
+                <div class="flex-[2.5] rounded-xl border-2 border-[#dee2e6] p-3 flex flex-col relative bg-[#fafafa]">
+                    <div class="font-bold text-gray-700 text-sm mb-2 text-center">Runtime Draft Cache Sources &mdash; Heterogeneous Priority Slots</div>
+
+                    <div class="flex-1 flex items-stretch gap-4">
+
+                        <!-- Slot 0: Suffix Retriever -->
+                        <div class="flex-1 rounded-xl bg-white border-2 border-[#a5d8ff] p-2.5 flex flex-col shadow-sm">
+                            <div class="font-bold text-[#1864ab] text-xs mb-2">Slot 0: PLD Suffix</div>
+                            <div class="flex flex-col gap-2 flex-1 justify-center">
+                                <div class="flex flex-wrap gap-1">
+                                    <span class="bg-gray-200 px-1.5 py-0.5 rounded text-[10px] mono">"I"</span>
+                                    <span class="bg-[#e7f5ff] border border-[#1864ab] text-[#1864ab] px-1.5 py-0.5 rounded text-[10px] mono font-bold">"am"</span>
+                                    <span class="bg-[#e7f5ff] border border-[#1864ab] text-[#1864ab] px-1.5 py-0.5 rounded text-[10px] mono font-bold">"an"</span>
+                                    <span class="bg-[#e7f5ff] border border-[#1864ab] text-[#1864ab] px-1.5 py-0.5 rounded text-[10px] mono font-bold">"LLM"</span>
+                                </div>
+                                <div class="text-[10px] text-gray-500">
+                                    <span class="font-bold">Buffer:</span> prompt + generated<br/>
+                                    <span class="font-bold">Query:</span> longest-suffix match<br/>
+                                    <span class="font-bold">Returns:</span> K-1 continuation tokens
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Slot 1: CoT Phase-Aware Cache -->
+                        <div class="flex-[2.2] rounded-xl bg-white border-2 border-[#d0bfff] p-2.5 flex flex-col shadow-sm">
+                            <div class="font-bold text-gray-700 text-xs mb-2 flex justify-between">
+                                <span>Slot 1: Phase-Aware CoT Cache</span>
+                                <span class="bg-gray-100 px-2 py-0.5 rounded-full border border-gray-300 text-[10px] font-normal">Offline Frequencies</span>
+                            </div>
+                            <div class="flex-1 flex items-center justify-between gap-2">
+                                <div class="flex flex-col items-center justify-center shrink-0">
+                                    <div class="bg-gray-800 text-white text-[9px] font-bold px-2 py-1 rounded mb-1 text-center">Token Stream</div>
+                                    <svg width="12" height="16" viewBox="0 0 12 16"><path d="M6 0 L6 16 M2 10 L6 16 L10 10" fill="none" stroke="#343a40" stroke-width="2"/></svg>
+                                    <div class="bg-white border-2 border-gray-800 rounded-lg p-1.5 text-center font-bold text-[10px] shadow-md mt-1 leading-tight">
+                                        CoT Phase<br/>Tracker
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col h-full justify-around w-full gap-1.5">
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="bg-[#5f3dc4] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">&lt;think&gt;</div>
+                                        <div class="flex-1 h-[2px] bg-[#5f3dc4] relative">
+                                            <div class="absolute right-0 top-[-3px] w-0 h-0 border-t-[3px] border-t-transparent border-l-[5px] border-l-[#5f3dc4] border-b-[3px] border-b-transparent"></div>
+                                        </div>
+                                        <div class="w-[175px] h-[50px] rounded-lg border-2 border-[#5f3dc4] p-1.5 flex flex-col justify-center items-center shadow-sm bg-[#f3f0ff]">
+                                            <span class="text-[10px] font-bold text-[#5f3dc4] mb-0.5">think.pkl (O(1))</span>
+                                            <div class="flex items-center gap-1">
+                                                <span class="bg-white border border-[#5f3dc4] px-1 py-0.5 rounded text-[9px] mono">"Step"</span>
+                                                <span class="text-[#5f3dc4] font-bold text-[9px]">→</span>
+                                                <span class="bg-white border border-[#5f3dc4] px-1 py-0.5 rounded text-[9px] mono font-bold">"1:"</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="bg-[#adb5bd] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">other</div>
+                                        <div class="flex-1 h-[2px] bg-[#adb5bd] relative">
+                                            <div class="absolute right-0 top-[-3px] w-0 h-0 border-t-[3px] border-t-transparent border-l-[5px] border-l-[#adb5bd] border-b-[3px] border-b-transparent"></div>
+                                        </div>
+                                        <div class="w-[175px] h-[45px] rounded-lg border-2 border-dashed border-[#ced4da] p-1.5 flex flex-col justify-center items-center bg-gray-50">
+                                            <span class="text-[10px] text-[#adb5bd] font-bold">No cache (skip slot)</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="bg-[#d9480f] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">&lt;final&gt;</div>
+                                        <div class="flex-1 h-[2px] bg-[#d9480f] relative">
+                                            <div class="absolute right-0 top-[-3px] w-0 h-0 border-t-[3px] border-t-transparent border-l-[5px] border-l-[#d9480f] border-b-[3px] border-b-transparent"></div>
+                                        </div>
+                                        <div class="w-[175px] h-[50px] rounded-lg border-2 border-[#d9480f] p-1.5 flex flex-col justify-center items-center shadow-sm bg-[#fff4e6]">
+                                            <span class="text-[10px] font-bold text-[#d9480f] mb-0.5">final.pkl (O(1))</span>
+                                            <div class="flex items-center gap-1">
+                                                <span class="bg-white border border-[#d9480f] px-1 py-0.5 rounded text-[9px] mono">"Answer"</span>
+                                                <span class="text-[#d9480f] font-bold text-[9px]">→</span>
+                                                <span class="bg-white border border-[#d9480f] px-1 py-0.5 rounded text-[9px] mono font-bold">"is"</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Slot 2: Runtime N-Gram -->
+                        <div class="flex-1 rounded-xl bg-white border-2 border-[#b2f2bb] p-2.5 flex flex-col shadow-sm">
+                            <div class="font-bold text-[#2b8a3e] text-xs mb-2">Slot 2: Runtime N-Gram</div>
+                            <div class="flex-1 flex flex-col items-center justify-center gap-2">
+                                <div class="w-[90px] h-[90px] rounded-full border-[4px] border-[#2b8a3e] border-dashed flex flex-col items-center justify-center bg-[#ebfbee] relative">
+                                    <div class="z-10 flex flex-col items-center justify-center bg-white p-1.5 rounded-full shadow border border-[#2b8a3e]">
+                                        <span class="text-[#2b8a3e] font-bold text-base">LRU</span>
+                                        <span class="text-[#2b8a3e] text-[8px]">n=4</span>
+                                    </div>
+                                </div>
+                                <div class="text-center text-[#2b8a3e] font-bold text-[10px] bg-white p-1.5 rounded border border-[#2b8a3e] shadow-sm">
+                                    ("I","am") → "an"
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

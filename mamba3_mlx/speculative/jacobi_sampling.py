@@ -41,8 +41,15 @@ from typing import Callable, NamedTuple, Optional
 import mlx.core as mx
 
 from ..inference.generator import _iter_state_arrays, prefill
-from .drafts import SuffixRetriever, build_hybrid_branches
+from .cot_cache import (
+    CoTCachesArg,
+    CoTPhaseTracker,
+    infer_initial_phase,
+    load_cot_caches,
+)
+from .drafts import SuffixRetriever, build_hybrid_branches  # noqa: F401
 from .forward import extract_state_at, model_verify_forward
+from .forward_metal import model_verify_forward_metal
 from .jacobi import _build_guesses
 from .ngram_cache import NGramCache
 
@@ -199,12 +206,20 @@ def jacobi_decode_sampling(
     cache_warmup_tokens: Optional[list[int]] = None,
     preloaded_ngram: Optional[NGramCache] = None,
     preloaded_retriever: Optional[SuffixRetriever] = None,
+    cot_caches: CoTCachesArg = None,
+    cot_bucket: Optional[str] = None,
+    metal_verify: bool = False,
+    compile_verify: bool = False,
     stop_token_ids: Optional[list[int]] = None,
     stop_strings: Optional[list[str]] = None,
     no_eos_stop: bool = False,
     tokenizer=None,
     on_token: Optional[Callable[[int], None]] = None,
+    on_emit: Optional[Callable[[int, bool], None]] = None,
     verbose: bool = False,
+    adaptive_K: bool = False,
+    K_min: int = 4,
+    K_max: int = 24,
 ) -> JacobiSamplingResult:
     """SJD: probabilistic-acceptance Jacobi decoder.
 
@@ -217,6 +232,11 @@ def jacobi_decode_sampling(
     """
     if K < 2:
         raise ValueError(f"K must be >= 2, got {K}")
+    if adaptive_K and not (K_min <= K <= K_max):
+        raise ValueError(
+            f"adaptive_K requires K_min <= K <= K_max "
+            f"(got K_min={K_min}, K={K}, K_max={K_max})"
+        )
     if temperature is None:
         temperature = gen_config.temperature
     if top_k is None:
@@ -231,6 +251,17 @@ def jacobi_decode_sampling(
     if stop_strings and tokenizer is None:
         raise ValueError("stop_strings requires tokenizer")
     _stop_str_window = max((len(s) * 4 for s in stop_strings), default=0)
+
+    # ── Build verify forward (optionally with per-Mamba mx.compile) ─────────
+    if metal_verify and compile_verify:
+        raise ValueError("metal_verify and compile_verify are mutually exclusive")
+    if compile_verify:
+        from .forward_compiled import make_compiled_model_verify_forward
+        _verify_fwd_fn = make_compiled_model_verify_forward(model)
+    elif metal_verify:
+        _verify_fwd_fn = model_verify_forward_metal
+    else:
+        _verify_fwd_fn = model_verify_forward
 
     # ── Prefill ──
     last_logits, state, elapsed_prefill = prefill(model, prompt_ids)
@@ -279,16 +310,47 @@ def jacobi_decode_sampling(
         retriever.extend(list(prompt_ids))
         retriever.extend([first_token])
 
+    # COT-dataset cache (optional).  When supplied, the phase-aware n-gram
+    # cache feeds the ``cot_ngram`` slot and the bucket-specific retriever
+    # feeds the ``cot_retriever`` slot in build_hybrid_branches — both pre-
+    # warmed from the training corpus so we get useful drafts from round 0.
+    cot_tracker: Optional[CoTPhaseTracker] = None
+    if cot_caches is not None:
+        bundle = load_cot_caches(cot_caches)
+        think_cache, final_cache, cot_retr = bundle.get_caches(cot_bucket)
+        # Retriever is opt-in: it fires only when the caller routes the
+        # prompt to a bucket explicitly.  Without ``cot_bucket`` we behave
+        # like the v1 "cot ngram only" path so the existing draft cost
+        # profile is preserved.
+        if cot_bucket is None:
+            cot_retr = None
+        if (think_cache is not None and final_cache is not None
+                and think_cache.n != final_cache.n):
+            raise ValueError("COT think and final caches must share the same n")
+        init_phase = infer_initial_phase(
+            list(prompt_ids) + [first_token], bundle.markers,
+        )
+        cot_tracker = CoTPhaseTracker(
+            bundle.markers,
+            think_cache, final_cache, cot_retr,
+            initial=init_phase,
+        )
+
     prev_token = first_token
     fallback_seed = first_token
+    K_cur = K
 
-    # Build the compiled accept kernel for this (K, hyperparams) combo.
-    # MLX caches by closure identity, so re-builds across rounds are free
-    # after the first round's trace.
     V = int(last_logits.shape[-1])
-    compiled_accept = _build_compiled_accept(
-        K, V, temperature, top_k, top_p, min_p,
-    )
+    # Compiled accept kernels are cached per K value — adaptive_K may produce
+    # different K_cur values across rounds so we build on demand.
+    _compiled_accepts: dict[int, object] = {}
+
+    # Adaptive-K EWMA state (mirrors jacobi_decode).
+    arl_ema: float = 0.0
+    EMA_ALPHA = 0.3
+    BUMP_HI = 0.55
+    BUMP_LO = 0.30
+    K_STEP = 2
 
     n_rounds = 0
     n_accepted = 0
@@ -299,34 +361,45 @@ def jacobi_decode_sampling(
     t_decode_start = time.perf_counter()
 
     while len(generated) < gen_config.max_tokens:
+        cot_active: Optional[NGramCache] = (
+            cot_tracker.active_cache() if cot_tracker is not None else None
+        )
+        cot_retr_active: Optional[SuffixRetriever] = (
+            cot_tracker.active_retriever() if cot_tracker is not None else None
+        )
+
         history = list(prompt_ids) + generated[:-1]
         # Build a single draft chain (best-of-sources).
-        if use_retrieval or (use_ngram and ngram is not None):
+        if (use_retrieval or cot_tracker is not None
+                or (use_ngram and ngram is not None)):
             branches, hits = build_hybrid_branches(
-                K, prev_token, history, ngram, retriever, fallback_seed,
+                K_cur, prev_token, history, ngram, retriever, fallback_seed,
                 num_branches=1,
+                cot_ngram=cot_active,
+                cot_retriever=cot_retr_active,
             )
             guesses = branches[0]
         else:
-            guesses, hits = _build_guesses(K, prev_token, history, ngram,
+            guesses, hits = _build_guesses(K_cur, prev_token, history, ngram,
                                            fallback_seed)
         n_draft_hits += hits
-        K_history.append(K)
+        K_history.append(K_cur)
 
         # Verify forward.
         verify_ids = mx.array([[prev_token] + guesses], dtype=mx.int32)
-        logits, perpos_payload = model_verify_forward(
-            model, verify_ids, state,
-        )
+        logits, perpos_payload = _verify_fwd_fn(model, verify_ids, state)
         # logits: (1, K, V) fp32
         mx.eval(logits)
 
         # ── SJD acceptance, *compiled & batched* ───────────────────────────
-        # ``compiled_accept`` is an mx.compile-fused graph: filter logits
-        # → filtered probs → index at draft tokens → K-1 uniforms.  One
-        # Metal dispatch instead of 5+, ZERO Python-side branching.
+        # Compiled accept kernel is cached per K_cur value — look up or build.
+        if K_cur not in _compiled_accepts:
+            _compiled_accepts[K_cur] = _build_compiled_accept(
+                K_cur, V, temperature, top_k, top_p, min_p,
+            )
+        compiled_accept = _compiled_accepts[K_cur]
 
-        guesses_arr = mx.array(guesses, dtype=mx.int32)         # (K-1,)
+        guesses_arr = mx.array(guesses, dtype=mx.int32)         # (K_cur-1,)
         key, sub = mx.random.split(key)
         draft_probs, us, all_probs = compiled_accept(
             logits[0], guesses_arr, sub,
@@ -343,27 +416,32 @@ def jacobi_decode_sampling(
 
         # 5. CPU loop: find first rejection.
         first_reject = -1
-        for i in range(K - 1):
+        for i in range(K_cur - 1):
             if not accept_vec[i]:
                 first_reject = i
                 break
 
         emitted: list[int] = []
+        emit_flags: list[bool] = []
         accepted_all = (first_reject < 0)
 
         if accepted_all:
             # Every draft accepted: emit them all + 1 bonus sampled from
-            # logits[K-1] (the model's prediction at position K+1).
-            emitted.extend(int(g) for g in guesses)
-            tok_arr, key = _categorical_from_probs(all_probs[K - 1], key)
+            # logits[K_cur-1] (the model's prediction at position K_cur+1).
+            for g in guesses:
+                emitted.append(int(g))
+                emit_flags.append(True)   # draft — guessed correctly
+            tok_arr, key = _categorical_from_probs(all_probs[K_cur - 1], key)
             mx.eval(tok_arr)
             emitted.append(int(tok_arr.item()))
+            emit_flags.append(False)      # bonus — not a draft guess
             n_full += 1
         else:
             # Drafts before ``first_reject`` accepted; draft at ``first_reject``
             # rejected — resample from the residual of all_probs[first_reject].
             for j in range(first_reject):
                 emitted.append(int(guesses[j]))
+                emit_flags.append(True)   # draft — guessed correctly
             g_rej = int(guesses[first_reject])
             probs_rej = all_probs[first_reject]
             mass = probs_rej[g_rej]
@@ -379,6 +457,7 @@ def jacobi_decode_sampling(
             tok_arr, key = _categorical_from_probs(resid, key)
             mx.eval(tok_arr)
             emitted.append(int(tok_arr.item()))
+            emit_flags.append(False)      # resample — guess was wrong
 
         accepted_chain = accepted_all  # alias used by verbose log below
         m = len(emitted)
@@ -393,13 +472,15 @@ def jacobi_decode_sampling(
         # it past picking it).  However, position n in the input is
         # g_{n-1}, which equals the n-th emitted token — so state after
         # ``n+1`` inputs is what we want, capped at K.
-        m_state = min(len(emitted), K)
+        m_state = min(len(emitted), K_cur)
 
         # ── Emit + stop checks ──
         emit_done = False
-        for tok in emitted:
+        for i, tok in enumerate(emitted):
             generated.append(int(tok))
-            if on_token is not None:
+            if on_emit is not None:
+                on_emit(int(tok), emit_flags[i])
+            elif on_token is not None:
                 on_token(int(tok))
             if int(tok) in stop_set:
                 stop_reason = "eos"
@@ -434,11 +515,24 @@ def jacobi_decode_sampling(
             full = list(prompt_ids) + generated
             start = max(0, len(full) - m - ngram.key_len)
             ngram.update_sequence(full, start_idx=start)
+        # Phase tracker advance — flips think→other→final on the marker tokens.
+        if cot_tracker is not None:
+            cot_tracker.observe(emitted)
+
+        # ── Adaptive K (GammaTune-style EWMA over ARL/K_cur) ────────────────
+        if adaptive_K:
+            ratio = m / K_cur
+            arl_ema = (1 - EMA_ALPHA) * arl_ema + EMA_ALPHA * ratio
+            if arl_ema > BUMP_HI and K_cur + K_STEP <= K_max:
+                K_cur += K_STEP
+            elif arl_ema < BUMP_LO and K_cur - K_STEP >= K_min:
+                K_cur -= K_STEP
 
         if verbose:
+            K_tag = f"K={K_cur:2d}*" if adaptive_K else f"K={K_cur:2d}"
             tag = "FULL" if accepted_chain else f"part@{len(emitted) - 1}"
             print(
-                f"[sjd] round={n_rounds:4d} m={m:2d}/K={K:2d} "
+                f"[sjd] round={n_rounds:4d} m={m:2d}/{K_tag} "
                 f"{tag} arl={n_accepted / max(n_rounds, 1):.2f} "
                 f"emitted={len(generated):4d}",
                 flush=True,

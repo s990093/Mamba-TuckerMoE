@@ -39,8 +39,15 @@ from typing import Callable, NamedTuple, Optional
 import mlx.core as mx
 
 from ..inference.generator import _iter_state_arrays, prefill
+from .cot_cache import (
+    CoTCachesArg,
+    CoTPhaseTracker,
+    infer_initial_phase,
+    load_cot_caches,
+)
 from .drafts import SuffixRetriever, build_hybrid_branches
 from .forward import extract_state_at, model_verify_forward, replicate_state
+from .forward_metal import model_verify_forward_metal
 from .ngram_cache import NGramCache
 
 
@@ -198,6 +205,13 @@ def jacobi_decode(
     adaptive_K: bool = False,
     K_min: int = 4,
     K_max: int = 16,
+    cot_caches: CoTCachesArg = None,
+    cot_bucket: Optional[str] = None,
+    metal_verify: bool = False,
+    compile_verify: bool = False,
+    preloaded_ngram: Optional[NGramCache] = None,
+    preloaded_retriever: Optional[SuffixRetriever] = None,
+    cache_warmup_tokens: Optional[list[int]] = None,
     stop_token_ids: Optional[list[int]] = None,
     stop_strings: Optional[list[str]] = None,
     no_eos_stop: bool = False,
@@ -250,6 +264,17 @@ def jacobi_decode(
         raise ValueError("stop_strings requires tokenizer")
     _stop_str_window = max((len(s) * 4 for s in stop_strings), default=0)
 
+    # ── Build verify forward (optionally with per-Mamba mx.compile) ─────────
+    if metal_verify and compile_verify:
+        raise ValueError("metal_verify and compile_verify are mutually exclusive")
+    if compile_verify:
+        from .forward_compiled import make_compiled_model_verify_forward
+        _verify_fwd_fn = make_compiled_model_verify_forward(model)
+    elif metal_verify:
+        _verify_fwd_fn = model_verify_forward_metal
+    else:
+        _verify_fwd_fn = model_verify_forward
+
     # ── Prefill ──────────────────────────────────────────────────────────────
     last_logits, state, elapsed_prefill = prefill(model, prompt_ids)
     prefill_tps = len(prompt_ids) / max(elapsed_prefill, 1e-6)
@@ -287,18 +312,56 @@ def jacobi_decode(
             tree_B=tree_B, branch_wins=[0] * tree_B, K_history=[],
         )
 
-    # N-gram cache (optional); seed with prompt context
+    # N-gram cache (optional); pre-warmed if ``preloaded_ngram`` was supplied,
+    # otherwise built from the prompt.  Either way ``cache_warmup_tokens`` are
+    # ingested first (multi-turn session warm-up).
     ngram: Optional[NGramCache] = None
     if use_ngram:
-        ngram = NGramCache(n=ngram_n)
+        if preloaded_ngram is not None:
+            ngram = preloaded_ngram
+        else:
+            ngram = NGramCache(n=ngram_n)
+        if cache_warmup_tokens:
+            ngram.update_sequence(list(cache_warmup_tokens))
         ngram.update_sequence(list(prompt_ids))
 
-    # Suffix retriever (optional); seed with prompt + first generated token
+    # Suffix retriever (optional); same pre-warm + extend pattern.
     retriever: Optional[SuffixRetriever] = None
     if use_retrieval:
-        retriever = SuffixRetriever(max_suffix=retrieval_max_suffix)
+        if preloaded_retriever is not None:
+            retriever = preloaded_retriever
+        else:
+            retriever = SuffixRetriever(max_suffix=retrieval_max_suffix)
+        if cache_warmup_tokens:
+            retriever.extend(list(cache_warmup_tokens))
         retriever.extend(list(prompt_ids))
         retriever.extend([first_token])
+
+    # COT-dataset cache (optional).  When supplied, the phase-aware n-gram
+    # cache feeds the ``cot_ngram`` slot and the bucket-specific retriever
+    # feeds the ``cot_retriever`` slot in build_hybrid_branches — both pre-
+    # warmed from the training corpus so we get useful drafts from round 0.
+    cot_tracker: Optional[CoTPhaseTracker] = None
+    if cot_caches is not None:
+        bundle = load_cot_caches(cot_caches)
+        think_cache, final_cache, cot_retr = bundle.get_caches(cot_bucket)
+        # Retriever is opt-in: it fires only when the caller routes the
+        # prompt to a bucket explicitly.  Without ``cot_bucket`` we behave
+        # like the v1 "cot ngram only" path so the existing draft cost
+        # profile is preserved.
+        if cot_bucket is None:
+            cot_retr = None
+        if (think_cache is not None and final_cache is not None
+                and think_cache.n != final_cache.n):
+            raise ValueError("COT think and final caches must share the same n")
+        init_phase = infer_initial_phase(
+            list(prompt_ids) + [first_token], bundle.markers,
+        )
+        cot_tracker = CoTPhaseTracker(
+            bundle.markers,
+            think_cache, final_cache, cot_retr,
+            initial=init_phase,
+        )
 
     prev_token = first_token
     fallback_seed = first_token
@@ -320,17 +383,27 @@ def jacobi_decode(
     t_decode_start = time.perf_counter()
 
     while len(generated) < gen_config.max_tokens:
+        cot_active: Optional[NGramCache] = (
+            cot_tracker.active_cache() if cot_tracker is not None else None
+        )
+        cot_retr_active: Optional[SuffixRetriever] = (
+            cot_tracker.active_retriever() if cot_tracker is not None else None
+        )
+
         # ── 1. Construct guess buffer(s) ─────────────────────────────────────
         history = list(prompt_ids) + generated[:-1]  # everything before prev_token
 
-        # Use hybrid (multi-source) builder when retrieval is enabled or when
-        # tree_B>1 with at least one extra source; otherwise the simple
-        # single-source builders.
-        use_hybrid = use_retrieval or (tree_B > 1 and (use_ngram or use_retrieval))
+        # Use hybrid (multi-source) builder when retrieval/COT cache is
+        # enabled or when tree_B>1 with at least one extra source; otherwise
+        # the simple single-source builders.
+        use_hybrid = (use_retrieval or cot_tracker is not None
+                      or (tree_B > 1 and (use_ngram or use_retrieval)))
         if use_hybrid:
             branches, hits = build_hybrid_branches(
                 K_cur, prev_token, history,
                 ngram, retriever, fallback_seed, tree_B,
+                cot_ngram=cot_active,
+                cot_retriever=cot_retr_active,
             )
         elif tree_B == 1:
             branch_guesses, hits = _build_guesses(
@@ -350,9 +423,7 @@ def jacobi_decode(
             dtype=mx.int32,
         )
         batched_state = replicate_state(state, tree_B)
-        logits, perpos_payload = model_verify_forward(
-            model, verify_ids, batched_state,
-        )
+        logits, perpos_payload = _verify_fwd_fn(model, verify_ids, batched_state)
         preds = mx.argmax(logits, axis=-1).astype(mx.int32)   # (tree_B, K)
         mx.eval(preds)
         preds_per_branch = [list(row) for row in preds.tolist()]
@@ -428,6 +499,11 @@ def jacobi_decode(
             # Re-insert n-grams whose suffix includes any of the m new tokens.
             start = max(0, len(full) - m - ngram.key_len)
             ngram.update_sequence(full, start_idx=start)
+
+        # ── 6b. Advance the COT phase tracker so the next round queries the
+        # right cache (think → final transition fires on </think>).
+        if cot_tracker is not None:
+            cot_tracker.observe(accepted)
 
         # ── 7. Adaptive K (GammaTune-style, EWMA over ARL/K_cur) ────────────
         if adaptive_K:

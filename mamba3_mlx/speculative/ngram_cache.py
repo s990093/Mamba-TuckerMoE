@@ -93,6 +93,38 @@ class NGramCache:
             if len(self._d) > self.max_entries:
                 self._d.popitem(last=False)
 
+    def update_ngrams(self, ngrams) -> None:
+        """Insert pre-formed length-``n`` n-grams directly.
+
+        Each n-gram is split into its (n-1)-token key and continuation token,
+        then merged into the cache with the same MRU/LRU bookkeeping as
+        :meth:`update_sequence`.  N-grams of the wrong length are skipped.
+
+        Used by the offline COT baker (``bake_cot_caches.py``) to push
+        frequency-sorted n-grams into the cache in reverse order so the
+        highest-frequency continuation ends up MRU.
+        """
+        L = self.key_len
+        if L == 0:
+            return
+        for ng in ngrams:
+            if len(ng) != self.n:
+                continue
+            key = tuple(int(t) for t in ng[:L])
+            tok = int(ng[L])
+            lst = self._d.get(key)
+            if lst is None:
+                lst = []
+                self._d[key] = lst
+            if tok in lst:
+                lst.remove(tok)
+            lst.insert(0, tok)
+            if len(lst) > self.max_cont:
+                del lst[self.max_cont:]
+            self._d.move_to_end(key)
+            if len(self._d) > self.max_entries:
+                self._d.popitem(last=False)
+
     def reset(self) -> None:
         self._d.clear()
 

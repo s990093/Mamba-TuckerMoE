@@ -114,4 +114,10 @@ distillation/
 cot_dataset/**/*.json
 cot_dataset/**/*.txt
 
+# Inference cache artifacts (keep local; do not commit / push)
+*.pkl
+
+# API keys — do not commit
+.api
+
 /note

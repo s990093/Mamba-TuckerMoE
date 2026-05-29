@@ -26,8 +26,17 @@ from __future__ import annotations
 from typing import Optional
 
 import mlx.core as mx
-
+ 
 from ..mlx_model.mamba_block import Mamba3Block
+
+# Optional v2 (parallel-prefix scan) — keep the isinstance check working when
+# the caller swaps the model implementation.  We can't import v2 at module
+# import time (it may not exist), so build the tuple lazily.
+try:
+    from ..mlx_model_v2.mamba_block import Mamba3Block as _Mamba3Block_v2  # noqa: E501
+    _MAMBA_BLOCK_TYPES: tuple = (Mamba3Block, _Mamba3Block_v2)
+except Exception:  # pragma: no cover — v2 not installed
+    _MAMBA_BLOCK_TYPES = (Mamba3Block,)
 from ..mlx_model.ops import apply_rope, scaled_tanh, silu, softplus
 
 
@@ -244,7 +253,7 @@ def model_verify_forward(model, input_ids, states=None):
 
     for i, blk in enumerate(model.backbone.layers):
         st = states[i] if states is not None else None
-        if isinstance(blk, Mamba3Block):
+        if isinstance(blk, _MAMBA_BLOCK_TYPES):
             x, sp = mamba_verify_step(blk, x, st)
             payload.append({"kind": "mamba", **sp})
         else:

@@ -22,19 +22,32 @@ The **demo headline**:
 
 ```
 speculative/
-├── __init__.py
-├── ngram_cache.py            # LRU n-gram cache (key=n-1 → MRU continuations)
-├── drafts.py                 # SuffixRetriever (PLD/N-Grammys) + hybrid builder
-├── forward.py                # Per-position state verify forward (eliminates replay)
-├── jacobi.py                 # Greedy Jacobi (multi-source tree + adaptive K)
-├── jacobi_sampling.py        # SJD: probabilistic acceptance (sampling mode)
-├── verify.py                 # fp32 byte-equality harness
-├── run_jacobi.py             # CLI: greedy entry
-├── run_jacobi_sampling.py    # CLI: SJD entry
-├── run_sjd_best.sh           # Launcher with empirical best config
-├── _profile.py               # Per-round timing breakdown
-├── _quality_check.py         # AR vs SJD side-by-side text dump
-└── README.md                 # this file
+├── __init__.py                # Public API re-exports
+├── ngram_cache.py             # LRU n-gram cache (key=n-1 → MRU continuations)
+├── drafts.py                  # SuffixRetriever (PLD/N-Grammys) + hybrid builder
+├── forward.py                 # Per-position state verify forward (eliminates replay)
+├── jacobi.py                  # Greedy Jacobi (multi-source tree + adaptive K)
+├── jacobi_sampling.py         # SJD: probabilistic acceptance (sampling mode)
+├── lookahead_trajectory.py    # 2D sliding window (W × N-1), Lookahead Decoding
+├── lookahead_forward.py       # Phase A: batched (W, N-1) forward for trajectory
+├── cot_cache.py               # CoTPhaseTracker: think/final phase-aware cache routing
+├── bake_cache.py              # Offline: AR-sampling → ngram+retriever .pkl
+├── bake_cot_caches.py         # Offline: CoT training corpus → think/final .pkl
+├── verify.py                  # fp32 byte-equality harness
+├── run_jacobi.py              # CLI: greedy entry
+├── run_jacobi_sampling.py     # CLI: SJD entry (cold-start)
+├── run_sjd_demo.py            # CLI: SJD with pre-baked .pkl caches + AR baseline
+├── run_sjd_warm.py            # CLI: SJD warm-cache (multi-turn simulation)
+├── run_sjd_best.sh            # Launcher with empirical best config
+├── demo.sh                    # One-liner demo with demo_cache_v2.pkl
+├── _profile.py                # Per-round timing breakdown
+├── _quality_check.py          # AR vs SJD side-by-side text dump
+├── demo_cache.pkl             # Pre-baked cache (v1: 4096 warmup tokens)
+├── demo_cache_v2.pkl          # Pre-baked cache (v2: 6144 warmup tokens)
+├── demo_cache_large.pkl       # Pre-baked cache (large-scale warmup)
+├── cot_caches_n4.pkl          # Pre-baked CoT think+final caches (n=4, from training corpus)
+├── README.md                  # this file
+└── ...                        # Guide docs (STREAMING_GUIDE, WARMUP_STRATEGY, PLAN_LOOKAHEAD)
 ```
 
 ---
@@ -124,6 +137,42 @@ M2 Pro, bf16, temp=0.15, top_p=0.85, top_k=20, min_p=0.08.
 prompts (offline; one-time bake takes ~6 min).  At runtime the cache loads
 in **~1 ms** from a 40 KB pickle.
 
+### The two cache types (`.pkl` files explained)
+
+There are **two distinct kinds** of pre-baked `.pkl` files, produced by
+different offline scripts, loaded by different runtime parameters:
+
+| `.pkl` | Producer | Content | Loader param |
+|--------|----------|---------|-------------|
+| `demo_cache*.pkl` | `bake_cache.py` | `{ngram: NGramCache, retriever: SuffixRetriever}` — populated by running the model (AR-sampling) on lifestyle prompts | `preloaded_ngram` + `preloaded_retriever` |
+| `cot_caches_n4.pkl` | `bake_cot_caches.py` | `{think: NGramCache, final: NGramCache, markers}` — populated by tokenising the CoT training corpus directly (no model inference); counts n-gram frequencies per phase | `cot_caches` |
+
+**Runtime cache** (`bake_cache.py` → `demo_cache*.pkl`):
+- Runs AR-sampling on 4 lifestyle prompts, ingests the generated tokens into
+  an `NGramCache` (n=4) and a `SuffixRetriever`.
+- The SJD demo runner loads this via `--cache` / `preloaded_ngram` +
+  `preloaded_retriever` — the caches are already warm from round 0.
+- This is the approach that hits 3.2× in the demo: the n-gram cache knows
+  common ChatML transitions (e.g. `</think>\n` → `<final>`) and the suffix
+  retriever catches long repeated phrases.
+
+**CoT phase-aware cache** (`bake_cot_caches.py` → `cot_caches_n4.pkl`):
+- Does **not** run the model. Instead, it reads the CoT training JSON files,
+  tokenises every assistant turn, and splits each turn at the `<think>` /
+  `</think>` / `<final>` / `</final>` marker tokens:
+  * **`think` cache** — n-grams from `<think>\n` … `\n</think>` slices
+  * **`final` cache** — n-grams from `<final>\n` … `\n</final>` slices
+- Per `(n-1)`-token key, counts **every** observed continuation across the
+  corpus, then inserts the top-K by frequency (most-frequent ends up MRU).
+- At runtime, `CoTPhaseTracker` (`cot_cache.py`) watches the emitted token
+  stream and auto-switches which cache feeds the lookahead-branch draft slot:
+  `<think>` → think cache, `<final>` → final cache, otherwise `None`.
+- This gives the lookahead branch a warm n-gram pool from round 0 for
+  structured CoT outputs, instead of waiting for the trajectory window to
+  converge.
+- Both greedy (`jacobi.py`) and SJD (`jacobi_sampling.py`) accept
+  `--cot_caches` as a parameter.
+
 `warm-cache` = SJD's n-gram + retrieval caches pre-populated from 1024
 tokens of prior AR-sampling output on the same prompt (simulating a
 multi-turn session), while AR baseline runs on the cold prompt for a fair
@@ -205,11 +254,19 @@ distribution exactly.
 ## How to run
 
 ```bash
-# ── ONE-TIME setup (do once per checkpoint, ~6 min offline) ──────────────
+# ── ONE-TIME setup (do once per checkpoint) ──────────────────────────────
+
+# Option A: runtime-draft cache — model runs AR-sampling on 4 lifestyle
+# prompts, ~6 min offline, produces a ~40 KB pickle.
 .venv/bin/python3 -m mamba3_mlx.speculative.bake_cache \
     --warmup_tokens 6144 --retrieval_max_suffix 16 \
     --retrieval_max_window 16384 \
     --out mamba3_mlx/speculative/demo_cache_v2.pkl
+
+# Option B: CoT phase-aware cache — no model inference; reads training JSON
+# files, counts think/final n-gram frequencies, produces a ~2 MB pickle.
+.venv/bin/python3 -m mamba3_mlx.speculative.bake_cot_caches \
+    --ngram_n 4 --out mamba3_mlx/speculative/cot_caches_n4.pkl
 
 # ── 1. DEMO (the headline 3.2× / ARL=7.24 / 8 s wall result) ────────────
 bash mamba3_mlx/speculative/demo.sh
@@ -286,46 +343,215 @@ Break-even ARL for 1× AR is `verify_cost / AR_step ≈ 1.4` (K=4) up to
 
 ## Architecture diagram
 
+### Full single-round flow (SJD sampling with all sources enabled)
+
 ```
-                 prompt
-                   │
-                   ▼
-              prefill  ─────────┐
-                   │            │
-                   ▼            │
-       sample first_token       │
-                   │            │
-                   ▼            │
-    ┌──────────────────────┐    │  prev_token, state
-    │  Build draft (K-1)   │    │
-    │  • n-gram cache      │    │
-    │  • suffix retriever  │    │
-    │  • carry seed        │    │
-    └──────────┬───────────┘    │
-               ▼                │
-    ┌──────────────────────┐    │
-    │  model_verify_forward│    │  K-token verify (one fwd, no replay)
-    │   returns per-pos    │    │  shrink_chunk: Lc=L for cheap scan
-    │   states + logits    │    │
-    └──────────┬───────────┘    │
-               ▼                │
-    ┌──────────────────────┐    │
-    │  Accept loop:        │    │
-    │  • greedy            │    │  byte-equal to AR
-    │     pred == guess    │    │
-    │  • SJD               │    │  distribution-equivalent
-    │     u < p_T(guess)   │    │
-    │     bonus if full    │    │
-    └──────────┬───────────┘    │
-               ▼                │
-    ┌──────────────────────┐    │
-    │  Extract state at    │────┘
-    │  position m-1 from   │
-    │  per-pos payload     │
-    └──────────┬───────────┘
-               ▼
-        emitted tokens
-        (next round prev_token = emitted[-1])
+                                    OFFLINE BAKING (one-time per checkpoint)
+                                    ═══════════════════════════════════════
+
+  ┌────────────────────────────────────┐      ┌───────────────────────────────────┐
+  │        bake_cache.py               │      │        bake_cot_caches.py          │
+  │  run AR-sampling on 4 prompts,     │      │  tokenise CoT training JSON,       │
+  │  ingest tokens into ngram +        │      │  split each turn at markers:       │
+  │  retriever, save as .pkl.          │      │                                    │
+  │                                    │      │  ╔══════════════════════════════╗   │
+  │  Output:                           │      │  ║ <think>\n ... \n</think>   ║───│──► think cache
+  │  demo_cache_v2.pkl {              │      │  ║ <final>\n ... \n</final>   ║───│──► final cache
+  │      ngram: NGramCache,           │      │  ╚══════════════════════════════╝   │
+  │      retriever: SuffixRetriever   │      │                                    │
+  │  }                                 │      │  Output:                            │
+  └──────────────┬─────────────────────┘      │  cot_caches_n4.pkl {               │
+                 │                            │      think: NGramCache,            │
+                 │      ~1 ms load            │      final: NGramCache,            │
+                 ▼                            │      markers: {<think>, </think>,   │
+  preloaded_ngram, preloaded_retriever        │               <final>, </final>}   │
+                                              └──────────────────┬────────────────┘
+                                                                  │
+                                                                  ▼
+                                                    cot_caches param
+                                                    (loaded by cot_cache.py)
+                                                    │
+                                                    ▼
+                                           CoTPhaseTracker
+                                           (watches token stream,
+                                           auto-switches think/final)
+
+
+                                    RUNTIME — ONE JACOBI ROUND
+                                    ═══════════════════════════
+
+                                 prompt
+                                   │
+                                   ▼
+                              prefill  ────────┐  last_logits + state
+                                   │            │
+                                   ▼            │
+                       sample first_token ──────┘
+                           (greedy or sampled)  │
+                                   │            │
+                                   ▼            │
+         ╔═══════════════════════════════════════════════════════════╗
+         ║               PHASE A: Lookahead Branch  (optional)       ║
+         ║───────────────────────────────────────────────────────────║
+         ║  LookaheadTrajectory (W × N-1 2D window)                 ║
+         ║                                                          ║
+         ║     col 0    col 1    ...    col W-1   ← W trajectories  ║
+         ║  r0 [ tok    tok             tok   ]                     ║
+         ║  r1 [ tok    tok             tok   ]   ← N-1 rows        ║
+         ║  ...                                                    ║
+         ║  r_{N-2}[tok  tok  ...  tok  ]                         ║
+         ║                                                          ║
+         ║  lookahead_branch_step(model, trajectory, state)        ║
+         ║    → batched (W, N-1) forward (state replicated W×)     ║
+         ║    → argmax last-position each row → W new tokens       ║
+         ║                                                          ║
+         ║  extract_ngrams(new_tokens)                             ║
+         ║    → W × length-N n-grams                               ║
+         ║    → fed to active_lookahead_cache (below)               ║
+         ║                                                          ║
+         ║  advance(new_tokens) → oldest row dropped, new row       ║
+         ║    appended; window slides forward                       ║
+         ║──────────────────────────────────────────────────────────║
+         ║  active_lookahead_cache resolves to ONE of:              ║
+         ║                                                          ║
+         ║    ┌─ CoTPhaseTracker.active_cache() ──── if cot_caches  ║
+         ║    │   .phase == "think"  → think_cache                  ║
+         ║    │   .phase == "final"  → final_cache                  ║
+         ║    │   .phase == "other"  → None                         ║
+         ║    │                                                     ║
+         ║    ├─ lookahead_ngram (trajectory-harvested) ── else     ║
+         ║    │                                                     ║
+         ║    └─ None ───────────────────────────────── else        ║
+         ╚══════════════════════╤══════════════════════════════════╝
+                                │
+                                ▼
+         ╔══════════════════════════════════════════════════════════╗
+         ║           PHASE B-1: Build Drafts  (K-1 tokens)         ║
+         ║──────────────────────────────────────────────────────────║
+         ║   build_hybrid_branches(K, prev_token, history, ...)    ║
+         ║                                                          ║
+         ║   Draft sources (heterogeneous, priority order):         ║
+         ║                                                          ║
+         ║   ┌───────────────────┐                                  ║
+         ║   │ 0. SuffixRetriever │──── longest-suffix match        ║
+         ║   │    (PLD / N-Grammys)│   over prompt+generated buffer  ║
+         ║   └─────────┬─────────┘                                  ║
+         ║             │   miss? fall through                       ║
+         ║             ▼                                            ║
+         ║   ┌───────────────────┐                                  ║
+         ║   │ 1. Lookahead NGram │──── trajectory-harvested        ║
+         ║   │    (Phase A output)│   or CoT phase-aware n-grams    ║
+         ║   └─────────┬─────────┘                                  ║
+         ║             │   miss? fall through                       ║
+         ║             ▼                                            ║
+         ║   ┌───────────────────┐                                  ║
+         ║   │ 2. History NGram  │──── MRU from prompt+generated    ║
+         ║   │    (runtime cache) │   history (n=4 default)          ║
+         ║   └─────────┬─────────┘                                  ║
+         ║             │   miss? fall through                       ║
+         ║             ▼                                            ║
+         ║   ┌───────────────────┐                                  ║
+         ║   │ 3. Carry seed     │──── repeat prev_token            ║
+         ║   └─────────┬─────────┘                                  ║
+         ║             │   if tree_B > 1, fill remaining slots      ║
+         ║             ▼    with n-gram top-k chains                ║
+         ║                                                          ║
+         ║   guesses = [g_0, g_1, ..., g_{K-2}]   (K-1 tokens)     ║
+         ║   verify_input = [prev, g_0, g_1, ..., g_{K-2}] (K)     ║
+         ╚══════════════════╤══════════════════════════════════════╝
+                            │
+                            ▼
+         ╔══════════════════════════════════════════════════════════╗
+         ║       PHASE B-2: Verify Forward  (one pass, no replay)   ║
+         ║──────────────────────────────────────────────────────────║
+         ║   model_verify_forward(model, verify_ids, state)         ║
+         ║                                                          ║
+         ║   Per Mamba layer:  mamba_verify_step(x, state)         ║
+         ║     • SSM chunk-parallel scan: Lc = L (shrink_chunk)     ║
+         ║     • Returns per-position h_prev, input_signal, angles  ║
+         ║                                                          ║
+         ║   Per Transformer layer: normal KV-cache forward         ║
+         ║     • KV per-position, slice S_past+m on extraction      ║
+         ║                                                          ║
+         ║   Output:                                                ║
+         ║     logits        (B, K, V)  — all K positions          ║
+         ║     perpos_payload [layer dicts] — state at each pos     ║
+         ╚══════════════════╤══════════════════════════════════════╝
+                            │
+                            ▼  logits + guesses
+         ╔══════════════════════════════════════════════════════════╗
+         ║             PHASE B-3: Accept Loop                       ║
+         ║──────────────────────────────────────────────────────────║
+         ║                                                          ║
+         ║  ┌─ Greedy (jacobi.py) ──────────────────────────────┐  ║
+         ║  │  pred = argmax(logits[i])                         │  ║
+         ║  │  accepted[0] = pred[0]          always accept     │  ║
+         ║  │  accepted[i+1] = pred[i+1] if accepted[i]==guess[i]│ ║
+         ║  │  byte-equal to AR-greedy (fp32)                  │  ║
+         ║  │  ARL ≈ 1.5–2.5                                   │  ║
+         ║  └───────────────────────────────────────────────────┘  ║
+         ║                                                          ║
+         ║  ┌─ SJD (jacobi_sampling.py) ────────────────────────┐  ║
+         ║  │  compiled_accept(logits, guesses, key)            │  ║
+         ║  │    → filter logits (temp, top_k, top_p, min_p)   │  ║
+         ║  │    → all_probs[K, V]                             │  ║
+         ║  │    → draft_probs[i] = all_probs[i][guesses[i]]   │  ║
+         ║  │    → u_i ~ Uniform(0,1)                          │  ║
+         ║  │  accept guess[i] if u_i < draft_probs[i]         │  ║
+         ║  │  On rejection: resample from residual            │  ║
+         ║  │  On full accept: +1 bonus from all_probs[K-1]    │  ║
+         ║  │  distribution-equivalent to AR-sampling          │  ║
+         ║  │  ARL up to 7.24 (K=16, v2 cache)                │  ║
+         ║  └───────────────────────────────────────────────────┘  ║
+         ║                                                          ║
+         ║  emitted = accepted_chain (m tokens, 1 ≤ m ≤ K)         ║
+         ╚══════════════════╤══════════════════════════════════════╝
+                            │
+                            ▼  m emitted tokens
+         ╔══════════════════════════════════════════════════════════╗
+         ║          Post-round: State + Cache Update                ║
+         ║──────────────────────────────────────────────────────────║
+         ║                                                          ║
+         ║  1. extract_state_at(perpos_payload, m, branch=win)     ║
+         ║     → state after m tokens (NO replay forward!)         ║
+         ║     → prev_token = emitted[-1]                          ║
+         ║                                                          ║
+         ║  2. Update runtime caches (from emitted tokens):        ║
+         ║     NGramCache.update_sequence(prompt + generated)       ║
+         ║     SuffixRetriever.extend(emitted)                      ║
+         ║                                                          ║
+         ║  3. CoTPhaseTracker.observe(emitted)                   ║
+         ║     → flip phase on <think> / </think> / <final> /     ║
+         ║       </final> marker tokens                            ║
+         ║                                                          ║
+         ║  4. Stop checks: EOS, max_tokens, stop_strings          ║
+         ╚══════════════════════════════════════════════════════════╝
+                            │
+                            ▼
+                   next round (loop back)
+
+
+═══ DATA FLOW SUMMARY ═══
+
+  OFFLINE BAKING                RUNTIME LOAD                RUNTIME USE
+  ═══════════════               ════════════                ═══════════
+
+  bake_cache.py ───────────► demo_cache_v2.pkl ──► preloaded_ngram ──────► hybrid drafts
+                          │                       ► preloaded_retriever ──► slot #0
+                          │
+  bake_cot_caches.py ─────► cot_caches_n4.pkl ──► cot_caches param
+                          │                       │
+                          │                       ▼
+                          │               CoTPhaseTracker
+                          │               │  phase==think → think_cache ─► hybrid drafts
+                          │               │  phase==final → final_cache ─► slot #1
+                          │               │  phase==other → None ────────► skip
+                          │
+  model AR-sampling ──────► runtime ngram     ◄── update_sequence(emitted) ── each round
+  (warm cache)             runtime retriever  ◄── extend(emitted) ────────── each round
+
+  LookaheadTrajectory ────► trajectory ngrams ◄── extract_ngrams ────────── each round
+  (W × N-1 window)            (merged into active_lookahead_cache)
 ```
 
 ---
@@ -338,3 +564,5 @@ If you want to read minimal code to understand the path:
 2. `jacobi_sampling.py::jacobi_decode_sampling` — the SJD acceptance rule.
 3. `drafts.py::build_hybrid_branches` — multi-source draft composition.
 4. `run_sjd_best.sh` — the empirically best config.
+5. `cot_cache.py::CoTPhaseTracker` — how think/final caches auto-switch at runtime.
+6. `bake_cot_caches.py` — how CoT training data becomes phase-aware n-gram caches.

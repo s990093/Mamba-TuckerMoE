@@ -9,8 +9,8 @@ HOST = "0.0.0.0"
 PORT = 7860
 
 # ── Paths (relative to REPO_ROOT, resolved at runtime in chat_demo.py) ───────
-CHECKPOINT_RELPATH = "checkpoints/latest_sft_cot_model.npz"
-TOKENIZER_RELPATH  = "checkpoints/tokenizer"
+CHECKPOINT_RELPATH = "checkpoints/v3/latest_sft_cot_model.npz"
+TOKENIZER_RELPATH  = "cot_dataset/tokenizer.json"
 
 # ── Model sizing ──────────────────────────────────────────────────────────────
 VOCAB_SIZE     = 0      # 0 = derive from tokenizer
