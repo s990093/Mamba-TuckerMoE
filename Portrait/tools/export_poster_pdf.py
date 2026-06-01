@@ -104,7 +104,7 @@ async def export_poster_to_pdf(
         # Check that all slots have been populated (no more "Loading…" text)
         await page.wait_for_function(
             """() => {
-                const slots = ['slot-phase1', 'slot-phase2', 'slot-phase3', 'slot-cot', 'slot-results'];
+                const slots = ['slot-phase1', 'slot-phase2', 'slot-phase3', 'slot-results'];
                 return slots.every(id => {
                     const el = document.getElementById(id);
                     return el && !el.textContent.includes('Loading');

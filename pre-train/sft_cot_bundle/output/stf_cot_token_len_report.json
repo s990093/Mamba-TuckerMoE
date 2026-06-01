@@ -1,29 +1,29 @@
 {
-  "total_examples": 39349,
+  "total_examples": 44439,
   "token_len_min": 83,
-  "token_len_mean": 318.1,
+  "token_len_mean": 310.8,
   "token_len_max": 3575,
-  "p50": 287.0,
-  "p90": 507.0,
-  "p95": 596.0,
-  "p99": 779.0,
+  "p50": 301.0,
+  "p90": 465.0,
+  "p95": 538.0,
+  "p99": 674.0,
   "suggested_seq_len": 768,
   "truncation_by_seq_len": {
     "256": {
-      "n_truncated": 23387,
-      "truncation_rate": "59.4%"
+      "n_truncated": 27602,
+      "truncation_rate": "62.1%"
     },
     "512": {
-      "n_truncated": 3777,
-      "truncation_rate": "9.6%"
+      "n_truncated": 2847,
+      "truncation_rate": "6.4%"
     },
     "768": {
-      "n_truncated": 410,
-      "truncation_rate": "1.0%"
+      "n_truncated": 62,
+      "truncation_rate": "0.1%"
     },
     "1024": {
-      "n_truncated": 105,
-      "truncation_rate": "0.3%"
+      "n_truncated": 7,
+      "truncation_rate": "0.0%"
     },
     "1536": {
       "n_truncated": 6,
@@ -36,31 +36,22 @@
   },
   "per_bucket_stats": {
     "daily_conversation": {
-      "count": 8746,
+      "count": 9222,
       "min": 83,
-      "mean": 372.7,
+      "mean": 355.5,
       "max": 3575,
-      "p50": 380.0,
-      "p95": 635.0,
-      "p99": 747.0
-    },
-    "deep_dive": {
-      "count": 733,
-      "min": 394,
-      "mean": 764.8,
-      "max": 1417,
-      "p50": 719.0,
-      "p95": 1140.0,
-      "p99": 1301.0
+      "p50": 364.0,
+      "p95": 620.0,
+      "p99": 720.0
     },
     "emotion": {
-      "count": 4812,
+      "count": 10000,
       "min": 237,
-      "mean": 341.6,
-      "max": 600,
-      "p50": 334.0,
-      "p95": 472.0,
-      "p99": 520.0
+      "mean": 352.4,
+      "max": 647,
+      "p50": 345.0,
+      "p95": 448.0,
+      "p99": 506.0
     },
     "math_drill": {
       "count": 200,
@@ -72,22 +63,22 @@
       "p99": 133.0
     },
     "movie_intro": {
-      "count": 2817,
+      "count": 2816,
       "min": 123,
-      "mean": 375.0,
+      "mean": 374.9,
       "max": 861,
       "p50": 356.0,
       "p95": 616.0,
       "p99": 704.0
     },
     "self_awareness": {
-      "count": 10210,
+      "count": 10370,
       "min": 111,
-      "mean": 252.5,
-      "max": 1111,
-      "p50": 227.0,
-      "p95": 416.0,
-      "p99": 659.0
+      "mean": 244.4,
+      "max": 899,
+      "p50": 224.0,
+      "p95": 386.0,
+      "p99": 574.0
     },
     "summarize_email": {
       "count": 10293,

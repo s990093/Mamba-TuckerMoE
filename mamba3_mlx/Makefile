@@ -7,7 +7,7 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v3/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v4/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 
 # ── Auto-select fastest checkpoint ────────────────────────────────────────────
@@ -19,11 +19,11 @@ _SIDECAR   := $(_CKPT_STEM).mlx_bf16.npz
 _FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
 
 # ── Generation defaults ────────────────────────────────────────────────────────
-PROMPT    ?= Mamba, what exactly are you? Are you some kind of chatbot?
+PROMPT    ?= Who are you?
 # PROMPT    ?= Write a email
 MODE      ?= self_awareness
 TEMP      ?= 0.2     # 微調：給予極小幅度的彈性，避免字詞過度僵化
-MAX_TOK   ?= 512      # 保持：符合 v2 SFT 規範的預算
+MAX_TOK   ?= 1024      # 保持：符合 v2 SFT 規範的預算
 SEED      ?= 0
 STREAM    ?= 1
 NO_THINK  ?= 0
@@ -35,7 +35,7 @@ MIN_P          ?= 0.08    # 強化 (原本 0.05)：更激進地過濾掉那些�
 REP_PEN        ?= 1.50    # 強化 (原本 1.32/1.1)：24組參數掃描最佳值，阻斷短句重複循環
 PRES_PEN       ?= 0.50    # 強化 (原本 0.42/0.0)：強制詞彙多樣化，避免退化循環
 FREQ_PEN       ?= 0.3    # 強化 (原本 0.05/0.02)：阻斷長期句型結構重複
-REPEAT_LAST_N  ?= 384     # 擴大 (原本 256/64)：擴大懲罰視野以抑制長程崩潰
+REPEAT_LAST_N  ?= 128     # 擴大 (原本 256/64)：擴大懲罰視野以抑制長程崩潰
 # Stop control
 NO_EOS    ?=0           # set to 1 to ignore EOS/<|im_end|> tokens
 STOP_STR  ?=             # e.g. STOP_STR='</final>'

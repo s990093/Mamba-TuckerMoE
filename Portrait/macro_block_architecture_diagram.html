@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Macro Block Architecture Diagram</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+      :root {
+        --bg-main: #fcfcfc;
+        --bg-macro-block: #fff7d1;
+        --border-purple: #8e54e9;
+        --bg-purple-light: #f3e5ff;
+        --border-blue: #0066cc;
+        --bg-blue-light: #e1f0ff;
+        --border-green: #004d40;
+        --bg-green-light: #dcedec;
+        --text-dark: #000;
+        --text-sub: #444;
+        --arrow-color: #002b5c;
+      }
+
+      body {
+        font-family: "Roboto", sans-serif;
+        background-color: var(--bg-main);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .diagram-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 1200px;
+      }
+
+      /* Top Dashed Arrow SVG */
+      .top-loop-svg {
+        position: absolute;
+        top: -35px;
+        left: 180px;
+        width: 850px;
+        height: 60px;
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      .top-loop-path {
+        fill: none;
+        stroke: var(--text-dark);
+        stroke-width: 2;
+        stroke-dasharray: 8, 4;
+        marker-end: url(#arrowhead);
+      }
+
+      .top-label {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 14px;
+        font-weight: 500;
+        font-style: italic;
+        white-space: nowrap;
+        background: var(--bg-main);
+        padding: 0 10px;
+      }
+
+      /* Main Flow Layout */
+      .main-flow {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      /* Basic Components */
+      .label-text {
+        font-weight: 700;
+        font-size: 16px;
+        text-align: center;
+        line-height: 1.2;
+      }
+
+      .green-box {
+        background-color: var(--bg-green-light);
+        border: 3px solid var(--border-green);
+        border-radius: 12px;
+        padding: 25px 15px;
+        text-align: center;
+        font-weight: 700;
+        min-width: 100px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .green-box .sub-text {
+        font-weight: 400;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+
+      /* Arrows */
+      .arrow-right {
+        width: 0;
+        height: 0;
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
+        border-left: 15px solid var(--arrow-color);
+        position: relative;
+      }
+
+      .arrow-right::after {
+        content: "";
+        position: absolute;
+        left: -35px;
+        top: -3px;
+        width: 35px;
+        height: 6px;
+        background-color: var(--arrow-color);
+      }
+
+      /* The Big Yellow Macro Block Container */
+      .macro-block-container {
+        background-color: var(--bg-macro-block);
+        border: 3px solid var(--text-dark);
+        border-radius: 20px;
+        padding: 30px 20px 20px 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+      }
+
+      .macro-block-label {
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 14px;
+        font-weight: 700;
+        font-style: italic;
+        color: #5c4b00;
+      }
+
+      /* Internal Blocks (Mamba & GQA) */
+      .internal-block {
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 130px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .mamba-block {
+        background-color: var(--bg-purple-light);
+        border: 3px solid var(--border-purple);
+      }
+
+      .gqa-block {
+        background-color: var(--bg-blue-light);
+        border: 3px solid var(--border-blue);
+      }
+
+      .block-title {
+        text-align: center;
+        font-weight: 700;
+        color: var(--border-purple);
+        margin-bottom: 5px;
+      }
+
+      .gqa-block .block-title {
+        color: var(--border-blue);
+      }
+
+      .sub-row {
+        display: flex;
+        gap: 5px;
+        justify-content: space-between;
+      }
+
+      .sub-box {
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 6px 4px;
+        font-size: 11px;
+        text-align: center;
+        flex: 1;
+        font-weight: 500;
+      }
+
+      .tucker-box {
+        background-color: var(--bg-purple-light);
+        border: 2px solid var(--border-purple);
+        border-radius: 6px;
+        padding: 8px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--border-purple);
+      }
+
+      .gqa-block .tucker-box {
+        background-color: var(--bg-blue-light);
+        border-color: var(--border-blue);
+        color: var(--border-blue);
+      }
+
+      /* Summation Circle */
+      .sum-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 3px solid var(--border-green);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--border-green);
+        background-color: white;
+        z-index: 2;
+      }
+
+      /* Footer Bar */
+      .footer-bar {
+        width: 100%;
+        max-width: 1100px;
+        background-color: var(--bg-green-light);
+        border: 2px solid var(--border-green);
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--border-green);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="diagram-wrapper">
+      <!-- Top Dashed Arrow & Label -->
+      <div class="top-label">
+        (a) Macro Block Architecture - one block expanded (×6 total in model)
+      </div>
+      <svg class="top-loop-svg" viewBox="0 0 850 60">
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="#000" />
+          </marker>
+        </defs>
+        <!-- Path starts from right side of GQA, curves up and left, ends before first Mamba -->
+        <path
+          class="top-loop-path"
+          d="M 780,50 C 780,10 700,5 400,5 C 100,5 20,10 20,45"
+        />
+      </svg>
+
+      <div class="main-flow">
+        <!-- Input -->
+        <div class="label-text">Input<br />Tokens</div>
+
+        <div class="arrow-right"></div>
+
+        <!-- Embed Box -->
+        <div class="green-box">
+          Embed
+          <div class="sub-text">d=768</div>
+        </div>
+
+        <div class="arrow-right"></div>
+
+        <!-- Macro Block Container -->
+        <div class="macro-block-container">
+          <div class="macro-block-label">Macro Block × N = 6</div>
+
+          <!-- Mamba 1 -->
+          <div class="internal-block mamba-block">
+            <div class="block-title">Mamba-3</div>
+            <div class="sub-row">
+              <div class="sub-box">Sel. SSM</div>
+              <div class="sub-box">SiLU gate</div>
+            </div>
+            <div class="tucker-box">TuckerMoE proj</div>
+          </div>
+
+          <div class="arrow-right" style="transform: scale(0.7)"></div>
+
+          <!-- Mamba 2 -->
+          <div class="internal-block mamba-block">
+            <div class="block-title">Mamba-3</div>
+            <div class="sub-row">
+              <div class="sub-box">RoPE(B,C)</div>
+              <div class="sub-box">D-skip</div>
+            </div>
+            <div class="tucker-box">TuckerMoE proj</div>
+          </div>
+
+          <div class="arrow-right" style="transform: scale(0.7)"></div>
+
+          <!-- Mamba 3 -->
+          <div class="internal-block mamba-block">
+            <div class="block-title">Mamba-3</div>
+            <div class="sub-row">
+              <div class="sub-box">Sel. SSM</div>
+              <div class="sub-box">LayerScale</div>
+            </div>
+            <div class="tucker-box">TuckerMoE proj</div>
+          </div>
+
+          <div class="arrow-right" style="transform: scale(0.7)"></div>
+
+          <!-- Mamba 4 -->
+          <div class="internal-block mamba-block">
+            <div class="block-title">Mamba-3</div>
+            <div class="sub-row">
+              <div class="sub-box">RoPE(B,C)</div>
+              <div class="sub-box" style="font-size: 10px">Twit-Glu</div>
+            </div>
+            <div class="tucker-box">TuckerMoE proj</div>
+          </div>
+
+          <div class="arrow-right" style="transform: scale(0.7)"></div>
+
+          <!-- GQA Attn -->
+          <div class="internal-block gqa-block">
+            <div class="block-title">GQA Attn</div>
+            <div class="sub-row">
+              <div class="sub-box">SDPA-KV</div>
+              <div class="sub-box">FFN SwiGLU</div>
+            </div>
+            <div class="tucker-box">TuckerMoE proj</div>
+          </div>
+
+          <!-- Summation Circle -->
+          <div class="sum-circle" style="margin-left: -15px">+</div>
+        </div>
+        <!-- End Macro Block Container -->
+
+        <div class="arrow-right"></div>
+
+        <!-- LM Head Box -->
+        <div class="green-box">
+          LM Head
+          <div class="sub-text">V=32,007</div>
+        </div>
+
+        <div class="arrow-right"></div>
+
+        <!-- Output -->
+        <div class="label-text">
+          Logits<br /><span style="font-weight: 400">(V=32k)</span>
+        </div>
+      </div>
+      <!-- End Main Flow -->
+    </div>
+  </body>
+</html>

@@ -1,35 +1,45 @@
-import pandas as pd
-import numpy as np
+import re
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from matplotlib.ticker import FuncFormatter
 
 # ============================================================
-# Paths
+# Paths (relative to this script)
 # ============================================================
-PRE_TRAIN_CSV = "./data/train_log.csv"
-INS_SFT_TRAIN_CSV = "./data/train_sft_log.csv"
-INS_SFT_VAL_CSV = "./data/val_sft_log.csv"
-COT_SFT_TRAIN_CSV = "./data/train_sft_cot_log.csv"
-COT_SFT_VAL_CSV = "./data/val_sft_cot_log.csv"
-COT_V2_SFT_TRAIN_CSV = "./data/v2/train_sft_cot_log.csv"  # V2 continues from v1
-COT_V2_SFT_VAL_CSV = "./data/v2/val_sft_cot_log.csv"
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR.parent / "data"
 
-OUTPUT_CE = "ce_loss.png"
-OUTPUT_PPL = "ppl.png"
+PRE_TRAIN_CSV = DATA_DIR / "train_log.csv"
+INS_SFT_TRAIN_CSV = DATA_DIR / "train_sft_log.csv"
+INS_SFT_VAL_CSV = DATA_DIR / "val_sft_log.csv"
 
-PRE_TOKENS_PER_STEP = 512 * 128   # 65,536
-SFT_TOKENS_PER_STEP = 32 * 512    # 16,384
-COT_V2_TOKENS_PER_STEP = 1024 * 6 * 8  # 49,152 (V2 uses larger SEQ_LEN)
+COT_TRAIN_NAME = "train_sft_cot_log.csv"
+COT_VAL_NAME = "val_sft_cot_log.csv"
+
+OUTPUT_CE = SCRIPT_DIR / "ce_loss.png"
+OUTPUT_PPL = SCRIPT_DIR / "ppl.png"
+
+# Fallback when CSV has no tokens_seen column
+DEFAULT_TOKENS_PER_STEP = {
+    "pre": 512 * 128,
+    "ins": 32 * 512,
+    "cot": 32 * 512,
+}
+COT_V4_TOKENS_PER_STEP = 1024 * 16  # 16,384
+COT_TOKENS_PER_STEP_OVERRIDE = {4: COT_V4_TOKENS_PER_STEP}
 
 FIGSIZE = (10.5, 2.65)
 TRAIN_SMOOTH_WINDOW = 80
-TRAIN_ALPHA = 0.38          # faint train so val stays readable
+TRAIN_ALPHA = 0.38
 VAL_ALPHA = 0.92
 Y_PERCENTILES = (1.5, 99.0)
 PPL_CE_CLIP = 12.0
 
 
-def read_csv(filepath: str) -> pd.DataFrame:
+def read_csv(filepath: Path) -> pd.DataFrame:
     return pd.read_csv(filepath)
 
 
@@ -41,21 +51,107 @@ def loss_column(df: pd.DataFrame) -> str:
     raise KeyError(f"Expected 'ce_loss' or 'val_ce_loss' in columns: {list(df.columns)}")
 
 
-def stage_max_step(filepath: str) -> int:
-    return int(read_csv(filepath)["step"].max())
+def tokens_seen_is_monotonic(df: pd.DataFrame) -> bool:
+    if "tokens_seen" not in df.columns or len(df) < 2:
+        return True
+    return bool((np.diff(df["tokens_seen"].astype(np.int64)) >= 0).all())
+
+
+def infer_tokens_per_step(df: pd.DataFrame, fallback: int) -> int:
+    if "tokens_seen" not in df.columns or df.empty:
+        return fallback
+    ts = df["tokens_seen"].astype(np.int64).values
+    if len(ts) >= 2:
+        deltas = np.diff(ts)
+        positives = deltas[deltas > 0]
+        if len(positives):
+            # First step-pair matches run config; mode breaks after resume / batch changes.
+            return int(positives[0])
+    steps = df["step"].astype(np.int64).values
+    mask = steps > 0
+    if mask.any():
+        return int(ts[mask][0] / steps[mask][0])
+    return int(ts[0]) if len(ts) else fallback
+
+
+def stage_token_extent(df: pd.DataFrame, tokens_per_step: int) -> int:
+    max_step = int(df["step"].astype(np.int64).max())
+    step_extent = max_step * tokens_per_step
+    if "tokens_seen" in df.columns and tokens_seen_is_monotonic(df) and not df.empty:
+        return max(step_extent, int(df["tokens_seen"].astype(np.int64).max()))
+    return step_extent
 
 
 def steps_to_tokens(steps: np.ndarray, tokens_per_step: int, token_offset: int = 0) -> np.ndarray:
     return steps.astype(np.int64) * tokens_per_step + token_offset
 
 
-def load_stage(filepath: str, token_offset: int = 0, tokens_per_step: int = SFT_TOKENS_PER_STEP):
+def load_stage(
+    filepath: Path,
+    token_offset: int = 0,
+    tokens_per_step: int | None = None,
+    fallback_tokens_per_step: int = DEFAULT_TOKENS_PER_STEP["cot"],
+):
     df = read_csv(filepath)
     col = loss_column(df)
     steps = df["step"].values.astype(np.int64)
-    tokens = steps_to_tokens(steps, tokens_per_step, token_offset)
     losses = df[col].values.astype(np.float64)
-    return tokens, losses
+    tps = tokens_per_step if tokens_per_step is not None else infer_tokens_per_step(df, fallback_tokens_per_step)
+    if "tokens_seen" in df.columns and tokens_seen_is_monotonic(df):
+        tokens = df["tokens_seen"].values.astype(np.int64) + token_offset
+    else:
+        tokens = steps_to_tokens(steps, tps, token_offset)
+    return tokens, losses, tps
+
+
+def discover_cot_stages(data_dir: Path) -> list[dict]:
+    """v1 at data root; v2+ in data/vN/ (auto-detected, sorted)."""
+    stages: list[dict] = []
+    v1_train = data_dir / COT_TRAIN_NAME
+    if v1_train.exists():
+        v1_val = data_dir / COT_VAL_NAME
+        stages.append(
+            {
+                "version": 1,
+                "train": v1_train,
+                "val": v1_val if v1_val.exists() else None,
+            }
+        )
+
+    version_dirs: list[tuple[int, Path]] = []
+    for path in data_dir.iterdir():
+        if not path.is_dir():
+            continue
+        match = re.fullmatch(r"v(\d+)", path.name)
+        if match:
+            version_dirs.append((int(match.group(1)), path))
+    version_dirs.sort(key=lambda item: item[0])
+
+    for version, folder in version_dirs:
+        if version == 1:
+            continue
+        train = folder / COT_TRAIN_NAME
+        if not train.exists():
+            continue
+        val = folder / COT_VAL_NAME
+        stages.append(
+            {
+                "version": version,
+                "train": train,
+                "val": val if val.exists() else None,
+            }
+        )
+    return stages
+
+
+def cot_version_range_label(versions: list[int]) -> str:
+    if not versions:
+        return ""
+    if len(versions) == 1:
+        return f"v{versions[0]}"
+    if versions == list(range(versions[0], versions[-1] + 1)):
+        return f"v{versions[0]}→v{versions[-1]}"
+    return "→".join(f"v{v}" for v in versions)
 
 
 def smooth_median(y: np.ndarray, window: int) -> np.ndarray:
@@ -99,7 +195,6 @@ COLORS = {
     "train": "#1d4ed8",
     "val_ins": "#c2410c",
     "val_cot": "#7c2d12",
-    "val_v2": "#059669",
     "band_a": (0.93, 0.94, 0.97, 1.0),
     "band_b": (0.97, 0.97, 0.99, 1.0),
     "divider": "#9ca3af",
@@ -108,11 +203,6 @@ COLORS = {
 }
 
 STAGE_NAMES = ["Pre-train", "Indie Mode SFT", "CoT SFT"]
-FORMULAS = [
-    r"$\mathcal{L}_{\mathrm{pre}}=\mathrm{CE}+\alpha\mathcal{L}_{\mathrm{lb}}+\beta\mathcal{L}_{z}$",
-    r"$\mathcal{L}_{\mathrm{SFT}}=\mathrm{CE}$",
-    r"$\mathcal{L}_{\mathrm{CoT}}\approx 92\%\mathrm{CE}+8\%\mathrm{FCP}+\mathrm{aux}$ (v1→v2)",
-]
 
 
 def draw_stage_bands(ax, boundaries):
@@ -134,7 +224,12 @@ def style_axis(ax, grid=True):
         ax.spines[spine].set_linewidth(0.6)
 
 
-def add_stage_headers(fig, boundaries):
+def add_stage_headers(fig, boundaries, cot_version_label: str):
+    formulas = [
+        r"$\mathcal{L}_{\mathrm{pre}}=\mathrm{CE}+\alpha\mathcal{L}_{\mathrm{lb}}+\beta\mathcal{L}_{z}$",
+        r"$\mathcal{L}_{\mathrm{SFT}}=\mathrm{CE}$",
+        rf"$\mathcal{{L}}_{{\mathrm{{CoT}}}}\approx 92\%\mathrm{{CE}}+8\%\mathrm{{FCP}}+\mathrm{{aux}}$ ({cot_version_label})",
+    ]
     for i in range(3):
         x_pos = (boundaries[i] + boundaries[i + 1]) / 2
         fig.text(
@@ -151,7 +246,7 @@ def add_stage_headers(fig, boundaries):
         fig.text(
             x_pos / boundaries[-1],
             0.935,
-            FORMULAS[i],
+            formulas[i],
             ha="center",
             va="bottom",
             fontsize=6.5,
@@ -168,6 +263,7 @@ def plot_combined(
     train_y_smooth,
     val_segments,
     boundaries,
+    cot_version_label,
     y_transform,
     ylabel,
     output_path,
@@ -215,48 +311,80 @@ def plot_combined(
     ax.set_ylim(y_lo, y_hi)
     ax.legend(loc="upper right", frameon=True, framealpha=0.92, edgecolor="#d1d5db", fontsize=7)
 
-    add_stage_headers(fig, boundaries)
+    add_stage_headers(fig, boundaries, cot_version_label)
     fig.savefig(output_path, format="png")
     plt.close(fig)
+
+
+def load_fixed_stage(train_csv: Path, val_csv: Path | None, token_start: int, fallback_tps: int):
+    train_df = read_csv(train_csv)
+    train_tps = infer_tokens_per_step(train_df, fallback_tps)
+    train_x, train_loss, _ = load_stage(train_csv, token_start, train_tps)
+    token_end = token_start + stage_token_extent(train_df, train_tps)
+
+    val_x, val_loss = np.array([]), np.array([])
+    if val_csv is not None and val_csv.exists():
+        val_x, val_loss, _ = load_stage(val_csv, token_start, train_tps)
+    return train_x, train_loss, val_x, val_loss, token_end, train_tps
+
+
+def load_cot_chain(stages: list[dict], cot_start: int):
+    train_x_parts, train_loss_parts = [], []
+    val_x_parts, val_loss_parts = [], []
+    token_cursor = cot_start
+    tokens_per_version: dict[int, int] = {}
+
+    for stage in stages:
+        version = stage["version"]
+        segment_start = token_cursor
+        train_df = read_csv(stage["train"])
+        train_tps = COT_TOKENS_PER_STEP_OVERRIDE.get(
+            version, infer_tokens_per_step(train_df, DEFAULT_TOKENS_PER_STEP["cot"])
+        )
+        tokens_per_version[version] = train_tps
+
+        x, loss, _ = load_stage(stage["train"], segment_start, train_tps)
+        train_x_parts.append(x)
+        train_loss_parts.append(loss)
+        token_cursor = segment_start + stage_token_extent(train_df, train_tps)
+
+        if stage["val"] is not None:
+            val_x, val_loss, _ = load_stage(stage["val"], segment_start, train_tps)
+            val_x_parts.append(val_x)
+            val_loss_parts.append(val_loss)
+
+    cot_train_x = np.concatenate(train_x_parts) if train_x_parts else np.array([])
+    cot_train_loss = np.concatenate(train_loss_parts) if train_loss_parts else np.array([])
+    cot_val_x = np.concatenate(val_x_parts) if val_x_parts else np.array([])
+    cot_val_loss = np.concatenate(val_loss_parts) if val_loss_parts else np.array([])
+    return cot_train_x, cot_train_loss, cot_val_x, cot_val_loss, token_cursor, tokens_per_version
 
 
 # ============================================================
 # Load data
 # ============================================================
-PRE_STEPS = stage_max_step(PRE_TRAIN_CSV)
-INS_STEPS = stage_max_step(INS_SFT_TRAIN_CSV)
-COT_V1_STEPS = stage_max_step(COT_SFT_TRAIN_CSV)
-COT_V2_STEPS = stage_max_step(COT_V2_SFT_TRAIN_CSV)
+cot_stages = discover_cot_stages(DATA_DIR)
+if not cot_stages:
+    raise FileNotFoundError(f"No CoT logs found under {DATA_DIR}")
 
-pre_token_start = 0
-ins_token_start = PRE_STEPS * PRE_TOKENS_PER_STEP
-cot_v1_token_start = ins_token_start + INS_STEPS * SFT_TOKENS_PER_STEP
-cot_v2_token_start = cot_v1_token_start + COT_V1_STEPS * SFT_TOKENS_PER_STEP
-boundaries = [
-    pre_token_start,
-    ins_token_start,
-    cot_v1_token_start,
-    cot_v2_token_start + COT_V2_STEPS * COT_V2_TOKENS_PER_STEP,
-]
+cot_versions = [s["version"] for s in cot_stages]
+cot_label = cot_version_range_label(cot_versions)
 
-pre_train_x, pre_train_loss = load_stage(PRE_TRAIN_CSV, pre_token_start, PRE_TOKENS_PER_STEP)
-ins_train_x, ins_train_loss = load_stage(INS_SFT_TRAIN_CSV, ins_token_start, SFT_TOKENS_PER_STEP)
+pre_train_x, pre_train_loss, _, _, pre_token_end, pre_tps = load_fixed_stage(
+    PRE_TRAIN_CSV, None, 0, DEFAULT_TOKENS_PER_STEP["pre"]
+)
+ins_train_x, ins_train_loss, ins_val_x, ins_val_loss, ins_token_end, ins_tps = load_fixed_stage(
+    INS_SFT_TRAIN_CSV, INS_SFT_VAL_CSV, pre_token_end, DEFAULT_TOKENS_PER_STEP["ins"]
+)
+cot_train_x, cot_train_loss, cot_val_x, cot_val_loss, cot_token_end, cot_tps_map = load_cot_chain(
+    cot_stages, ins_token_end
+)
 
-# CoT SFT: continuous training from v1 → v2
-cot_v1_train_x, cot_v1_train_loss = load_stage(COT_SFT_TRAIN_CSV, cot_v1_token_start, SFT_TOKENS_PER_STEP)
-cot_v2_train_x, cot_v2_train_loss = load_stage(COT_V2_SFT_TRAIN_CSV, cot_v2_token_start, COT_V2_TOKENS_PER_STEP)
-
-train_x = np.concatenate([pre_train_x, ins_train_x, cot_v1_train_x, cot_v2_train_x])
-train_loss_raw = np.concatenate([pre_train_loss, ins_train_loss, cot_v1_train_loss, cot_v2_train_loss])
+train_x = np.concatenate([pre_train_x, ins_train_x, cot_train_x])
+train_loss_raw = np.concatenate([pre_train_loss, ins_train_loss, cot_train_loss])
 train_loss = smooth_median(train_loss_raw, TRAIN_SMOOTH_WINDOW)
 
-ins_val_x, ins_val_loss = load_stage(INS_SFT_VAL_CSV, ins_token_start, SFT_TOKENS_PER_STEP)
-cot_v1_val_x, cot_v1_val_loss = load_stage(COT_SFT_VAL_CSV, cot_v1_token_start, SFT_TOKENS_PER_STEP)
-cot_v2_val_x, cot_v2_val_loss = load_stage(COT_V2_SFT_VAL_CSV, cot_v2_token_start, COT_V2_TOKENS_PER_STEP)
-
-# Merge CoT v1 and v2 validation data into single line
-cot_val_x = np.concatenate([cot_v1_val_x, cot_v2_val_x])
-cot_val_loss = np.concatenate([cot_v1_val_loss, cot_v2_val_loss])
+boundaries = [0, pre_token_end, ins_token_end, cot_token_end]
 
 val_segments = [
     (ins_val_x, ins_val_loss, "Indie Mode SFT (val)", COLORS["val_ins"]),
@@ -277,32 +405,35 @@ plt.rcParams.update(
     }
 )
 
-plot_combined(
+plot_kwargs = dict(
     train_x=train_x,
     train_y_raw=train_loss_raw,
     train_y_smooth=train_loss,
     val_segments=val_segments,
     boundaries=boundaries,
-    y_transform=lambda y: y,
-    ylabel="Cross-Entropy Loss",
-    output_path=OUTPUT_CE,
+    cot_version_label=cot_label,
 )
 
-plot_combined(
-    train_x=train_x,
-    train_y_raw=train_loss_raw,
-    train_y_smooth=train_loss,
-    val_segments=val_segments,
-    boundaries=boundaries,
-    y_transform=ce_to_ppl,
-    ylabel="Perplexity",
-    output_path=OUTPUT_PPL,
-)
+plot_combined(**plot_kwargs, y_transform=lambda y: y, ylabel="Cross-Entropy Loss", output_path=OUTPUT_CE)
+plot_combined(**plot_kwargs, y_transform=ce_to_ppl, ylabel="Perplexity", output_path=OUTPUT_PPL)
 
-print(f"Saved {OUTPUT_CE} and {OUTPUT_PPL}")
-cot_v1_tokens = cot_v2_token_start - cot_v1_token_start
-cot_v2_tokens = boundaries[3] - cot_v2_token_start
+print(f"Saved {OUTPUT_CE.name} and {OUTPUT_PPL.name}")
+print(f"CoT stages: {cot_label} ({len(cot_stages)} segments)")
+for version, tps in cot_tps_map.items():
+    print(f"  v{version}: tokens/step={tps:,}")
+
+cot_token_parts = []
+offset = ins_token_end
+for stage in cot_stages:
+    df = read_csv(stage["train"])
+    tps = cot_tps_map[stage["version"]]
+    extent = stage_token_extent(df, tps)
+    cot_token_parts.append((stage["version"], extent))
+    offset += extent
+
+cot_breakdown = " ".join(f"cot_v{v}={n:,}" for v, n in cot_token_parts)
 print(
-    f"Tokens: pre={boundaries[1]:,} ins={boundaries[2]-boundaries[1]:,} "
-    f"cot_v1={cot_v1_tokens:,} cot_v2={cot_v2_tokens:,} total={boundaries[-1]:,}"
+    f"Tokens: pre={pre_token_end:,} ({pre_tps:,}/step) "
+    f"ins={ins_token_end - pre_token_end:,} ({ins_tps:,}/step) "
+    f"{cot_breakdown} total={boundaries[-1]:,}"
 )

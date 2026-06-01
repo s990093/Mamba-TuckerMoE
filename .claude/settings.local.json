@@ -98,7 +98,19 @@
       "Bash(open *)",
       "Bash(git -C /Users/hungwei/Desktop/Proj/Mamba3-XR log --oneline -5)",
       "Bash(git -C /Users/hungwei/Desktop/Proj/Mamba3-XR diff HEAD Portrait/s_phase1.html)",
-      "Bash(curl -s http://localhost:8080/s_phase2.html)"
+      "Bash(curl -s http://localhost:8080/s_phase2.html)",
+      "Bash(git -c color.ui=false status --short)",
+      "Bash(MODE=self_awareness MAX_TOK=20 bash *)",
+      "Bash(make -C mamba3_mlx sjd PROMPT=\"Hi\" MAX_TOK=15 STREAM=1)",
+      "Bash(grep -v \"^$\")",
+      "Bash(make sjd *)",
+      "Bash(make -C mamba3_mlx sjd PROMPT=\"Who are you?\" MAX_TOK=64 STREAM=0)",
+      "Bash(MAX_TOK=512 STREAM=0 make -C mamba3_mlx sjd PROMPT=\"Who are you?\")",
+      "Bash(MAX_TOK=512 STREAM=0 COMPILE=0 RUNTIME=none make -C mamba3_mlx sjd PROMPT=\"Who are you?\")",
+      "Bash(git checkout *)",
+      "Bash(make -C mamba3_mlx self MAX_TOK=80 STREAM=0)",
+      "Bash(html-validate academic_poster.html)",
+      "Bash(awk 'NR>=141 && NR<=665' /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase1.html)"
     ]
   }
 }

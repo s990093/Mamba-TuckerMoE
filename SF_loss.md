@@ -397,3 +397,170 @@ python3 scripts/train_sft_cot.py
 - **⑤ InfoEntropy**：動態計算，對模型仍不確定的位置（高熵）賦予更高權重，同樣集中在 `<final>` 區。
 
 五層權重在 `<final>` 區內 **直接相乘**，產生「前綴聚焦 × 低頻強化 × 難點放大」的協同效果；在 `<think>` 區僅有 ① 與 ② 作用，並由 FCP 獨立壓制過早的 EOS。三項輔助損失（MoE load‑balance / z‑loss / FCP）則以加法形式加入，確保訓練穩定。
+
+先給你結論（工程取向，不講理想論）：
+
+👉 **推薦做法：不要再加 explicit CoT loss（version B），直接「融合成 token-level 係數系統」**
+
+原因很簡單：你現在已經是 _token-weight shaping 系統極限形態_，再加 sequence-level CoT loss 會開始「重複施壓 final」，最後通常不是變強，是變得很模板化。
+
+---
+
+# 🧠 一、推薦方案（最穩 + 最強）
+
+## ✅ Final design：Unified Token-Weighted CoT System
+
+核心思想：
+
+> ❝ CoT 不用變成一個 loss，而是變成「不同區域的權重場」❞
+
+---
+
+# ⚙️ 二、完整 Loss（最終版）
+
+## 🔥 Main loss
+
+L*{total} = \frac{1}{N} \sum*{t} W(t) \cdot \ell*{CE}(t) + \lambda*{aux} L*{aux} + \lambda*{fcp} L\_{fcp}
+
+---
+
+## 🧩 Token weight 組合（核心）
+
+W(t) = w*{scale}(t) \cdot w*{sftgo}(t) \cdot w*{final}(t) \cdot w*{pdl}(t) \cdot w\_{ie}(t)
+
+---
+
+# 🧠 三、各 component 定義（完整整合版）
+
+---
+
+## ① SCALe（think → final attention shift）
+
+w\_{scale}(t) = \begin{cases} 1 \rightarrow 0.3 \ (cosine\ decay), & t \in \langle think \rangle \ 1, & \text{else} \end{cases}
+
+👉 控制「推理期 → 答案期」資源轉移
+
+---
+
+## ② SFT-GO（format stabilizer）
+
+w\_{sftgo}(t) = \begin{cases} 8, & t \in {</think>, </final>, <|im_end|>} \ 1, & \text{else} \end{cases}
+
+👉 防止 format collapse
+
+---
+
+## ③ Final-SW（answer prefix focus）
+
+w*{final}(i) = \lambda e^{-i/\tau} + (1-\lambda)(1 - i/L*{final})
+
+with:
+
+\tau = \eta L\_{final}
+
+👉 answer 前半段最重要
+
+---
+
+## ④ Power-Law Decay（frequency debias）
+
+w*{pdl}(t) = \left(\frac{f_t + \epsilon}{f*{max}}\right)^{-\alpha}
+
+👉 抑制高頻詞（的、了、and、the）
+
+---
+
+## ⑤ InfoEntropy（uncertainty focusing）
+
+w\_{ie}(t) = (1 - \frac{H(p_t)}{\log V})^{\gamma}
+
+where:
+
+H(p_t) = -\sum_j p_j \log p_j
+
+👉 專打「模型還不確定的位置」
+
+---
+
+# 🧠 四、Aux loss（保留但要弱）
+
+## ❗ 不要 CoT loss（重點）
+
+你只保留：
+
+L*{aux} = \frac{0.1}{66}L*{lb} + \frac{0.005}{66}L*{z} + \lambda*{FCP}L\_{fcp}
+
+---
+
+# ❌ 五、明確不要加這個
+
+不要再加：
+
+L = \lambda*{cot}L*{reason} + \lambda*{ans}L*{answer}
+
+### ❌ 理由
+
+你已經 implicit 做完了：
+
+- think ↓（SCALe）
+- final ↑（Final-SW + PDL + IE）
+
+👉 再加 = double reinforcement = overfit answer style
+
+---
+
+# 🧠 六、整體架構圖（簡化理解）
+
+```
+                 CE loss
+                    |
+        ┌───────────┼────────────┐
+        │           │            │
+     SCALe      SFT-GO       Final mask
+        │           │            │
+        └──────┬────┴────┬──────┘
+               │         │
+           Final-SW    Think suppression
+               │
+          PDL + IE (final only)
+               │
+        weighted CE loss
+               │
+          + small aux losses
+```
+
+---
+
+# 🚀 七、最重要的 tuning 建議
+
+## 🎯 如果你看到：
+
+### 1️⃣ think 消失
+
+👉 降 SCALe decay（太 aggressive）
+
+---
+
+### 2️⃣ answer 太模板
+
+👉 降 PDL α（0.4 → 0.25）
+
+---
+
+### 3️⃣ hallucination / random reasoning
+
+👉 提高 InfoEntropy γ（0.5 → 0.8）
+
+---
+
+### 4️⃣ loss 不穩
+
+👉 先關 IE（它最動態）
+
+---
+
+# ⚡ 一句話結論
+
+> **最佳設計是：CoT 不做 loss，而是被「壓縮成 token-level weight geometry」**
+
+---

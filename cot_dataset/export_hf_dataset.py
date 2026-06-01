@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 from datasets import Dataset
+from tokenizers import Tokenizer
 
 _cot_dir = Path(__file__).resolve().parent
 if str(_cot_dir) not in sys.path:
@@ -250,12 +251,16 @@ def expand_file_specs(src_dir: Path, specs: list[str]) -> tuple[list[Path], list
     return resolved_files, missing_specs
 
 
-def discover_json_specs(src_dir: Path) -> list[str]:
+def discover_json_specs(src_dir: Path, include_deep_dive: bool = False) -> list[str]:
     specs: list[str] = []
     for fp in sorted(src_dir.glob("*.json")):
         if fp.name in AUTO_DISCOVERY_SKIP_FILES:
             continue
         if fp.name.startswith("stats_"):
+            continue
+        if fp.name == "plot_cot_length.py":
+            continue
+        if not include_deep_dive and fp.name.startswith("deep_dive"):
             continue
         specs.append(fp.name)
 
@@ -266,6 +271,8 @@ def discover_json_specs(src_dir: Path) -> list[str]:
         if name in AUTO_DISCOVERY_SKIP_DIRS:
             continue
         if name.startswith("stf_cot_hf"):
+            continue
+        if not include_deep_dive and name == "deep":
             continue
         if any(sub.glob("*.json")):
             specs.append(f"{name}/*.json")
@@ -278,7 +285,8 @@ def iter_records(
     allow_missing: bool,
     duplicate_policy: str,
     dedupe_by_content: bool,
-) -> tuple[list[dict], list[str], dict[str, int], list[str], int]:
+    max_cot_tokens: int | None = None,
+) -> tuple[list[dict], list[str], dict[str, int], list[str], int, int]:
     rows: list[dict] = []
     missing: list[str] = []
     row_index_by_id: dict[str, int] = {}
@@ -286,6 +294,16 @@ def iter_records(
     invalid_messages: list[str] = []
     seen_content_keys: set[tuple[str, str, str, str]] = set()
     duplicate_content_rows = 0
+    cot_filtered = 0
+
+    tok: Tokenizer | None = None
+    if max_cot_tokens is not None:
+        tok_path = src_dir / "tokenizer.json"
+        if tok_path.exists():
+            tok = Tokenizer.from_file(str(tok_path))
+        else:
+            print(f"WARNING: tokenizer not found at {tok_path}, CoT filter disabled")
+            max_cot_tokens = None
 
     file_paths, unresolved_specs = expand_file_specs(src_dir, files)
     if unresolved_specs:
@@ -333,6 +351,12 @@ def iter_records(
                 "text": text,
             }
 
+            if max_cot_tokens is not None and tok is not None:
+                cot_tok_count = len(tok.encode(cot).ids)
+                if cot_tok_count > max_cot_tokens:
+                    cot_filtered += 1
+                    continue
+
             if dedupe_by_content:
                 content_key = (cat, user_input, cot, output)
                 if content_key in seen_content_keys:
@@ -358,7 +382,7 @@ def iter_records(
                 rows.append(row_obj)
                 continue
             raise ValueError(f"unsupported duplicate policy: {duplicate_policy}")
-    return rows, missing, duplicate_count_by_id, invalid_messages, duplicate_content_rows
+    return rows, missing, duplicate_count_by_id, invalid_messages, duplicate_content_rows, cot_filtered
 
 
 def main() -> None:
@@ -415,22 +439,64 @@ def main() -> None:
         default=42,
         help="Random seed for --shuffle (default: 42).",
     )
+    parser.add_argument(
+        "--max-cot-tokens",
+        type=int,
+        default=256,
+        help="Drop rows where CoT token count exceeds this limit (default: 256). Set 0 or negative to disable.",
+    )
+    parser.add_argument(
+        "--include-deep-dive",
+        action="store_true",
+        help="Include deep_dive category (excluded by default).",
+    )
+    parser.add_argument(
+        "--max-per-bucket",
+        type=str,
+        default="",
+        help="JSON map of bucket→max_records to randomly downsample (e.g. '{\"emotion\":10000}'). Applied after all other filters.",
+    )
     args = parser.parse_args()
 
     if args.files.strip().lower() == "auto":
-        file_list = discover_json_specs(args.src_dir.resolve())
+        file_list = discover_json_specs(args.src_dir.resolve(), include_deep_dive=args.include_deep_dive)
         print(f"Auto-discovered {len(file_list)} JSON specs.")
     else:
         file_list = [x.strip() for x in args.files.split(",") if x.strip()]
-    rows, missing, duplicate_count_by_id, invalid_messages, duplicate_content_rows = iter_records(
+
+    max_cot = args.max_cot_tokens if args.max_cot_tokens > 0 else None
+    rows, missing, duplicate_count_by_id, invalid_messages, duplicate_content_rows, cot_filtered = iter_records(
         args.src_dir.resolve(),
         file_list,
         allow_missing=args.allow_missing,
         duplicate_policy=args.duplicate_policy,
         dedupe_by_content=args.dedupe_by_content,
+        max_cot_tokens=max_cot,
     )
     if not rows:
         raise SystemExit("No valid rows were collected.")
+
+    cap_per_bucket: dict[str, int] = {}
+    if args.max_per_bucket.strip():
+        cap_per_bucket = json.loads(args.max_per_bucket)
+    capped_bucket_stats: dict[str, dict[str, int]] = {}
+    if cap_per_bucket:
+        from collections import defaultdict
+        rows_by_bucket: dict[str, list[dict]] = defaultdict(list)
+        for r in rows:
+            rows_by_bucket[r["sys_bucket"]].append(r)
+        for bucket, limit in sorted(cap_per_bucket.items()):
+            bucket_rows = rows_by_bucket.get(bucket, [])
+            before = len(bucket_rows)
+            if before > limit:
+                random.seed(args.seed + 1)
+                selected = random.sample(bucket_rows, limit)
+                removed = before - limit
+                rows_by_bucket[bucket] = selected
+                capped_bucket_stats[bucket] = {"before": before, "after": limit, "removed": removed}
+        rows = [r for b in sorted(rows_by_bucket) for r in rows_by_bucket[b]]
+        if capped_bucket_stats:
+            print(f"   ✂️  Bucket caps applied: {json.dumps(capped_bucket_stats)}")
 
     if args.shuffle:
         random.seed(args.seed)
@@ -459,6 +525,11 @@ def main() -> None:
         "invalid_examples": invalid_messages[:10],
         "dedupe_by_content": args.dedupe_by_content,
         "duplicate_content_rows_removed": duplicate_content_rows,
+        "cot_token_limit": max_cot,
+        "cot_filtered_rows": cot_filtered,
+        "include_deep_dive": args.include_deep_dive,
+        "bucket_caps": cap_per_bucket,
+        "bucket_caps_applied": capped_bucket_stats,
         "rewrite_id_prefix": args.rewrite_id_prefix,
         "shuffled": args.shuffle,
         "shuffle_seed": args.seed if args.shuffle else None,
