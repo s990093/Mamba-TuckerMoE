@@ -1,0 +1,1401 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#0d0c0b" />
+    <title>Eyes · Mamba</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/eyes.css" />
+    <link rel="stylesheet" href="/static/perf_float.css" />
+  </head>
+  <body>
+    <div class="scene" id="scene">
+      <!-- Background atmosphere -->
+      <div class="bg-glow" id="bg-glow" aria-hidden="true"></div>
+
+      <!-- Mascot stage -->
+      <div
+        class="eyes-stage"
+        id="eyes-stage"
+        aria-label="Mamba voice assistant"
+        role="main"
+      >
+        <!-- ═══ Pixel-art mascot ═══════════════════════════════════════ -->
+        <svg
+          class="mascot"
+          id="mascot"
+          viewBox="0 0 200 170"
+          shape-rendering="crispEdges"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <!-- BODY (always visible) -->
+          <g class="m-body" fill="#cc785c">
+            <!-- head top (narrower) -->
+            <rect x="30" y="0" width="140" height="20" />
+            <!-- middle band (widens, with arm stubs) -->
+            <rect x="10" y="20" width="180" height="50" />
+            <!-- head bottom (narrower) -->
+            <rect x="30" y="70" width="140" height="20" />
+            <!-- legs -->
+            <rect class="leg leg-1" x="30" y="90" width="20" height="40" />
+            <rect class="leg leg-2" x="70" y="90" width="20" height="40" />
+            <rect class="leg leg-3" x="110" y="90" width="20" height="40" />
+            <rect class="leg leg-4" x="150" y="90" width="20" height="40" />
+          </g>
+
+          <!-- ═══ EYE VARIANTS (only one shown per state via CSS) ═══ -->
+
+          <!-- Default vertical slits -->
+          <g class="m-eyes m-eyes-idle" fill="#0d0c0b">
+            <rect x="60" y="30" width="10" height="30" />
+            <rect x="130" y="30" width="10" height="30" />
+          </g>
+
+          <!-- Mid-blink (short horizontal bar) -->
+          <g class="m-eyes m-eyes-blink" fill="#0d0c0b">
+            <rect x="55" y="40" width="20" height="5" />
+            <rect x="125" y="40" width="20" height="5" />
+          </g>
+
+          <!-- Wink left (left closed, right open) -->
+          <g class="m-eyes m-eyes-wink-l" fill="#0d0c0b">
+            <rect x="55" y="40" width="20" height="5" />
+            <rect x="130" y="30" width="10" height="30" />
+          </g>
+
+          <!-- Wink right -->
+          <g class="m-eyes m-eyes-wink-r" fill="#0d0c0b">
+            <rect x="60" y="30" width="10" height="30" />
+            <rect x="125" y="40" width="20" height="5" />
+          </g>
+
+          <!-- Wide attentive (listening) -->
+          <g class="m-eyes m-eyes-wide" fill="#0d0c0b">
+            <rect x="55" y="25" width="20" height="40" />
+            <rect x="125" y="25" width="20" height="40" />
+          </g>
+
+          <!-- Looking up (thinking) -->
+          <g class="m-eyes m-eyes-up" fill="#0d0c0b">
+            <rect x="60" y="25" width="10" height="15" />
+            <rect x="130" y="25" width="10" height="15" />
+          </g>
+
+          <!-- Looking left -->
+          <g class="m-eyes m-eyes-left" fill="#0d0c0b">
+            <rect x="50" y="30" width="10" height="30" />
+            <rect x="120" y="30" width="10" height="30" />
+          </g>
+
+          <!-- Looking right -->
+          <g class="m-eyes m-eyes-right" fill="#0d0c0b">
+            <rect x="70" y="30" width="10" height="30" />
+            <rect x="140" y="30" width="10" height="30" />
+          </g>
+
+          <!-- Dots (processing) -->
+          <g class="m-eyes m-eyes-dot" fill="#0d0c0b">
+            <rect x="60" y="40" width="10" height="10" />
+            <rect x="130" y="40" width="10" height="10" />
+          </g>
+
+          <!-- Happy ^ ^ (done) -->
+          <g class="m-eyes m-eyes-happy" fill="#0d0c0b">
+            <rect x="55" y="45" width="10" height="10" />
+            <rect x="65" y="35" width="10" height="10" />
+            <rect x="125" y="45" width="10" height="10" />
+            <rect x="135" y="35" width="10" height="10" />
+          </g>
+
+          <!-- > < (startled / squint) -->
+          <g class="m-eyes m-eyes-squint" fill="#0d0c0b">
+            <!-- left > -->
+            <rect x="55" y="30" width="6" height="6" />
+            <rect x="61" y="36" width="6" height="6" />
+            <rect x="67" y="42" width="6" height="6" />
+            <rect x="61" y="48" width="6" height="6" />
+            <rect x="55" y="54" width="6" height="6" />
+            <!-- right < -->
+            <rect x="137" y="30" width="6" height="6" />
+            <rect x="131" y="36" width="6" height="6" />
+            <rect x="125" y="42" width="6" height="6" />
+            <rect x="131" y="48" width="6" height="6" />
+            <rect x="137" y="54" width="6" height="6" />
+          </g>
+
+          <!-- X X (error) -->
+          <g class="m-eyes m-eyes-x" fill="#0d0c0b">
+            <!-- left X -->
+            <rect x="55" y="30" width="10" height="10" />
+            <rect x="70" y="30" width="10" height="10" />
+            <rect x="62.5" y="40" width="10" height="10" />
+            <rect x="55" y="50" width="10" height="10" />
+            <rect x="70" y="50" width="10" height="10" />
+            <!-- right X -->
+            <rect x="125" y="30" width="10" height="10" />
+            <rect x="140" y="30" width="10" height="10" />
+            <rect x="132.5" y="40" width="10" height="10" />
+            <rect x="125" y="50" width="10" height="10" />
+            <rect x="140" y="50" width="10" height="10" />
+          </g>
+
+          <!-- Sleep (closed long bars) -->
+          <g class="m-eyes m-eyes-sleep" fill="#0d0c0b">
+            <rect x="50" y="42" width="30" height="6" />
+            <rect x="120" y="42" width="30" height="6" />
+          </g>
+
+          <!-- ═══ MOUTH VARIANTS (only shown in speaking state) ═══ -->
+          <g class="m-mouth m-mouth-open" fill="#0d0c0b">
+            <rect x="80" y="68" width="40" height="14" />
+          </g>
+          <g class="m-mouth m-mouth-narrow" fill="#0d0c0b">
+            <rect x="80" y="73" width="40" height="4" />
+          </g>
+
+          <!-- ═══ Pixel heart (upper-left, hidden by default) ═══ -->
+          <g class="m-heart" fill="#e03030">
+            <!-- 4 px pixel heart, x=1-29, y=0-24 -->
+            <rect x="5" y="0" width="8" height="4" />
+            <rect x="17" y="0" width="8" height="4" />
+            <rect x="1" y="4" width="28" height="4" />
+            <rect x="1" y="8" width="28" height="4" />
+            <rect x="5" y="12" width="20" height="4" />
+            <rect x="9" y="16" width="12" height="4" />
+            <rect x="13" y="20" width="4" height="4" />
+          </g>
+
+          <!-- ═══ Floating heart particle (greeting / celebrate) ═══ -->
+          <g class="m-heart" fill="#e06050">
+            <rect x="95" y="0" width="10" height="10" />
+            <rect x="115" y="0" width="10" height="10" />
+            <rect x="85" y="10" width="10" height="10" />
+            <rect x="95" y="10" width="10" height="10" />
+            <rect x="105" y="10" width="10" height="10" />
+            <rect x="115" y="10" width="10" height="10" />
+            <rect x="125" y="10" width="10" height="10" />
+            <rect x="95" y="20" width="10" height="10" />
+            <rect x="105" y="20" width="10" height="10" />
+            <rect x="115" y="20" width="10" height="10" />
+            <rect x="105" y="30" width="10" height="10" />
+          </g>
+
+          <!-- ═══ Sleep Z particles ═══ -->
+          <g
+            class="m-zzz"
+            fill="#cc785c"
+            font-family="monospace"
+            font-size="14"
+            font-weight="bold"
+          >
+            <text x="155" y="20">z</text>
+            <text x="170" y="8">z</text>
+          </g>
+        </svg>
+
+        <!-- ═══ TARS — Q版 pixel-art robot (4-equal-panel: arm|body|body|arm) ═══ -->
+        <svg
+          class="mascot-tars"
+          id="mascot-tars"
+          viewBox="0 0 200 240"
+          shape-rendering="crispEdges"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <!-- Ground shadow -->
+          <ellipse cx="100" cy="228" rx="62" ry="7" fill="rgba(0,0,0,0.28)" />
+
+          <!-- Dark background — shows through 4px gaps between all 4 panels -->
+          <!-- Layout: arm-L x=10-52 | gap 52-56 | body-L x=56-98 | gap 98-102 | body-R x=102-144 | gap 144-148 | arm-R x=148-190 -->
+          <rect x="10" y="6" width="180" height="212" fill="#18140c" />
+
+          <!-- ═══ PANEL 1: LEFT ARM (animated group) ═══ -->
+          <g class="t-arm-l">
+            <rect x="10" y="6" width="42" height="42" fill="#d2cec8" />
+            <rect x="10" y="48" width="42" height="42" fill="#bab6b0" />
+            <rect x="10" y="90" width="42" height="43" fill="#a09c96" />
+            <rect x="10" y="133" width="42" height="42" fill="#7c7874" />
+            <rect x="10" y="175" width="42" height="43" fill="#5e5a56" />
+            <rect x="10" y="48" width="42" height="1" fill="rgba(0,0,0,0.22)" />
+            <rect x="10" y="90" width="42" height="1" fill="rgba(0,0,0,0.22)" />
+            <rect
+              x="10"
+              y="133"
+              width="42"
+              height="1"
+              fill="rgba(0,0,0,0.22)"
+            />
+            <rect
+              x="10"
+              y="175"
+              width="42"
+              height="1"
+              fill="rgba(0,0,0,0.22)"
+            />
+            <rect
+              x="16"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="23"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="30"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="37"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="44"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+          </g>
+
+          <!-- ═══ PANEL 2: BODY LEFT ═══ -->
+          <rect x="56" y="6" width="42" height="42" fill="#d2cec8" />
+          <rect x="56" y="48" width="42" height="42" fill="#bab6b0" />
+          <rect x="56" y="90" width="42" height="43" fill="#a09c96" />
+          <rect x="56" y="133" width="42" height="42" fill="#7c7874" />
+          <rect x="56" y="175" width="42" height="43" fill="#5e5a56" />
+          <rect x="56" y="48" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect x="56" y="90" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect x="56" y="133" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect x="56" y="175" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect
+            x="62"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="69"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="76"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="83"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="90"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+
+          <!-- ═══ PANEL 3: BODY RIGHT ═══ -->
+          <rect x="102" y="6" width="42" height="42" fill="#d2cec8" />
+          <rect x="102" y="48" width="42" height="42" fill="#bab6b0" />
+          <rect x="102" y="90" width="42" height="43" fill="#a09c96" />
+          <rect x="102" y="133" width="42" height="42" fill="#7c7874" />
+          <rect x="102" y="175" width="42" height="43" fill="#5e5a56" />
+          <rect x="102" y="48" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect x="102" y="90" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect x="102" y="133" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect x="102" y="175" width="42" height="1" fill="rgba(0,0,0,0.18)" />
+          <rect
+            x="108"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="115"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="122"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="129"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+          <rect
+            x="136"
+            y="6"
+            width="2"
+            height="212"
+            fill="#18140c"
+            opacity="0.25"
+          />
+
+          <!-- ═══ PANEL 4: RIGHT ARM (animated group) ═══ -->
+          <g class="t-arm-r">
+            <rect x="148" y="6" width="42" height="42" fill="#d2cec8" />
+            <rect x="148" y="48" width="42" height="42" fill="#bab6b0" />
+            <rect x="148" y="90" width="42" height="43" fill="#a09c96" />
+            <rect x="148" y="133" width="42" height="42" fill="#7c7874" />
+            <rect x="148" y="175" width="42" height="43" fill="#5e5a56" />
+            <rect
+              x="148"
+              y="48"
+              width="42"
+              height="1"
+              fill="rgba(0,0,0,0.22)"
+            />
+            <rect
+              x="148"
+              y="90"
+              width="42"
+              height="1"
+              fill="rgba(0,0,0,0.22)"
+            />
+            <rect
+              x="148"
+              y="133"
+              width="42"
+              height="1"
+              fill="rgba(0,0,0,0.22)"
+            />
+            <rect
+              x="148"
+              y="175"
+              width="42"
+              height="1"
+              fill="rgba(0,0,0,0.22)"
+            />
+            <rect
+              x="154"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="161"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="168"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="175"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+            <rect
+              x="182"
+              y="6"
+              width="2"
+              height="212"
+              fill="#18140c"
+              opacity="0.38"
+            />
+          </g>
+
+          <!-- ═══ VISOR — dark face-plate on both body panels, y=6–80 ═══ -->
+          <rect x="56" y="6" width="42" height="74" fill="#080806" />
+          <rect x="56" y="6" width="42" height="2" fill="#282824" />
+          <rect x="56" y="78" width="42" height="2" fill="#181816" />
+          <rect x="102" y="6" width="42" height="74" fill="#080806" />
+          <rect x="102" y="6" width="42" height="2" fill="#282824" />
+          <rect x="102" y="78" width="42" height="2" fill="#181816" />
+
+          <!-- ═══ EYE VARIANTS — left eye in panel-2 visor, right in panel-3 visor ═══ -->
+
+          <!-- Idle: downward-V sensor eyes (visor center y≈43) -->
+          <g class="t-eyes t-eyes-idle">
+            <rect
+              x="67"
+              y="25"
+              width="20"
+              height="18"
+              rx="1"
+              fill="rgba(0,200,232,0.10)"
+            />
+            <rect
+              x="113"
+              y="25"
+              width="20"
+              height="18"
+              rx="1"
+              fill="rgba(0,200,232,0.10)"
+            />
+            <rect x="71" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="77" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="74" y="35" width="5" height="5" fill="#00c8e8" />
+            <rect x="117" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="123" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="120" y="35" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Blink: thin horizontal bars -->
+          <g class="t-eyes t-eyes-blink">
+            <rect
+              x="67"
+              y="41"
+              width="20"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.55"
+            />
+            <rect
+              x="113"
+              y="41"
+              width="20"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.55"
+            />
+          </g>
+
+          <!-- Wide: alert squares (listening / greeting) -->
+          <g class="t-eyes t-eyes-wide">
+            <rect x="67" y="26" width="20" height="20" fill="#00c8e8" />
+            <rect x="113" y="26" width="20" height="20" fill="#00c8e8" />
+          </g>
+
+          <!-- Dots: processing -->
+          <g class="t-eyes t-eyes-dots">
+            <rect x="75" y="36" width="6" height="6" fill="#00c8e8" />
+            <rect x="121" y="36" width="6" height="6" fill="#00c8e8" />
+          </g>
+
+          <!-- Happy: upward ∧ chevrons (done / celebrate) -->
+          <g class="t-eyes t-eyes-happy">
+            <rect x="74" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="71" y="36" width="5" height="5" fill="#00c8e8" />
+            <rect x="77" y="36" width="5" height="5" fill="#00c8e8" />
+            <rect x="120" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="117" y="36" width="5" height="5" fill="#00c8e8" />
+            <rect x="123" y="36" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Scan: dual scanbar (one per body panel, both animate together via shared class) -->
+          <g class="t-eyes t-eyes-scan">
+            <clipPath id="tars-visor-clip-l" clipPathUnits="userSpaceOnUse">
+              <rect x="56" y="6" width="42" height="74" />
+            </clipPath>
+            <clipPath id="tars-visor-clip-r" clipPathUnits="userSpaceOnUse">
+              <rect x="102" y="6" width="42" height="74" />
+            </clipPath>
+            <rect
+              class="t-scanbar"
+              x="56"
+              y="10"
+              width="42"
+              height="5"
+              fill="#00c8e8"
+              opacity="0.85"
+              clip-path="url(#tars-visor-clip-l)"
+            />
+            <rect
+              class="t-scanbar"
+              x="102"
+              y="10"
+              width="42"
+              height="5"
+              fill="#00c8e8"
+              opacity="0.85"
+              clip-path="url(#tars-visor-clip-r)"
+            />
+          </g>
+
+          <!-- X: error eyes (red) -->
+          <g class="t-eyes t-eyes-x">
+            <rect x="68" y="26" width="7" height="7" fill="#e04040" />
+            <rect x="81" y="26" width="7" height="7" fill="#e04040" />
+            <rect x="74" y="33" width="8" height="8" fill="#e04040" />
+            <rect x="68" y="41" width="7" height="7" fill="#e04040" />
+            <rect x="81" y="41" width="7" height="7" fill="#e04040" />
+            <rect x="114" y="26" width="7" height="7" fill="#e04040" />
+            <rect x="127" y="26" width="7" height="7" fill="#e04040" />
+            <rect x="120" y="33" width="8" height="8" fill="#e04040" />
+            <rect x="114" y="41" width="7" height="7" fill="#e04040" />
+            <rect x="127" y="41" width="7" height="7" fill="#e04040" />
+          </g>
+
+          <!-- Left gaze -->
+          <g class="t-eyes t-eyes-left">
+            <rect x="65" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="71" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="68" y="35" width="5" height="5" fill="#00c8e8" />
+            <rect x="108" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="114" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="111" y="35" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Right gaze -->
+          <g class="t-eyes t-eyes-right">
+            <rect x="77" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="83" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="80" y="35" width="5" height="5" fill="#00c8e8" />
+            <rect x="123" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="129" y="30" width="5" height="5" fill="#00c8e8" />
+            <rect x="126" y="35" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Up gaze -->
+          <g class="t-eyes t-eyes-up">
+            <rect x="71" y="22" width="5" height="5" fill="#00c8e8" />
+            <rect x="77" y="22" width="5" height="5" fill="#00c8e8" />
+            <rect x="74" y="27" width="5" height="5" fill="#00c8e8" />
+            <rect x="117" y="22" width="5" height="5" fill="#00c8e8" />
+            <rect x="123" y="22" width="5" height="5" fill="#00c8e8" />
+            <rect x="120" y="27" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Sleep: near-invisible dim lines -->
+          <g class="t-eyes t-eyes-sleep">
+            <rect
+              x="67"
+              y="42"
+              width="20"
+              height="2"
+              fill="#00c8e8"
+              opacity="0.08"
+            />
+            <rect
+              x="113"
+              y="42"
+              width="20"
+              height="2"
+              fill="#00c8e8"
+              opacity="0.08"
+            />
+          </g>
+
+          <!-- Wink-L: viewer's left eye (panel-2) closed, right eye open -->
+          <g class="t-eyes t-eyes-wink-l">
+            <rect
+              x="67"
+              y="41"
+              width="20"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.55"
+            />
+            <rect
+              x="113"
+              y="25"
+              width="20"
+              height="18"
+              rx="1"
+              fill="rgba(0,200,232,0.10)"
+            />
+            <rect x="117" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="123" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="120" y="35" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Wink-R: viewer's right eye (panel-3) closed, left eye open -->
+          <g class="t-eyes t-eyes-wink-r">
+            <rect
+              x="67"
+              y="25"
+              width="20"
+              height="18"
+              rx="1"
+              fill="rgba(0,200,232,0.10)"
+            />
+            <rect x="71" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="77" y="29" width="5" height="5" fill="#00c8e8" />
+            <rect x="74" y="35" width="5" height="5" fill="#00c8e8" />
+            <rect
+              x="113"
+              y="41"
+              width="20"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.55"
+            />
+          </g>
+
+          <!-- Squint: inward >< chevrons (startled) -->
+          <g class="t-eyes t-eyes-squint">
+            <!-- left > -->
+            <rect x="68" y="26" width="5" height="5" fill="#00c8e8" />
+            <rect x="73" y="34" width="5" height="5" fill="#00c8e8" />
+            <rect x="68" y="42" width="5" height="5" fill="#00c8e8" />
+            <!-- right < -->
+            <rect x="128" y="26" width="5" height="5" fill="#00c8e8" />
+            <rect x="122" y="34" width="5" height="5" fill="#00c8e8" />
+            <rect x="128" y="42" width="5" height="5" fill="#00c8e8" />
+          </g>
+
+          <!-- Q版 blush cheeks (just below visor at y=80) -->
+          <ellipse
+            cx="77"
+            cy="84"
+            rx="7"
+            ry="3"
+            fill="rgba(255,140,110,0.18)"
+          />
+          <ellipse
+            cx="123"
+            cy="84"
+            rx="7"
+            ry="3"
+            fill="rgba(255,140,110,0.18)"
+          />
+
+          <!-- ═══ TARS pixel-art label (vertical T/A/R/S) on panel-2 body-left ═══ -->
+          <!-- T -->
+          <rect x="59" y="88" width="10" height="2" fill="#d08840" />
+          <rect x="63" y="90" width="2" height="8" fill="#d08840" />
+          <!-- A -->
+          <rect x="61" y="102" width="6" height="2" fill="#d08840" />
+          <rect x="59" y="104" width="2" height="2" fill="#d08840" />
+          <rect x="67" y="104" width="2" height="2" fill="#d08840" />
+          <rect x="59" y="106" width="10" height="2" fill="#d08840" />
+          <rect x="59" y="108" width="2" height="4" fill="#d08840" />
+          <rect x="67" y="108" width="2" height="4" fill="#d08840" />
+          <!-- R -->
+          <rect x="59" y="116" width="8" height="2" fill="#d08840" />
+          <rect x="59" y="118" width="2" height="8" fill="#d08840" />
+          <rect x="67" y="118" width="2" height="2" fill="#d08840" />
+          <rect x="59" y="120" width="8" height="2" fill="#d08840" />
+          <rect x="63" y="122" width="2" height="2" fill="#d08840" />
+          <rect x="65" y="124" width="4" height="2" fill="#d08840" />
+          <!-- S -->
+          <rect x="59" y="130" width="8" height="2" fill="#d08840" />
+          <rect x="59" y="132" width="2" height="2" fill="#d08840" />
+          <rect x="61" y="134" width="6" height="2" fill="#d08840" />
+          <rect x="67" y="136" width="2" height="2" fill="#d08840" />
+          <rect x="59" y="138" width="8" height="2" fill="#d08840" />
+
+          <!-- Dot matrix (right of TARS text, still within panel-2) -->
+          <rect
+            x="77"
+            y="88"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.70"
+          />
+          <rect
+            x="82"
+            y="88"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.45"
+          />
+          <rect
+            x="87"
+            y="88"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.60"
+          />
+          <rect
+            x="77"
+            y="96"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.50"
+          />
+          <rect
+            x="82"
+            y="96"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.80"
+          />
+          <rect
+            x="87"
+            y="96"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.35"
+          />
+          <rect
+            x="77"
+            y="104"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.60"
+          />
+          <rect
+            x="82"
+            y="104"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.40"
+          />
+          <rect
+            x="87"
+            y="104"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.70"
+          />
+          <rect
+            x="77"
+            y="112"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.40"
+          />
+          <rect
+            x="82"
+            y="112"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.65"
+          />
+          <rect
+            x="87"
+            y="112"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.55"
+          />
+          <rect
+            x="77"
+            y="120"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.75"
+          />
+          <rect
+            x="82"
+            y="120"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.40"
+          />
+          <rect
+            x="87"
+            y="120"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.60"
+          />
+          <rect
+            x="77"
+            y="128"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.45"
+          />
+          <rect
+            x="82"
+            y="128"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.70"
+          />
+          <rect
+            x="87"
+            y="128"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.50"
+          />
+          <rect
+            x="77"
+            y="136"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.65"
+          />
+          <rect
+            x="82"
+            y="136"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.38"
+          />
+          <rect
+            x="87"
+            y="136"
+            width="2"
+            height="2"
+            fill="#d08840"
+            opacity="0.75"
+          />
+
+          <!-- Speaker bar (on both body panels, pulses while speaking) -->
+          <g class="t-speaker">
+            <!-- grill dots: panel-2 -->
+            <rect
+              x="62"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="69"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="76"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="83"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="90"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="59"
+              y="159"
+              width="36"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.65"
+            />
+            <!-- grill dots: panel-3 -->
+            <rect
+              x="108"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="115"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="122"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="129"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="136"
+              y="152"
+              width="3"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.22"
+            />
+            <rect
+              x="105"
+              y="159"
+              width="36"
+              height="3"
+              fill="#00c8e8"
+              opacity="0.65"
+            />
+          </g>
+        </svg>
+      </div>
+      <!-- /eyes-stage -->
+
+      <!-- Status -->
+      <div class="status-area" aria-live="polite">
+        <div class="status-text" id="status-text"></div>
+        <div class="status-sub" id="status-sub"></div>
+      </div>
+
+      <!-- CoT reasoning stream -->
+      <div
+        class="cot-stream"
+        id="cot-stream"
+        aria-live="polite"
+        aria-label="Reasoning"
+      >
+        <div class="cot-fade-top" aria-hidden="true"></div>
+        <div class="cot-content" id="cot-content"></div>
+      </div>
+
+      <!-- TARS THINK channel HUD (in-flow, below mascot — replaces CoT stream for TARS) -->
+      <div id="tars-hud" class="tars-hud" aria-hidden="true">
+        <div class="tars-ch-think">
+          <!-- Radar scanner -->
+          <div class="tars-radar-wrap">
+            <svg
+              class="tars-radar-svg"
+              viewBox="0 0 80 80"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="40"
+                cy="40"
+                r="36"
+                fill="none"
+                stroke="rgba(0,200,232,0.20)"
+                stroke-width="1"
+              />
+              <circle
+                cx="40"
+                cy="40"
+                r="24"
+                fill="none"
+                stroke="rgba(0,200,232,0.14)"
+                stroke-width="1"
+              />
+              <circle
+                cx="40"
+                cy="40"
+                r="12"
+                fill="none"
+                stroke="rgba(0,200,232,0.10)"
+                stroke-width="1"
+              />
+              <line
+                x1="40"
+                y1="4"
+                x2="40"
+                y2="76"
+                stroke="rgba(0,200,232,0.10)"
+                stroke-width="0.5"
+              />
+              <line
+                x1="4"
+                y1="40"
+                x2="76"
+                y2="40"
+                stroke="rgba(0,200,232,0.10)"
+                stroke-width="0.5"
+              />
+              <g class="tars-radar-arm">
+                <path
+                  d="M40 40 L76 40 A36 36 0 0 1 40 76 Z"
+                  fill="rgba(0,200,232,0.07)"
+                />
+                <line
+                  x1="40"
+                  y1="40"
+                  x2="76"
+                  y2="40"
+                  stroke="rgba(0,210,250,0.80)"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </g>
+              <circle
+                class="tars-rdr-blip"
+                cx="58"
+                cy="28"
+                r="2"
+                fill="#00c8e8"
+                opacity="0"
+              />
+              <circle
+                class="tars-rdr-blip"
+                cx="30"
+                cy="52"
+                r="2"
+                fill="#00c8e8"
+                opacity="0"
+              />
+              <circle
+                class="tars-rdr-blip"
+                cx="64"
+                cy="55"
+                r="1.5"
+                fill="#00c8e8"
+                opacity="0"
+              />
+            </svg>
+            <div class="tars-rdr-label">SCAN</div>
+          </div>
+          <!-- Terminal text -->
+          <div class="tars-terminal">
+            <div class="tars-term-header">
+              <span>TARS://PROC</span><span class="tars-term-cursor">_</span>
+            </div>
+            <div class="tars-term-lines" id="tars-term-lines"></div>
+          </div>
+          <!-- Sidebar: loading bars + waveform -->
+          <div class="tars-sidebar">
+            <div class="tars-loadbars">
+              <div class="tars-lb">
+                <span class="tars-lb-lbl">PARSE</span>
+                <div class="tars-lb-track">
+                  <div class="tars-lb-fill" style="--dur: 1.1s"></div>
+                </div>
+              </div>
+              <div class="tars-lb">
+                <span class="tars-lb-lbl">RECALL</span>
+                <div class="tars-lb-track">
+                  <div class="tars-lb-fill" style="--dur: 1.7s"></div>
+                </div>
+              </div>
+              <div class="tars-lb">
+                <span class="tars-lb-lbl">SYNTH</span>
+                <div class="tars-lb-track">
+                  <div class="tars-lb-fill" style="--dur: 2.3s"></div>
+                </div>
+              </div>
+              <div class="tars-lb">
+                <span class="tars-lb-lbl">OUTPUT</span>
+                <div class="tars-lb-track">
+                  <div class="tars-lb-fill" style="--dur: 0.85s"></div>
+                </div>
+              </div>
+            </div>
+            <div class="tars-waveform" id="tars-waveform"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TTS subtitle (bottom-centre, shows current spoken sentence) -->
+      <div class="subtitle" id="subtitle" aria-live="polite"></div>
+
+      <!-- TARS FINAL channel (fixed bottom, replaces subtitle for TARS mode) -->
+      <div class="tars-ch-final" id="tars-ch-final" aria-live="polite">
+        <div class="tars-final-header">
+          <span class="tars-final-tag">// TARS OUTPUT</span>
+          <div class="tars-final-rule"></div>
+        </div>
+        <div class="tars-final-body">
+          <span class="tars-final-text" id="tars-final-text"></span
+          ><span class="tars-final-cur" id="tars-final-cur">▋</span>
+        </div>
+      </div>
+
+      <!-- Hint -->
+      <div class="hint-area" id="hint-area">
+        <kbd class="hint-key">SPACE</kbd>
+        <span class="hint-label" id="hint-label">Hold to speak</span>
+      </div>
+
+      <!-- Live transcript overlay (top-left) -->
+      <div
+        class="transcript"
+        id="transcript"
+        aria-live="polite"
+        aria-label="辨識中"
+      >
+        <span class="transcript-text" id="transcript-text"></span>
+        <span
+          class="transcript-cursor"
+          id="transcript-cursor"
+          aria-hidden="true"
+        ></span>
+      </div>
+
+      <!-- Top-right control cluster -->
+      <div class="top-controls">
+        <!-- Character switch -->
+        <div class="char-switch" id="char-switch">
+          <button
+            class="char-btn-opt active"
+            id="char-btn-eyes"
+            data-char="eyes"
+            title="Mamba mascot"
+          >
+            <span class="char-dot" style="background: #cc785c"></span>
+            <span>MAMBA</span>
+          </button>
+          <button
+            class="char-btn-opt"
+            id="char-btn-tars"
+            data-char="tars"
+            title="TARS (X)"
+          >
+            <span class="char-dot" style="background: #00c8e8"></span>
+            <span>TARS</span>
+          </button>
+        </div>
+
+        <!-- System prompt switcher -->
+        <div class="sys-switcher" id="sys-switcher">
+          <button
+            class="sys-btn"
+            id="sys-btn"
+            title="Switch system prompt"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 6h16M4 12h10M4 18h16" />
+            </svg>
+            <span class="sys-btn-label" id="sys-btn-label">daily</span>
+          </button>
+          <div class="sys-menu" id="sys-menu" role="listbox" hidden></div>
+        </div>
+
+        <!-- Settings (gear) -->
+        <button
+          class="gear-btn"
+          id="gear-btn"
+          title="Settings (S)"
+          aria-label="Settings"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Settings panel -->
+      <div
+        class="settings-panel"
+        id="settings-panel"
+        hidden
+        role="dialog"
+        aria-label="Settings"
+      >
+        <div class="settings-row">
+          <label for="set-voice">Voice</label>
+          <select id="set-voice" class="set-input"></select>
+        </div>
+        <div class="settings-row">
+          <label for="set-rate"
+            >Rate <span class="set-val" id="set-rate-val">1.10</span></label
+          >
+          <input
+            type="range"
+            id="set-rate"
+            min="0.7"
+            max="1.5"
+            step="0.05"
+            value="1.10"
+            class="set-slider"
+          />
+        </div>
+        <div class="settings-row">
+          <label for="set-pitch"
+            >Pitch <span class="set-val" id="set-pitch-val">1.20</span></label
+          >
+          <input
+            type="range"
+            id="set-pitch"
+            min="0.7"
+            max="1.5"
+            step="0.05"
+            value="1.20"
+            class="set-slider"
+          />
+        </div>
+        <div class="settings-row">
+          <label for="set-maxtok"
+            >Max tokens
+            <span class="set-val" id="set-maxtok-val">512</span></label
+          >
+          <input
+            type="range"
+            id="set-maxtok"
+            min="128"
+            max="2048"
+            step="64"
+            value="512"
+            class="set-slider"
+          />
+        </div>
+        <div class="settings-row settings-toggle-row">
+          <label for="set-mousetrack">Random gaze</label>
+          <input
+            type="checkbox"
+            id="set-mousetrack"
+            class="set-toggle"
+            checked
+          />
+        </div>
+        <div class="settings-actions">
+          <button class="set-btn" id="set-test">Test voice</button>
+          <button class="set-btn" id="set-reset">Reset</button>
+        </div>
+      </div>
+
+      <!-- Keyboard shortcuts overlay -->
+      <div class="shortcuts-overlay" id="shortcuts-overlay" hidden>
+        <div class="shortcuts-card">
+          <div class="shortcuts-title">Keyboard</div>
+          <div class="shortcuts-row">
+            <kbd>Space</kbd><span>Hold to speak</span>
+          </div>
+          <div class="shortcuts-row">
+            <kbd>Esc</kbd><span>Cancel / close panels</span>
+          </div>
+          <div class="shortcuts-row"><kbd>S</kbd><span>Settings</span></div>
+          <div class="shortcuts-row">
+            <kbd>C</kbd><span>Cycle category</span>
+          </div>
+          <div class="shortcuts-row">
+            <kbd>X</kbd><span>Switch character</span>
+          </div>
+          <div class="shortcuts-row">
+            <kbd>M</kbd><span>Mock conversation</span>
+          </div>
+          <div class="shortcuts-row">
+            <kbd>D</kbd><span>Dev state panel</span>
+          </div>
+          <div class="shortcuts-row"><kbd>?</kbd><span>This panel</span></div>
+          <div class="shortcuts-foot">Click anywhere to dismiss</div>
+        </div>
+      </div>
+
+      <!-- WS dot -->
+      <div class="ws-dot" id="ws-dot" aria-label="Connection status"></div>
+
+      <!-- Chat link -->
+      <a class="chat-link" href="/" title="文字介面">
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+          />
+        </svg>
+      </a>
+    </div>
+    <!-- /scene -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+    <script src="/static/eyes.js" defer></script>
+    <script src="/static/perf_float.js" defer></script>
+  </body>
+</html>

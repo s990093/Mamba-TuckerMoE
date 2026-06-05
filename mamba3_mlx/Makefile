@@ -7,7 +7,7 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v4/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v3/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 
 # ── Auto-select fastest checkpoint ────────────────────────────────────────────
@@ -19,23 +19,23 @@ _SIDECAR   := $(_CKPT_STEM).mlx_bf16.npz
 _FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
 
 # ── Generation defaults ────────────────────────────────────────────────────────
-PROMPT    ?= Who are you?
+# PROMPT    ?= Who are you?
 # PROMPT    ?= Write a email
 MODE      ?= self_awareness
-TEMP      ?= 0.2     # 微調：給予極小幅度的彈性，避免字詞過度僵化
+TEMP      ?= 0.2   # tune_self.py 96-trial best: 低溫穩定 CoT 結構
 MAX_TOK   ?= 1024      # 保持：符合 v2 SFT 規範的預算
 SEED      ?= 0
 STREAM    ?= 1
 NO_THINK  ?= 0
 
-# Sampling knobs (針對 400M 級別混合架構最佳化)
-TOP_K          ?= 40      # 縮緊 (原本 40)：暴力切斷長尾，不讓小模型有機會選到奇怪的碎 Token
-TOP_P          ?= 0.85    # 縮緊 (原本 0.9)：配合 MIN_P 進行雙重保險
-MIN_P          ?= 0.08    # 強化 (原本 0.05)：更激進地過濾掉那些絕對機率低於最高機率 8% 的毒藥選項
-REP_PEN        ?= 1.50    # 強化 (原本 1.32/1.1)：24組參數掃描最佳值，阻斷短句重複循環
-PRES_PEN       ?= 0.50    # 強化 (原本 0.42/0.0)：強制詞彙多樣化，避免退化循環
-FREQ_PEN       ?= 0.3    # 強化 (原本 0.05/0.02)：阻斷長期句型結構重複
-REPEAT_LAST_N  ?= 128     # 擴大 (原本 256/64)：擴大懲罰視野以抑制長程崩潰
+# Sampling knobs (tune_self.py 96-trial random search, self_awareness mode)
+TOP_K          ?= 30      # 96-trial best for self-awareness CoT structure
+TOP_P          ?= 0.959   # tune_self.py best
+MIN_P          ?= 0.122   # tune_self.py best
+REP_PEN        ?= 1.281   # tune_self.py best
+PRES_PEN       ?= 0.298   # tune_self.py best
+FREQ_PEN       ?= 0.168   # tune_self.py best
+REPEAT_LAST_N  ?= 128     # 保持
 # Stop control
 NO_EOS    ?=0           # set to 1 to ignore EOS/<|im_end|> tokens
 STOP_STR  ?=             # e.g. STOP_STR='</final>'
@@ -82,6 +82,7 @@ $(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $
 
 .PHONY: run self emotion email movie daily syscall deep default debug help \
         cot-demo cot-verify chat chat-mock chat-smoke chat-kill \
+        profiler profiler-kill \
         convert-sidecar \
         sjd sjd-self sjd-math sjd-daily sjd-emotion sjd-email \
         sjd-movie sjd-deep sjd-syscall \
@@ -173,9 +174,18 @@ cot-verify:
 # ── Chat demo (WebSocket / FastAPI, mamba3_mlx native stack) ──────────────────
 CHAT_PORT ?= 7860
 
-## chat: boot the chat_demo WebSocket server (real inference, port $CHAT_PORT)
+## chat: boot chat_demo; also starts profiler on $PROFILER_PORT if not already running
 chat:
-	cd $(REPO) && $(PYTHON) -m mamba3_mlx.chat_demo --port $(CHAT_PORT)
+	@cd $(REPO) && \
+	  PROF_PID="" ; \
+	  if ! lsof -Pi :$(PROFILER_PORT) -sTCP:LISTEN -t >/dev/null 2>&1 ; then \
+	    $(PYTHON) -m mamba3_mlx.profiler.server --port $(PROFILER_PORT) & PROF_PID=$$! ; \
+	    echo "[chat] profiler started (pid=$$PROF_PID) on :$(PROFILER_PORT)" ; \
+	  else \
+	    echo "[chat] profiler already running on :$(PROFILER_PORT) — reusing" ; \
+	  fi ; \
+	  trap '[ -n "$$PROF_PID" ] && kill $$PROF_PID 2>/dev/null; wait $$PROF_PID 2>/dev/null' EXIT INT TERM ; \
+	  $(PYTHON) -m mamba3_mlx.chat_demo --port $(CHAT_PORT)
 
 ## chat-mock: boot chat_demo in mock mode (UI only, no MLX weights)
 chat-mock:
@@ -191,6 +201,19 @@ chat-kill:
 	@pid="$$(lsof -ti tcp:$(CHAT_PORT) 2>/dev/null)"; \
 	if [ -n "$$pid" ]; then echo "killing pid $$pid on port $(CHAT_PORT)"; kill -9 $$pid; \
 	else echo "no process on port $(CHAT_PORT)"; fi
+
+# ── Profiler (standalone WebSocket metrics server) ─────────────────────────────
+PROFILER_PORT ?= 8765
+
+## profiler: boot inference profiler at http://localhost:$PROFILER_PORT
+profiler:
+	cd $(REPO) && $(PYTHON) -m mamba3_mlx.profiler.server --port $(PROFILER_PORT)
+
+## profiler-kill: terminate profiler bound to $PROFILER_PORT
+profiler-kill:
+	@pid="$$(lsof -ti tcp:$(PROFILER_PORT) 2>/dev/null)"; \
+	if [ -n "$$pid" ]; then echo "killing pid $$pid on port $(PROFILER_PORT)"; kill -9 $$pid; \
+	else echo "no process on port $(PROFILER_PORT)"; fi
 
 # ── Speculative Jacobi Decoding ───────────────────────────────────────────────
 # Calls run_sjd_best.sh which uses greedy Jacobi + adaptive_K + cot_caches.
@@ -436,3 +459,8 @@ help:
 	@echo "  make chat-smoke                            # boot + one WS turn + verdict"
 	@echo "  make chat-kill                             # kill leftover server on \$$CHAT_PORT"
 	@echo "  CHAT_PORT=8080 make chat                   # custom port"
+	@echo ""
+	@echo "Inference profiler (standalone metrics WebSocket):"
+	@echo "  make profiler                              # http://localhost:8765  ws://localhost:8765/ws"
+	@echo "  make profiler-kill                         # kill profiler on \$$PROFILER_PORT"
+	@echo "  PROFILER_PORT=9000 make profiler           # custom port"

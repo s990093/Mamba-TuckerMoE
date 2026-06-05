@@ -85,14 +85,14 @@ class TuckerMoE(nn.Module):
                 self.core.astype(mx.float32),
             ).astype(dtype)
 
-        # Gather selected experts: (B_flat, top_k, r3, r2)
-        G_selected = G_experts[top_k_idx]
-        # Weight experts first, then contract once with x_shared.
-        # Equivalent to the original but avoids k separate matmuls.
-        G_weighted = mx.sum(
-            G_selected * top_k_probs.astype(dtype)[:, :, None, None],
-            axis=1,
-        )                                                        # (B_flat, r3, r2)
+        # Accumulate top_k experts one at a time to avoid the (B, top_k, r3, r2)
+        # intermediate, which at prefill lengths dominates peak memory usage
+        # (e.g. 52 MB per TuckerMoE at L=100, ×66 layers = 3.4 GB).
+        probs_t = top_k_probs.astype(dtype)
+        G_weighted = G_experts[top_k_idx[:, 0]] * probs_t[:, 0:1, None]
+        for k in range(1, self.top_k):
+            G_weighted = G_weighted + G_experts[top_k_idx[:, k]] * probs_t[:, k:k+1, None]
+        # G_weighted: (B_flat, r3, r2)
         x_core = mx.einsum("br,brs->bs", x_shared, G_weighted)  # (B_flat, r2)
 
         # Fused matmul + bias: addmm(bias, x_core, U_out) = bias + x_core @ U_out

@@ -758,7 +758,7 @@ header{
   box-shadow:0 8px 36px -20px rgba(0,0,0,.6);
 }
 .main-col.landing-mode #prompt-input{font-size:1.05rem;padding:10px 6px;min-height:28px}
-.main-col.landing-mode .input-footer{display:none}
+.main-col.landing-mode .input-hint{display:none}
 .main-col.landing-mode .input-area{padding-top:2px;padding-bottom:18px}
 
 .input-mic{
@@ -870,6 +870,60 @@ header{
   font-size:.66rem;color:var(--fg4);flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+/* ── Token count preview card ─────────────────────────────────── */
+.input-box { position: relative; }
+
+.tok-count-card {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 120;
+  min-width: 196px;
+  background: rgba(18, 17, 15, 0.96);
+  border: 1px solid rgba(204, 120, 92, 0.20);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 8px 28px -6px rgba(0,0,0,.55), 0 0 0 0.5px rgba(204,120,92,.08) inset;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  /* enter animation */
+  animation: tcc-in .18s cubic-bezier(.22,.68,0,1.2) both;
+}
+@keyframes tcc-in {
+  from { opacity:0; transform:translateY(6px) scale(.97); }
+  to   { opacity:1; transform:none; }
+}
+.tcc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+.tcc-lbl {
+  font-size: .68rem;
+  font-weight: 500;
+  color: rgba(180, 172, 158, 0.55);
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.tcc-val {
+  font-family: var(--mono);
+  font-size: .75rem;
+  font-weight: 600;
+  color: rgba(238, 236, 226, 0.80);
+  letter-spacing: .01em;
+}
+.tcc-val.tcc-total { color: #cc785c; }
+.tcc-kv-lbl { color: rgba(140, 200, 110, 0.50); }
+.tcc-kv-val { color: rgba(140, 200, 110, 0.75); }
+.tcc-divider {
+  height: 1px;
+  background: rgba(255,255,255,.055);
+  margin: 4px 0;
+}
+
 .footer-ctrls{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .token-ctrl{display:flex;align-items:center;gap:6px}
 .token-ctrl label{font-size:.66rem;color:var(--fg4)}

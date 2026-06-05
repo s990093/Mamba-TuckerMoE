@@ -1,0 +1,469 @@
+/* ── Floating Perf Monitor — Claude-style redesign ──────────── */
+/* Palette mirrors chat_demo.css: terracotta accent #cc785c,
+   warm ivory text #eeece2, deep warm darks.                    */
+
+.pf-panel {
+  position: fixed;
+  z-index: 9997;
+  width: 224px; /* fixed default — JS overrides on restore/expand */
+  min-width: 192px;
+  max-width: 600px;
+  background: rgba(16, 15, 13, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 0 0 0.5px rgba(204, 120, 92, 0.1) inset,
+    0 12px 36px -8px rgba(0, 0, 0, 0.65),
+    0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  font-size: 11px;
+  color: rgba(238, 236, 226, 0.82);
+  user-select: none;
+  overflow: hidden;
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+}
+.pf-panel:hover {
+  border-color: rgba(204, 120, 92, 0.22);
+  box-shadow:
+    0 0 0 0.5px rgba(204, 120, 92, 0.16) inset,
+    0 16px 40px -8px rgba(0, 0, 0, 0.7),
+    0 2px 8px -2px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Handle ──────────────────────────────────────────────────── */
+.pf-handle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px 7px 9px;
+  cursor: move;
+  background: linear-gradient(
+    180deg,
+    rgba(204, 120, 92, 0.07) 0%,
+    rgba(204, 120, 92, 0.02) 60%,
+    transparent 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+/* ── Status dot ──────────────────────────────────────────────── */
+.pf-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition:
+    background 0.5s,
+    box-shadow 0.5s;
+}
+.pf-dot-idle {
+  background: rgba(138, 135, 125, 0.28);
+}
+.pf-dot-cool {
+  background: rgba(204, 120, 92, 0.45);
+}
+.pf-dot-warm {
+  background: rgba(204, 120, 92, 0.8);
+  box-shadow: 0 0 6px rgba(204, 120, 92, 0.45);
+}
+.pf-dot-hot {
+  background: #cc785c;
+  box-shadow:
+    0 0 8px rgba(204, 120, 92, 0.65),
+    0 0 2px rgba(204, 120, 92, 0.9);
+  animation: pf-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+/* ── Header text ─────────────────────────────────────────────── */
+.pf-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(204, 120, 92, 0.7);
+  flex-shrink: 0;
+}
+.pf-mini-stats {
+  flex: 1;
+  min-width: 0; /* allow flex child to shrink below content size */
+  font-size: 10px;
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+  color: rgba(201, 197, 184, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+.pf-hbtns {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.pf-hbtn {
+  background: none;
+  border: none;
+  color: rgba(138, 135, 125, 0.35);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 5px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.pf-hbtn:hover {
+  color: rgba(204, 120, 92, 0.9);
+  background: rgba(204, 120, 92, 0.1);
+}
+
+/* ── Body ────────────────────────────────────────────────────── */
+.pf-body {
+  padding: 10px 10px 8px;
+  overflow: hidden;
+}
+.pf-body.pf-hidden {
+  display: none;
+}
+
+/* ── Section + divider ───────────────────────────────────────── */
+.pf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pf-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.055);
+  margin: 7px 0 6px;
+}
+
+/* ── Bar rows ────────────────────────────────────────────────── */
+.pf-row-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pf-row-lbl {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(138, 135, 125, 0.55);
+  width: 26px;
+  flex-shrink: 0;
+}
+.pf-bar-wrap {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pf-bar {
+  height: 100%;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* GPU: Claude terracotta */
+.pf-bar-gpu {
+  background: linear-gradient(90deg, rgba(180, 96, 68, 0.7), #cc785c);
+}
+/* CPU: warm sage */
+.pf-bar-cpu {
+  background: linear-gradient(
+    90deg,
+    rgba(130, 175, 110, 0.55),
+    rgba(155, 200, 120, 0.8)
+  );
+}
+/* Mem: warm amber */
+.pf-bar-mem {
+  background: linear-gradient(
+    90deg,
+    rgba(195, 155, 70, 0.55),
+    rgba(220, 180, 80, 0.8)
+  );
+}
+
+.pf-row-val {
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(238, 236, 226, 0.82);
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+}
+.pf-row-sub {
+  font-size: 9px;
+  color: rgba(138, 135, 125, 0.4);
+  padding-left: 33px;
+  margin-top: -4px;
+  letter-spacing: 0.03em;
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+}
+
+/* ── LLM section — 2×2 stat cards ───────────────────────────── */
+.pf-llm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.pf-cell {
+  background: rgba(38, 38, 36, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+  padding: 5px 6px 4px;
+  text-align: center;
+}
+.pf-val {
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #eeece2;
+  line-height: 1.2;
+  transition: color 0.25s;
+}
+.pf-val.pf-val-live {
+  color: #cc785c;
+}
+.pf-lbl {
+  font-size: 7.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(138, 135, 125, 0.5);
+  margin-top: 2px;
+}
+
+/* ── Sparkline ───────────────────────────────────────────────── */
+.pf-spark {
+  display: block;
+  width: 100%;
+  height: 22px;
+}
+
+/* ── Cache section ───────────────────────────────────────────── */
+.pf-cache-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 2px;
+  overflow: hidden; /* prevent any child from blowing out the row */
+  min-width: 0;
+}
+.pf-cache-title {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(138, 135, 125, 0.55);
+}
+.pf-cache-ctx {
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+  font-size: 9px;
+  color: rgba(138, 135, 125, 0.55);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0; /* flex child: shrinks to 0, then grows to available */
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+/* GQA: two-segment canvas bar */
+.pf-lbl-gqa {
+  color: rgba(160, 120, 220, 0.65);
+}
+.pf-kv-canvas {
+  flex: 1;
+  height: 4px;
+  min-width: 0;
+  display: block;
+  border-radius: 2px;
+}
+/* Breakdown legend row under GQA bar */
+.pf-kv-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 32px;
+  margin-top: -2px;
+}
+.pf-kv-seg-dot {
+  display: inline-block;
+  width: 7px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+.pf-kv-seg-pre {
+  background: rgba(140, 95, 200, 0.65);
+}
+.pf-kv-seg-dec {
+  background: rgba(175, 130, 240, 0.9);
+}
+
+/* SSM bar: green (fixed) */
+.pf-lbl-ssm {
+  color: rgba(140, 200, 110, 0.65);
+}
+.pf-bar-wrap-ssm {
+  flex: 1;
+  height: 3px;
+  background: rgba(140, 200, 110, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px dashed rgba(140, 200, 110, 0.2);
+}
+.pf-bar-ssm {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(110, 175, 85, 0.45),
+    rgba(140, 200, 110, 0.65)
+  );
+  width: 100%;
+}
+.pf-ssm-note {
+  color: rgba(140, 200, 110, 0.35) !important;
+}
+.pf-ssm-note em {
+  font-style: normal;
+  opacity: 0.75;
+}
+
+/* ── Time-series chart view ──────────────────────────────────── */
+#pf-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-chart-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pf-chart-hdr {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.pf-chart-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.pf-clbl-gpu {
+  color: rgba(204, 120, 92, 0.65);
+}
+.pf-clbl-cpu {
+  color: rgba(155, 200, 120, 0.6);
+}
+.pf-clbl-mem {
+  color: rgba(220, 180, 80, 0.6);
+}
+.pf-clbl-kv {
+  color: rgba(160, 120, 220, 0.65);
+}
+
+/* ── KV cache legend (GQA + SSM) ────────────────────────────── */
+.pf-kv-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pf-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+.pf-legend-gqa {
+  background: rgba(160, 120, 220, 0.8);
+}
+.pf-legend-ssm {
+  background: none;
+  border-top: 1.5px dashed rgba(140, 200, 110, 0.65);
+  height: 0;
+}
+.pf-legend-lbl {
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+  font-size: 9px;
+  color: rgba(180, 172, 158, 0.62);
+  letter-spacing: 0.02em;
+}
+
+.pf-chart-cur {
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(238, 236, 226, 0.82);
+}
+
+.pf-chart-canvas {
+  display: block;
+  width: 100%;
+  height: 56px; /* CSS height; JS reads clientHeight for DPR math */
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.pf-chart-canvas-kv {
+  height: 68px; /* taller for the two-line cache chart */
+}
+
+/* ── Time axis ───────────────────────────────────────────────── */
+.pf-time-axis {
+  position: relative;
+  height: 14px;
+  margin-top: 3px;
+  font-size: 9px;
+  color: rgba(138, 135, 125, 0.42);
+  letter-spacing: 0.04em;
+  font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
+}
+
+/* ── Resize handle ───────────────────────────────────────────── */
+.pf-rzh {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  font-size: 10px;
+  line-height: 1;
+  color: rgba(138, 135, 125, 0.2);
+  cursor: se-resize;
+  transition: color 0.15s;
+}
+.pf-rzh:hover {
+  color: rgba(204, 120, 92, 0.55);
+}

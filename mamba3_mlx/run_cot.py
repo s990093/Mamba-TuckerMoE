@@ -321,7 +321,7 @@ def main():
         if final_ban_mask is not None and mw.mode == "final":
             row = row + final_ban_mask.astype(row.dtype)
         z = row.astype(mx.float32)
-        recent = (list(ids) + generated)[-window:]
+        recent = generated[-window:]
         z = apply_repetition_penalty(z, recent, gen_cfg.rep_pen)
         z = apply_freq_presence_penalty(z, recent, gen_cfg.pres_pen, gen_cfg.freq_pen)
 

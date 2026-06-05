@@ -64,6 +64,8 @@ from cot_middleware import (  # noqa: E402 (sys.path tweak above)
     CotMiddlewareDeps,
     render_health_line,
 )
+# profiler bridge intentionally not imported here — runs as a separate process
+# to avoid any impact on inference throughput.
 
 
 _CATEGORY_PROMPTS_MERGE: Any = None
@@ -97,8 +99,9 @@ _config: Any = None
 _stop_ids: frozenset[int] | None = None
 _mw_deps: CotMiddlewareDeps | None = None
 _mw_cfg: CotMiddlewareConfig | None = None
-_extra_ban_mask: mx.array | None = None   # </final> ban for think/between
-_final_ban_mask: mx.array | None = None   # <think>/<final> ban inside final block
+_extra_ban_mask: mx.array | None = None     # </final> ban for think/between
+_final_ban_mask: mx.array | None = None     # <think>/<final> ban inside final block
+_think_early_ban: mx.array | None = None    # </think> ban for first N think tokens
 _model_ready = False
 _vocab_size: int = 0
 _MOCK_MODE: bool = False
@@ -186,9 +189,14 @@ def _build_ban_mask(token_ids: list[int], vocab_size: int) -> mx.array | None:
 
 
 def _build_extra_ban_mask(tokenizer: Any, vocab_size: int) -> mx.array | None:
-    """Bans </final> in think/between modes — prevents early loop exit before
-    the model ever enters final mode."""
-    return _build_ban_mask([_tok_id(tokenizer, "</final>")], vocab_size)
+    """Bans structural tags in think/between modes.
+
+    * </final> — prevents early loop exit before final mode
+    * <final>  — prevents model jumping to final while still in think
+    * <think>  — prevents model re-opening a think block inside think
+    """
+    ids = [_tok_id(tokenizer, t) for t in ("</final>", "<final>", "<think>")]
+    return _build_ban_mask(ids, vocab_size)
 
 
 def _build_final_ban_mask(tokenizer: Any, vocab_size: int) -> mx.array | None:
@@ -204,7 +212,7 @@ def _build_final_ban_mask(tokenizer: Any, vocab_size: int) -> mx.array | None:
 
 def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     global _model, _tokenizer, _args, _config, _stop_ids
-    global _mw_deps, _mw_cfg, _extra_ban_mask, _final_ban_mask, _model_ready, _vocab_size
+    global _mw_deps, _mw_cfg, _extra_ban_mask, _final_ban_mask, _think_early_ban, _model_ready, _vocab_size
 
     _args = args
     timings: dict[str, Any] = {}
@@ -214,7 +222,11 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     target_dtype = dtype_map[args.dtype]
 
     from transformers import AutoTokenizer
-    _tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, trust_remote_code=True)
+    _tok_path = args.tokenizer
+    # If a .json file is given, AutoTokenizer needs the parent directory
+    if _tok_path.endswith(".json"):
+        _tok_path = str(Path(_tok_path).parent)
+    _tokenizer = AutoTokenizer.from_pretrained(_tok_path, trust_remote_code=True)
     _vocab_size = len(_tokenizer) if args.vocab_size <= 0 else args.vocab_size
     timings["tokenizer_ms"] = (time.perf_counter() - t0) * 1000
 
@@ -238,10 +250,12 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
             load_checkpoint(_model, args.checkpoint, dtype=target_dtype)
         timings["checkpoint"] = args.checkpoint
         timings["kind"] = load_kind
+        args.checkpoint_label = Path(args.checkpoint).stem
     else:
         print("[chat_demo] No checkpoint — random weights (smoke test).")
         timings["checkpoint"] = "(random init)"
         timings["kind"] = "none"
+        args.checkpoint_label = "Mamba3-XR"
     mx.eval(_model.parameters())
     timings["weights_ms"] = (time.perf_counter() - t2) * 1000
 
@@ -266,11 +280,22 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     _stop_ids = _mw_deps.stop_ids
     _extra_ban_mask = _build_extra_ban_mask(_tokenizer, _vocab_size)
     _final_ban_mask = _build_final_ban_mask(_tokenizer, _vocab_size)
+    # Ban </think> for the first THINK_MIN_TOKENS think tokens so the model
+    # can't prematurely close its chain-of-thought mid-sentence.
+    _think_close_id = -1
+    try:
+        _think_close_id = int(_tokenizer.convert_tokens_to_ids("</think>"))
+    except Exception:
+        pass
+    if 0 <= _think_close_id < _vocab_size:
+        _think_early_ban = mx.zeros((_vocab_size,), dtype=mx.float32).at[_think_close_id].add(-1e9)
     print(f"[chat_demo] {_mw_deps.describe()}")
     if _extra_ban_mask is not None:
-        print("[chat_demo] ban[think/between]: </final>")
+        print("[chat_demo] ban[think/between]: </final> <final> <think>")
     if _final_ban_mask is not None:
         print("[chat_demo] ban[final]:         <think> </think> <final>  (prevents re-entry loop)")
+    if _think_early_ban is not None:
+        print(f"[chat_demo] ban[think-early]:   </think> for first {_cfg.THINK_MIN_TOKENS} think tokens")
 
     # Warmup — one decode step to amortise lazy MLX kernel compile.
     t3 = time.perf_counter()
@@ -323,6 +348,39 @@ def _build_multiturn_ids(
 
 
 # ---------------------------------------------------------------------------
+# Chunked prefill — processes prompt in slices to cap peak activation memory.
+#
+# Root cause of OOM on long prompts:
+#   chunk_scan builds h_intra of shape (B, nc, Lc, H, N, P) where nc=L/chunk_size.
+#   At L=2048 this is ~400 MB per Mamba block.  By splitting the prefill into
+#   _PREFILL_CHUNK-token slices we bound nc to _PREFILL_CHUNK/chunk_size regardless
+#   of total prompt length, and we avoid materialising the full [1, L, vocab]
+#   logits tensor (only last_logits[vocab] is needed).
+# ---------------------------------------------------------------------------
+_PREFILL_CHUNK = 256  # tokens per model call during prefill
+
+
+def _prefill_chunked(prompt_ids: list[int]) -> "tuple[mx.array, Any]":
+    """Run prefill in _PREFILL_CHUNK-token slices and return (last_logits, states)."""
+    states = None
+    n = len(prompt_ids)
+    for start in range(0, n, _PREFILL_CHUNK):
+        chunk = prompt_ids[start : start + _PREFILL_CHUNK]
+        x = mx.array([chunk], dtype=mx.int32)
+        logits, states = _model(x, states=states)
+        is_last = (start + _PREFILL_CHUNK) >= n
+        if is_last:
+            last_row = logits[0, -1]  # only materialise the single vocab row
+            mx.eval(last_row, *_iter_state_arrays(states))
+            del logits, x
+            return last_row, states
+        # intermediate chunk: eval states, discard logits immediately
+        mx.eval(*_iter_state_arrays(states))
+        del logits, x
+    raise RuntimeError("_prefill_chunked: empty prompt_ids")
+
+
+# ---------------------------------------------------------------------------
 # Streaming generator (native MLX + middleware)
 # ---------------------------------------------------------------------------
 def _stream_generate(
@@ -342,10 +400,8 @@ def _stream_generate(
 
     # ── Prefill ─────────────────────────────────────────────────────────────
     prompt_ids = _build_multiturn_ids(history, _args.seq_len, sys_text, reasoning)
-    x_prefill = mx.array([prompt_ids], dtype=mx.int32)
     t_pre = time.perf_counter()
-    logits, states = _model(x_prefill, states=None)
-    mx.eval(logits, *_iter_state_arrays(states))
+    last_logits, states = _prefill_chunked(prompt_ids)
     prefill_ms = (time.perf_counter() - t_pre) * 1000
 
     yield {
@@ -373,7 +429,6 @@ def _stream_generate(
         model_apply=_model_apply,
     )
 
-    last_logits = logits[0, -1]
     pos = len(prompt_ids)
     generated: list[int] = []
     all_tids: list[int] = []
@@ -421,20 +476,23 @@ def _stream_generate(
             row = row + _extra_ban_mask.astype(row.dtype)
         if _final_ban_mask is not None and mw.mode == "final":
             row = row + _final_ban_mask.astype(row.dtype)
+        think_min = int(getattr(sample_args, "think_min_tokens", _cfg.THINK_MIN_TOKENS))
+        if _think_early_ban is not None and mw.mode == "think" and mw._think_tokens < think_min:
+            row = row + _think_early_ban.astype(row.dtype)
         z = row.astype(mx.float32)
-        recent = (list(prompt_ids) + generated)[-recent_window:]
-        z = apply_repetition_penalty(z, recent, float(getattr(sample_args, "rep_pen", 1.0)))
+        recent = generated[-recent_window:]
+        z = apply_repetition_penalty(z, recent, float(getattr(sample_args, "rep_pen", 1.281)))
         z = apply_freq_presence_penalty(
             z, recent,
-            float(getattr(sample_args, "pres_pen", 0.0)),
-            float(getattr(sample_args, "freq_pen", 0.0)),
+            float(getattr(sample_args, "pres_pen", 0.298)),
+            float(getattr(sample_args, "freq_pen", 0.168)),
         )
         tok_arr, key = sample_logits(
             z,
-            float(getattr(sample_args, "temp", 0.3)),
-            int(getattr(sample_args, "top_k", 40)),
-            float(getattr(sample_args, "top_p", 0.9)),
-            float(getattr(sample_args, "min_p", 0.05)),
+            float(getattr(sample_args, "temp", 0.236)),
+            int(getattr(sample_args, "top_k", 30)),
+            float(getattr(sample_args, "top_p", 0.959)),
+            float(getattr(sample_args, "min_p", 0.122)),
             key,
         )
         mx.eval(tok_arr)
@@ -461,6 +519,19 @@ def _stream_generate(
                 _cprint(_tok_text, style="green")
         except Exception:
             pass
+
+        # Stream individual CoT tokens so the frontend can display them live.
+        # Only emitted while in "think" mode; special tokens are stripped.
+        if mw.mode == "think" and not _nes_bypass:
+            try:
+                _cot_chunk = _tokenizer.decode(
+                    [tid], skip_special_tokens=True,
+                    clean_up_tokenization_spaces=False,
+                )
+                if _cot_chunk:
+                    yield {"type": "reasoning_token", "text": _cot_chunk, "n": n_out}
+            except Exception:
+                pass
 
         # 2) Middleware step — yields reasoning / token / __stop__.
         prev_mode = mw.mode
@@ -540,7 +611,7 @@ def _stream_generate(
         print(f"[chat_demo] WARN: turn-summary print failed: {_exc}")
 
     try:
-        del states, logits, x_prefill
+        del states
     except (NameError, UnboundLocalError):
         pass
     _free_metal_cache()
@@ -581,6 +652,7 @@ def _print_turn_summary(
 # ---------------------------------------------------------------------------
 # FastAPI + WebSocket
 # ---------------------------------------------------------------------------
+import pydantic
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -631,6 +703,14 @@ def _serve_no_store(path: Path, media_type: str):
     )
 
 
+@app.get("/eyes", response_class=HTMLResponse)
+async def eyes_page():
+    html = (_UI_DIR / "eyes.html").read_text(encoding="utf-8")
+    resp = HTMLResponse(html)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.get("/ui/chat_demo.js")
 async def ui_js():
     return _serve_no_store(Path(__file__).parent / "ui" / "chat_demo.js", "application/javascript")
@@ -663,14 +743,17 @@ async def status():
 
 def _sampling_defaults_dict() -> dict[str, Any]:
     if _args is None:
-        return {"temperature": 0.3, "top_k": 40, "top_p": 0.9, "min_p": 0.05,
-                "repetition_penalty": 1.0}
+        return {"temperature": 0.236, "top_k": 30, "top_p": 0.959, "min_p": 0.122,
+                "repetition_penalty": 1.281, "presence_penalty": 0.298,
+                "frequency_penalty": 0.168}
     return {
-        "temperature": float(getattr(_args, "temp", 0.3)),
-        "top_k": int(getattr(_args, "top_k", 40)),
-        "top_p": float(getattr(_args, "top_p", 0.9)),
-        "min_p": float(getattr(_args, "min_p", 0.05)),
-        "repetition_penalty": float(getattr(_args, "rep_pen", 1.0)),
+        "temperature": float(getattr(_args, "temp", 0.236)),
+        "top_k": int(getattr(_args, "top_k", 30)),
+        "top_p": float(getattr(_args, "top_p", 0.959)),
+        "min_p": float(getattr(_args, "min_p", 0.122)),
+        "repetition_penalty": float(getattr(_args, "rep_pen", 1.281)),
+        "presence_penalty": float(getattr(_args, "pres_pen", 0.298)),
+        "frequency_penalty": float(getattr(_args, "freq_pen", 0.168)),
     }
 
 
@@ -722,6 +805,42 @@ async def demo_config():
     })
 
 
+class TokenCountRequest(pydantic.BaseModel):
+    system_prompt: str = ""
+    user_message:  str = ""
+    history:       list[dict] = []
+    reasoning:     bool = False
+
+
+@app.post("/api/token_count")
+async def token_count(req: TokenCountRequest) -> JSONResponse:
+    """Return exact token counts for a prompt without running the model.
+    Pure tokenisation only — zero inference cost."""
+    if _tokenizer is None:
+        # Model not loaded yet — return character-based estimate
+        sys_est  = len(req.system_prompt) // 4
+        user_est = len(req.user_message)  // 4
+        return JSONResponse({"sys_tokens": sys_est, "user_tokens": user_est,
+                             "total_tokens": sys_est + user_est, "estimated": True})
+    hist = list(req.history)
+    if req.user_message.strip():
+        hist.append({"role": "user", "content": req.user_message.strip()})
+    ids = _build_multiturn_ids(
+        hist,
+        seq_len=int(getattr(_args, "seq_len", 2048)) if _args else 2048,
+        system_prompt=req.system_prompt or None,
+        reasoning=req.reasoning,
+    )
+    # Count system-only portion for breakdown
+    sys_ids = _encode_plain(
+        f"<|im_start|>system\n{req.system_prompt.strip()}<|im_end|>\n"
+    ) if req.system_prompt.strip() else []
+    total = len(ids)
+    sys_t = len(sys_ids)
+    return JSONResponse({"sys_tokens": sys_t, "user_tokens": max(0, total - sys_t),
+                         "total_tokens": total, "estimated": False})
+
+
 def _apply_sampling_override(base_args: Any, sampling: dict[str, Any] | None) -> Any:
     import copy as _copy
 
@@ -743,6 +862,12 @@ def _apply_sampling_override(base_args: Any, sampling: dict[str, Any] | None) ->
     if "repetition_penalty" in sampling:
         with contextlib.suppress(Exception):
             a.rep_pen = max(1.0, min(2.0, float(sampling["repetition_penalty"])))
+    if "presence_penalty" in sampling:
+        with contextlib.suppress(Exception):
+            a.pres_pen = max(0.0, min(2.0, float(sampling["presence_penalty"])))
+    if "frequency_penalty" in sampling:
+        with contextlib.suppress(Exception):
+            a.freq_pen = max(0.0, min(2.0, float(sampling["frequency_penalty"])))
     return a
 
 

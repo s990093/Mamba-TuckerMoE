@@ -165,7 +165,7 @@ def generate(
 
     for _step in range(remaining):
         z = last_logits.astype(mx.float32)
-        recent = (list(prompt_ids) + generated)[-window:]
+        recent = generated[-window:]
         z = apply_repetition_penalty(z, recent, gen_config.rep_pen)
         z = apply_freq_presence_penalty(z, recent, gen_config.pres_pen, gen_config.freq_pen)
 

@@ -181,6 +181,7 @@ class Mamba3Block(nn.Module):
 
         # SSM scan
         h_init = state["h_prev"] if state is not None else None
+        
         if L == 1:
             # single-step recurrence
             alpha = av[:, 0]                                          # (B, H, 1, 1)

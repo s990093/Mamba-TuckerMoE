@@ -1,304 +1,1724 @@
 <!-- s_phase3.html — Phase 3: Multi-Strategy Speculative Jacobi Decoding (SJD) -->
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-  .p3-inter { font-family: 'Inter', Helvetica, Arial, sans-serif; }
-  .p3-mono  { font-family: 'JetBrains Mono', monospace; }
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap");
+  .p3-inter {
+    font-family: "Inter", Helvetica, Arial, sans-serif;
+  }
+  .p3-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
 </style>
 
 <div class="sec">
   <div class="sh">Multi-Strategy Speculative Jacobi Decoding</div>
   <div class="sc" style="padding: 2mm 3mm">
-
     <!-- ══ Main Jacobi Diagram ══ -->
-    <div style="background:#ffffff; border:2.5px solid #1B325F; border-radius:10px; padding:3mm 3.5mm; margin-bottom:2.5mm;">
-
+    <div
+      style="
+        background: #ffffff;
+        border: 2.5px solid #2F4F4F;
+        border-radius: 10px;
+        padding: 3mm 3.5mm;
+        margin-bottom: 2.5mm;
+      "
+    >
       <!-- Title -->
-      <div class="p3-inter" style="background:#1B325F; color:#fff; font-size:17pt; font-weight:800; text-align:center; border-radius:6px; padding:2.5mm 4mm; margin-bottom:3mm; letter-spacing:0.3px;">
+      <div
+        class="p3-inter"
+        style="
+          background: #2F4F4F;
+          color: #fff;
+          font-size: 17pt;
+          font-weight: 800;
+          text-align: center;
+          border-radius: 6px;
+          padding: 2.5mm 4mm;
+          margin-bottom: 3mm;
+          letter-spacing: 0.3px;
+        "
+      >
         N-gram Accelerated Jacobi Parallel Decoding
       </div>
 
       <!-- Legend -->
-      <div class="p3-inter" style="display:flex; gap:3.5mm; justify-content:center; align-items:center; margin-bottom:2mm; font-size:10.5pt; font-weight:600; color:#1B325F;">
-        <span style="display:inline-flex;align-items:center;gap:1.5mm">
-          <span style="display:inline-block;width:6mm;height:3.5mm;background:#adb5bd;border:1.2px solid #495057;border-radius:3px;flex-shrink:0;"></span>committed (KV cache)
+      <div
+        class="p3-inter"
+        style="
+          display: flex;
+          gap: 3.5mm;
+          justify-content: center;
+          align-items: center;
+          margin-bottom: 2mm;
+          font-size: 10.5pt;
+          font-weight: 600;
+          color: #2F4F4F;
+        "
+      >
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
+          <span
+            style="
+              display: inline-block;
+              width: 6mm;
+              height: 3.5mm;
+              background: #adb5bd;
+              border: 1.2px solid #495057;
+              border-radius: 3px;
+              flex-shrink: 0;
+            "
+          ></span
+          >committed (KV cache)
         </span>
-        <span style="display:inline-flex;align-items:center;gap:1.5mm">
-          <span style="display:inline-block;width:6mm;height:3.5mm;background:#2b8a3e;border:1.2px solid #2b8a3e;border-radius:3px;flex-shrink:0;"></span>real-accepted
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
+          <span
+            style="
+              display: inline-block;
+              width: 6mm;
+              height: 3.5mm;
+              background: #2b8a3e;
+              border: 1.2px solid #2b8a3e;
+              border-radius: 3px;
+              flex-shrink: 0;
+            "
+          ></span
+          >real-accepted
         </span>
-        <span style="display:inline-flex;align-items:center;gap:1.5mm">
-          <span style="display:inline-block;width:6mm;height:3.5mm;background:#5C7A99;border:1.2px solid #5C7A99;border-radius:3px;flex-shrink:0;"></span>pseudo-accepted
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
+          <span
+            style="
+              display: inline-block;
+              width: 6mm;
+              height: 3.5mm;
+              background: #5c7a99;
+              border: 1.2px solid #5c7a99;
+              border-radius: 3px;
+              flex-shrink: 0;
+            "
+          ></span
+          >pseudo-accepted
         </span>
-        <span style="display:inline-flex;align-items:center;gap:1.5mm">
-          <span style="display:inline-block;width:6mm;height:3.5mm;background:#D86C4F;border:1.2px solid #D86C4F;border-radius:3px;flex-shrink:0;"></span>rejected
+        <span style="display: inline-flex; align-items: center; gap: 1.5mm">
+          <span
+            style="
+              display: inline-block;
+              width: 6mm;
+              height: 3.5mm;
+              background: #DE5A28;
+              border: 1.2px solid #DE5A28;
+              border-radius: 3px;
+              flex-shrink: 0;
+            "
+          ></span
+          >rejected
         </span>
       </div>
 
-      <svg viewBox="0 58 780 328" xmlns="http://www.w3.org/2000/svg"
-           style="width:100%;display:block;font-family:'Inter',Helvetica,Arial,sans-serif;">
+      <svg
+        viewBox="0 58 780 328"
+        xmlns="http://www.w3.org/2000/svg"
+        style="
+          width: 100%;
+          display: block;
+          font-family: &quot;Inter&quot;, Helvetica, Arial, sans-serif;
+        "
+      >
         <defs>
-          <marker id="p3v2-arDark" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0,8 3,0 6" fill="#1B325F"/>
+          <marker
+            id="p3v2-arDark"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0,8 3,0 6" fill="#2F4F4F" />
           </marker>
-          <marker id="p3v2-arGreen" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0,8 3,0 6" fill="#2b8a3e"/>
+          <marker
+            id="p3v2-arGreen"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0,8 3,0 6" fill="#2b8a3e" />
           </marker>
-          <marker id="p3v2-arPurple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0,8 3,0 6" fill="#5C7A99"/>
+          <marker
+            id="p3v2-arPurple"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0,8 3,0 6" fill="#5C7A99" />
           </marker>
-          <marker id="p3v2-arRed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0,8 3,0 6" fill="#D86C4F"/>
+          <marker
+            id="p3v2-arRed"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0,8 3,0 6" fill="#DE5A28" />
           </marker>
-          <marker id="p3v2-arRedDown" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto">
-            <path d="M0,0 L8,0 L4,8 Z" fill="#D86C4F"/>
+          <marker
+            id="p3v2-arRedDown"
+            markerWidth="8"
+            markerHeight="8"
+            refX="4"
+            refY="7"
+            orient="auto"
+          >
+            <path d="M0,0 L8,0 L4,8 Z" fill="#DE5A28" />
           </marker>
-          <marker id="p3v2-arRedLeft" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
-            <path d="M8,0 L0,4 L8,8 Z" fill="#D86C4F"/>
+          <marker
+            id="p3v2-arRedLeft"
+            markerWidth="8"
+            markerHeight="8"
+            refX="1"
+            refY="4"
+            orient="auto"
+          >
+            <path d="M8,0 L0,4 L8,8 Z" fill="#DE5A28" />
           </marker>
           <linearGradient id="p3v2-gSlot0" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#e7f5ff"/><stop offset="100%" stop-color="#d0ebff"/>
+            <stop offset="0%" stop-color="#e7f5ff" />
+            <stop offset="100%" stop-color="#d0ebff" />
           </linearGradient>
           <linearGradient id="p3v2-gSlot1" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#f3f0ff"/><stop offset="100%" stop-color="#e5dbff"/>
+            <stop offset="0%" stop-color="#f3f0ff" />
+            <stop offset="100%" stop-color="#e5dbff" />
           </linearGradient>
           <linearGradient id="p3v2-gSlot2" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#ebfbee"/><stop offset="100%" stop-color="#d3f9d8"/>
+            <stop offset="0%" stop-color="#ebfbee" />
+            <stop offset="100%" stop-color="#d3f9d8" />
           </linearGradient>
         </defs>
 
         <!-- Column headers -->
-        <text x="185" y="72" font-size="11.5" fill="#1B325F" font-weight="800" text-anchor="middle">prompt</text>
-        <text x="375" y="72" font-size="12" fill="#1B325F" font-weight="900" text-anchor="middle">block 0</text>
-        <text x="558" y="72" font-size="12" fill="#1B325F" font-weight="900" text-anchor="middle">block 1</text>
-        <text x="740" y="64" font-size="10" fill="#D86C4F" font-weight="700" text-anchor="middle">iteration idx</text>
+        <text
+          x="185"
+          y="72"
+          font-size="11.5"
+          fill="#2F4F4F"
+          font-weight="800"
+          text-anchor="middle"
+        >
+          prompt
+        </text>
+        <text
+          x="375"
+          y="72"
+          font-size="12"
+          fill="#2F4F4F"
+          font-weight="900"
+          text-anchor="middle"
+        >
+          block 0
+        </text>
+        <text
+          x="558"
+          y="72"
+          font-size="12"
+          fill="#2F4F4F"
+          font-weight="900"
+          text-anchor="middle"
+        >
+          block 1
+        </text>
+        <text
+          x="740"
+          y="64"
+          font-size="10"
+          fill="#DE5A28"
+          font-weight="700"
+          text-anchor="middle"
+        >
+          iteration idx
+        </text>
 
         <!-- Block boundary dashed lines -->
-        <line x1="293" y1="78" x2="293" y2="338" stroke="#495057" stroke-width="1.8" stroke-dasharray="8,4"/>
-        <line x1="458" y1="78" x2="458" y2="350" stroke="#495057" stroke-width="1.8" stroke-dasharray="8,4"/>
+        <line
+          x1="293"
+          y1="78"
+          x2="293"
+          y2="338"
+          stroke="#495057"
+          stroke-width="1.8"
+          stroke-dasharray="8,4"
+        />
+        <line
+          x1="458"
+          y1="78"
+          x2="458"
+          y2="350"
+          stroke="#495057"
+          stroke-width="1.8"
+          stroke-dasharray="8,4"
+        />
 
         <!-- n-gram pool — TALL box reaching to bottom of diagram -->
-        <rect x="4" y="83" width="72" height="265" rx="7" fill="url(#p3v2-gSlot1)" stroke="#5C7A99" stroke-width="2.5"/>
+        <rect
+          x="4"
+          y="83"
+          width="72"
+          height="265"
+          rx="7"
+          fill="url(#p3v2-gSlot1)"
+          stroke="#5C7A99"
+          stroke-width="2.5"
+        />
 
         <!-- Header strip -->
-        <rect x="4" y="83" width="72" height="20" rx="7" fill="#5C7A99"/>
-        <rect x="4" y="95" width="72" height="8" fill="#5C7A99"/>
-        <text x="40" y="97" font-size="10" fill="#fff" font-weight="800" text-anchor="middle">n-gram pool</text>
+        <rect x="4" y="83" width="72" height="20" rx="7" fill="#5C7A99" />
+        <rect x="4" y="95" width="72" height="8" fill="#5C7A99" />
+        <text
+          x="40"
+          y="97"
+          font-size="10"
+          fill="#fff"
+          font-weight="800"
+          text-anchor="middle"
+        >
+          n-gram pool
+        </text>
 
         <!-- 3 source chips (color-coded, see banner below SVG for full names) -->
-        <rect x="10" y="110" width="60" height="22" rx="5" fill="#2b8a3e"/>
-        <text x="40" y="125" font-size="9" fill="#fff" text-anchor="middle" font-weight="800">① NGram</text>
-        <rect x="10" y="138" width="60" height="22" rx="5" fill="#1B325F"/>
-        <text x="40" y="153" font-size="9" fill="#fff" text-anchor="middle" font-weight="800">② Suffix</text>
-        <rect x="10" y="166" width="60" height="22" rx="5" fill="#5C7A99"/>
-        <text x="40" y="181" font-size="9" fill="#fff" text-anchor="middle" font-weight="800">③ Phase</text>
+        <rect x="10" y="110" width="60" height="22" rx="5" fill="#2b8a3e" />
+        <text
+          x="40"
+          y="125"
+          font-size="9"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="800"
+        >
+          ① NGram
+        </text>
+        <rect x="10" y="138" width="60" height="22" rx="5" fill="#2F4F4F" />
+        <text
+          x="40"
+          y="153"
+          font-size="9"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="800"
+        >
+          ② Suffix
+        </text>
+        <rect x="10" y="166" width="60" height="22" rx="5" fill="#5C7A99" />
+        <text
+          x="40"
+          y="181"
+          font-size="9"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="800"
+        >
+          ③ Phase
+        </text>
 
         <!-- Merging arrows from chips → pool storage -->
-        <path d="M 40 190 L 40 206" stroke="#1B325F" stroke-width="1.6" marker-end="url(#p3v2-arDark)"/>
+        <path
+          d="M 40 190 L 40 206"
+          stroke="#2F4F4F"
+          stroke-width="1.6"
+          marker-end="url(#p3v2-arDark)"
+        />
 
         <!-- Stored n-grams visualization (mini cards stack) -->
-        <text x="40" y="218" font-size="7.5" fill="#5C7A99" text-anchor="middle" font-weight="800">stored n-grams</text>
-        <rect x="10" y="222" width="60" height="11" rx="2" fill="#fff" stroke="#5C7A99" stroke-width="0.8"/>
-        <text x="40" y="230" font-size="6.5" fill="#5C7A99" text-anchor="middle" font-family="'JetBrains Mono',monospace">[I,am,an]→[LLM…]</text>
-        <rect x="10" y="235" width="60" height="11" rx="2" fill="#fff" stroke="#5C7A99" stroke-width="0.8"/>
-        <text x="40" y="243" font-size="6.5" fill="#5C7A99" text-anchor="middle" font-family="'JetBrains Mono',monospace">[Step,1,:]→[Def…]</text>
-        <rect x="10" y="248" width="60" height="11" rx="2" fill="#fff" stroke="#5C7A99" stroke-width="0.8"/>
-        <text x="40" y="256" font-size="6.5" fill="#5C7A99" text-anchor="middle" font-family="'JetBrains Mono',monospace">[think,let,us]→…</text>
-        <rect x="10" y="261" width="60" height="11" rx="2" fill="#fff" stroke="#5C7A99" stroke-width="0.8"/>
-        <text x="40" y="269" font-size="6.5" fill="#5C7A99" text-anchor="middle">…</text>
-        <text x="40" y="282" font-size="6.5" fill="#5C7A99" text-anchor="middle" font-style="italic">max 8192 entries</text>
+        <text
+          x="40"
+          y="218"
+          font-size="7.5"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-weight="800"
+        >
+          stored n-grams
+        </text>
+        <rect
+          x="10"
+          y="222"
+          width="60"
+          height="11"
+          rx="2"
+          fill="#fff"
+          stroke="#5C7A99"
+          stroke-width="0.8"
+        />
+        <text
+          x="40"
+          y="230"
+          font-size="6.5"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-family="'JetBrains Mono',monospace"
+        >
+          [I,am,an]→[LLM…]
+        </text>
+        <rect
+          x="10"
+          y="235"
+          width="60"
+          height="11"
+          rx="2"
+          fill="#fff"
+          stroke="#5C7A99"
+          stroke-width="0.8"
+        />
+        <text
+          x="40"
+          y="243"
+          font-size="6.5"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-family="'JetBrains Mono',monospace"
+        >
+          [Step,1,:]→[Def…]
+        </text>
+        <rect
+          x="10"
+          y="248"
+          width="60"
+          height="11"
+          rx="2"
+          fill="#fff"
+          stroke="#5C7A99"
+          stroke-width="0.8"
+        />
+        <text
+          x="40"
+          y="256"
+          font-size="6.5"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-family="'JetBrains Mono',monospace"
+        >
+          [think,let,us]→…
+        </text>
+        <rect
+          x="10"
+          y="261"
+          width="60"
+          height="11"
+          rx="2"
+          fill="#fff"
+          stroke="#5C7A99"
+          stroke-width="0.8"
+        />
+        <text
+          x="40"
+          y="269"
+          font-size="6.5"
+          fill="#5C7A99"
+          text-anchor="middle"
+        >
+          …
+        </text>
+        <text
+          x="40"
+          y="282"
+          font-size="6.5"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-style="italic"
+        >
+          max 8192 entries
+        </text>
 
         <!-- Output arrow → main diagram -->
-        <line x1="40" y1="292" x2="40" y2="316" stroke="#1B325F" stroke-width="2.2" marker-end="url(#p3v2-arDark)"/>
-        <text x="40" y="306" font-size="7" fill="#1B325F" text-anchor="middle" font-weight="800" font-style="italic">query</text>
-        <text x="40" y="334" font-size="7" fill="#5C7A99" text-anchor="middle" font-weight="700">→ to drafter</text>
+        <line
+          x1="40"
+          y1="292"
+          x2="40"
+          y2="316"
+          stroke="#2F4F4F"
+          stroke-width="2.2"
+          marker-end="url(#p3v2-arDark)"
+        />
+        <text
+          x="40"
+          y="306"
+          font-size="7"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="800"
+          font-style="italic"
+        >
+          query
+        </text>
+        <text
+          x="40"
+          y="334"
+          font-size="7"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          → to drafter
+        </text>
 
         <!-- ══ ITERATION j ══ -->
-        <text x="745" y="122" font-size="15" fill="#1B325F" font-weight="800" text-anchor="middle" font-style="italic">j</text>
+        <text
+          x="745"
+          y="122"
+          font-size="15"
+          fill="#2F4F4F"
+          font-weight="800"
+          text-anchor="middle"
+          font-style="italic"
+        >
+          j
+        </text>
 
         <!-- Row j lane highlight -->
-        <rect x="80" y="93" width="640" height="32" rx="5" fill="#f8f9fa" opacity="0.6"/>
+        <rect
+          x="80"
+          y="93"
+          width="640"
+          height="32"
+          rx="5"
+          fill="#f8f9fa"
+          opacity="0.6"
+        />
 
         <!-- prompt tokens (committed gray) -->
-        <rect x="84" y="96" width="28" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="98" y="112" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">I</text>
+        <rect
+          x="84"
+          y="96"
+          width="28"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="98"
+          y="112"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          I
+        </text>
 
-        <rect x="116" y="96" width="36" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="134" y="112" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">am</text>
+        <rect
+          x="116"
+          y="96"
+          width="36"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="134"
+          y="112"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          am
+        </text>
 
-        <rect x="156" y="96" width="30" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="171" y="112" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">a</text>
+        <rect
+          x="156"
+          y="96"
+          width="30"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="171"
+          y="112"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          a
+        </text>
 
-        <rect x="190" y="96" width="88" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="234" y="112" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">researcher</text>
+        <rect
+          x="190"
+          y="96"
+          width="88"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="234"
+          y="112"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          researcher
+        </text>
 
         <!-- block0: real-accepted (green) -->
-        <rect x="303" y="96" width="30" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="318" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">an</text>
+        <rect
+          x="303"
+          y="96"
+          width="30"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="318"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          an
+        </text>
 
-        <rect x="337" y="96" width="44" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="359" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">LLM</text>
+        <rect
+          x="337"
+          y="96"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="359"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          LLM
+        </text>
 
         <!-- block0: rejected (red) -->
-        <rect x="387" y="96" width="52" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="413" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">model</text>
+        <rect
+          x="387"
+          y="96"
+          width="52"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="413"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          model
+        </text>
 
-        <rect x="443" y="96" width="8" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="447" y="112" font-size="8" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">.</text>
+        <rect
+          x="443"
+          y="96"
+          width="8"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="447"
+          y="112"
+          font-size="8"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          .
+        </text>
 
         <!-- block1: rejected (red) -->
-        <rect x="468" y="96" width="44" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="490" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">Step</text>
+        <rect
+          x="468"
+          y="96"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="490"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Step
+        </text>
 
-        <rect x="516" y="96" width="24" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="528" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">1:</text>
+        <rect
+          x="516"
+          y="96"
+          width="24"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="528"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          1:
+        </text>
 
-        <rect x="544" y="96" width="44" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="566" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">First</text>
+        <rect
+          x="544"
+          y="96"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="566"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          First
+        </text>
 
-        <rect x="592" y="96" width="48" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="616" y="112" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">Define</text>
+        <rect
+          x="592"
+          y="96"
+          width="48"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="616"
+          y="112"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Define
+        </text>
 
         <!-- j annotations -->
-        <line x1="386" y1="138" x2="452" y2="138" stroke="#1B325F" stroke-width="2" marker-end="url(#p3v2-arDark)"/>
-        <text x="419" y="151" font-size="9.5" fill="#2b8a3e" text-anchor="middle" font-weight="700">accepted</text>
-        <text x="419" y="162" font-size="9.5" fill="#2b8a3e" text-anchor="middle" font-weight="700">commit KV</text>
+        <line
+          x1="386"
+          y1="138"
+          x2="452"
+          y2="138"
+          stroke="#2F4F4F"
+          stroke-width="2"
+          marker-end="url(#p3v2-arDark)"
+        />
+        <text
+          x="419"
+          y="151"
+          font-size="9.5"
+          fill="#2b8a3e"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          accepted
+        </text>
+        <text
+          x="419"
+          y="162"
+          font-size="9.5"
+          fill="#2b8a3e"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          commit KV
+        </text>
 
-        <text x="560" y="148" font-size="9" fill="#1B325F" text-anchor="middle" font-weight="600">real-active threshold;</text>
-        <text x="560" y="159" font-size="9" fill="#1B325F" text-anchor="middle" font-weight="600">spawning new block</text>
+        <text
+          x="560"
+          y="148"
+          font-size="9"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="600"
+        >
+          real-active threshold;
+        </text>
+        <text
+          x="560"
+          y="159"
+          font-size="9"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="600"
+        >
+          spawning new block
+        </text>
 
         <!-- ══ ITERATION j+1 ══ -->
-        <text x="745" y="207" font-size="15" fill="#1B325F" font-weight="800" text-anchor="middle" font-style="italic">j + 1</text>
+        <text
+          x="745"
+          y="207"
+          font-size="15"
+          fill="#2F4F4F"
+          font-weight="800"
+          text-anchor="middle"
+          font-style="italic"
+        >
+          j + 1
+        </text>
 
         <!-- Row j+1 lane: slot0 highlight (PLD helped) -->
-        <rect x="80" y="178" width="640" height="32" rx="5" fill="url(#p3v2-gSlot0)" opacity="0.35"/>
+        <rect
+          x="80"
+          y="178"
+          width="640"
+          height="32"
+          rx="5"
+          fill="url(#p3v2-gSlot0)"
+          opacity="0.35"
+        />
 
         <!-- prompt committed (gray) -->
-        <rect x="84" y="181" width="28" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="98" y="197" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">I</text>
-        <rect x="116" y="181" width="36" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="134" y="197" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">am</text>
-        <rect x="156" y="181" width="30" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="171" y="197" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">a</text>
-        <rect x="190" y="181" width="88" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="234" y="197" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">researcher</text>
+        <rect
+          x="84"
+          y="181"
+          width="28"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="98"
+          y="197"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          I
+        </text>
+        <rect
+          x="116"
+          y="181"
+          width="36"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="134"
+          y="197"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          am
+        </text>
+        <rect
+          x="156"
+          y="181"
+          width="30"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="171"
+          y="197"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          a
+        </text>
+        <rect
+          x="190"
+          y="181"
+          width="88"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="234"
+          y="197"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          researcher
+        </text>
 
         <!-- block0: now committed (gray) -->
-        <rect x="303" y="181" width="30" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="318" y="197" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">an</text>
-        <rect x="337" y="181" width="44" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="359" y="197" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">LLM</text>
+        <rect
+          x="303"
+          y="181"
+          width="30"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="318"
+          y="197"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          an
+        </text>
+        <rect
+          x="337"
+          y="181"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="359"
+          y="197"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          LLM
+        </text>
 
         <!-- block0: real-accepted (green) — positions that were rejected in j -->
-        <rect x="387" y="181" width="52" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="413" y="197" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">model</text>
-        <rect x="443" y="181" width="8" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="447" y="197" font-size="8" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">.</text>
+        <rect
+          x="387"
+          y="181"
+          width="52"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="413"
+          y="197"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          model
+        </text>
+        <rect
+          x="443"
+          y="181"
+          width="8"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="447"
+          y="197"
+          font-size="8"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          .
+        </text>
 
         <!-- block1: pseudo-accepted (purple) -->
-        <rect x="468" y="181" width="44" height="24" rx="4" fill="#5C7A99" stroke="#5C7A99" stroke-width="1.6"/>
-        <text x="490" y="197" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">Step</text>
-        <rect x="516" y="181" width="24" height="24" rx="4" fill="#5C7A99" stroke="#5C7A99" stroke-width="1.6"/>
-        <text x="528" y="197" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">1:</text>
-        <rect x="544" y="181" width="44" height="24" rx="4" fill="#5C7A99" stroke="#5C7A99" stroke-width="1.6"/>
-        <text x="566" y="197" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">First</text>
+        <rect
+          x="468"
+          y="181"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#5C7A99"
+          stroke="#5C7A99"
+          stroke-width="1.6"
+        />
+        <text
+          x="490"
+          y="197"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Step
+        </text>
+        <rect
+          x="516"
+          y="181"
+          width="24"
+          height="24"
+          rx="4"
+          fill="#5C7A99"
+          stroke="#5C7A99"
+          stroke-width="1.6"
+        />
+        <text
+          x="528"
+          y="197"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          1:
+        </text>
+        <rect
+          x="544"
+          y="181"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#5C7A99"
+          stroke="#5C7A99"
+          stroke-width="1.6"
+        />
+        <text
+          x="566"
+          y="197"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          First
+        </text>
 
         <!-- block1: rejected -->
-        <rect x="592" y="181" width="52" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="618" y="197" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">Define</text>
+        <rect
+          x="592"
+          y="181"
+          width="52"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="618"
+          y="197"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Define
+        </text>
 
         <!-- j+1 annotations -->
-        <text x="148" y="231" font-size="9.5" fill="#1B325F" font-weight="700" text-anchor="middle">n-gram matching</text>
-        <text x="148" y="243" font-size="9.5" fill="#1B325F" font-weight="700" text-anchor="middle">+ parallel verify</text>
-        <line x1="78" y1="224" x2="434" y2="224" stroke="#5C7A99" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#p3v2-arPurple)"/>
-        <line x1="436" y1="224" x2="456" y2="224" stroke="#1B325F" stroke-width="2" marker-end="url(#p3v2-arDark)"/>
-        <text x="446" y="237" font-size="9.5" fill="#2b8a3e" text-anchor="middle" font-weight="700">accepted</text>
-        <text x="446" y="248" font-size="9.5" fill="#2b8a3e" text-anchor="middle" font-weight="700">commit KV</text>
-        <line x1="460" y1="224" x2="524" y2="224" stroke="#adb5bd" stroke-width="1.8" stroke-dasharray="5,3" marker-end="url(#p3v2-arPurple)"/>
-        <text x="492" y="237" font-size="9" fill="#5C7A99" text-anchor="middle" font-weight="600">pseudo accepted</text>
+        <text
+          x="148"
+          y="231"
+          font-size="9.5"
+          fill="#2F4F4F"
+          font-weight="700"
+          text-anchor="middle"
+        >
+          n-gram matching
+        </text>
+        <text
+          x="148"
+          y="243"
+          font-size="9.5"
+          fill="#2F4F4F"
+          font-weight="700"
+          text-anchor="middle"
+        >
+          + parallel verify
+        </text>
+        <line
+          x1="78"
+          y1="224"
+          x2="434"
+          y2="224"
+          stroke="#5C7A99"
+          stroke-width="2"
+          stroke-dasharray="7,4"
+          marker-end="url(#p3v2-arPurple)"
+        />
+        <line
+          x1="436"
+          y1="224"
+          x2="456"
+          y2="224"
+          stroke="#2F4F4F"
+          stroke-width="2"
+          marker-end="url(#p3v2-arDark)"
+        />
+        <text
+          x="446"
+          y="237"
+          font-size="9.5"
+          fill="#2b8a3e"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          accepted
+        </text>
+        <text
+          x="446"
+          y="248"
+          font-size="9.5"
+          fill="#2b8a3e"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          commit KV
+        </text>
+        <line
+          x1="460"
+          y1="224"
+          x2="524"
+          y2="224"
+          stroke="#adb5bd"
+          stroke-width="1.8"
+          stroke-dasharray="5,3"
+          marker-end="url(#p3v2-arPurple)"
+        />
+        <text
+          x="492"
+          y="237"
+          font-size="9"
+          fill="#5C7A99"
+          text-anchor="middle"
+          font-weight="600"
+        >
+          pseudo accepted
+        </text>
 
         <!-- ══ ITERATION j+2 ══ -->
-        <text x="745" y="292" font-size="15" fill="#1B325F" font-weight="800" text-anchor="middle" font-style="italic">j + 2</text>
+        <text
+          x="745"
+          y="292"
+          font-size="15"
+          fill="#2F4F4F"
+          font-weight="800"
+          text-anchor="middle"
+          font-style="italic"
+        >
+          j + 2
+        </text>
 
         <!-- Row j+2 lane: slot2 highlight (runtime n-gram) -->
-        <rect x="80" y="265" width="640" height="32" rx="5" fill="url(#p3v2-gSlot2)" opacity="0.3"/>
+        <rect
+          x="80"
+          y="265"
+          width="640"
+          height="32"
+          rx="5"
+          fill="url(#p3v2-gSlot2)"
+          opacity="0.3"
+        />
 
         <!-- All committed gray -->
-        <rect x="84" y="268" width="28" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="98" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">I</text>
-        <rect x="116" y="268" width="36" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="134" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">am</text>
-        <rect x="156" y="268" width="30" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="171" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">a</text>
-        <rect x="190" y="268" width="88" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="234" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">researcher</text>
-        <rect x="303" y="268" width="30" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="318" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">an</text>
-        <rect x="337" y="268" width="44" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="359" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">LLM</text>
-        <rect x="387" y="268" width="52" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="413" y="284" font-size="9.5" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">model</text>
-        <rect x="443" y="268" width="8" height="24" rx="4" fill="#adb5bd" stroke="#495057" stroke-width="1.6"/>
-        <text x="447" y="284" font-size="8" fill="#1B325F" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">.</text>
+        <rect
+          x="84"
+          y="268"
+          width="28"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="98"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          I
+        </text>
+        <rect
+          x="116"
+          y="268"
+          width="36"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="134"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          am
+        </text>
+        <rect
+          x="156"
+          y="268"
+          width="30"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="171"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          a
+        </text>
+        <rect
+          x="190"
+          y="268"
+          width="88"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="234"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          researcher
+        </text>
+        <rect
+          x="303"
+          y="268"
+          width="30"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="318"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          an
+        </text>
+        <rect
+          x="337"
+          y="268"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="359"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          LLM
+        </text>
+        <rect
+          x="387"
+          y="268"
+          width="52"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="413"
+          y="284"
+          font-size="9.5"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          model
+        </text>
+        <rect
+          x="443"
+          y="268"
+          width="8"
+          height="24"
+          rx="4"
+          fill="#adb5bd"
+          stroke="#495057"
+          stroke-width="1.6"
+        />
+        <text
+          x="447"
+          y="284"
+          font-size="8"
+          fill="#2F4F4F"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          .
+        </text>
 
         <!-- block1: real-accepted (green) -->
-        <rect x="468" y="268" width="44" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="490" y="284" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">Step</text>
-        <rect x="516" y="268" width="24" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="528" y="284" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">1:</text>
-        <rect x="544" y="268" width="44" height="24" rx="4" fill="#2b8a3e" stroke="#2b8a3e" stroke-width="1.6"/>
-        <text x="566" y="284" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">First</text>
+        <rect
+          x="468"
+          y="268"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="490"
+          y="284"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Step
+        </text>
+        <rect
+          x="516"
+          y="268"
+          width="24"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="528"
+          y="284"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          1:
+        </text>
+        <rect
+          x="544"
+          y="268"
+          width="44"
+          height="24"
+          rx="4"
+          fill="#2b8a3e"
+          stroke="#2b8a3e"
+          stroke-width="1.6"
+        />
+        <text
+          x="566"
+          y="284"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          First
+        </text>
 
         <!-- block1: rejected -->
-        <rect x="592" y="268" width="52" height="24" rx="4" fill="#D86C4F" stroke="#D86C4F" stroke-width="1.6"/>
-        <text x="618" y="284" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">Define</text>
+        <rect
+          x="592"
+          y="268"
+          width="52"
+          height="24"
+          rx="4"
+          fill="#DE5A28"
+          stroke="#DE5A28"
+          stroke-width="1.6"
+        />
+        <text
+          x="618"
+          y="284"
+          font-size="9.5"
+          fill="#fff"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Define
+        </text>
 
         <!-- j+2 annotations -->
-        <line x1="78" y1="310" x2="456" y2="310" stroke="#5C7A99" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#p3v2-arPurple)"/>
-        <line x1="608" y1="310" x2="700" y2="310" stroke="#1B325F" stroke-width="2" marker-end="url(#p3v2-arDark)"/>
-        <text x="655" y="323" font-size="9.5" fill="#2b8a3e" text-anchor="middle" font-weight="700">accepted</text>
-        <text x="655" y="334" font-size="9.5" fill="#2b8a3e" text-anchor="middle" font-weight="700">commit KV</text>
+        <line
+          x1="78"
+          y1="310"
+          x2="456"
+          y2="310"
+          stroke="#5C7A99"
+          stroke-width="2"
+          stroke-dasharray="7,4"
+          marker-end="url(#p3v2-arPurple)"
+        />
+        <line
+          x1="608"
+          y1="310"
+          x2="700"
+          y2="310"
+          stroke="#2F4F4F"
+          stroke-width="2"
+          marker-end="url(#p3v2-arDark)"
+        />
+        <text
+          x="655"
+          y="323"
+          font-size="9.5"
+          fill="#2b8a3e"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          accepted
+        </text>
+        <text
+          x="655"
+          y="334"
+          font-size="9.5"
+          fill="#2b8a3e"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          commit KV
+        </text>
 
         <!-- n-gram caching feedback line — dashed red arrow returns accepted tokens to the cache pool -->
-        <line x1="700" y1="350" x2="78" y2="350" stroke="#D86C4F" stroke-width="1.8" stroke-dasharray="9,4" marker-end="url(#p3v2-arRedLeft)"/>
-        <line x1="293" y1="350" x2="293" y2="294" stroke="#D86C4F" stroke-width="1.2" stroke-dasharray="4,3"/>
-        <line x1="458" y1="350" x2="458" y2="294" stroke="#D86C4F" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <line
+          x1="700"
+          y1="350"
+          x2="78"
+          y2="350"
+          stroke="#DE5A28"
+          stroke-width="1.8"
+          stroke-dasharray="9,4"
+          marker-end="url(#p3v2-arRedLeft)"
+        />
+        <line
+          x1="293"
+          y1="350"
+          x2="293"
+          y2="294"
+          stroke="#DE5A28"
+          stroke-width="1.2"
+          stroke-dasharray="4,3"
+        />
+        <line
+          x1="458"
+          y1="350"
+          x2="458"
+          y2="294"
+          stroke="#DE5A28"
+          stroke-width="1.2"
+          stroke-dasharray="4,3"
+        />
         <!-- label box for clarity -->
-        <rect x="260" y="358" width="260" height="20" rx="10" fill="#fff" stroke="#D86C4F" stroke-width="1.4"/>
-        <text x="390" y="372" font-size="10.5" fill="#D86C4F" text-anchor="middle" font-weight="800">n-gram caching  ·  update every verify round</text>
+        <rect
+          x="260"
+          y="358"
+          width="260"
+          height="20"
+          rx="10"
+          fill="#fff"
+          stroke="#DE5A28"
+          stroke-width="1.4"
+        />
+        <text
+          x="390"
+          y="372"
+          font-size="10.5"
+          fill="#DE5A28"
+          text-anchor="middle"
+          font-weight="800"
+        >
+          n-gram caching · update every verify round
+        </text>
 
         <!-- Right iteration arrow -->
-        <line x1="705" y1="90" x2="705" y2="350" stroke="#D86C4F" stroke-width="3.5" marker-end="url(#p3v2-arRedDown)"/>
-        <text x="740" y="80" font-size="14" fill="#D86C4F" font-weight="900" text-anchor="middle">...</text>
-
+        <line
+          x1="705"
+          y1="90"
+          x2="705"
+          y2="350"
+          stroke="#DE5A28"
+          stroke-width="3.5"
+          marker-end="url(#p3v2-arRedDown)"
+        />
+        <text
+          x="740"
+          y="80"
+          font-size="14"
+          fill="#DE5A28"
+          font-weight="900"
+          text-anchor="middle"
+        >
+          ...
+        </text>
       </svg>
 
       <!-- ── Compact n-gram source legend (horizontal banner below the SVG) ── -->
-      <div class="p3-inter" style="display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin-top:2.5mm;">
-        <div style="background:#ebfbee;border:1.8px solid #2b8a3e;border-radius:6px;padding:1.5mm 2.5mm;">
-          <div style="display:flex;align-items:center;gap:2mm;">
-            <span style="display:inline-block;background:#2b8a3e;color:#fff;font-size:10pt;font-weight:800;padding:1px 7px;border-radius:10px;">①</span>
-            <span style="font-size:11pt;font-weight:800;color:#2b8a3e;">NGramCache</span>
-            <span style="font-size:9pt;color:#5b8c5e;font-family:'JetBrains Mono',monospace;">n=4 · max 8192</span>
+      <div
+        class="p3-inter"
+        style="
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 2mm;
+          margin-top: 2.5mm;
+        "
+      >
+        <div
+          style="
+            background: #ebfbee;
+            border: 1.8px solid #2b8a3e;
+            border-radius: 6px;
+            padding: 1.5mm 2.5mm;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 2mm">
+            <span
+              style="
+                display: inline-block;
+                background: #2b8a3e;
+                color: #fff;
+                font-size: 10pt;
+                font-weight: 800;
+                padding: 1px 7px;
+                border-radius: 10px;
+              "
+              >①</span
+            >
+            <span style="font-size: 11pt; font-weight: 800; color: #2b8a3e"
+              >NGramCache</span
+            >
+            <span
+              style="
+                font-size: 9pt;
+                color: #5b8c5e;
+                font-family: &quot;JetBrains Mono&quot;, monospace;
+              "
+              >n=4 · max 8192</span
+            >
           </div>
-          <div style="font-size:9pt;color:#495057;margin-top:1mm;line-height:1.3;">MRU <code style="background:#e6fcf5;padding:0 3px;border-radius:2px;">OrderedDict</code> · <span style="font-style:italic;">cot_caches_n4.pkl</span></div>
+          <div
+            style="
+              font-size: 9pt;
+              color: #495057;
+              margin-top: 1mm;
+              line-height: 1.3;
+            "
+          >
+            MRU
+            <code
+              style="background: #e6fcf5; padding: 0 3px; border-radius: 2px"
+              >OrderedDict</code
+            >
+            · <span style="font-style: italic">cot_caches_n4.pkl</span>
+          </div>
         </div>
-        <div style="background:#e7f5ff;border:1.8px solid #1B325F;border-radius:6px;padding:1.5mm 2.5mm;">
-          <div style="display:flex;align-items:center;gap:2mm;">
-            <span style="display:inline-block;background:#1B325F;color:#fff;font-size:10pt;font-weight:800;padding:1px 7px;border-radius:10px;">②</span>
-            <span style="font-size:11pt;font-weight:800;color:#1B325F;">SuffixRetriever</span>
-            <span style="font-size:9pt;color:#5c7b9e;font-family:'JetBrains Mono',monospace;">PLD · win 4096</span>
+        <div
+          style="
+            background: #e7f5ff;
+            border: 1.8px solid #2F4F4F;
+            border-radius: 6px;
+            padding: 1.5mm 2.5mm;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 2mm">
+            <span
+              style="
+                display: inline-block;
+                background: #2F4F4F;
+                color: #fff;
+                font-size: 10pt;
+                font-weight: 800;
+                padding: 1px 7px;
+                border-radius: 10px;
+              "
+              >②</span
+            >
+            <span style="font-size: 11pt; font-weight: 800; color: #2F4F4F"
+              >SuffixRetriever</span
+            >
+            <span
+              style="
+                font-size: 9pt;
+                color: #5c7b9e;
+                font-family: &quot;JetBrains Mono&quot;, monospace;
+              "
+              >PLD · win 4096</span
+            >
           </div>
-          <div style="font-size:9pt;color:#495057;margin-top:1mm;line-height:1.3;">Rolling-buffer scan max→min suffix · recency-biased</div>
+          <div
+            style="
+              font-size: 9pt;
+              color: #495057;
+              margin-top: 1mm;
+              line-height: 1.3;
+            "
+          >
+            Rolling-buffer scan max→min suffix · recency-biased
+          </div>
         </div>
-        <div style="background:#f3f0ff;border:1.8px solid #5C7A99;border-radius:6px;padding:1.5mm 2.5mm;">
-          <div style="display:flex;align-items:center;gap:2mm;">
-            <span style="display:inline-block;background:#5C7A99;color:#fff;font-size:10pt;font-weight:800;padding:1px 7px;border-radius:10px;">③</span>
-            <span style="font-size:11pt;font-weight:800;color:#5C7A99;">CoTPhaseTracker</span>
-            <span style="font-size:9pt;color:#7048a8;font-family:'JetBrains Mono',monospace;">state machine</span>
+        <div
+          style="
+            background: #f3f0ff;
+            border: 1.8px solid #5c7a99;
+            border-radius: 6px;
+            padding: 1.5mm 2.5mm;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 2mm">
+            <span
+              style="
+                display: inline-block;
+                background: #5c7a99;
+                color: #fff;
+                font-size: 10pt;
+                font-weight: 800;
+                padding: 1px 7px;
+                border-radius: 10px;
+              "
+              >③</span
+            >
+            <span style="font-size: 11pt; font-weight: 800; color: #5c7a99"
+              >CoTPhaseTracker</span
+            >
+            <span
+              style="
+                font-size: 9pt;
+                color: #7048a8;
+                font-family: &quot;JetBrains Mono&quot;, monospace;
+              "
+              >state machine</span
+            >
           </div>
-          <div style="font-size:9pt;color:#495057;margin-top:1mm;line-height:1.3;">Routes <span style="color:#5C7A99;font-weight:700;">&lt;think&gt;</span>→think_cache · <span style="color:#d9480f;font-weight:700;">&lt;final&gt;</span>→final_cache</div>
+          <div
+            style="
+              font-size: 9pt;
+              color: #495057;
+              margin-top: 1mm;
+              line-height: 1.3;
+            "
+          >
+            Routes
+            <span style="color: #5c7a99; font-weight: 700">&lt;think&gt;</span
+            >→think_cache ·
+            <span style="color: #d9480f; font-weight: 700">&lt;final&gt;</span
+            >→final_cache
+          </div>
         </div>
       </div>
     </div>
-
   </div>
 </div>

@@ -192,6 +192,13 @@ def main():
             if tid is not None:
                 stop_ids.append(tid)
 
+    # ── CoT structural tags always rendered (even without --show-special) ─────
+    _STRUCT_TAGS: dict[int, str] = {}
+    for _n, _s in [("</think>", "\n</think>\n"), ("<final>", "<final>\n"), ("</final>", "\n</final>")]:
+        _t = tok.token_to_id(_n)
+        if _t is not None:
+            _STRUCT_TAGS[_t] = _s
+
     # ── Streaming callback ────────────────────────────────────────────────────
     on_token = None
     if args.stream:
@@ -201,11 +208,20 @@ def main():
 
         def _on_token(tid: int) -> None:
             seen.append(tid)
-            text_full = tok.decode(seen, skip_special_tokens=skip_special)
-            new = text_full[prev_len[0]:]
-            prev_len[0] = len(text_full)
-            if new:
-                print(new, end="", flush=True)
+            if skip_special and tid in _STRUCT_TAGS:
+                # Flush buffered text before printing the structural tag
+                text_before = tok.decode(seen[:-1], skip_special_tokens=True)
+                pending = text_before[prev_len[0]:]
+                if pending:
+                    print(pending, end="", flush=True)
+                prev_len[0] = len(text_before)
+                print(_STRUCT_TAGS[tid], end="", flush=True)
+            else:
+                text_full = tok.decode(seen, skip_special_tokens=skip_special)
+                new = text_full[prev_len[0]:]
+                prev_len[0] = len(text_full)
+                if new:
+                    print(new, end="", flush=True)
 
         on_token = _on_token
 
@@ -236,8 +252,21 @@ def main():
     )
 
     if not args.stream:
-        full_text = tok.decode(result.tokens,
-                               skip_special_tokens=not args.show_special)
+        # Decode with structural CoT tags always visible
+        skip_proto = not args.show_special
+        parts, seg = [], []
+        for _tid in result.tokens:
+            if skip_proto and _tid in _STRUCT_TAGS:
+                if seg:
+                    parts.append(tok.decode(seg, skip_special_tokens=True))
+                    seg = []
+                parts.append(_STRUCT_TAGS[_tid])
+            else:
+                seg.append(_tid)
+        if seg:
+            parts.append(tok.decode(seg, skip_special_tokens=skip_proto))
+        full_text = "".join(parts)
+
         print("===== ASSISTANT OUTPUT =====")
         if not args.no_seed_think:
             print("<think>")

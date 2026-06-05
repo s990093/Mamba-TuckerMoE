@@ -110,7 +110,16 @@
       "Bash(git checkout *)",
       "Bash(make -C mamba3_mlx self MAX_TOK=80 STREAM=0)",
       "Bash(html-validate academic_poster.html)",
-      "Bash(awk 'NR>=141 && NR<=665' /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase1.html)"
+      "Bash(awk 'NR>=141 && NR<=665' /Users/hungwei/Desktop/Proj/Mamba3-XR/Portrait/s_phase1.html)",
+      "Bash(make emotion *)",
+      "Bash(make math *)",
+      "Bash(make debug *)",
+      "Bash(make run *)",
+      "Bash(curl *)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -P)",
+      "Bash(node -c /Users/hungwei/Desktop/Proj/Mamba3-XR/mamba3_mlx/ui/eyes.js)",
+      "Read(//Users/hungwei/.venv/**)",
+      "Read(//Users/hungwei/**)"
     ]
   }
 }

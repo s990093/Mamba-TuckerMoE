@@ -1,0 +1,284 @@
+:root {
+  --bg: #0a0a0c;
+  --card: #141418;
+  --card-hover: #1a1a20;
+  --text: #e4e2dd;
+  --text-dim: #7a7880;
+  --text-muted: #55535b;
+  --accent: #5b9bd5;
+  --accent-glow: rgba(91, 155, 213, 0.18);
+  --gpu-green: #44c97a;
+  --gpu-yellow: #e9b847;
+  --gpu-orange: #eb8a3e;
+  --gpu-red: #eb4e4e;
+  --ok: #44c97a;
+  --warn: #e9b847;
+  --bad: #eb4e4e;
+  --border: #1e1e26;
+  --border-light: #2a2a34;
+  --gauge-track: #1a1a24;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.top-left { display: flex; align-items: baseline; gap: 12px; }
+.top-left h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+.top-left .chip {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 2px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; font-weight: 500;
+}
+.status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+.status.ok .dot { background: var(--ok); box-shadow: 0 0 6px rgba(68, 201, 122, 0.5); }
+.status.bad .dot { background: var(--bad); box-shadow: 0 0 6px rgba(235, 78, 78, 0.5); }
+
+/* ── Main layout ───────────────────────────────────── */
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 24px 32px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* ── Card ──────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  transition: border-color 0.25s;
+}
+.card:hover { border-color: var(--border-light); }
+.card h2 {
+  font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+/* ── GPU Hero Card ─────────────────────────────────── */
+.gpu-hero {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #14141c 0%, #101018 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.gpu-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -20%;
+  width: 60%; height: 200%;
+  background: radial-gradient(ellipse at center, rgba(91,155,213,0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Gauge ─────────────────────────────────────────── */
+.gpu-gauge-wrap {
+  position: relative;
+  width: 130px; height: 130px;
+  flex-shrink: 0;
+}
+.gpu-gauge-wrap canvas {
+  position: absolute; top: 0; left: 0;
+  width: 130px; height: 130px;
+}
+.gpu-gauge-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.gpu-gauge-val {
+  font-size: 2.3rem; font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  transition: color 0.4s;
+}
+.gpu-gauge-unit {
+  font-size: 0.7rem; font-weight: 500;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── GPU stats stack ─────────────────────────────── */
+.gpu-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.gpu-stat-row {
+  display: flex;
+  gap: 24px;
+}
+.gpu-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.gpu-stat .lbl {
+  font-size: 0.64rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.gpu-stat .val {
+  font-size: 1.15rem; font-weight: 600;
+  letter-spacing: -0.01em;
+  display: flex; align-items: baseline; gap: 3px;
+}
+.gpu-stat .val .unit {
+  font-size: 0.65rem; font-weight: 500;
+  color: var(--text-dim);
+}
+
+/* ── Frequency bar ────────────────────────────────── */
+.freq-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: var(--gauge-track);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.freq-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), #7fb8e8);
+  transition: width 0.6s ease;
+}
+
+/* ── Power bar ────────────────────────────────────── */
+.power-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: var(--gauge-track);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.power-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7fb8e8, #c88fe0);
+  transition: width 0.6s ease;
+}
+
+/* ── Idle indicator ───────────────────────────────── */
+.idle-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.7rem; font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(68,201,122,0.08);
+  color: var(--gpu-green);
+}
+.idle-badge.active {
+  background: rgba(235,142,62,0.10);
+  color: var(--gpu-orange);
+}
+
+/* ── Sparkline canvas ────────────────────────────── */
+canvas.spark {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+  background: #0c0c12;
+}
+
+/* ── Metric display ──────────────────────────────── */
+.metric-row { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 10px; }
+.metric .val {
+  display: block;
+  font-size: 1.4rem; font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.metric .lbl {
+  display: block;
+  font-size: 0.66rem; font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-top: 3px;
+}
+.phase {
+  font-size: 0.72rem; font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #0c0c14;
+  display: inline-block;
+}
+
+/* ── Badge ───────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem; font-weight: 500;
+  background: #1a1a24;
+  color: var(--text-dim);
+}
+.badge.warn { background: rgba(233, 184, 71, 0.10); color: var(--warn); }
+.badge.ok   { background: rgba(68, 201, 122, 0.08); color: var(--ok); }
+
+/* ── Responsive ───────────────────────────────────── */
+@media (max-width: 960px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .gpu-hero { flex-direction: column; align-items: center; text-align: center; }
+  .gpu-stat-row { justify-content: center; }
+}
+@media (max-width: 600px) {
+  .grid { grid-template-columns: 1fr; }
+  .top { padding: 14px 16px; }
+  .main { padding: 12px 12px 24px; }
+  .gpu-hero { padding: 16px; }
+}
+
+/* ── LLM tokens/sec highlight ────────────────────── */
+.metric .val.tps-active {
+  color: var(--accent);
+  transition: color 0.3s;
+}
+
+/* ── Smooth transitions ──────────────────────────── */
+.val, .gpu-gauge-val, .freq-bar-fill, .power-bar-fill {
+  transition: all 0.35s ease;
+}

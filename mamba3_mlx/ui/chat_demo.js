@@ -291,6 +291,11 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && modeMenu && !modeMenu.hidden) closeModeMenu();
+  if ((e.key === "p" || e.key === "P") && !e.metaKey && !e.ctrlKey &&
+      !["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName)) {
+    e.preventDefault();
+    window.PF?.toggle();
+  }
 });
 
 applyModeToPill();
@@ -370,6 +375,8 @@ let turnCount = 0;
 let currentMsg = null;
 let typingDots = null;
 let streamText = "";
+let lastReasoningText = "";  // accumulated reasoning for delta decode
+let thinkOpen = false;        // <think> shown but </think> not yet
 /** @type {string|null} */
 let pendingExampleId = null;
 
@@ -426,6 +433,12 @@ let inIntro = false;
 let globalSystemMarkdown = "";
 /** Per sidebar `key` → short SFT/export string from `/api/demo-config`. */
 let categorySystemPrompts = {};
+
+/** Return the active system prompt text (category-specific or global fallback). */
+function currentSysPrompt() {
+  const k = sysCatSelect && sysCatSelect.value ? String(sysCatSelect.value).trim() : "";
+  return (k && categorySystemPrompts[k]) ? String(categorySystemPrompts[k]) : globalSystemMarkdown;
+}
 
 /** @see cot_dataset/GUIDE.md — structured assistant output (tables, headings, lists, email blocks). */
 const MD_PURIFY = { USE_PROFILES: { html: true } };
@@ -599,8 +612,8 @@ function renderGuideMarkdown(text) {
       }
       out.push(
         "<ul>" +
-          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
-          "</ul>"
+        items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+        "</ul>"
       );
       continue;
     }
@@ -613,8 +626,8 @@ function renderGuideMarkdown(text) {
       }
       out.push(
         "<ol>" +
-          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
-          "</ol>"
+        items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+        "</ol>"
       );
       continue;
     }
@@ -819,8 +832,8 @@ function renderStyleAndTools(constraints, tools) {
     if (c.default_voice) pills.push(c.default_voice);
     stylePanel.innerHTML = pills.length
       ? pills
-          .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
-          .join("")
+        .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
+        .join("")
       : '<span class="style-pill muted">no constraints declared</span>';
   }
   const toolList = document.getElementById("tool-registry");
@@ -896,6 +909,8 @@ async function loadDemoConfig() {
     applySysCardForCategory(
       sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null
     );
+    // Proactively show KV cost of the initial system prompt before any message.
+    window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: false });
     renderStyleAndTools(j.style_constraints, j.tool_registry);
     renderSidebarCategories(j.categories);
     initSamplingDefaults(j.sampling_defaults || {});
@@ -1019,9 +1034,68 @@ function applyMaxTokensCap(cap) {
   maxTokensSlider.title = `Max output tokens (server cap: ${n})`;
 }
 
+// ── Token count preview card ──────────────────────────────────────
+const _tccCard  = document.getElementById("tok-count-card");
+const _tccUser  = document.getElementById("tcc-user");
+const _tccTotal = document.getElementById("tcc-total");
+const _tccKv    = document.getElementById("tcc-kv");
+
+// KV bytes per token (must match perf_float.js constants)
+const _KV_PER_TOK = 6 * 2 * 4 * 64 * 2;  // 6144 bytes
+function _kvMib(n) { return ((_KV_PER_TOK * n) / 1048576).toFixed(2) + " MiB"; }
+
+let _pfInputTimer = null;
+let _tccAbort = null;
+
+function _hideTokCard() {
+  if (_tccCard) _tccCard.hidden = true;
+}
+
+function _fetchInputTokCount(userText) {
+  if (_tccAbort) _tccAbort.abort();
+  if (!userText) { _hideTokCard(); return; }
+  _tccAbort = new AbortController();
+  fetch("/api/token_count", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system_prompt: currentSysPrompt(),
+      user_message: userText,
+      history: [],
+      reasoning: isReasoningOn(),
+    }),
+    signal: _tccAbort.signal,
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!d || !_tccCard) return;
+      const ut = d.user_tokens  ?? 0;
+      const tt = d.total_tokens ?? 0;
+      if (_tccUser)  _tccUser.textContent  = `${ut} tok`;
+      if (_tccTotal) _tccTotal.textContent = `${tt} tok`;
+      if (_tccKv)    _tccKv.textContent    = _kvMib(tt);
+      // Re-trigger enter animation by replacing element in place
+      _tccCard.hidden = false;
+    })
+    .catch(() => {});
+}
+
 input.oninput = () => {
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 200) + "px";
+  const txt = input.value.trim();
+  if (!txt) { _hideTokCard(); }
+  clearTimeout(_pfInputTimer);
+  _pfInputTimer = setTimeout(() => {
+    if (isGenerating) return;
+    _fetchInputTokCount(txt);
+    window.PF?.reset(null, {
+      sys: currentSysPrompt(),
+      user: txt,
+      history: [],
+      reasoning: isReasoningOn(),
+    });
+  }, 400);
 };
 input.onkeydown = (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
@@ -1161,8 +1235,8 @@ function addToolRow(call, systemResult, phase) {
     : "";
   const injHtml = systemResult
     ? `<div class="tool-line tool-line-result"><div class="tool-sublabel">Injected back into the conversation</div>${renderControlBlock(
-        systemResult
-      )}</div>`
+      systemResult
+    )}</div>`
     : "";
   card.innerHTML =
     '<div class="tool-inner">' +
@@ -1223,7 +1297,7 @@ function addInjectBadge(obj, data) {
   badge.className = "mw-inject-badge";
   const what = String(data.what || "<final>")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const n  = data.n_out    != null ? "t=" + data.n_out : "";
+  const n = data.n_out != null ? "t=" + data.n_out : "";
   const ms = data.inject_ms != null ? Number(data.inject_ms).toFixed(1) + "ms" : "";
   const meta = [n, ms].filter(Boolean).join(" · ");
   badge.innerHTML =
@@ -1293,13 +1367,40 @@ function handleMsg(m) {
     return;
   }
   if (m.type === "reasoning") {
-    const slot = ensureReasoningBlock();
-    if (slot) slot.innerHTML = postProcessMarkers(renderMd(m.markdown || ""));
+    const fullMd = m.markdown || "";
+    const delta = fullMd.slice(lastReasoningText.length);
+    lastReasoningText = fullMd;
+    if (!thinkOpen) {
+      thinkOpen = true;
+      streamText += "<think>\n";
+      if (currentMsg) {
+        if (typingDots) { typingDots.remove(); typingDots = null; }
+        currentMsg.body.classList.remove("markdown-streaming");
+        currentMsg.body.classList.add("streaming");
+        streamRenderInto(currentMsg.body, streamText);
+      }
+    }
+    if (delta) {
+      streamText += delta;
+      if (currentMsg) streamRenderInto(currentMsg.body, streamText);
+    }
     nudgeScroll();
     return;
   }
   if (m.type === "mw_inject") {
-    if (currentMsg) addInjectBadge(currentMsg, m);
+    // Close <think> and open <final> inline — no debug badge
+    if (thinkOpen) {
+      streamText += "\n</think>\n";
+      thinkOpen = false;
+    }
+    streamText += "<final>\n";
+    if (currentMsg) {
+      if (typingDots) { typingDots.remove(); typingDots = null; }
+      currentMsg.body.classList.remove("markdown-streaming");
+      currentMsg.body.classList.add("streaming");
+      streamRenderInto(currentMsg.body, streamText);
+    }
+    nudgeScroll();
     return;
   }
   if (m.type === "tool_action") {
@@ -1308,6 +1409,8 @@ function handleMsg(m) {
   }
   if (m.type === "intro_start") {
     inIntro = true;
+    // Play-system-prompt has no meta event; trigger proactive token count now.
+    window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: false });
     nudgeScroll();
     if (currentMsg) {
       if (typingDots) {
@@ -1338,7 +1441,7 @@ function handleMsg(m) {
     currentMsg = addRow("assistant", "");
     currentMsg.body.classList.add("streaming", "markdown-streaming");
     typingDots = addDots(currentMsg);
-    streamText = "";
+    streamText = ""; lastReasoningText = ""; thinkOpen = false;
     inIntro = false;
     nudgeScroll();
     return;
@@ -1356,9 +1459,15 @@ function handleMsg(m) {
       if (mt) mt.textContent = m.turns;
     }
     nudgeScroll();
+    window.PF?.reset(m.prompt_tokens);
     return;
   }
   if (m.type === "token") {
+    // First token after think block: close </think> + open <final>
+    if (thinkOpen) {
+      streamText += "\n</think>\n<final>\n";
+      thinkOpen = false;
+    }
     streamText += m.text;
     if (currentMsg) {
       if (typingDots) {
@@ -1377,11 +1486,16 @@ function handleMsg(m) {
       if (mtot) mtot.textContent = m.n;
       if (nesActive)
         nesUpdate(m.n, m.tok_s, parseInt(maxTokensSlider.value, 10));
+      if (m.tok_s != null) window.PF?.tick(m.tok_s, m.n);
     }
     return;
   }
   if (m.type === "done") {
     const playOnly = Boolean(m.play_system_only);
+    // Close </final> if we went through a think+final turn
+    if (lastReasoningText && !thinkOpen) {
+      streamText += "\n</final>";
+    }
     if (currentMsg) {
       finalizeAssistantBody(currentMsg.body, streamText);
       if (!playOnly) addMetrics(currentMsg, m);
@@ -1395,12 +1509,13 @@ function handleMsg(m) {
     if (mtt) mtt.textContent = Number(m.ttft_ms).toFixed(0) + "ms";
     if (mpf) mpf.textContent = Number(m.prefill_ms).toFixed(0) + "ms";
     if (mtot) mtot.textContent = m.total_tokens;
+    window.PF?.done(m.tok_s, m.prefill_ms, m.ttft_ms, m.total_tokens);
     nudgeScroll();
     if (!playOnly) turnCount++;
     if (mtr) mtr.textContent = turnCount;
     currentMsg = null;
     typingDots = null;
-    streamText = "";
+    streamText = ""; lastReasoningText = ""; thinkOpen = false;
     inIntro = false;
     isGenerating = false;
     sendBtn.disabled = false;
@@ -1420,7 +1535,7 @@ function playSystemPrompt() {
   if (sysCard && sysCard.open) sysCard.open = false;
   currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
-  streamText = "";
+  streamText = ""; lastReasoningText = ""; thinkOpen = false;
   inIntro = false;
   ws.send(JSON.stringify({ action: "play_system_prompt", category_key: key }));
 }
@@ -1433,6 +1548,7 @@ btnPlaySys?.addEventListener("click", (e) => {
 
 sysCatSelect?.addEventListener("change", () => {
   applySysCardForCategory(sysCatSelect.value);
+  window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: isReasoningOn() });
 });
 
 function doSend() {
@@ -1443,12 +1559,13 @@ function doSend() {
   refreshExampleDisabled();
   input.value = "";
   input.style.height = "auto";
+  _hideTokCard();
   if (sysCard && sysCard.open) sysCard.open = false;
   forceFollow();
   addRow("user", t);
   currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
-  streamText = "";
+  streamText = ""; lastReasoningText = ""; thinkOpen = false;
   inIntro = false;
   forceFollow();
   const payload = {

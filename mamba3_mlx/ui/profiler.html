@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mamba3-XR Profiler</title>
+  <link rel="stylesheet" href="/static/profiler.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="top">
+    <div class="top-left">
+      <h1>Mamba3-XR</h1>
+      <span class="chip">PROFILER</span>
+    </div>
+    <div class="status" id="conn-status">
+      <span class="dot"></span>
+      <span class="status-text">connecting</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- ═══ GPU HERO ═══════════════════════════════════════ -->
+    <section class="gpu-hero" id="gpu-hero">
+      <div class="gpu-gauge-wrap">
+        <canvas id="gauge-canvas" width="260" height="260"></canvas>
+        <div class="gpu-gauge-center">
+          <div class="gpu-gauge-val" id="gpu-val">—</div>
+          <div class="gpu-gauge-unit">% UTIL</div>
+        </div>
+      </div>
+
+      <div class="gpu-stats">
+        <div class="gpu-stat-row">
+          <div class="gpu-stat">
+            <span class="lbl">Frequency</span>
+            <span class="val"><span id="gpu-freq">—</span><span class="unit">MHz</span></span>
+            <div class="freq-bar-wrap"><div class="freq-bar-fill" id="freq-bar" style="width:0%"></div></div>
+          </div>
+          <div class="gpu-stat">
+            <span class="lbl">Power</span>
+            <span class="val"><span id="gpu-power">—</span><span class="unit">mW</span></span>
+            <div class="power-bar-wrap"><div class="power-bar-fill" id="power-bar" style="width:0%"></div></div>
+          </div>
+          <div class="gpu-stat">
+            <span class="lbl">Idle</span>
+            <span class="val"><span id="gpu-idle">—</span><span class="unit">%</span></span>
+            <span class="idle-badge" id="idle-badge">idle</span>
+          </div>
+        </div>
+        <canvas class="spark" id="chart-gpu" height="64"></canvas>
+      </div>
+    </section>
+
+    <!-- ═══ GRID ═══════════════════════════════════════════ -->
+    <div class="grid">
+      <section class="card">
+        <h2>CPU</h2>
+        <div class="metric"><span class="val" id="cpu-usage">—</span><span class="lbl">utilisation %</span></div>
+        <canvas class="spark" id="chart-cpu" height="74"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Memory</h2>
+        <div class="metric-row">
+          <div class="metric"><span class="val" id="mem-used">—</span><span class="lbl">used GB</span></div>
+          <div class="metric"><span class="val" id="mem-pct">—</span><span class="lbl">%</span></div>
+        </div>
+        <canvas class="spark" id="chart-mem" height="74"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Thermal</h2>
+        <div class="metric"><span class="val" id="thermal-pressure">—</span><span class="lbl">pressure</span></div>
+        <div class="badge" id="thermal-throttle">unknown</div>
+      </section>
+
+      <section class="card">
+        <h2>Swap</h2>
+        <div class="metric-row">
+          <div class="metric"><span class="val" id="swap-used">—</span><span class="lbl">used GB</span></div>
+          <div class="metric"><span class="val" id="swap-pct">—</span><span class="lbl">%</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Inference</h2>
+        <div class="phase" id="llm-phase">idle</div>
+        <div class="metric-row">
+          <div class="metric"><span class="val" id="llm-decode">—</span><span class="lbl">decode tok/s</span></div>
+          <div class="metric"><span class="val" id="llm-prefill">—</span><span class="lbl">prefill tok/s</span></div>
+        </div>
+        <canvas class="spark" id="chart-llm" height="74"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Latency</h2>
+        <div class="metric-row">
+          <div class="metric"><span class="val" id="llm-latency">—</span><span class="lbl">TTFT ms</span></div>
+          <div class="metric"><span class="val" id="llm-ctx">—</span><span class="lbl">context len</span></div>
+        </div>
+        <div class="metric" style="margin-top:10px">
+          <span class="val" id="llm-tps" style="font-size:1.55rem">—</span>
+          <span class="lbl">overall tok/s</span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/profiler.js"></script>
+</body>
+</html>

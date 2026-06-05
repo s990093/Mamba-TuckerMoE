@@ -1,57 +1,57 @@
 {
-  "total_examples": 44439,
+  "total_examples": 37963,
   "token_len_min": 83,
-  "token_len_mean": 310.8,
+  "token_len_mean": 290.3,
   "token_len_max": 3575,
-  "p50": 301.0,
-  "p90": 465.0,
-  "p95": 538.0,
-  "p99": 674.0,
-  "suggested_seq_len": 768,
+  "p50": 286.0,
+  "p90": 405.0,
+  "p95": 449.0,
+  "p99": 598.0,
+  "suggested_seq_len": 512,
   "truncation_by_seq_len": {
     "256": {
-      "n_truncated": 27602,
-      "truncation_rate": "62.1%"
+      "n_truncated": 22626,
+      "truncation_rate": "59.6%"
     },
     "512": {
-      "n_truncated": 2847,
-      "truncation_rate": "6.4%"
+      "n_truncated": 924,
+      "truncation_rate": "2.4%"
     },
     "768": {
-      "n_truncated": 62,
-      "truncation_rate": "0.1%"
+      "n_truncated": 14,
+      "truncation_rate": "0.0%"
     },
     "1024": {
-      "n_truncated": 7,
+      "n_truncated": 4,
       "truncation_rate": "0.0%"
     },
     "1536": {
-      "n_truncated": 6,
+      "n_truncated": 4,
       "truncation_rate": "0.0%"
     },
     "2048": {
-      "n_truncated": 3,
+      "n_truncated": 1,
       "truncation_rate": "0.0%"
     }
   },
   "per_bucket_stats": {
     "daily_conversation": {
-      "count": 9222,
+      "count": 5926,
       "min": 83,
-      "mean": 355.5,
+      "mean": 281.3,
       "max": 3575,
-      "p50": 364.0,
-      "p95": 620.0,
-      "p99": 720.0
+      "p50": 257.0,
+      "p95": 513.0,
+      "p99": 638.0
     },
     "emotion": {
       "count": 10000,
       "min": 237,
-      "mean": 352.4,
-      "max": 647,
-      "p50": 345.0,
-      "p95": 448.0,
-      "p99": 506.0
+      "mean": 340.5,
+      "max": 538,
+      "p50": 337.0,
+      "p95": 414.0,
+      "p99": 443.0
     },
     "math_drill": {
       "count": 200,
@@ -63,40 +63,31 @@
       "p99": 133.0
     },
     "movie_intro": {
-      "count": 2816,
+      "count": 2189,
       "min": 123,
-      "mean": 374.9,
-      "max": 861,
-      "p50": 356.0,
-      "p95": 616.0,
-      "p99": 704.0
+      "mean": 327.4,
+      "max": 808,
+      "p50": 308.0,
+      "p95": 532.0,
+      "p99": 646.0
     },
     "self_awareness": {
-      "count": 10370,
+      "count": 9755,
       "min": 111,
-      "mean": 244.4,
-      "max": 899,
-      "p50": 224.0,
-      "p95": 386.0,
-      "p99": 574.0
+      "mean": 233.0,
+      "max": 759,
+      "p50": 220.0,
+      "p95": 350.0,
+      "p99": 460.0
     },
     "summarize_email": {
-      "count": 10293,
+      "count": 9893,
       "min": 132,
-      "mean": 303.8,
-      "max": 806,
-      "p50": 274.0,
-      "p95": 521.0,
-      "p99": 699.0
-    },
-    "system_call": {
-      "count": 1538,
-      "min": 136,
-      "mean": 174.9,
-      "max": 330,
-      "p50": 168.0,
-      "p95": 221.0,
-      "p99": 269.0
+      "mean": 296.7,
+      "max": 783,
+      "p50": 271.0,
+      "p95": 492.0,
+      "p99": 684.0
     }
   }
 }

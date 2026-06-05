@@ -442,8 +442,8 @@ def main() -> None:
     parser.add_argument(
         "--max-cot-tokens",
         type=int,
-        default=256,
-        help="Drop rows where CoT token count exceeds this limit (default: 256). Set 0 or negative to disable.",
+        default=128,
+        help="Drop rows where CoT token count exceeds this limit (default: 128). Set 0 or negative to disable.",
     )
     parser.add_argument(
         "--include-deep-dive",

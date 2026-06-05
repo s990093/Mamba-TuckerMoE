@@ -21,9 +21,18 @@ class TrueHybridMamba(nn.Module):
 
     def __call__(self, x, states=None):
         new_states = []
+        # During multi-token prefill (L > 1) each block's G_selected tensor in
+        # TuckerMoE is (L, top_k, r3, r2). Without an explicit eval boundary,
+        # MLX keeps every block's intermediate tensors alive simultaneously in
+        # the lazy graph, causing 3-4 GB spikes even for short sequences.
+        # Evaluating after each block forces the graph to be freed block-by-block.
+        prefill = (x.shape[1] > 1)
         for i, blk in enumerate(self.layers):
             st = states[i] if states is not None else None
             x, new_st = blk(x, state=st)
+            if prefill and new_st is not None:
+                state_vals = [v for v in new_st.values() if v is not None]
+                mx.eval(x, *state_vals)
             new_states.append(new_st)
         return x, new_states
 

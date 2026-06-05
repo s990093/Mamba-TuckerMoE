@@ -1,268 +1,1064 @@
 <!-- s_phase2.html — Multi-Stage Training & CoT Loss Design — enlarged signal-processing timeline + results -->
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-  .p2 { font-family: 'Inter', Helvetica, Arial, sans-serif; }
-  .p2-mono { font-family: 'JetBrains Mono', monospace; }
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap");
+  .p2 {
+    font-family: "Inter", Helvetica, Arial, sans-serif;
+  }
+  .p2-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
 </style>
 
-<div class="sec" style="max-width:100%;overflow:visible;">
-  <div class="sh" style="background:#F4F7F9;color:#1B325F;border-left:6px solid #1B325F;">Multi-Stage Training &amp; CoT Loss Design</div>
-  <div class="sc" style="padding:2.5mm 3mm;">
-
+<div class="sec" style="max-width: 100%; overflow: visible">
+  <div
+    class="sh"
+    style="background: #f4f7f9; color: #2F4F4F; border-left: 6px solid #2F4F4F"
+  >
+    Multi-Stage Training &amp; CoT Loss Design
+  </div>
+  <div class="sc" style="padding: 2mm 3mm">
     <!-- breadcrumb -->
-    <div class="p2" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:2.5mm;font-size:10pt;flex-wrap:wrap;">
-      <span style="color:#64748B;font-weight:600;">Stage 1 · Pretrain <span style="color:#94A3B8;">FineWeb-Edu</span></span>
-      <span style="color:#1B325F;margin:0 2.5mm;font-weight:800;">→</span>
-      <span style="color:#64748B;font-weight:600;">Stage 2 · SFT <span style="color:#94A3B8;">UltraChat 200k</span></span>
-      <span style="color:#1B325F;margin:0 2.5mm;font-weight:800;">→</span>
-      <span style="background:#D86C4F;color:#fff;font-weight:800;padding:1mm 3.5mm;border-radius:5px;">Stage 3 · Custom CoT Loss · 13M tok</span>
+    <div
+      class="p2"
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        margin-bottom: 2mm;
+        font-size: 13pt;
+        flex-wrap: wrap;
+      "
+    >
+      <span style="color: #64748b; font-weight: 600"
+        >Stage 1 · Pretrain
+        <span style="color: #94a3b8">FineWeb-Edu</span></span
+      >
+      <span style="color: #2F4F4F; margin: 0 2.5mm; font-weight: 800">→</span>
+      <span style="color: #64748b; font-weight: 600"
+        >Stage 2 · SFT <span style="color: #94a3b8">UltraChat 200k</span></span
+      >
+      <span style="color: #2F4F4F; margin: 0 2.5mm; font-weight: 800">→</span>
+      <span
+        style="
+          background: #DE5A28;
+          color: #fff;
+          font-weight: 800;
+          padding: 1mm 3.5mm;
+          border-radius: 5px;
+        "
+        >Stage 3 · Custom CoT Loss · 13M tok</span
+      >
     </div>
 
     <!-- ═════ master equation — NO BOX ═════ -->
-    <div style="text-align:center;margin-bottom:3.5mm;padding:2mm 0 1mm;">
-      <div style="font-family:'Times New Roman',Times,serif;font-size:30pt;font-weight:700;color:#1B325F;line-height:1.25;">
-        ℒ<sub style="font-size:20pt;">CoT</sub>&nbsp;=&nbsp;
-        <sup style="font-size:18pt;">1</sup>/<sub style="font-size:18pt;">N</sub>Σ<sub style="font-size:15pt;">t</sub>
-        (<span style="color:#1B325F;">w<sub>sc</sub></span>&thinsp;·&thinsp;<span style="color:#1B5E34;">w<sub>go</sub></span>&thinsp;·&thinsp;<span style="color:#D86C4F;">w<sub>fw</sub></span>&thinsp;·&thinsp;<span style="color:#7A5C9E;">w<sub>pd</sub></span>&thinsp;·&thinsp;<span style="color:#B85C42;">w<sub>ie</sub></span>)&thinsp;·&thinsp;ℓ<sub>CE</sub>
-        &emsp;+&emsp;<span style="color:#C0392B;">λℒ<sub>FCP</sub></span>
-        &emsp;+&emsp;<span style="color:#6B7280;">αℒ<sub>lb</sub>&thinsp;+&thinsp;βℒ<sub>z</sub></span>
+    <div style="text-align: center; margin-bottom: 3mm; padding: 1mm 0 0mm">
+      <div
+        style="
+          font-family: &quot;Times New Roman&quot;, Times, serif;
+          font-size: 34pt;
+          font-weight: 700;
+          color: #2F4F4F;
+          line-height: 1.25;
+        "
+      >
+        ℒ<sub style="font-size: 20pt">CoT</sub>&nbsp;=&nbsp;
+        <sup style="font-size: 18pt">1</sup>/<sub style="font-size: 18pt">N</sub
+        >Σ<sub style="font-size: 15pt">t</sub> (<span style="color: #2F4F4F"
+          >w<sub>sc</sub></span
+        >&thinsp;·&thinsp;<span style="color: #1b5e34">w<sub>go</sub></span
+        >&thinsp;·&thinsp;<span style="color: #DE5A28">w<sub>fw</sub></span
+        >&thinsp;·&thinsp;<span style="color: #5c7a99">w<sub>pd</sub></span
+        >&thinsp;·&thinsp;<span style="color: #DE5A28">w<sub>ie</sub></span
+        >)&thinsp;·&thinsp;ℓ<sub>CE</sub> &emsp;+&emsp;<span
+          style="color: #DE5A28"
+          >λℒ<sub>FCP</sub></span
+        >
+        &emsp;+&emsp;<span style="color: #6b7280"
+          >αℒ<sub>lb</sub>&thinsp;+&thinsp;βℒ<sub>z</sub></span
+        >
       </div>
-      <div class="p2" style="font-size:10pt;color:#94A3B8;margin-top:1.8mm;letter-spacing:0.1px;">
-        <span style="color:#1B325F;font-weight:700;">SCALe</span>&ensp;
-        <span style="color:#1B5E34;font-weight:700;">SFT-GO</span>&ensp;
-        <span style="color:#D86C4F;font-weight:700;">Final-SW</span>&ensp;
-        <span style="color:#7A5C9E;font-weight:700;">PDL</span>&ensp;
-        <span style="color:#B85C42;font-weight:700;">InfoEntropy</span>
+      <div
+        class="p2"
+        style="
+          font-size: 12pt;
+          color: #94a3b8;
+          margin-top: 1.8mm;
+          letter-spacing: 0.1px;
+        "
+      >
+        <span style="color: #2F4F4F; font-weight: 700">SCALe</span>&ensp;
+        <span style="color: #1b5e34; font-weight: 700">SFT-GO</span>&ensp;
+        <span style="color: #DE5A28; font-weight: 700">Final-SW</span>&ensp;
+        <span style="color: #5c7a99; font-weight: 700">PDL</span>&ensp;
+        <span style="color: #DE5A28; font-weight: 700">InfoEntropy</span>
         &nbsp;—&nbsp;five per-token weights (product) on ℓ<sub>CE</sub>&emsp;
-        <span style="color:#C0392B;font-weight:700;">FCP</span> EOS penalty&emsp;
-        <span style="color:#6B7280;font-weight:700;">MoE</span> global stabilizers
+        <span style="color: #DE5A28; font-weight: 700">FCP</span> EOS
+        penalty&emsp;
+        <span style="color: #6b7280; font-weight: 700">MoE</span> global
+        stabilizers
       </div>
     </div>
 
     <!-- ═════ HERO timeline — signal-processing style, enlarged ═════ -->
-    <svg viewBox="0 0 1000 214" xmlns="http://www.w3.org/2000/svg"
-         style="font-family:'Times New Roman',Times,serif;width:100%;display:block;background:#FFFFFF;margin-bottom:1mm;">
+    <svg
+      viewBox="0 0 1000 228"
+      xmlns="http://www.w3.org/2000/svg"
+      style="
+        font-family: &quot;Times New Roman&quot;, Times, serif;
+        width: 100%;
+        display: block;
+        background: #ffffff;
+        margin-bottom: 1mm;
+      "
+    >
       <defs>
-        <marker id="p2cax" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto">
-          <path d="M0,0 L9,4 L0,8 L1.6,4 Z" fill="#1B325F"/>
+        <marker
+          id="p2cax"
+          markerWidth="9"
+          markerHeight="8"
+          refX="8"
+          refY="4"
+          orient="auto"
+        >
+          <path d="M0,0 L9,4 L0,8 L1.6,4 Z" fill="#2F4F4F" />
         </marker>
-        <linearGradient id="go-stem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B5E34" stop-opacity="0.62"/><stop offset="1" stop-color="#1B5E34" stop-opacity="0.04"/></linearGradient>
-        <linearGradient id="go-stem-xl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B5E34" stop-opacity="0.80"/><stop offset="1" stop-color="#1B5E34" stop-opacity="0.04"/></linearGradient>
-        <linearGradient id="pd-stem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A5C9E" stop-opacity="0.62"/><stop offset="1" stop-color="#7A5C9E" stop-opacity="0.04"/></linearGradient>
-        <linearGradient id="ie-stem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B85C42" stop-opacity="0.62"/><stop offset="1" stop-color="#B85C42" stop-opacity="0.04"/></linearGradient>
+        <linearGradient id="go-stem" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#1B5E34" stop-opacity="0.62" />
+          <stop offset="1" stop-color="#1B5E34" stop-opacity="0.04" />
+        </linearGradient>
+        <linearGradient id="go-stem-xl" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#1B5E34" stop-opacity="0.80" />
+          <stop offset="1" stop-color="#1B5E34" stop-opacity="0.04" />
+        </linearGradient>
+        <linearGradient id="pd-stem" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#5C7A99" stop-opacity="0.62" />
+          <stop offset="1" stop-color="#5C7A99" stop-opacity="0.04" />
+        </linearGradient>
+        <linearGradient id="ie-stem" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#DE5A28" stop-opacity="0.62" />
+          <stop offset="1" stop-color="#DE5A28" stop-opacity="0.04" />
+        </linearGradient>
       </defs>
 
       <!-- light grid -->
-      <line x1="48" y1="52"  x2="988" y2="52"  stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3 3"/>
-      <line x1="48" y1="78"  x2="988" y2="78"  stroke="#F1F5F9" stroke-width="0.7" stroke-dasharray="2 4"/>
-      <line x1="48" y1="104" x2="988" y2="104" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3 3"/>
-      <line x1="48" y1="130" x2="988" y2="130" stroke="#F1F5F9" stroke-width="0.7" stroke-dasharray="2 4"/>
-      <line x1="48" y1="156" x2="988" y2="156" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3 3"/>
-      <text x="44" y="55"  font-size="8" fill="#CBD5E1" text-anchor="end">1.0</text>
-      <text x="44" y="107" font-size="8" fill="#E2E8F0" text-anchor="end">0.5</text>
-      <text x="44" y="159" font-size="8" fill="#CBD5E1" text-anchor="end">0</text>
+      <line
+        x1="48"
+        y1="52"
+        x2="988"
+        y2="52"
+        stroke="#E2E8F0"
+        stroke-width="1"
+        stroke-dasharray="3 3"
+      />
+      <line
+        x1="48"
+        y1="78"
+        x2="988"
+        y2="78"
+        stroke="#F1F5F9"
+        stroke-width="0.7"
+        stroke-dasharray="2 4"
+      />
+      <line
+        x1="48"
+        y1="104"
+        x2="988"
+        y2="104"
+        stroke="#E2E8F0"
+        stroke-width="1"
+        stroke-dasharray="3 3"
+      />
+      <line
+        x1="48"
+        y1="130"
+        x2="988"
+        y2="130"
+        stroke="#F1F5F9"
+        stroke-width="0.7"
+        stroke-dasharray="2 4"
+      />
+      <line
+        x1="48"
+        y1="156"
+        x2="988"
+        y2="156"
+        stroke="#E2E8F0"
+        stroke-width="1"
+        stroke-dasharray="3 3"
+      />
+      <text x="44" y="55" font-size="8" fill="#CBD5E1" text-anchor="end">
+        1.0
+      </text>
+      <text x="44" y="107" font-size="8" fill="#E2E8F0" text-anchor="end">
+        0.5
+      </text>
+      <text x="44" y="159" font-size="8" fill="#CBD5E1" text-anchor="end">
+        0
+      </text>
 
       <!-- zone bracket headers -->
-      <line x1="52" y1="6" x2="548" y2="6" stroke="#EF9F9F" stroke-width="1.4"/>
-      <line x1="52"  y1="3" x2="52"  y2="10" stroke="#EF9F9F" stroke-width="1.4"/>
-      <line x1="548" y1="3" x2="548" y2="10" stroke="#EF9F9F" stroke-width="1.4"/>
-      <rect x="92" y="0" width="96" height="17" rx="4" fill="#C0392B"/>
-      <text x="140" y="12.5" font-size="10.5" fill="#FFF" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">&lt;think&gt;</text>
-      <text x="350" y="13" font-size="9.5" fill="#9A3B30" text-anchor="middle" font-style="italic">Internal Reasoning</text>
+      <line
+        x1="52"
+        y1="6"
+        x2="548"
+        y2="6"
+        stroke="#EF9F9F"
+        stroke-width="1.4"
+      />
+      <line
+        x1="52"
+        y1="3"
+        x2="52"
+        y2="10"
+        stroke="#EF9F9F"
+        stroke-width="1.4"
+      />
+      <line
+        x1="548"
+        y1="3"
+        x2="548"
+        y2="10"
+        stroke="#EF9F9F"
+        stroke-width="1.4"
+      />
+      <rect x="92" y="0" width="96" height="17" rx="4" fill="#DE5A28" />
+      <text
+        x="140"
+        y="12.5"
+        font-size="10.5"
+        fill="#FFF"
+        text-anchor="middle"
+        font-weight="700"
+        font-family="'JetBrains Mono',monospace"
+      >
+        &lt;think&gt;
+      </text>
+      <text
+        x="350"
+        y="13"
+        font-size="9.5"
+        fill="#9A3B30"
+        text-anchor="middle"
+        font-style="italic"
+      >
+        Internal Reasoning
+      </text>
 
-      <line x1="564" y1="6" x2="988" y2="6" stroke="#91D4A6" stroke-width="1.4"/>
-      <line x1="564" y1="3" x2="564" y2="10" stroke="#91D4A6" stroke-width="1.4"/>
-      <line x1="988" y1="3" x2="988" y2="10" stroke="#91D4A6" stroke-width="1.4"/>
-      <rect x="690" y="0" width="74" height="17" rx="4" fill="#1B5E34"/>
-      <text x="727" y="12.5" font-size="10.5" fill="#FFF" text-anchor="middle" font-weight="700" font-family="'JetBrains Mono',monospace">&lt;final&gt;</text>
-      <text x="864" y="13" font-size="9.5" fill="#1B5E34" text-anchor="middle" font-style="italic">Final Output</text>
+      <line
+        x1="564"
+        y1="6"
+        x2="988"
+        y2="6"
+        stroke="#91D4A6"
+        stroke-width="1.4"
+      />
+      <line
+        x1="564"
+        y1="3"
+        x2="564"
+        y2="10"
+        stroke="#91D4A6"
+        stroke-width="1.4"
+      />
+      <line
+        x1="988"
+        y1="3"
+        x2="988"
+        y2="10"
+        stroke="#91D4A6"
+        stroke-width="1.4"
+      />
+      <rect x="690" y="0" width="74" height="17" rx="4" fill="#1B5E34" />
+      <text
+        x="727"
+        y="12.5"
+        font-size="10.5"
+        fill="#FFF"
+        text-anchor="middle"
+        font-weight="700"
+        font-family="'JetBrains Mono',monospace"
+      >
+        &lt;final&gt;
+      </text>
+      <text
+        x="864"
+        y="13"
+        font-size="9.5"
+        fill="#1B5E34"
+        text-anchor="middle"
+        font-style="italic"
+      >
+        Final Output
+      </text>
 
       <!-- gate divider -->
-      <line x1="556" y1="20" x2="556" y2="160" stroke="#1B325F" stroke-width="2.2" stroke-dasharray="7 4"/>
+      <line
+        x1="556"
+        y1="20"
+        x2="556"
+        y2="160"
+        stroke="#2F4F4F"
+        stroke-width="2.2"
+        stroke-dasharray="7 4"
+      />
 
       <!-- ══ IMPULSE STEMS ══ -->
-      <rect x="232" y="42" width="12" height="34" fill="url(#go-stem)" rx="1.5"/>
-      <circle cx="238" cy="42" r="4" fill="#1B5E34"/>
-      <text x="238" y="37" font-size="8.5" fill="#1B5E34" font-weight="800" text-anchor="middle">×2.5</text>
+      <rect
+        x="232"
+        y="42"
+        width="12"
+        height="34"
+        fill="url(#go-stem)"
+        rx="1.5"
+      />
+      <circle cx="238" cy="42" r="4" fill="#1B5E34" />
+      <text
+        x="238"
+        y="37"
+        font-size="8.5"
+        fill="#1B5E34"
+        font-weight="800"
+        text-anchor="middle"
+      >
+        ×2.5
+      </text>
 
-      <rect x="352" y="34" width="12" height="64" fill="url(#pd-stem)" rx="1.5"/>
-      <circle cx="358" cy="34" r="4" fill="#7A5C9E"/>
-      <text x="358" y="29" font-size="8.5" fill="#7A5C9E" font-weight="800" text-anchor="middle">×PDL</text>
+      <rect
+        x="352"
+        y="34"
+        width="12"
+        height="64"
+        fill="url(#pd-stem)"
+        rx="1.5"
+      />
+      <circle cx="358" cy="34" r="4" fill="#5C7A99" />
+      <text
+        x="358"
+        y="29"
+        font-size="8.5"
+        fill="#5C7A99"
+        font-weight="800"
+        text-anchor="middle"
+      >
+        ×PDL
+      </text>
 
-      <rect x="550" y="26" width="13" height="98" fill="url(#go-stem-xl)" rx="1.5"/>
-      <circle cx="556" cy="26" r="4.6" fill="#1B5E34"/>
-      <text x="544" y="22" font-size="8.5" fill="#1B5E34" font-weight="800" text-anchor="end">×8 boundary</text>
+      <rect
+        x="550"
+        y="26"
+        width="13"
+        height="98"
+        fill="url(#go-stem-xl)"
+        rx="1.5"
+      />
+      <circle cx="556" cy="26" r="4.6" fill="#1B5E34" />
+      <text
+        x="544"
+        y="22"
+        font-size="8.5"
+        fill="#1B5E34"
+        font-weight="800"
+        text-anchor="end"
+      >
+        ×8 boundary
+      </text>
 
-      <rect x="666" y="40" width="12" height="50" fill="url(#ie-stem)" rx="1.5"/>
-      <circle cx="672" cy="40" r="4" fill="#B85C42"/>
-      <text x="672" y="35" font-size="8.5" fill="#B85C42" font-weight="800" text-anchor="middle">×IE</text>
+      <rect
+        x="666"
+        y="40"
+        width="12"
+        height="50"
+        fill="url(#ie-stem)"
+        rx="1.5"
+      />
+      <circle cx="672" cy="40" r="4" fill="#DE5A28" />
+      <text
+        x="672"
+        y="35"
+        font-size="8.5"
+        fill="#DE5A28"
+        font-weight="800"
+        text-anchor="middle"
+      >
+        ×IE
+      </text>
 
       <!-- ══ BASE TREND CURVES ══ -->
-      <path d="M 50 52 C 240 66, 410 100, 552 124" fill="none" stroke="#1B325F" stroke-width="4" stroke-linecap="round"/>
-      <circle cx="50" cy="52" r="3.6" fill="#1B325F"/>
-      <text x="150" y="48" font-size="9.5" fill="#1B325F" font-weight="800" font-style="italic">w<tspan font-size="6.5" baseline-shift="sub">sc</tspan> · SCALe cosine anneal</text>
+      <path
+        d="M 50 52 C 240 66, 410 100, 552 124"
+        fill="none"
+        stroke="#2F4F4F"
+        stroke-width="4"
+        stroke-linecap="round"
+      />
+      <circle cx="50" cy="52" r="3.6" fill="#2F4F4F" />
+      <text
+        x="150"
+        y="48"
+        font-size="9.5"
+        fill="#2F4F4F"
+        font-weight="800"
+        font-style="italic"
+      >
+        w
+        <tspan font-size="6.5" baseline-shift="sub">sc</tspan>
+        · SCALe cosine anneal
+      </text>
 
-      <line x1="552" y1="124" x2="562" y2="64" stroke="#9CA3AF" stroke-width="1.4" stroke-dasharray="3 2"/>
+      <line
+        x1="552"
+        y1="124"
+        x2="562"
+        y2="64"
+        stroke="#9CA3AF"
+        stroke-width="1.4"
+        stroke-dasharray="3 2"
+      />
 
-      <path d="M 562 64 C 690 88, 840 116, 988 134" fill="none" stroke="#D86C4F" stroke-width="4" stroke-linecap="round"/>
-      <circle cx="562" cy="64" r="3.6" fill="#D86C4F"/>
-      <text x="780" y="80" font-size="9.5" fill="#D86C4F" font-weight="800" font-style="italic">w<tspan font-size="6.5" baseline-shift="sub">fw</tspan> · Final-SW prefix focus</text>
-      <text x="966" y="130" font-size="8.5" fill="#1B325F" font-weight="700" text-anchor="end">→ 0.3</text>
+      <path
+        d="M 562 64 C 690 88, 840 116, 988 134"
+        fill="none"
+        stroke="#DE5A28"
+        stroke-width="4"
+        stroke-linecap="round"
+      />
+      <circle cx="562" cy="64" r="3.6" fill="#DE5A28" />
+      <text
+        x="780"
+        y="80"
+        font-size="9.5"
+        fill="#DE5A28"
+        font-weight="800"
+        font-style="italic"
+      >
+        w
+        <tspan font-size="6.5" baseline-shift="sub">fw</tspan>
+        · Final-SW prefix focus
+      </text>
+      <text
+        x="966"
+        y="130"
+        font-size="8.5"
+        fill="#2F4F4F"
+        font-weight="700"
+        text-anchor="end"
+      >
+        → 0.3
+      </text>
 
       <!-- boost weight side-labels -->
-      <text x="258" y="58" font-size="8.5" fill="#1B5E34" font-weight="700">SFT-GO</text>
-      <text x="376" y="52" font-size="8.5" fill="#7A5C9E" font-weight="700">PDL</text>
-      <text x="690" y="56" font-size="8.5" fill="#B85C42" font-weight="700">InfoEntropy</text>
+      <text x="258" y="58" font-size="8.5" fill="#1B5E34" font-weight="700">
+        SFT-GO
+      </text>
+      <text x="376" y="52" font-size="8.5" fill="#5C7A99" font-weight="700">
+        PDL
+      </text>
+      <text x="690" y="56" font-size="8.5" fill="#DE5A28" font-weight="700">
+        InfoEntropy
+      </text>
 
       <!-- ══ TOKEN TRACK ══ -->
       <g font-family="'JetBrains Mono',monospace" font-size="9">
-        <rect x="58"  y="166" width="36" height="17" rx="2.5" fill="#F8F9FA" stroke="#CBD5E1" stroke-width="1"/><text x="76"  y="178" fill="#64748B" text-anchor="middle">Let</text>
-        <rect x="214" y="166" width="48" height="17" rx="2.5" fill="#DCFCE7" stroke="#1B5E34"  stroke-width="1.4"/><text x="238" y="178" fill="#1B5E34"  text-anchor="middle">step</text>
-        <rect x="326" y="166" width="64" height="17" rx="2.5" fill="#EDE9FF" stroke="#7A5C9E"  stroke-width="1.4"/><text x="358" y="178" fill="#7A5C9E"  text-anchor="middle">rare-wd</text>
-        <rect x="424" y="166" width="72" height="17" rx="2.5" fill="#F8F9FA" stroke="#CBD5E1" stroke-width="1"/><text x="460" y="178" fill="#64748B" text-anchor="middle">therefore</text>
-        <rect x="576" y="166" width="36" height="17" rx="2.5" fill="#F0FDF4" stroke="#B6D8C2" stroke-width="1"/><text x="594" y="178" fill="#4A8A60" text-anchor="middle">The</text>
-        <rect x="640" y="166" width="64" height="17" rx="2.5" fill="#FFF3EE" stroke="#B85C42"  stroke-width="1.4"/><text x="672" y="178" fill="#B85C42"  text-anchor="middle">answer</text>
-        <rect x="736" y="166" width="28" height="17" rx="2.5" fill="#F0FDF4" stroke="#B6D8C2" stroke-width="1"/><text x="750" y="178" fill="#4A8A60" text-anchor="middle">42</text>
-        <rect x="838" y="166" width="62" height="17" rx="2.5" fill="#DCFCE7" stroke="#1B5E34"  stroke-width="1.4"/><text x="869" y="178" fill="#1B5E34" text-anchor="middle" font-size="7.5">&lt;im_end&gt;</text>
+        <rect
+          x="58"
+          y="166"
+          width="36"
+          height="17"
+          rx="2.5"
+          fill="#F8F9FA"
+          stroke="#CBD5E1"
+          stroke-width="1"
+        />
+        <text x="76" y="178" fill="#64748B" text-anchor="middle">Let</text>
+        <rect
+          x="214"
+          y="166"
+          width="48"
+          height="17"
+          rx="2.5"
+          fill="#DCFCE7"
+          stroke="#1B5E34"
+          stroke-width="1.4"
+        />
+        <text x="238" y="178" fill="#1B5E34" text-anchor="middle">step</text>
+        <rect
+          x="326"
+          y="166"
+          width="64"
+          height="17"
+          rx="2.5"
+          fill="#EDE9FF"
+          stroke="#5C7A99"
+          stroke-width="1.4"
+        />
+        <text x="358" y="178" fill="#5C7A99" text-anchor="middle">rare-wd</text>
+        <rect
+          x="424"
+          y="166"
+          width="72"
+          height="17"
+          rx="2.5"
+          fill="#F8F9FA"
+          stroke="#CBD5E1"
+          stroke-width="1"
+        />
+        <text x="460" y="178" fill="#64748B" text-anchor="middle">
+          therefore
+        </text>
+        <rect
+          x="576"
+          y="166"
+          width="36"
+          height="17"
+          rx="2.5"
+          fill="#F0FDF4"
+          stroke="#B6D8C2"
+          stroke-width="1"
+        />
+        <text x="594" y="178" fill="#4A8A60" text-anchor="middle">The</text>
+        <rect
+          x="640"
+          y="166"
+          width="64"
+          height="17"
+          rx="2.5"
+          fill="#FFF3EE"
+          stroke="#DE5A28"
+          stroke-width="1.4"
+        />
+        <text x="672" y="178" fill="#DE5A28" text-anchor="middle">answer</text>
+        <rect
+          x="736"
+          y="166"
+          width="28"
+          height="17"
+          rx="2.5"
+          fill="#F0FDF4"
+          stroke="#B6D8C2"
+          stroke-width="1"
+        />
+        <text x="750" y="178" fill="#4A8A60" text-anchor="middle">42</text>
+        <rect
+          x="838"
+          y="166"
+          width="62"
+          height="17"
+          rx="2.5"
+          fill="#DCFCE7"
+          stroke="#1B5E34"
+          stroke-width="1.4"
+        />
+        <text
+          x="869"
+          y="178"
+          fill="#1B5E34"
+          text-anchor="middle"
+          font-size="7.5"
+        >
+          &lt;im_end&gt;
+        </text>
       </g>
 
       <!-- generation axis -->
-      <line x1="48" y1="190" x2="988" y2="190" stroke="#1B325F" stroke-width="1.8" marker-end="url(#p2cax)"/>
-      <text x="500" y="187" font-size="8.5" fill="#94A3B8" text-anchor="middle" font-style="italic">token generation order →</text>
+      <line
+        x1="48"
+        y1="190"
+        x2="988"
+        y2="190"
+        stroke="#2F4F4F"
+        stroke-width="1.8"
+        marker-end="url(#p2cax)"
+      />
+      <text
+        x="500"
+        y="187"
+        font-size="8.5"
+        fill="#94A3B8"
+        text-anchor="middle"
+        font-style="italic"
+      >
+        token generation order →
+      </text>
 
       <!-- ══ LED status bar ══ -->
-      <rect x="50"  y="197" width="504" height="13" rx="3" fill="#DC2626"/>
-      <circle cx="68"  cy="203.5" r="3.4" fill="#FECACA" opacity="0.9"/>
-      <circle cx="84"  cy="203.5" r="3.4" fill="#FECACA" opacity="0.5"/>
-      <circle cx="100" cy="203.5" r="3.4" fill="#FECACA" opacity="0.2"/>
-      <text x="120" y="206.5" font-size="9" fill="#FEE2E2" font-weight="700">λℒ<tspan baseline-shift="sub" font-size="6.5">FCP</tspan> ACTIVE — P(EOS) penalty ON · max(P(EOS)−δ,0)²</text>
+      <rect x="50" y="197" width="504" height="13" rx="3" fill="#DC2626" />
+      <circle cx="68" cy="203.5" r="3.4" fill="#FDE8DC" opacity="0.9" />
+      <circle cx="84" cy="203.5" r="3.4" fill="#FDE8DC" opacity="0.5" />
+      <circle cx="100" cy="203.5" r="3.4" fill="#FDE8DC" opacity="0.2" />
+      <text x="120" y="206.5" font-size="9" fill="#FEE2E2" font-weight="700">
+        λℒ
+        <tspan baseline-shift="sub" font-size="6.5">FCP</tspan>
+        ACTIVE — P(EOS) penalty ON · max(P(EOS)−δ,0)²
+      </text>
 
-      <rect x="556" y="197" width="432" height="13" rx="3" fill="#16A34A"/>
-      <circle cx="574" cy="203.5" r="3.4" fill="#BBF7D0" opacity="0.9"/>
-      <circle cx="590" cy="203.5" r="3.4" fill="#BBF7D0" opacity="0.5"/>
-      <circle cx="606" cy="203.5" r="3.4" fill="#BBF7D0" opacity="0.2"/>
-      <text x="626" y="206.5" font-size="9" fill="#DCFCE7" font-weight="700">EOS released — natural termination in &lt;final&gt;</text>
+      <rect x="556" y="197" width="432" height="13" rx="3" fill="#16A34A" />
+      <circle cx="574" cy="203.5" r="3.4" fill="#BBF7D0" opacity="0.9" />
+      <circle cx="590" cy="203.5" r="3.4" fill="#BBF7D0" opacity="0.5" />
+      <circle cx="606" cy="203.5" r="3.4" fill="#BBF7D0" opacity="0.2" />
+      <text x="626" y="206.5" font-size="9" fill="#DCFCE7" font-weight="700">
+        EOS released — natural termination in &lt;final&gt;
+      </text>
     </svg>
 
     <!-- ═════ bottom: Before/After + Expert utilization (enlarged) ═════ -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:2.5mm;">
-
+    <div
+      style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3mm;
+        margin-top: 2.5mm;
+      "
+    >
       <!-- LEFT: Before / After case study -->
       <div>
-        <div class="p2" style="font-size:11pt;font-weight:800;color:#1B325F;margin-bottom:2mm;">Reasoning Quality · Without vs. With Custom Loss</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2.5mm;">
-
-          <div style="background:#FEF2F2;border:2px solid #FCA5A5;border-radius:6px;padding:3mm 3mm;">
-            <div class="p2" style="font-size:10pt;font-weight:800;color:#C0392B;margin-bottom:2mm;">✗ Without Custom Loss</div>
-            <div class="p2-mono" style="font-size:10pt;color:#374151;line-height:1.7;">
-              <span style="color:#94A3B8;font-size:9pt;">&lt;think&gt;</span><br/>
-              Let me reason …<br/>
-              <span style="background:#FCA5A5;color:#7F1D1D;padding:1px 4px;border-radius:3px;font-weight:800;">&lt;|im_end|&gt;</span><br/>
-              <span style="color:#EF4444;font-weight:700;">← premature EOS</span><br/>
-              <span style="color:#EF4444;font-style:italic;">chain truncated</span><br/>
-              <span style="color:#C0392B;font-weight:800;font-size:10.5pt;">Answer: ✗ wrong</span>
+        <div
+          class="p2"
+          style="
+            font-size: 15pt;
+            font-weight: 800;
+            color: #2F4F4F;
+            margin-bottom: 2.5mm;
+          "
+        >
+          Reasoning Quality · Without vs. With Custom Loss
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm">
+          <div
+            style="
+              background: #fef2f2;
+              border: 3px solid #fca5a5;
+              border-radius: 6px;
+              padding: 3mm 3.5mm;
+            "
+          >
+            <div
+              class="p2"
+              style="
+                font-size: 13.5pt;
+                font-weight: 800;
+                color: #DE5A28;
+                margin-bottom: 2.5mm;
+              "
+            >
+              ✗ Without Custom Loss
+            </div>
+            <div
+              class="p2-mono"
+              style="font-size: 13pt; color: #374151; line-height: 1.9"
+            >
+              <span style="color: #94a3b8; font-size: 12pt">&lt;think&gt;</span
+              ><br />
+              Let me reason …<br />
+              <span
+                style="
+                  background: #fca5a5;
+                  color: #7f1d1d;
+                  padding: 1px 4px;
+                  border-radius: 3px;
+                  font-weight: 800;
+                "
+                >&lt;|im_end|&gt;</span
+              ><br />
+              <span style="color: #ef4444; font-weight: 700"
+                >← premature EOS</span
+              ><br />
+              <span style="color: #ef4444; font-style: italic"
+                >chain truncated</span
+              ><br />
+              <span style="color: #DE5A28; font-weight: 800; font-size: 13pt"
+                >Answer: ✗ wrong</span
+              >
             </div>
           </div>
 
-          <div style="background:#F0FDF4;border:2px solid #86EFAC;border-radius:6px;padding:3mm 3mm;">
-            <div class="p2" style="font-size:10pt;font-weight:800;color:#1B5E34;margin-bottom:2mm;">✓ With Custom CoT Loss</div>
-            <div class="p2-mono" style="font-size:10pt;color:#374151;line-height:1.7;">
-              <span style="color:#94A3B8;font-size:9pt;">&lt;think&gt;</span><br/>
-              step by step … therefore<br/>
-              <span style="color:#6B7280;font-size:9pt;">&lt;/think&gt;</span><span style="color:#1B5E34;font-size:9pt;">&lt;final&gt;</span><br/>
-              <span style="background:#BBF7D0;color:#14532D;padding:1px 5px;border-radius:3px;font-weight:800;font-size:11pt;">42</span>
-              <span style="color:#1B5E34;font-size:9pt;"> &lt;/final&gt;</span><br/>
-              <span style="color:#1B5E34;font-weight:800;font-size:10.5pt;">Answer: ✓ correct</span>
+          <div
+            style="
+              background: #f0fdf4;
+              border: 3px solid #86efac;
+              border-radius: 6px;
+              padding: 3mm 3.5mm;
+            "
+          >
+            <div
+              class="p2"
+              style="
+                font-size: 13.5pt;
+                font-weight: 800;
+                color: #1b5e34;
+                margin-bottom: 2.5mm;
+              "
+            >
+              ✓ With Custom CoT Loss
+            </div>
+            <div
+              class="p2-mono"
+              style="font-size: 13pt; color: #374151; line-height: 1.9"
+            >
+              <span style="color: #94a3b8; font-size: 12pt">&lt;think&gt;</span
+              ><br />
+              step by step … therefore<br />
+              <span style="color: #6b7280; font-size: 12pt">&lt;/think&gt;</span
+              ><span style="color: #1b5e34; font-size: 12pt">&lt;final&gt;</span
+              ><br />
+              <span
+                style="
+                  background: #bbf7d0;
+                  color: #14532d;
+                  padding: 2px 7px;
+                  border-radius: 3px;
+                  font-weight: 800;
+                  font-size: 14pt;
+                "
+                >42</span
+              >
+              <span style="color: #1b5e34; font-size: 12pt"> &lt;/final&gt;</span
+              ><br />
+              <span style="color: #1b5e34; font-weight: 800; font-size: 13pt"
+                >Answer: ✓ correct</span
+              >
             </div>
           </div>
         </div>
-        <div class="p2" style="margin-top:2mm;font-size:8.5pt;color:#94A3B8;font-style:italic;line-height:1.4;">
-          FCP penalty suppresses early <span class="p2-mono" style="color:#C0392B;font-size:9pt;">&lt;|im_end|&gt;</span> inside <span class="p2-mono">&lt;think&gt;</span>, protecting the reasoning chain · 20,078 samples · 281 avg tok · 13M total
+        <div
+          class="p2"
+          style="
+            margin-top: 2mm;
+            font-size: 10.5pt;
+            color: #94a3b8;
+            font-style: italic;
+            line-height: 1.4;
+          "
+        >
+          FCP penalty suppresses early
+          <span class="p2-mono" style="color: #DE5A28; font-size: 9pt"
+            >&lt;|im_end|&gt;</span
+          >
+          inside <span class="p2-mono">&lt;think&gt;</span>, protecting the
+          reasoning chain · 20,078 samples · 281 avg tok · 13M total
         </div>
       </div>
 
       <!-- RIGHT: MoE expert utilization -->
       <div>
-        <div class="p2" style="font-size:10pt;font-weight:800;color:#1B325F;margin-bottom:1.5mm;">
-          MoE Expert Utilization · 8 Experts
-          <span style="color:#6B7280;font-weight:600;font-size:8.5pt;"> — αℒ<sub>lb</sub> + βℒ<sub>z</sub> every step</span>
-        </div>
-        <svg viewBox="0 0 420 96" xmlns="http://www.w3.org/2000/svg"
-             style="font-family:'Times New Roman',Times,serif;width:100%;display:block;background:#fff;">
+        <svg viewBox="0 0 420 185" xmlns="http://www.w3.org/2000/svg"
+          style="font-family:Helvetica,Arial,sans-serif;width:100%;display:block;background:#fff;">
           <defs>
-            <linearGradient id="bar-g" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#5C7A99" stop-opacity="0.85"/>
-              <stop offset="1" stop-color="#5C7A99" stop-opacity="0.36"/>
+            <linearGradient id="gCoral" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#DE5A28"/><stop offset="1" stop-color="#DE5A28" stop-opacity="0.55"/>
+            </linearGradient>
+            <linearGradient id="gTeal" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#2F4F4F"/><stop offset="1" stop-color="#2F4F4F" stop-opacity="0.55"/>
             </linearGradient>
           </defs>
-          <line x1="28" y1="14" x2="410" y2="14" stroke="#F1F5F9" stroke-width="0.8"/>
-          <line x1="28" y1="40" x2="410" y2="40" stroke="#F1F5F9" stroke-width="0.8"/>
-          <line x1="28" y1="78" x2="410" y2="78" stroke="#CBD5E1" stroke-width="1"/>
-          <!-- uniform target -->
-          <line x1="28" y1="28" x2="410" y2="28" stroke="#D86C4F" stroke-width="1.6" stroke-dasharray="6 3"/>
-          <text x="34" y="24" font-size="7.5" fill="#D86C4F" font-weight="700">Target Uniform Base (1/8)</text>
-          <!-- 8 bars -->
-          <rect x="36"  y="27" width="30" height="51" fill="url(#bar-g)" rx="2"/>
-          <rect x="82"  y="29" width="30" height="49" fill="url(#bar-g)" rx="2"/>
-          <rect x="128" y="26" width="30" height="52" fill="url(#bar-g)" rx="2"/>
-          <rect x="174" y="28" width="30" height="50" fill="url(#bar-g)" rx="2"/>
-          <rect x="220" y="27" width="30" height="51" fill="url(#bar-g)" rx="2"/>
-          <rect x="266" y="29" width="30" height="49" fill="url(#bar-g)" rx="2"/>
-          <rect x="312" y="26" width="30" height="52" fill="url(#bar-g)" rx="2"/>
-          <rect x="358" y="28" width="30" height="50" fill="url(#bar-g)" rx="2"/>
-          <g font-size="7.5" fill="#94A3B8" text-anchor="middle" font-family="'Inter',Helvetica,Arial,sans-serif">
-            <text x="51"  y="90">e₁</text><text x="97"  y="90">e₂</text><text x="143" y="90">e₃</text><text x="189" y="90">e₄</text>
-            <text x="235" y="90">e₅</text><text x="281" y="90">e₆</text><text x="327" y="90">e₇</text><text x="373" y="90">e₈</text>
+
+          <!-- ══ PANEL A HEADER ══ -->
+          <rect x="0" y="0" width="420" height="13" fill="#F1F5F9"/>
+          <text x="210" y="9.5" text-anchor="middle" font-size="7.5" fill="#2F4F4F" font-weight="800">
+            A · Expert Load Balance (αℒ<tspan font-size="5.5" baseline-shift="sub">lb</tspan>) — Uniform dispatch prevents expert collapse
+          </text>
+
+          <!-- ── Left: Collapsed (w/o αℒlb) ── -->
+          <rect x="4" y="14" width="196" height="11" rx="2" fill="#FDE8DC"/>
+          <text x="102" y="22" text-anchor="middle" font-size="7" fill="#DE5A28" font-weight="800">✗  w/o αℒ<tspan font-size="5" baseline-shift="sub">lb</tspan>  — Expert Collapse</text>
+
+          <!-- y=93 baseline; bars grow upward. Scale: 60%→68px, so 1%≈1.13px -->
+          <!-- e₁=55%→62  e₂=22%→25  e₃=10%→11  e₄=7%→8  e₅=3%→3  e₆=2%→2  e₇=1%→1  e₈=1%→1 -->
+          <rect x="9"   y="31" width="17" height="62" rx="1.5" fill="url(#gCoral)"/>
+          <rect x="31"  y="68" width="17" height="25" rx="1.5" fill="#DE5A28" opacity="0.72"/>
+          <rect x="53"  y="82" width="17" height="11" rx="1.5" fill="#DE5A28" opacity="0.55"/>
+          <rect x="75"  y="85" width="17" height="8"  rx="1.5" fill="#DE5A28" opacity="0.44"/>
+          <rect x="97"  y="90" width="17" height="3"  rx="1.5" fill="#DE5A28" opacity="0.35"/>
+          <rect x="119" y="91" width="17" height="2"  rx="1.5" fill="#DE5A28" opacity="0.28"/>
+          <rect x="141" y="92" width="17" height="1"  rx="1.5" fill="#DE5A28" opacity="0.22"/>
+          <rect x="163" y="92" width="17" height="1"  rx="1.5" fill="#DE5A28" opacity="0.22"/>
+          <!-- top labels -->
+          <text x="17"  y="29" text-anchor="middle" font-size="7" fill="#DE5A28" font-weight="800">55%</text>
+          <text x="39"  y="66" text-anchor="middle" font-size="6" fill="#DE5A28">22%</text>
+          <text x="61"  y="80" text-anchor="middle" font-size="5.5" fill="#DE5A28">10%</text>
+          <text x="83"  y="83" text-anchor="middle" font-size="5" fill="#DE5A28">7%</text>
+          <!-- baseline -->
+          <line x1="4" y1="93" x2="190" y2="93" stroke="#CBD5E1" stroke-width="1"/>
+          <!-- expert labels -->
+          <g font-size="6.5" fill="#94A3B8" text-anchor="middle">
+            <text x="17"  y="101">e₁</text><text x="39"  y="101">e₂</text>
+            <text x="61"  y="101">e₃</text><text x="83"  y="101">e₄</text>
+            <text x="105" y="101">e₅</text><text x="127" y="101">e₆</text>
+            <text x="149" y="101">e₇</text><text x="171" y="101">e₈</text>
           </g>
+
+          <!-- ── Center arrow ── -->
+          <text x="207" y="62" text-anchor="middle" font-size="16" fill="#2F4F4F" font-weight="800">→</text>
+          <line x1="204" y1="14" x2="204" y2="104" stroke="#E2E8F0" stroke-width="1"/>
+
+          <!-- ── Right: Balanced (w/ αℒlb) ── -->
+          <rect x="212" y="14" width="204" height="11" rx="2" fill="#E0EDE6"/>
+          <text x="314" y="22" text-anchor="middle" font-size="7" fill="#2F4F4F" font-weight="800">✓  w/ αℒ<tspan font-size="5" baseline-shift="sub">lb</tspan>  — Near-Uniform Load</text>
+
+          <!-- dashed 1/8 target at y=79 (14px height ≈ 12.5%) -->
+          <line x1="212" y1="79" x2="416" y2="79" stroke="#2F4F4F" stroke-width="1.4" stroke-dasharray="5 3"/>
+          <text x="216" y="76.5" font-size="5.8" fill="#2F4F4F" font-weight="700">1/8 target</text>
+
+          <!-- 8 near-uniform bars, slight variation for realism -->
+          <rect x="217" y="79" width="17" height="14" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="239" y="81" width="17" height="12" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="261" y="78" width="17" height="15" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="283" y="80" width="17" height="13" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="305" y="79" width="17" height="14" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="327" y="81" width="17" height="12" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="349" y="78" width="17" height="15" rx="1.5" fill="url(#gTeal)"/>
+          <rect x="371" y="80" width="17" height="13" rx="1.5" fill="url(#gTeal)"/>
+          <!-- baseline -->
+          <line x1="212" y1="93" x2="416" y2="93" stroke="#CBD5E1" stroke-width="1"/>
+          <!-- expert labels -->
+          <g font-size="6.5" fill="#94A3B8" text-anchor="middle">
+            <text x="225" y="101">e₁</text><text x="247" y="101">e₂</text>
+            <text x="269" y="101">e₃</text><text x="291" y="101">e₄</text>
+            <text x="313" y="101">e₅</text><text x="335" y="101">e₆</text>
+            <text x="357" y="101">e₇</text><text x="379" y="101">e₈</text>
+          </g>
+          <!-- ≈12.5% annotation -->
+          <text x="395" y="89" font-size="5.8" fill="#2F4F4F">≈12.5%</text>
+
+          <!-- ══ SEPARATOR ══ -->
+          <line x1="0" y1="106" x2="420" y2="106" stroke="#CBD5E1" stroke-width="1.5"/>
+
+          <!-- ══ PANEL B HEADER ══ -->
+          <rect x="0" y="107" width="420" height="12" fill="#F1F5F9"/>
+          <text x="210" y="115.5" text-anchor="middle" font-size="7.5" fill="#2F4F4F" font-weight="800">
+            B · Router Logit Stability (βℒ<tspan font-size="5.5" baseline-shift="sub">z</tspan>) — Per-token routing probability across 8 experts
+          </text>
+
+          <!-- ── Row 1: w/o βℒz (collapsed) ── -->
+          <text x="6" y="130" font-size="7" fill="#DE5A28" font-weight="800">w/o βℒ<tspan font-size="5" baseline-shift="sub">z</tspan></text>
+          <text x="6" y="140" font-size="6" fill="#DE5A28">collapsed</text>
+
+          <!-- stacked horizontal bar, total width=320, x=70→390 -->
+          <!-- e₁=70% → 224px  e₂=18% → 58px  others=12% → 38px -->
+          <rect x="70"  y="121" width="224" height="17" fill="#DE5A28" rx="1"/>
+          <rect x="294" y="121" width="58"  height="17" fill="#DE5A28" opacity="0.60" rx="0"/>
+          <rect x="352" y="121" width="38"  height="17" fill="#DE5A28" opacity="0.32" rx="0"/>
+          <text x="182" y="133" text-anchor="middle" font-size="7.5" fill="white" font-weight="800">e₁ · 70%</text>
+          <text x="323" y="133" text-anchor="middle" font-size="6.5" fill="white" font-weight="700">e₂ · 18%</text>
+          <text x="371" y="133" text-anchor="middle" font-size="6" fill="white">e₃⁺ 12%</text>
+
+          <!-- ── Row 2: w/ βℒz (balanced) ── -->
+          <text x="6" y="156" font-size="7" fill="#2F4F4F" font-weight="800">w/ βℒ<tspan font-size="5" baseline-shift="sub">z</tspan></text>
+          <text x="6" y="166" font-size="6" fill="#2F4F4F">balanced</text>
+
+          <!-- e₁=33%→106  e₂=28%→90  e₃=20%→64  e₄=12%→38  e₅-e₈=7%→22 -->
+          <rect x="70"  y="144" width="106" height="17" fill="#2F4F4F" rx="1"/>
+          <rect x="176" y="144" width="90"  height="17" fill="#2F4F4F" opacity="0.80" rx="0"/>
+          <rect x="266" y="144" width="64"  height="17" fill="#2F4F4F" opacity="0.60" rx="0"/>
+          <rect x="330" y="144" width="38"  height="17" fill="#2F4F4F" opacity="0.42" rx="0"/>
+          <rect x="368" y="144" width="22"  height="17" fill="#2F4F4F" opacity="0.26" rx="0"/>
+          <text x="123" y="156" text-anchor="middle" font-size="7" fill="white" font-weight="800">e₁ · 33%</text>
+          <text x="221" y="156" text-anchor="middle" font-size="7" fill="white" font-weight="700">e₂ · 28%</text>
+          <text x="298" y="156" text-anchor="middle" font-size="6.5" fill="white">e₃ · 20%</text>
+          <text x="349" y="156" text-anchor="middle" font-size="6" fill="white">e₄·12%</text>
+          <text x="379" y="156" text-anchor="middle" font-size="5.5" fill="white">5%</text>
+
+          <!-- ↕ between two rows -->
+          <text x="44" y="148" text-anchor="middle" font-size="14" fill="#2F4F4F" font-weight="700">↓</text>
+
+          <!-- scale axis -->
+          <line x1="70" y1="168" x2="390" y2="168" stroke="#CBD5E1" stroke-width="0.8"/>
+          <line x1="70" y1="165" x2="70" y2="171" stroke="#CBD5E1" stroke-width="0.8"/>
+          <line x1="390" y1="165" x2="390" y2="171" stroke="#CBD5E1" stroke-width="0.8"/>
+          <text x="70"  y="176" text-anchor="middle" font-size="5.5" fill="#94A3B8">0%</text>
+          <text x="390" y="176" text-anchor="middle" font-size="5.5" fill="#94A3B8">100%</text>
+          <text x="230" y="176" text-anchor="middle" font-size="5.5" fill="#94A3B8">routing probability per token →</text>
+
+          <!-- caption -->
+          <text x="210" y="184" text-anchor="middle" font-size="5.5" fill="#94A3B8" font-style="italic">
+            αℒ<tspan font-size="4.5" baseline-shift="sub">lb</tspan>: penalises uneven expert load · βℒ<tspan font-size="4.5" baseline-shift="sub">z</tspan>: z-loss regularises router logits, shrinks single-expert dominance 0.70→0.33
+          </text>
         </svg>
-        <div class="p2" style="font-size:8pt;color:#94A3B8;margin-top:1.5mm;font-style:italic;line-height:1.4;">
-          Near-uniform expert activation — no collapse, no overload · vocab 32,007 · load-balance + router-z applied every step
+        <div
+          class="p2"
+          style="
+            font-size: 10pt;
+            color: #94a3b8;
+            margin-top: 1.5mm;
+            font-style: italic;
+            line-height: 1.4;
+          "
+        >
+          αℒ<sub>lb</sub> prevents expert collapse (e₁: 55% → 12.5%) · βℒ<sub>z</sub> suppresses logit explosion (single-expert dominance: 70% → 33%)
         </div>
       </div>
-
     </div>
 
-    <!-- ═════ Stage-3 convergence curve (full width) ═════ -->
-    <div style="margin-top:3.5mm;">
-      <div class="p2" style="font-size:10pt;font-weight:800;color:#1B325F;margin-bottom:1mm;">
-        Stage-3 Convergence · Validation Perplexity
-        <span style="color:#D86C4F;font-weight:700;font-size:8.5pt;"> — Custom CoT loss activates at val PPL ≤ 16</span>
-      </div>
-      <svg viewBox="0 0 1000 116" xmlns="http://www.w3.org/2000/svg"
-           style="font-family:'Times New Roman',Times,serif;width:100%;display:block;background:#fff;">
+    <!-- convergence chart removed -->
+    <div style="display:none"><svg
+        viewBox="0 0 1000 138"
+        xmlns="http://www.w3.org/2000/svg"
+        style="
+          font-family: &quot;Times New Roman&quot;, Times, serif;
+          width: 100%;
+          display: block;
+          background: #fff;
+        "
+      >
         <defs>
-          <marker id="p2cx2" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 L1.6,4 Z" fill="#1B325F"/></marker>
-          <linearGradient id="ppl-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B325F" stop-opacity="0.10"/><stop offset="1" stop-color="#1B325F" stop-opacity="0"/></linearGradient>
+          <marker
+            id="p2cx2"
+            markerWidth="9"
+            markerHeight="8"
+            refX="8"
+            refY="4"
+            orient="auto"
+          >
+            <path d="M0,0 L9,4 L0,8 L1.6,4 Z" fill="#2F4F4F" />
+          </marker>
+          <linearGradient id="ppl-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2F4F4F" stop-opacity="0.10" />
+            <stop offset="1" stop-color="#2F4F4F" stop-opacity="0" />
+          </linearGradient>
         </defs>
         <!-- Stage 3 region tint (after trigger) -->
-        <rect x="566" y="16" width="418" height="76" fill="#FDF1EC"/>
+        <rect x="566" y="16" width="418" height="76" fill="#FDF1EC" />
         <!-- grid -->
-        <line x1="58" y1="20" x2="984" y2="20" stroke="#F1F5F9" stroke-width="0.8"/>
-        <line x1="58" y1="56" x2="984" y2="56" stroke="#F1F5F9" stroke-width="0.8"/>
-        <line x1="58" y1="92" x2="984" y2="92" stroke="#CBD5E1" stroke-width="1"/>
-        <text x="54" y="23" font-size="7.5" fill="#94A3B8" text-anchor="end">64</text>
-        <text x="54" y="59" font-size="7.5" fill="#94A3B8" text-anchor="end">32</text>
-        <text x="54" y="77" font-size="7.5" fill="#D86C4F" text-anchor="end" font-weight="700">16</text>
-        <text x="54" y="95" font-size="7.5" fill="#94A3B8" text-anchor="end">0</text>
-        <text x="22" y="56" font-size="8" fill="#64748B" text-anchor="middle" font-style="italic" transform="rotate(-90 22 56)">val PPL</text>
+        <line
+          x1="58"
+          y1="20"
+          x2="984"
+          y2="20"
+          stroke="#F1F5F9"
+          stroke-width="0.8"
+        />
+        <line
+          x1="58"
+          y1="56"
+          x2="984"
+          y2="56"
+          stroke="#F1F5F9"
+          stroke-width="0.8"
+        />
+        <line
+          x1="58"
+          y1="92"
+          x2="984"
+          y2="92"
+          stroke="#CBD5E1"
+          stroke-width="1"
+        />
+        <text x="54" y="23" font-size="7.5" fill="#94A3B8" text-anchor="end">
+          64
+        </text>
+        <text x="54" y="59" font-size="7.5" fill="#94A3B8" text-anchor="end">
+          32
+        </text>
+        <text
+          x="54"
+          y="77"
+          font-size="7.5"
+          fill="#DE5A28"
+          text-anchor="end"
+          font-weight="700"
+        >
+          16
+        </text>
+        <text x="54" y="95" font-size="7.5" fill="#94A3B8" text-anchor="end">
+          0
+        </text>
+        <text
+          x="22"
+          y="56"
+          font-size="8"
+          fill="#64748B"
+          text-anchor="middle"
+          font-style="italic"
+          transform="rotate(-90 22 56)"
+        >
+          val PPL
+        </text>
         <!-- stage region labels -->
-        <text x="300" y="13" font-size="8" fill="#94A3B8" text-anchor="middle" font-weight="700">Stage 1 + 2 · Pretrain / SFT (next-token)</text>
-        <text x="775" y="13" font-size="8" fill="#D86C4F" text-anchor="middle" font-weight="800">Stage 3 · Custom CoT Loss</text>
+        <text
+          x="300"
+          y="13"
+          font-size="8"
+          fill="#94A3B8"
+          text-anchor="middle"
+          font-weight="700"
+        >
+          Stage 1 + 2 · Pretrain / SFT (next-token)
+        </text>
+        <text
+          x="775"
+          y="13"
+          font-size="8"
+          fill="#DE5A28"
+          text-anchor="middle"
+          font-weight="800"
+        >
+          Stage 3 · Custom CoT Loss
+        </text>
         <!-- trigger threshold -->
-        <line x1="58" y1="74" x2="984" y2="74" stroke="#D86C4F" stroke-width="1.4" stroke-dasharray="6 3"/>
+        <line
+          x1="58"
+          y1="74"
+          x2="984"
+          y2="74"
+          stroke="#DE5A28"
+          stroke-width="1.4"
+          stroke-dasharray="6 3"
+        />
         <!-- convergence curve -->
-        <path d="M 58 26 C 210 34, 400 58, 566 74 C 720 82, 860 86, 984 88 L 984 92 L 58 92 Z" fill="url(#ppl-fill)" stroke="none"/>
-        <path d="M 58 26 C 210 34, 400 58, 566 74 C 720 82, 860 86, 984 88" fill="none" stroke="#1B325F" stroke-width="3"/>
-        <circle cx="58" cy="26" r="2.6" fill="#1B325F"/>
+        <path
+          d="M 58 26 C 210 34, 400 58, 566 74 C 720 82, 860 86, 984 88 L 984 92 L 58 92 Z"
+          fill="url(#ppl-fill)"
+          stroke="none"
+        />
+        <path
+          d="M 58 26 C 210 34, 400 58, 566 74 C 720 82, 860 86, 984 88"
+          fill="none"
+          stroke="#2F4F4F"
+          stroke-width="3"
+        />
+        <circle cx="58" cy="26" r="2.6" fill="#2F4F4F" />
         <!-- trigger marker -->
-        <line x1="566" y1="74" x2="566" y2="92" stroke="#D86C4F" stroke-width="1.4" stroke-dasharray="3 2"/>
-        <circle cx="566" cy="74" r="4.4" fill="#D86C4F"/><circle cx="566" cy="74" r="4.4" fill="none" stroke="#fff" stroke-width="1.4"/>
-        <text x="578" y="66" font-size="8.5" fill="#D86C4F" font-weight="800">▸ Stage 3 Trigger · warmup 500 steps</text>
+        <line
+          x1="566"
+          y1="74"
+          x2="566"
+          y2="92"
+          stroke="#DE5A28"
+          stroke-width="1.4"
+          stroke-dasharray="3 2"
+        />
+        <circle cx="566" cy="74" r="4.4" fill="#DE5A28" />
+        <circle
+          cx="566"
+          cy="74"
+          r="4.4"
+          fill="none"
+          stroke="#fff"
+          stroke-width="1.4"
+        />
+        <text x="578" y="66" font-size="8.5" fill="#DE5A28" font-weight="800">
+          ▸ Stage 3 Trigger · warmup 500 steps
+        </text>
         <!-- x axis -->
-        <line x1="58" y1="92" x2="984" y2="92" stroke="#1B325F" stroke-width="1.5" marker-end="url(#p2cx2)"/>
-        <text x="520" y="108" font-size="8" fill="#94A3B8" text-anchor="middle" font-style="italic">training steps →</text>
-      </svg>
-    </div>
-
+        <line
+          x1="58"
+          y1="92"
+          x2="984"
+          y2="92"
+          stroke="#2F4F4F"
+          stroke-width="1.5"
+          marker-end="url(#p2cx2)"
+        />
+        <text
+          x="520"
+          y="108"
+          font-size="8"
+          fill="#94A3B8"
+          text-anchor="middle"
+          font-style="italic"
+        >
+          training steps →
+        </text>
+      </svg></div>
   </div>
 </div>
