@@ -124,7 +124,7 @@ def get_args():
     )
     # Paths
     p.add_argument("--model_path",
-                   default=str(REPO_ROOT / "checkpoints" / "latest_sft_cot_model.npz"))
+                   default=str(REPO_ROOT / "checkpoints" / "v4" / "latest_sft_cot_model.npz"))
     p.add_argument("--tokenizer_path",
                    default=str(REPO_ROOT / "cot_dataset" / "tokenizer.json"))
     # Prompt

@@ -35,12 +35,12 @@ class Mamba3Config:
 @dataclass
 class GenerationConfig:
     max_tokens: int = 256
-    temperature: float = 0.8
-    top_k: int = 40
-    top_p: float = 0.9
-    min_p: float = 0.05
-    rep_pen: float = 1.1
-    pres_pen: float = 0.0
-    freq_pen: float = 0.02
-    repeat_last_n: int = 64
+    temperature: float = 0.426   # fallback; per-mode defaults live in utils/mode_configs.py
+    top_k: int = 20
+    top_p: float = 0.981
+    min_p: float = 0.067
+    rep_pen: float = 1.146
+    pres_pen: float = 0.143
+    freq_pen: float = 0.133
+    repeat_last_n: int = 128
     seed: int = 0

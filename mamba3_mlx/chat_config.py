@@ -9,7 +9,7 @@ HOST = "0.0.0.0"
 PORT = 7860
 
 # ── Paths (relative to REPO_ROOT, resolved at runtime in chat_demo.py) ───────
-CHECKPOINT_RELPATH = "checkpoints/v3/latest_sft_cot_model.npz"
+CHECKPOINT_RELPATH = "checkpoints/v4/latest_sft_cot_model.npz"
 TOKENIZER_RELPATH  = "cot_dataset"
 
 # ── Model sizing ──────────────────────────────────────────────────────────────
@@ -21,16 +21,16 @@ WARMUP_STEPS   = 1
 # ── Compute precision ─────────────────────────────────────────────────────────
 DTYPE = "bf16"          # fp32 | bf16 | fp16
 
-# ── Sampling ──────────────────────────────────────────────────────────────────
-# Best config from tune_self.py 96-trial random search (self_awareness mode).
-# Penalties apply to generated tokens only (prompt excluded from window).
-TEMPERATURE   = 0.236
-TOP_K         = 30
-TOP_P         = 0.959
-MIN_P         = 0.122
-REP_PEN       = 1.281
-PRES_PEN      = 0.298
-FREQ_PEN      = 0.168
+# ── Sampling (per-mode defaults — see utils/mode_configs.py) ─────────────────
+# These are global fallback values. When a category is active in the chat UI,
+# utils/mode_configs.py provides per-mode overrides automatically.
+TEMPERATURE   = 0.426
+TOP_K         = 20
+TOP_P         = 0.981
+MIN_P         = 0.067
+REP_PEN       = 1.146
+PRES_PEN      = 0.143
+FREQ_PEN      = 0.133
 REPEAT_LAST_N = 128
 SEED          = 0
 

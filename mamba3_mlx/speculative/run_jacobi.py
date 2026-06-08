@@ -156,6 +156,7 @@ def main():
         print(f"[load] converting → {sidecar.name}", file=sys.stderr)
     load_checkpoint(model, args.model_path, dtype=dtype)
     mx.eval(model.parameters())
+    model.precompute()
     print(
         f"[load] weights done in {time.time() - t0:.2f}s  (dtype={args.dtype})",
         file=sys.stderr,

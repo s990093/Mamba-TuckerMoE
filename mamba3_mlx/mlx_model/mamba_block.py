@@ -60,6 +60,9 @@ class Mamba3Block(nn.Module):
         # _D_expand and _D_expand_dtype are populated by precompute().
         self._D_expand: mx.array | None = None
 
+        # Compiled L=1 decode — set by precompute(), dispatched from __call__.
+        self._compiled_decode: object | None = None
+
     def precompute(self) -> None:
         """Cache tensors that are constant after weight loading.
 
@@ -68,6 +71,93 @@ class Mamba3Block(nn.Module):
         # D_expand is mx.repeat(self.D, P) — a tiny (H*P,) vector reused every decode step.
         self._D_expand = mx.repeat(self.D, self.P, axis=0)
         mx.eval(self._D_expand)
+
+        # Compile the L=1 decode step. Eliminates ~60 Python MLX dispatch calls per
+        # block call, since the entire decode graph is fused into one compiled program.
+        # x_up_proj._forward / out_proj._forward are inlined (not re-compiled) so the
+        # TuckerMoE ops are captured inside this larger compiled graph.
+        self._compiled_decode = mx.compile(self._decode_impl)
+        H, N, P = self.H, self.N, self.P
+        d = self.config.d_model
+        _dx  = mx.zeros((1, 1, d),          dtype=mx.bfloat16)
+        _dh  = mx.zeros((1, H, N, P),       dtype=mx.bfloat16)
+        _dip = mx.zeros((1, H, N, P),       dtype=mx.bfloat16)
+        _dac = mx.zeros((1, H, N // 2),     dtype=mx.float32)
+        mx.eval(self._compiled_decode(_dx, _dh, _dip, _dac))
+
+    def _decode_impl(self, x, h_prev, prev_input_signal, angles_cum):
+        """Compiled single-step (L=1) Mamba decode — no Python state conditionals.
+
+        All arguments are concrete arrays (state always provided by caller).
+        Returns (out, new_h_prev, new_prev_input_signal, new_angles_cum).
+
+        Calls x_up_proj._forward / out_proj._forward directly so the TuckerMoE
+        ops are inlined into this compiled graph rather than dispatched as
+        separate compiled programs.
+        """
+        B_sz = x.shape[0]
+        H, G, P, N, R = self.H, self.G, self.P, self.N, self.R
+        residual_mamba = x                                        # (B, 1, d_model)
+        u = self.norm_mamba(x)
+        raw = self.in_proj(u)                                     # (B, 1, in_out)
+        z, x_prime, B_param, C_param, dt_p, A_p, lam = self._split_inproj(raw, B_sz, 1)
+
+        x_prime_hp = x_prime.reshape(B_sz, 1, H, P)
+        dt = softplus(dt_p)                                       # (B, 1, G)
+        A = -mx.exp(A_p)                                          # (B, 1, G)
+        theta = mx.exp(self.theta_log.astype(mx.float32))         # (G, N//2)
+
+        dt_b = self._broadcast_groups(dt, axis=-1)                # (B, 1, H)
+        A_b  = self._broadcast_groups(A,  axis=-1)                # (B, 1, H)
+        theta_h = self._broadcast_groups(theta, axis=0)           # (H, N//2)
+
+        la_full = (dt_b * A_b).astype(mx.float32)                 # (B, 1, H)
+        # For L=1, cumsum over a single element is identity — skip the cumsum.
+        delta_angle = (dt_b.astype(mx.float32)[..., None]
+                       * theta_h[None, None, :, :])               # (B, 1, H, N//2)
+        angles_cum_seq = delta_angle + angles_cum[:, None, :, :].astype(mx.float32)
+        new_angles_cum  = angles_cum_seq[:, 0]                    # (B, H, N//2)
+        angles = angles_cum_seq.astype(x.dtype)                   # (B, 1, H, N//2)
+
+        _sin_a = mx.sin(angles)[..., None].astype(x.dtype)        # (B, 1, H, N//2, 1)
+        _cos_a = mx.cos(angles)[..., None].astype(x.dtype)
+
+        B_p, C_p = self._prepare_BC(B_param, C_param, B_sz, 1)   # (B, 1, H, N, R)
+        B_rot = apply_rope_with_sc(B_p, _sin_a, _cos_a)
+        C_rot = apply_rope_with_sc(C_p, _sin_a, _cos_a)
+
+        # Inline TuckerMoE ops into this compiled graph.
+        x_up = self.x_up_proj._forward(x_prime_hp.reshape(B_sz, 1, H * P))
+        x_ssm = x_up.reshape(B_sz, 1, H, P, R)
+
+        input_signal = mx.einsum("blhnr,blhpr->blhnp", B_rot, x_ssm)  # (B, 1, H, N, P)
+
+        lv = mx.sigmoid(self._broadcast_groups(lam, axis=-1)).reshape(B_sz, 1, H, 1, 1).astype(x.dtype)
+        dv = dt_b.reshape(B_sz, 1, H, 1, 1).astype(x.dtype)
+        av = mx.exp(la_full).reshape(B_sz, 1, H, 1, 1).astype(x.dtype)
+
+        ip  = prev_input_signal[:, None].astype(input_signal.dtype)  # (B, 1, H, N, P)
+        new_prev_input_signal = input_signal[:, 0]                    # (B, H, N, P)
+
+        u_ssm = lv * dv * input_signal + (1.0 - lv) * dv * av * ip   # (B, 1, H, N, P)
+
+        # Single-step SSM recurrence.
+        alpha = av[:, 0]                                          # (B, H, 1, 1)
+        h_new = alpha * h_prev.astype(u_ssm.dtype) + u_ssm[:, 0] # (B, H, N, P)
+        y_stack = mx.einsum("bhnp,bhnr->bhpr", h_new, C_rot[:, 0])[:, None]  # (B, 1, H, P, R)
+
+        y = self.y_down_proj(y_stack.reshape(B_sz, 1, H, P * R)).reshape(B_sz, 1, H * P)
+        D_expand = self._D_expand.astype(x.dtype)
+        y = y + x_prime.reshape(B_sz, 1, H * P) * D_expand
+
+        mamba_out = self.mamba_dense_proj(self.pre_gate_norm(y) * silu(z))
+        mid = residual_mamba + self.ls_mamba(mamba_out)
+
+        normed_mid = self.norm_out_proj(mid)
+        proj_out = self.out_proj._forward(normed_mid)
+        out = mid + self.ls_out_proj(proj_out)
+
+        return out, h_new, new_prev_input_signal, new_angles_cum
 
     def _broadcast_groups(self, t, axis: int = -1):
         """Repeat along ``axis`` by ratio = H/G. Mirrors torch repeat_interleave."""
@@ -109,6 +199,22 @@ class Mamba3Block(nn.Module):
         Returns (y, new_state).
         """
         B_sz, L, _ = x.shape
+
+        # Fast path: compiled single-step decode (no Python overhead per block).
+        if (L == 1 and state is not None
+                and self._compiled_decode is not None
+                and state.get("h_prev") is not None):
+            out, new_h, new_ip, new_ac = self._compiled_decode(
+                x,
+                state["h_prev"],
+                state["prev_input_signal"],
+                state["angles_cum"],
+            )
+            return out, {
+                "h_prev":             new_h,
+                "prev_input_signal":  new_ip,
+                "angles_cum":         new_ac,
+            }
         H, G, P, N, R = self.H, self.G, self.P, self.N, self.R
         residual_mamba = x
         u = self.norm_mamba(x)

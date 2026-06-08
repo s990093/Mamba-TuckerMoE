@@ -53,9 +53,12 @@ class Mamba3LanguageModel(nn.Module):
 
         For each Mamba3Block:
           - Calls precompute_G_experts() on its two TuckerMoE layers.
-          - Calls block.precompute() to cache D_expand.
+          - Calls block.precompute() to cache D_expand and compiled decode.
         For each TransformerBlock:
           - Calls precompute_G_experts() on its three FFN TuckerMoE layers.
+          - Calls block.precompute() to compile decode sub-functions.
+        Model-level:
+          - Compiles norm+head+scaled_tanh for the fixed-shape decode path.
         """
         for layer in self.backbone.layers:
             if isinstance(layer, Mamba3Block):
@@ -66,11 +69,27 @@ class Mamba3LanguageModel(nn.Module):
                 layer.ffn.gate_proj.precompute_G_experts()
                 layer.ffn.up_proj.precompute_G_experts()
                 layer.ffn.down_proj.precompute_G_experts()
+                layer.precompute()
+
+        # Compile norm + head + scaled_tanh for decode (fixed shape (1,1,d_model)).
+        self._compiled_head = mx.compile(self._head_forward)
+        _dummy = mx.zeros((1, 1, self.config.d_model), dtype=mx.bfloat16)
+        mx.eval(self._compiled_head(_dummy))
+
+    def _head_forward(self, x):
+        """norm + head projection + scaled_tanh — fixed shape for decode."""
+        h = self.norm(x)
+        logits = self.head(h * self.inv_sqrt_d).astype(mx.float32)
+        return scaled_tanh(logits, 30.0)
 
     def __call__(self, input_ids, states=None):
         x = self.embed(input_ids)
         x, new_states = self.backbone(x, states=states)
-        h = self.norm(x)
-        logits = self.head(h * self.inv_sqrt_d).astype(mx.float32)
-        logits = scaled_tanh(logits, 30.0)
+        # Use compiled head for decode (L=1, fixed shape).
+        if x.shape[1] == 1 and getattr(self, '_compiled_head', None) is not None:
+            logits = self._compiled_head(x)
+        else:
+            h = self.norm(x)
+            logits = self.head(h * self.inv_sqrt_d).astype(mx.float32)
+            logits = scaled_tanh(logits, 30.0)
         return logits, new_states

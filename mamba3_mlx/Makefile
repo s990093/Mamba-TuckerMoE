@@ -7,7 +7,7 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v3/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v5/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 
 # ── Auto-select fastest checkpoint ────────────────────────────────────────────
@@ -19,23 +19,26 @@ _SIDECAR   := $(_CKPT_STEM).mlx_bf16.npz
 _FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
 
 # ── Generation defaults ────────────────────────────────────────────────────────
-# PROMPT    ?= Who are you?
+PROMPT    ?=who are you?
 # PROMPT    ?= Write a email
 MODE      ?= self_awareness
-TEMP      ?= 0.2   # tune_self.py 96-trial best: 低溫穩定 CoT 結構
 MAX_TOK   ?= 1024      # 保持：符合 v2 SFT 規範的預算
-SEED      ?= 0
 STREAM    ?= 1
 NO_THINK  ?= 0
 
-# Sampling knobs (tune_self.py 96-trial random search, self_awareness mode)
-TOP_K          ?= 30      # 96-trial best for self-awareness CoT structure
-TOP_P          ?= 0.959   # tune_self.py best
-MIN_P          ?= 0.122   # tune_self.py best
-REP_PEN        ?= 1.281   # tune_self.py best
-PRES_PEN       ?= 0.298   # tune_self.py best
-FREQ_PEN       ?= 0.168   # tune_self.py best
-REPEAT_LAST_N  ?= 128     # 保持
+# ── Manual sampling overrides (optional) ──────────────────────────────────────
+# Leave blank to use per-mode defaults from utils/mode_configs.py.
+# Set on the command line to override:  make self TEMP=0.5 TOP_K=30 SEED=42
+TEMP     ?=
+SEED     ?=
+TOP_K    ?=
+TOP_P    ?=
+MIN_P    ?=
+REP_PEN  ?=
+PRES_PEN ?=
+FREQ_PEN ?=
+REPEAT_LAST_N ?= 256
+
 # Stop control
 NO_EOS    ?=0           # set to 1 to ignore EOS/<|im_end|> tokens
 STOP_STR  ?=             # e.g. STOP_STR='</final>'
@@ -52,21 +55,31 @@ _SPEC_FLAG    = $(if $(filter 1,$(SHOW_SPEC)),--show-special,)
 _COMPILE_FLAG = $(if $(filter 1,$(COMPILE)),--full-decode-compile --warmup $(WARMUP),)
 _STOPSTR_FLAG = $(if $(strip $(STOP_STR)),--stop-string "$(STOP_STR)",)
 
+# Sampling override flags — only emitted when the variable is explicitly set.
+_TEMP_FLAG   = $(if $(TEMP),--temp $(TEMP),)
+_SEED_FLAG   = $(if $(SEED),--seed $(SEED),)
+_TOPK_FLAG   = $(if $(TOP_K),--top_k $(TOP_K),)
+_TOPP_FLAG   = $(if $(TOP_P),--top_p $(TOP_P),)
+_MINP_FLAG   = $(if $(MIN_P),--min_p $(MIN_P),)
+_RPEN_FLAG   = $(if $(REP_PEN),--rep_pen $(REP_PEN),)
+_PPEN_FLAG   = $(if $(PRES_PEN),--pres_pen $(PRES_PEN),)
+_FPEN_FLAG   = $(if $(FREQ_PEN),--freq_pen $(FREQ_PEN),)
+
 _BASE = \
   --model_path     "$(_FAST_CKPT)" \
   --tokenizer_path "$(TOKENIZER)" \
   --prompt         "$(PROMPT)" \
   --mode           $(MODE) \
-  --temp           $(TEMP) \
-  --top_k          $(TOP_K) \
-  --top_p          $(TOP_P) \
-  --min_p          $(MIN_P) \
-  --rep_pen        $(REP_PEN) \
-  --pres_pen       $(PRES_PEN) \
-  --freq_pen       $(FREQ_PEN) \
   --repeat_last_n  $(REPEAT_LAST_N) \
   --max_tokens     $(MAX_TOK) \
-  --seed           $(SEED) \
+  $(_TEMP_FLAG) \
+  $(_SEED_FLAG) \
+  $(_TOPK_FLAG) \
+  $(_TOPP_FLAG) \
+  $(_MINP_FLAG) \
+  $(_RPEN_FLAG) \
+  $(_PPEN_FLAG) \
+  $(_FPEN_FLAG) \
   $(_STREAM_FLAG) \
   $(_THINK_FLAG) \
   $(_NOEOS_FLAG) \
@@ -83,11 +96,22 @@ $(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $
 .PHONY: run self emotion email movie daily syscall deep default debug help \
         cot-demo cot-verify chat chat-mock chat-smoke chat-kill \
         profiler profiler-kill \
-        convert-sidecar \
+        convert-sidecar tune-self \
         sjd sjd-self sjd-math sjd-daily sjd-emotion sjd-email \
         sjd-movie sjd-deep sjd-syscall \
         sjds sjds-self sjds-math sjds-daily sjds-emotion sjds-email \
         sjds-movie sjds-deep sjds-syscall
+
+## tune-self: 200-trial identity param search (finds params that say "I am Mamba")
+tune-self:
+	$(PYTHON) $(ROOT)/tune_self.py \
+	  --model-path "$(_FAST_CKPT)" \
+	  --multi-prompt \
+	  --patch-makefile \
+	  --trials $(or $(TRIALS),250) \
+	  --top-n 10 \
+	  --verbose-top 5 \
+	  --output $(ROOT)/tune_self_v4_results.json
 
 ## convert-sidecar: one-time export of PyTorch-style .npz → MLX-native sidecar
 ## (run once; subsequent loads use mmap instant-path automatically)
@@ -136,16 +160,16 @@ default:
 	  --model_path     "$(_FAST_CKPT)" \
 	  --tokenizer_path "$(TOKENIZER)" \
 	  --prompt         "$(PROMPT)" \
-	  --temp           $(TEMP) \
-	  --top_k          $(TOP_K) \
-	  --top_p          $(TOP_P) \
-	  --min_p          $(MIN_P) \
-	  --rep_pen        $(REP_PEN) \
-	  --pres_pen       $(PRES_PEN) \
-	  --freq_pen       $(FREQ_PEN) \
 	  --repeat_last_n  $(REPEAT_LAST_N) \
 	  --max_tokens     $(MAX_TOK) \
-	  --seed           $(SEED) \
+	  $(_TEMP_FLAG) \
+	  $(_SEED_FLAG) \
+	  $(_TOPK_FLAG) \
+	  $(_TOPP_FLAG) \
+	  $(_MINP_FLAG) \
+	  $(_RPEN_FLAG) \
+	  $(_PPEN_FLAG) \
+	  $(_FPEN_FLAG) \
 	  $(_STREAM_FLAG) \
 	  $(_THINK_FLAG) \
 	  $(_NOEOS_FLAG) \

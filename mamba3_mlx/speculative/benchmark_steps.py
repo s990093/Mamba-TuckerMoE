@@ -78,6 +78,7 @@ def main():
     model = Mamba3LanguageModel(cfg)
     load_checkpoint(model, args.model_path, dtype=mx.bfloat16)
     mx.eval(model.parameters())
+    model.precompute()
 
     with open(args.runtime_cache, "rb") as f:
         rt = pickle.load(f)

@@ -6,6 +6,288 @@
 
 ---
 
+## ✅ IMPLEMENTED (2026-06-06) — 47 → 70 tok/s via mx.compile
+
+> All correctness checks pass (max diff ≤ 7e-6 vs uncompiled reference; bitwise identical for most paths).  
+> Prefill is unaffected — compiled paths only activate for L=1 decode.
+
+### Results summary
+
+| Stage | tok/s | ms/tok | Change |
+|-------|-------|--------|--------|
+| Baseline (no compile) | 47.3 | 21.14 | — |
+| + TuckerMoE per-instance compile | 58.7 | 17.03 | +11.4 |
+| + Mamba3Block compiled decode | 64.8 | 15.42 | +6.1 |
+| + TransformerBlock compiled decode | 67.8 | 14.74 | +3.0 |
+| + Model head compiled | **69.8–70.4** | **14.2–14.4** | +2.2 |
+
+---
+
+### What was done and why it works
+
+#### Root cause of decode slowness
+
+At B=1, L=1, each individual matmul is tiny (e.g. `(1,768)@(768,3490)`) — essentially a memory-bandwidth-bound GEMV. The GPU finishes each kernel in ~0.03–0.05 ms. But each Metal kernel also carries:
+
+- **Command buffer submission overhead** — ~5–10 µs CPU-side per kernel
+- **GPU scheduler latency** — ~30–50 µs minimum per kernel launch
+
+With 30 blocks × ~60 ops/block = **1 800 Metal kernel dispatches per token step**, this overhead alone accounts for ~90 ms at 50 µs/dispatch — far more than the actual compute.
+
+`mx.compile` solves this by **tracing the Python compute graph once** and replaying it as a pre-compiled Metal program on subsequent calls. Multiple elementwise ops are fused, and the number of program dispatches falls from ~1 800 to ~80.
+
+#### Why not compile the full model?
+
+`TransformerBlock` concatenates KV cache each step:
+```python
+k = mx.concatenate([past_k, k_new], axis=2)  # S grows by 1 every decode step
+```
+`mx.compile` re-traces whenever input shapes change. Compiling the full model resulted in **1.57× SLOWER** (29.7 vs 46.8 tok/s) because it re-traced on every step.
+
+---
+
+### Implementation details
+
+#### 1. TuckerMoE per-instance compile — `mlx_model/tucker_moe.py`
+
+**The problem**: Each `TuckerMoE.__call__` re-computed `G_experts = einsum("er,rst->est", U_expert, core)` every call, wasting ~200 Metal kernel dispatches per step. Even after caching G, the 15–25 ops per call each launched a separate Metal kernel.
+
+**What changed**:
+```python
+# Before: one __call__ method doing everything
+def __call__(self, x, temperature=0.5): ...
+
+# After: split implementation from dispatch
+def _forward(self, x, temperature=0.5): ...   # full implementation
+def __call__(self, x, temperature=0.5):        # dispatch wrapper
+    if self._compiled_call is not None and temperature == 0.5:
+        return self._compiled_call(x, temperature)
+    return self._forward(x, temperature)
+```
+
+In `precompute_G_experts()`:
+```python
+# 1. Precompute G = U_expert ⊗ core in float32 and bf16
+G = mx.einsum("er,rst->est", self.U_expert.astype(mx.float32), self.core.astype(mx.float32))
+G_flat = G.transpose(1, 0, 2).reshape(self._r3, self.num_experts * self._r2)
+mx.eval(G, G_flat)
+self._G_experts_cache = G
+self._G_flat_cache = G_flat
+# bf16 variants avoid a 4 MB cast every forward call
+self._G_experts_cache_bf16 = G.astype(mx.bfloat16)
+self._G_flat_cache_bf16 = G_flat.astype(mx.bfloat16)
+mx.eval(self._G_experts_cache_bf16, self._G_flat_cache_bf16)
+
+# 2. Compile _forward and warm up once
+self._compiled_call = mx.compile(self._forward)
+mx.eval(self._compiled_call(mx.zeros((1, self.dim_in), dtype=mx.bfloat16)))
+```
+
+**Key**: `_forward` has a Python branch `if B_flat > self.top_k * E` that selects prefill vs decode path. `mx.compile` traces through this branch once and bakes in the result — the decode path (B_flat=1 < 16) always takes the `else` branch, so the compiled graph is a fixed decode-path program.
+
+---
+
+#### 2. Mamba3Block compiled decode — `mlx_model/mamba_block.py`
+
+**The problem**: `Mamba3Block.__call__` has multiple Python conditionals on state (`if state is None`, `if state.get("angles_cum") is None`). `mx.compile` cannot trace through Python conditionals that depend on runtime values (whether state is None or not), so the full `__call__` cannot be compiled.
+
+**What changed**: Add a separate `_decode_impl` method with **no Python state conditionals** — it hardcodes the L=1 path and assumes state is always provided as explicit array arguments:
+
+```python
+def _decode_impl(self, x, h_prev, prev_input_signal, angles_cum):
+    # L=1 path — no 'if state is None' checks
+    B_sz = x.shape[0]
+    # ... full L=1 decode logic ...
+    
+    # Key: call _forward directly to INLINE TuckerMoE ops into this compiled graph
+    x_up = self.x_up_proj._forward(x_prime_hp.reshape(B_sz, 1, H * P))
+    # ...
+    proj_out = self.out_proj._forward(normed_mid)
+    
+    return out, h_new, new_prev_input_signal, new_angles_cum
+```
+
+Calling `self.x_up_proj._forward(...)` directly (not `__call__`) inlines the TuckerMoE ops into the outer `mx.compile` graph. This is better than having two nested compiled programs — the ops from x_up_proj and out_proj are fused into the same Metal program as the surrounding Mamba ops.
+
+In `precompute()`:
+```python
+self._compiled_decode = mx.compile(self._decode_impl)
+# Eager warmup — traces the graph for (1, 1, d_model) bf16 inputs
+mx.eval(self._compiled_decode(
+    mx.zeros((1, 1, d), dtype=mx.bfloat16),   # x
+    mx.zeros((1, H, N, P), dtype=mx.bfloat16), # h_prev
+    mx.zeros((1, H, N, P), dtype=mx.bfloat16), # prev_input_signal
+    mx.zeros((1, H, N//2), dtype=mx.float32),  # angles_cum
+))
+```
+
+In `__call__`, dispatch condition:
+```python
+if (L == 1 and state is not None
+        and self._compiled_decode is not None
+        and state.get("h_prev") is not None):
+    out, new_h, new_ip, new_ac = self._compiled_decode(
+        x, state["h_prev"], state["prev_input_signal"], state["angles_cum"])
+    return out, {"h_prev": new_h, "prev_input_signal": new_ip, "angles_cum": new_ac}
+# ... existing prefill path below ...
+```
+
+**Why `state.get("h_prev") is not None`**: After prefill, all state values are proper arrays. We only use the compiled path when state is fully initialized; the very first decode step (state=None) falls through to the original path.
+
+---
+
+#### 3. TransformerBlock compiled decode — `mlx_model/transformer_block.py`
+
+**The problem**: `TransformerBlock` cannot be compiled as a whole because the KV cache concatenation changes shapes. However, the output of `scaled_dot_product_attention` is always `(B, H, 1, head_dim)` = `(1, 12, 1, 64)` regardless of KV length — the query length is always 1 for decode. So everything *except* the KV concat and SDPA itself has fixed shapes.
+
+**What changed**: Split the decode path into two compilable functions around the non-compilable KV section:
+
+```python
+def _decode_pre(self, x):
+    """norm_attn + q/k/v projections — fixed shapes."""
+    B, L, D = x.shape
+    nx = self.norm_attn(x)
+    q = self.q_proj(nx).reshape(B, L, self.num_heads, 64).transpose(0, 2, 1, 3)
+    k = self.k_proj(nx).reshape(B, L, self.num_kv_heads, 64).transpose(0, 2, 1, 3)
+    v = self.v_proj(nx).reshape(B, L, self.num_kv_heads, 64).transpose(0, 2, 1, 3)
+    return q, k, v
+
+def _decode_post(self, attn, x):
+    """o_proj + residual + norm_ffn + full inlined FFN — fixed shapes.
+    
+    attn is (B, H, 1, 64) — fixed regardless of KV cache length.
+    x   is (B, 1, D) — fixed for decode.
+    """
+    B, L, D = x.shape
+    attn_out = attn.transpose(0, 2, 1, 3).reshape(B, L, D)
+    x = x + self.ls_attn(self.o_proj(attn_out))
+    h = self.norm_ffn(x)
+    # Inline all 3 TuckerMoE forward passes
+    gate = self.ffn.gate_proj._forward(h)
+    feat = self.ffn.up_proj._forward(h)
+    ffn_out = self.ffn.down_proj._forward(silu_gating(gate, feat))
+    return x + self.ls_ffn(ffn_out)
+```
+
+The dispatch in `__call__` for L=1:
+```python
+if (L == 1 and state is not None
+        and self._compiled_pre is not None
+        and state.get("k") is not None):
+    q, k_new, v_new = self._compiled_pre(x)
+    # KV concat — NOT compilable (shape changes each step)
+    k_full = mx.concatenate([state["k"], k_new], axis=2)
+    v_full = mx.concatenate([state["v"], v_new], axis=2)
+    # SDPA — NOT compilable (k/v input shapes grow)
+    attn = mx.fast.scaled_dot_product_attention(q, k_full, v_full, scale=self.scale)
+    # Everything after: compilable (attn output shape is fixed)
+    out = self._compiled_post(attn, x)
+    return out, {"k": k_full, "v": v_full}
+```
+
+The non-compilable section is only **3 Metal kernels** (k concat, v concat, SDPA) per step. Everything else is compiled.
+
+---
+
+#### 4. Model head compiled — `mlx_model/hybrid_model.py`
+
+**What changed**:
+```python
+def _head_forward(self, x):
+    """norm + head projection + scaled_tanh — all fixed shapes for decode."""
+    h = self.norm(x)
+    logits = self.head(h * self.inv_sqrt_d).astype(mx.float32)
+    return scaled_tanh(logits, 30.0)
+```
+
+Compiled in `precompute()` and dispatched in `__call__` when `x.shape[1] == 1`.
+
+The norm + head matmul + scaled_tanh are 4–5 separate Metal kernels that fuse into 1–2 in the compiled program.
+
+---
+
+### Calling sequence (in Mamba3LanguageModel.precompute)
+
+```python
+for layer in self.backbone.layers:
+    if isinstance(layer, Mamba3Block):
+        layer.x_up_proj.precompute_G_experts()  # G cache + TuckerMoE compile
+        layer.out_proj.precompute_G_experts()
+        layer.precompute()                       # _D_expand + compiled decode
+    elif isinstance(layer, TransformerBlock):
+        layer.ffn.gate_proj.precompute_G_experts()
+        layer.ffn.up_proj.precompute_G_experts()
+        layer.ffn.down_proj.precompute_G_experts()
+        layer.precompute()                       # compiled pre/post
+
+self._compiled_head = mx.compile(self._head_forward)
+mx.eval(self._compiled_head(mx.zeros((1, 1, d_model), dtype=mx.bfloat16)))
+```
+
+Order matters: TuckerMoE caches must exist before `Mamba3Block.precompute()` compiles `_decode_impl` (which accesses `_G_experts_cache_bf16` during tracing).
+
+---
+
+### What still doesn't compile
+
+| Component | Reason | Impact |
+|-----------|--------|--------|
+| Full model `__call__` | KV cache grow → re-trace every step | Would be 1.57× slower |
+| TransformerBlock KV concat | `mx.concatenate` shapes change | 2 kernels per block |
+| TransformerBlock SDPA | k/v shapes grow | 1 kernel per block |
+| Prefill (L>1) | Uses different code paths; per-block `mx.eval` for OOM prevention | Prefill already fast enough |
+
+---
+
+## ✅ SJD WITH PRECOMPUTE (2026-06-06) — 56 → 90.6 tok/s via model.precompute() in SJD path
+
+> Added `model.precompute()` call to `speculative/benchmark_steps.py` and `speculative/run_jacobi.py`  
+> after `mx.eval(model.parameters())`. No changes to model code — pure inference-script fix.
+
+### What changed
+
+`model.precompute()` was already called in the AR decode scripts but **not** in the SJD scripts.
+Adding it activates two key benefits for the SJD verify path:
+
+1. **TuckerMoE compiled dispatch** — `_compiled_call = mx.compile(self._forward)` is set,
+   so every `TuckerMoE.__call__` during the verify forward (L=K) uses the compiled graph.
+2. **bf16 G caches** — `_G_experts_cache_bf16` / `_G_flat_cache_bf16` are pre-cast at load time;
+   previously each verify call did `G_experts = self._G_experts_cache.astype(dtype)` on every call.
+
+For SJD verify with K=12 (B_flat=12 < top_k×E=16): the decode path is used, so `_G_experts_cache_bf16`
+is accessed directly. For K=16: 16 > 16 is False → still decode path.
+
+### Results (mode=self_awareness, prompt="Who are you?", max=256, seed=42)
+
+| K | Variant | ARL | decode_tps | vs old |
+|---|---------|-----|------------|--------|
+| 12 | + cot + runtime + compile ★ | 4.67 | **90.6** | +62% vs 56 tok/s |
+| 16 | + cot + runtime + compile ★ | 5.02 | 86.3 | |
+| 8  | + cot + runtime + compile ★ | 1.41 | 35.2 | |
+| 24 | + cot + runtime + compile ★ | 1.54 | 34.4 | |
+
+**K=12 is optimal at 90.6 tok/s** (vs 70 tok/s compiled AR, +29% from SJD itself).
+
+### Full K=12 ladder
+
+| Variant | ARL | decode_tps |
+|---------|-----|------------|
+| baseline (cold, no caches, no compile) | 1.03 | 20.7 |
+| + cot_caches | 1.43 | 28.6 |
+| + cot + runtime | 3.23 | 63.2 |
+| **+ cot + runtime + compile ★** | **4.67** | **90.6** |
+
+### Why `compile_verify` is essential
+
+Each verify round calls `mamba_verify_step` for 24 Mamba layers. Without `compile_verify`, each layer
+runs ~50 Metal kernels → ~1200 dispatches/round. `forward_compiled.py` wraps each Mamba layer's
+verify step in `mx.compile`, collapsing these to ~5–8 dispatches/layer. At 57 rounds × 24 layers,
+this is the dominant term.
+
+---
+
+---
+
 ## 0. Current Architecture Summary
 
 ```

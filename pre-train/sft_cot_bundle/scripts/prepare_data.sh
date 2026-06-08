@@ -38,8 +38,8 @@ echo "   掃描根目錄 JSON 檔案..."
 for f in "${COT_DIR}"/*.json; do
     if [[ -f "$f" ]]; then
         basename_f="$(basename "$f")"
-        # 排除 tokenizer、stats、deep_dive、system_call
-        if [[ "$basename_f" != "tokenizer.json" && "$basename_f" != "tokenizer_config.json" && "$basename_f" != "deep_dive.json" && "$basename_f" != "system_call.json" && "$basename_f" != stats_* ]]; then
+        # 排除 tokenizer、stats、deep_dive、system_call、emotion、movie_intro
+        if [[ "$basename_f" != "tokenizer.json" && "$basename_f" != "tokenizer_config.json" && "$basename_f" != "deep_dive.json" && "$basename_f" != "system_call.json" && "$basename_f" != "emotion.json" && "$basename_f" != "movie_intro.json" && "$basename_f" != stats_* ]]; then
             FILES="${FILES:+${FILES},}${basename_f}"
             echo "     + ${basename_f}"
         fi
@@ -50,10 +50,8 @@ done
 echo "   掃描子目錄 JSON 檔案..."
 # 定義要掃描的目錄模式
 DIR_PATTERNS=(
-    "emotion*"
     "self*"
     "noise*"
-    "movie*"
     "mail*"
 )
 
@@ -79,7 +77,7 @@ for subdir in "${COT_DIR}"/*/; do
     if [[ -d "$subdir" ]]; then
         subdir_name="$(basename "$subdir")"
         # 跳過特殊目錄
-        if [[ "$subdir_name" == "__pycache__" || "$subdir_name" == ".git" || "$subdir_name" == ".bob" || "$subdir_name" == "scripts" || "$subdir_name" == "metadata_sft_tiny_llm" || "$subdir_name" == "metal" || "$subdir_name" == "cot" || "$subdir_name" == "deep" || "$subdir_name" == "system_call" || "$subdir_name" == "plots" || "$subdir_name" =~ ^stf_cot_hf ]]; then
+        if [[ "$subdir_name" == "__pycache__" || "$subdir_name" == ".git" || "$subdir_name" == ".bob" || "$subdir_name" == "scripts" || "$subdir_name" == "metadata_sft_tiny_llm" || "$subdir_name" == "metal" || "$subdir_name" == "cot" || "$subdir_name" == "deep" || "$subdir_name" == "system_call" || "$subdir_name" == "emotion" || "$subdir_name" == "movie" || "$subdir_name" == "movie2" || "$subdir_name" == "plots" || "$subdir_name" =~ ^stf_cot_hf ]]; then
             continue
         fi
         # 檢查是否已經被上面的模式掃描過
@@ -126,7 +124,7 @@ python3 "${COT_DIR}/export_hf_dataset.py" \
     --max-cot-tokens 128 \
     --rewrite-id-prefix train_ \
     --shuffle --seed 42 \
-    --max-per-bucket '{"emotion":10000}'
+    --max-per-bucket '{"emotion":0,"movie_intro":0}'
 
 echo ""
 echo "   ✅ HF dataset 匯出完成"

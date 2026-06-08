@@ -200,11 +200,42 @@ const SAMPLING_FIELDS = [
     step: 0.01,
     decimals: 2,
   },
+  {
+    key: "presence_penalty",
+    label: "Pres. pen.",
+    cli: "--pres_pen",
+    min: 0,
+    max: 1.0,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    key: "frequency_penalty",
+    label: "Freq. pen.",
+    cli: "--freq_pen",
+    min: 0,
+    max: 0.5,
+    step: 0.005,
+    decimals: 3,
+  },
+  {
+    key: "seed",
+    label: "Seed",
+    cli: "--seed",
+    min: 0,
+    max: 99,
+    step: 1,
+    decimals: 0,
+  },
 ];
 /** Mutable current values, sent with every chat payload as `sampling: {...}`. */
 let samplingState = {};
 /** CLI defaults from `/api/demo-config.sampling_defaults` for the Reset button. */
 let samplingDefaults = {};
+/** Per-mode sampling configs from `/api/demo-config.sampling_mode_configs`. */
+let samplingModeConfigs = {};
+/** Currently active mode key (matches sysCatSelect value). */
+let activeSamplingModeKey = "";
 
 /** Response-mode dropdown.
  *  - 'think'  → reasoning ON, prompt injects <think> after the assistant marker.
@@ -365,8 +396,46 @@ function initSamplingDefaults(defaults) {
   renderSamplingControls();
 }
 
+/** Update the mode badge text in the Sampling panel header. */
+function updateSamplingModeBadge(key) {
+  const badge = document.getElementById("sampling-mode-badge");
+  if (!badge) return;
+  if (key) {
+    badge.textContent = key.replace(/_/g, " ");
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+
+/**
+ * Apply the per-mode sampling config for `modeKey` as the new defaults.
+ * Called when the category dropdown changes or on initial load.
+ * The mode config becomes the new "defaults" — Reset returns to them.
+ */
+function applyModeConfig(modeKey) {
+  const key = (modeKey || "").trim();
+  activeSamplingModeKey = key;
+  updateSamplingModeBadge(key);
+  const mc = samplingModeConfigs[key];
+  if (mc && typeof mc === "object") {
+    initSamplingDefaults(mc);
+    // Sync reasoning toggle to mode default (e.g. self_awareness forces direct mode).
+    if (typeof mc.reasoning === "boolean") {
+      setMode(mc.reasoning ? "think" : "direct");
+    }
+  }
+  // No mode config for this key — keep current defaults (do not reset)
+}
+
 btnSamplingReset?.addEventListener("click", () => {
-  initSamplingDefaults(samplingDefaults);
+  // Reset to current mode config defaults if available, else CLI defaults.
+  const mc = samplingModeConfigs[activeSamplingModeKey];
+  if (mc && typeof mc === "object") {
+    initSamplingDefaults(mc);
+  } else {
+    initSamplingDefaults(samplingDefaults);
+  }
 });
 
 let ws = null;
@@ -800,6 +869,7 @@ function renderSidebarCategories(categories) {
         if (sysCatSelect && cat.key) {
           sysCatSelect.value = cat.key;
           applySysCardForCategory(cat.key);
+          applyModeConfig(cat.key);
         }
         doSend();
       });
@@ -905,6 +975,11 @@ async function loadDemoConfig() {
         renderMd(globalSystemMarkdown)
       );
     }
+    // Capture per-mode sampling configs before filling the select.
+    samplingModeConfigs =
+      j.sampling_mode_configs && typeof j.sampling_mode_configs === "object"
+        ? j.sampling_mode_configs
+        : {};
     fillSysCategorySelect(j.categories);
     applySysCardForCategory(
       sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null
@@ -913,7 +988,13 @@ async function loadDemoConfig() {
     window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: false });
     renderStyleAndTools(j.style_constraints, j.tool_registry);
     renderSidebarCategories(j.categories);
-    initSamplingDefaults(j.sampling_defaults || {});
+    // Apply mode config for the initially selected category (falls back to CLI defaults).
+    const initialKey = sysCatSelect && sysCatSelect.value ? sysCatSelect.value : "";
+    if (initialKey && samplingModeConfigs[initialKey]) {
+      applyModeConfig(initialKey);
+    } else {
+      initSamplingDefaults(j.sampling_defaults || {});
+    }
     applyMaxTokensCap(j.max_new_tokens_cap);
     if (j.format_guard && typeof j.format_guard === "object") {
       formatGuardServer = { ...formatGuardServer, ...j.format_guard };
@@ -1549,6 +1630,8 @@ btnPlaySys?.addEventListener("click", (e) => {
 sysCatSelect?.addEventListener("change", () => {
   applySysCardForCategory(sysCatSelect.value);
   window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: isReasoningOn() });
+  // Apply mode-specific sampling defaults when category switches.
+  applyModeConfig(sysCatSelect.value);
 });
 
 function doSend() {

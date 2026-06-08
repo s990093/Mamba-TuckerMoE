@@ -329,11 +329,14 @@
     </div>
     <div class="drawer-panel hidden" id="panel-sampling" data-panel="sampling">
       <div>
-        <div class="drawer-section-title">Decoding parameters</div>
-        <p class="drawer-note">Live tweaks are sent with the next <code>chat</code> WS message; nothing here affects already-streaming turns. Press <strong>Reset</strong> to fall back to the CLI defaults.</p>
+        <div class="sampling-header">
+          <div class="drawer-section-title">Decoding parameters</div>
+          <span class="sampling-mode-badge" id="sampling-mode-badge" hidden></span>
+        </div>
+        <p class="drawer-note">Params update automatically when you switch category. Manual edits are sent with the next message. <strong>Reset</strong> restores the current mode's defaults.</p>
         <div class="sampling-grid" id="sampling-grid"></div>
         <div class="sampling-actions">
-          <button type="button" class="btn-secondary" id="btn-sampling-reset">Reset to defaults</button>
+          <button type="button" class="btn-secondary" id="btn-sampling-reset">Reset to mode defaults</button>
           <code class="sampling-json" id="sampling-json"></code>
         </div>
       </div>

@@ -51,6 +51,7 @@ import mlx.core as mx
 
 from mamba3_mlx import chat_config as _cfg
 from mamba3_mlx.utils.config import Mamba3Config
+from mamba3_mlx.utils.mode_configs import get_mode_gen_config
 from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
 from mamba3_mlx.mlx_model.weights import load_checkpoint, _sidecar_path
 from mamba3_mlx.inference.sampler import (
@@ -102,6 +103,7 @@ _mw_cfg: CotMiddlewareConfig | None = None
 _extra_ban_mask: mx.array | None = None     # </final> ban for think/between
 _final_ban_mask: mx.array | None = None     # <think>/<final> ban inside final block
 _think_early_ban: mx.array | None = None    # </think> ban for first N think tokens
+_direct_head_ban: mx.array | None = None    # <think> ban in head mode when reasoning=False
 _model_ready = False
 _vocab_size: int = 0
 _MOCK_MODE: bool = False
@@ -212,7 +214,7 @@ def _build_final_ban_mask(tokenizer: Any, vocab_size: int) -> mx.array | None:
 
 def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     global _model, _tokenizer, _args, _config, _stop_ids
-    global _mw_deps, _mw_cfg, _extra_ban_mask, _final_ban_mask, _think_early_ban, _model_ready, _vocab_size
+    global _mw_deps, _mw_cfg, _extra_ban_mask, _final_ban_mask, _think_early_ban, _direct_head_ban, _model_ready, _vocab_size
 
     _args = args
     timings: dict[str, Any] = {}
@@ -283,12 +285,18 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     # Ban </think> for the first THINK_MIN_TOKENS think tokens so the model
     # can't prematurely close its chain-of-thought mid-sentence.
     _think_close_id = -1
+    _think_open_id = -1
     try:
         _think_close_id = int(_tokenizer.convert_tokens_to_ids("</think>"))
+        _think_open_id  = int(_tokenizer.convert_tokens_to_ids("<think>"))
     except Exception:
         pass
     if 0 <= _think_close_id < _vocab_size:
         _think_early_ban = mx.zeros((_vocab_size,), dtype=mx.float32).at[_think_close_id].add(-1e9)
+    # Ban <think> in head mode when reasoning=False so the model can't
+    # spontaneously enter a think block (SFT training makes this happen).
+    if 0 <= _think_open_id < _vocab_size:
+        _direct_head_ban = mx.zeros((_vocab_size,), dtype=mx.float32).at[_think_open_id].add(-1e9)
     print(f"[chat_demo] {_mw_deps.describe()}")
     if _extra_ban_mask is not None:
         print("[chat_demo] ban[think/between]: </final> <final> <think>")
@@ -296,6 +304,8 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
         print("[chat_demo] ban[final]:         <think> </think> <final>  (prevents re-entry loop)")
     if _think_early_ban is not None:
         print(f"[chat_demo] ban[think-early]:   </think> for first {_cfg.THINK_MIN_TOKENS} think tokens")
+    if _direct_head_ban is not None:
+        print("[chat_demo] ban[direct-head]:   <think> in head mode when reasoning=False")
 
     # Warmup — one decode step to amortise lazy MLX kernel compile.
     t3 = time.perf_counter()
@@ -318,6 +328,17 @@ def _encode_plain(text: str) -> list[int]:
         return list(_tokenizer.encode(text, add_special_tokens=False))
     except TypeError:
         return list(_tokenizer.encode(text))
+
+
+def _get_bos_id() -> int | None:
+    """Return BOS token id if the tokenizer has one (run.py prepends it)."""
+    try:
+        bos = _tokenizer.bos_token_id
+        if bos is not None and int(bos) > 0:
+            return int(bos)
+    except Exception:
+        pass
+    return None
 
 
 def _build_multiturn_ids(
@@ -344,6 +365,11 @@ def _build_multiturn_ids(
     if not ids:
         tail = "<|im_start|>assistant\n" + ("<think>\n" if reasoning else "")
         ids = _encode_plain(tail)
+    # Prepend BOS token to match run.py's build_chatml_prompt (id=1).
+    # Without BOS the Mamba SSM prefill state diverges, breaking tuned seeds.
+    bos = _get_bos_id()
+    if bos is not None and (not ids or ids[0] != bos):
+        ids = [bos] + ids
     return ids
 
 
@@ -417,7 +443,6 @@ def _stream_generate(
         mw_cfg = replace(mw_cfg, enabled=False)
     if getattr(sample_args, "force_final_inject_call_override", None) is False:
         mw_cfg = replace(mw_cfg, force_final_inject=False)
-
     def _model_apply(x: mx.array, ca: Any, sp: mx.array):
         # mamba3_mlx model ignores seq_pos / router_temp.
         return _model(x, states=ca)
@@ -468,17 +493,27 @@ def _stream_generate(
     # ── Decode loop ─────────────────────────────────────────────────────────
     for _step in range(max_tokens):
         # 1) Logit transform: middleware + script-level mode-specific bans.
-        #    think/between: ban </final> to prevent early loop exit.
-        #    final:         ban <think>/<final>/</think> to prevent re-entry loop
-        #                   where the model restarts the CoT structure after injection.
-        row = mw.transform_logits(last_logits)
-        if _extra_ban_mask is not None and mw.mode in ("think", "between"):
-            row = row + _extra_ban_mask.astype(row.dtype)
-        if _final_ban_mask is not None and mw.mode == "final":
-            row = row + _final_ban_mask.astype(row.dtype)
-        think_min = int(getattr(sample_args, "think_min_tokens", _cfg.THINK_MIN_TOKENS))
-        if _think_early_ban is not None and mw.mode == "think" and mw._think_tokens < think_min:
-            row = row + _think_early_ban.astype(row.dtype)
+        #    raw_sampling=True: skip ALL logit engineering so the path matches run.py
+        #    (used for self_awareness where seed=27 is tuned against run.py's path).
+        _raw = getattr(sample_args, "raw_sampling", False)
+        if _raw:
+            row = last_logits  # no ban masks, no close_bias
+        else:
+            #    think/between: ban </final> to prevent early loop exit.
+            #    final:         ban <think>/<final>/</think> to prevent re-entry loop
+            #                   where the model restarts the CoT structure after injection.
+            row = mw.transform_logits(last_logits)
+            if _extra_ban_mask is not None and mw.mode in ("think", "between"):
+                row = row + _extra_ban_mask.astype(row.dtype)
+            if _final_ban_mask is not None and mw.mode == "final":
+                row = row + _final_ban_mask.astype(row.dtype)
+            think_min = int(getattr(sample_args, "think_min_tokens", _cfg.THINK_MIN_TOKENS))
+            if _think_early_ban is not None and mw.mode == "think" and mw._think_tokens < think_min:
+                row = row + _think_early_ban.astype(row.dtype)
+        # When reasoning is off, ban <think> in head mode so the SFT-trained model
+        # can't spontaneously open a think block and consume the whole token budget.
+        if not _raw and _direct_head_ban is not None and not reasoning and mw.mode == "head":
+            row = row + _direct_head_ban.astype(row.dtype)
         z = row.astype(mx.float32)
         recent = generated[-recent_window:]
         z = apply_repetition_penalty(z, recent, float(getattr(sample_args, "rep_pen", 1.281)))
@@ -757,6 +792,25 @@ def _sampling_defaults_dict() -> dict[str, Any]:
     }
 
 
+def _sampling_mode_configs_dict() -> dict[str, Any]:
+    """Return per-mode sampling configs keyed by mode name for frontend consumption."""
+    from mamba3_mlx.utils.mode_configs import MODE_GEN_CONFIGS
+    out: dict[str, Any] = {}
+    for mode_key, cfg in MODE_GEN_CONFIGS.items():
+        out[mode_key] = {
+            "temperature": cfg.get("temperature", 0.426),
+            "top_k": cfg.get("top_k", 20),
+            "top_p": cfg.get("top_p", 0.981),
+            "min_p": cfg.get("min_p", 0.067),
+            "repetition_penalty": cfg.get("rep_pen", 1.146),
+            "presence_penalty": cfg.get("pres_pen", 0.143),
+            "frequency_penalty": cfg.get("freq_pen", 0.133),
+            "seed": cfg.get("seed", 0),
+            "reasoning": cfg.get("reasoning", True),
+        }
+    return out
+
+
 def _format_guard_status_dict() -> dict[str, Any]:
     if _args is None:
         return {
@@ -799,6 +853,7 @@ async def demo_config():
         "categories": data.get("categories", []),
         "examples": flat if flat else legacy,
         "sampling_defaults": _sampling_defaults_dict(),
+        "sampling_mode_configs": _sampling_mode_configs_dict(),
         "max_new_tokens_cap": int(getattr(_args, "max_new_tokens", DEFAULT_MAX_NEW_TOKENS)) if _args else DEFAULT_MAX_NEW_TOKENS,
         "reasoning_budget": int(getattr(_args, "reasoning_budget", 0)) if _args else 0,
         "format_guard": _format_guard_status_dict(),
@@ -868,6 +923,9 @@ def _apply_sampling_override(base_args: Any, sampling: dict[str, Any] | None) ->
     if "frequency_penalty" in sampling:
         with contextlib.suppress(Exception):
             a.freq_pen = max(0.0, min(2.0, float(sampling["frequency_penalty"])))
+    if "seed" in sampling:
+        with contextlib.suppress(Exception):
+            a.seed = int(sampling["seed"])
     return a
 
 
@@ -1192,14 +1250,45 @@ async def websocket_chat(ws: WebSocket):
                 _cprint("[gen]  ", style="dim")
                 # ────────────────────────────────────────────────────────────
 
-                reasoning_flag = msg.get("reasoning")
-                if reasoning_flag is None:
+                # Merge mode-default sampling → frontend sampling override.
+                mode_sampling = get_mode_gen_config(effective_key)
+                # reasoning: mode config is the hard default; mode config = False means
+                # <think> injection is suppressed regardless of the frontend toggle.
+                # The JS applyModeConfig() syncs the UI toggle, so in normal use the
+                # frontend will already send the correct value — this is the safety net.
+                mode_reasoning = mode_sampling.get("reasoning")
+                frontend_reasoning = msg.get("reasoning")
+                if mode_reasoning is not None:
+                    reasoning_flag = bool(mode_reasoning)
+                elif frontend_reasoning is None:
                     reasoning_flag = bool(getattr(_args, "reasoning", True))
                 else:
-                    reasoning_flag = bool(reasoning_flag)
-                sampling_override = msg.get("sampling") if isinstance(msg.get("sampling"), dict) else None
+                    reasoning_flag = bool(frontend_reasoning)
+                frontend_sampling = msg.get("sampling") if isinstance(msg.get("sampling"), dict) else {}
+                merged_sampling = {**mode_sampling, **(frontend_sampling or {})}
+                # Convert mode_configs key names to chat_demo field names.
+                # "reasoning" is handled separately above — exclude from sampling override.
+                _SAMPLING_ONLY_KEYS = {"rep_pen", "pres_pen", "freq_pen", "top_k", "top_p",
+                                       "min_p", "temperature", "seed", "repetition_penalty",
+                                       "presence_penalty", "frequency_penalty"}
+                _key_map = {"rep_pen": "repetition_penalty", "pres_pen": "presence_penalty",
+                            "freq_pen": "frequency_penalty", "top_k": "top_k",
+                            "top_p": "top_p", "min_p": "min_p",
+                            "temperature": "temperature", "seed": "seed"}
+                sampling_override = {
+                    (_key_map.get(k, k)): v for k, v in merged_sampling.items()
+                    if k in _SAMPLING_ONLY_KEYS
+                } if merged_sampling else None
                 args_for_call = _apply_sampling_override(_args, sampling_override)
                 args_for_call = _apply_format_guard_override(args_for_call, msg.get("format_guard"))
+                # raw_sampling: disable ALL logit engineering (ban masks, close_bias,
+                # extra bans) so chat path matches run.py's unbiased sampling exactly.
+                # Used for self_awareness where seed=27 is tuned against run.py's path.
+                if mode_sampling.get("raw_sampling"):
+                    import copy as _copy
+                    args_for_call = _copy.copy(args_for_call)
+                    args_for_call.format_guard_call_override = False
+                    args_for_call.raw_sampling = True
                 no_eos_stop_flag = bool(msg.get("no_eos_stop", False))
 
                 conversation.append({"role": "user", "content": prompt})

@@ -27,7 +27,7 @@ from mamba3_mlx.utils.config import GenerationConfig, Mamba3Config
 from mamba3_mlx.utils.system_prompts import MODE_ALIASES, resolve_system_prompt
 
 
-def _chatml_ids(tok, sys_prompt, user_msg, seed_think=True):
+def _chatml_ids(tok, sys_prompt, user_msg, seed_think=False):
     text = (
         f"<|im_start|>system\n{sys_prompt}<|im_end|>\n"
         f"<|im_start|>user\n{user_msg}<|im_end|>\n"
@@ -44,12 +44,12 @@ def _chatml_ids(tok, sys_prompt, user_msg, seed_think=True):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model_path",
-                   default=str(REPO_ROOT / "checkpoints" / "latest_sft_cot_model.npz"))
+                   default=str(REPO_ROOT / "checkpoints" / "v2" / "latest_sft_cot_model.mlx_bf16.npz"))
     p.add_argument("--tokenizer_path",
                    default=str(REPO_ROOT / "cot_dataset" / "tokenizer.json"))
     p.add_argument("--cache",
                    default=str(REPO_ROOT / "mamba3_mlx" / "speculative" /
-                               "demo_cache.pkl"))
+                               "demo_cache_v2.pkl"))
     p.add_argument("--prompt", default="Who are you?")
     p.add_argument("--mode", default="self_awareness",
                    choices=sorted(set(MODE_ALIASES.keys())))
@@ -60,13 +60,25 @@ def main():
     p.add_argument("--top_k", type=int, default=20)
     p.add_argument("--top_p", type=float, default=0.85)
     p.add_argument("--min_p", type=float, default=0.08)
-    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--seed", type=int, default=42)
     p.add_argument("--dtype", default="bf16",
                    choices=["fp32", "bf16", "fp16"])
     p.add_argument("--ngram_n", type=int, default=4)
-    p.add_argument("--no-eos-stop", action="store_true", default=True)
+    p.add_argument("--no-eos-stop", action="store_true", default=False)
     p.add_argument("--no_cache", action="store_true",
                    help="Skip loading the baked cache (cold-start baseline).")
+    p.add_argument("--quantize", type=int, default=0, choices=[0, 4, 8],
+                   help="Quantize nn.Linear layers to N bits (0=disabled, 4=4-bit, 8=8-bit).")
+    p.add_argument("--compile_verify", action="store_true",
+                   help="Compile Mamba+Transformer verify steps via mx.compile.")
+    p.add_argument("--cot_caches",
+                   default=str(REPO_ROOT / "mamba3_mlx" / "speculative" /
+                               "cot_caches_v2.pkl"),
+                   help="Path to cot_caches pkl (think/final n-gram bundles). "
+                        "Pass 'none' to disable.")
+    p.add_argument("--cot_bucket", default=None,
+                   help="Override cot cache bucket (think/final/other). "
+                        "Default: auto-detect from mode.")
     args = p.parse_args()
 
     DTYPE_MAP = {"fp32": mx.float32, "bf16": mx.bfloat16, "fp16": mx.float16}
@@ -81,6 +93,16 @@ def main():
         print(f"[demo] sidecar: {sidecar.name}", file=sys.stderr)
     load_checkpoint(model, args.model_path, dtype=dtype)
     mx.eval(model.parameters())
+
+    if args.quantize > 0:
+        import mlx.nn as mlx_nn
+        print(f"[demo] quantizing to {args.quantize}-bit…", file=sys.stderr)
+        mlx_nn.quantize(model, group_size=64, bits=args.quantize)
+        mx.eval(model.parameters())
+        print(f"[demo] quantization done", file=sys.stderr)
+
+    model.precompute()
+    print(f"[demo] precompute done (compiled decode + verify paths active)", file=sys.stderr)
 
     # ── Load baked caches ──────────────────────────────────────────────────
     preload_ngram = None
@@ -104,6 +126,18 @@ def main():
             f"{len(preload_retriever.buf)} retriever tokens)",
             file=sys.stderr,
         )
+
+    # ── Resolve cot_caches path ───────────────────────────────────────────────
+    cot_caches_arg = None
+    if args.cot_caches.lower() != "none":
+        cot_path = Path(args.cot_caches)
+        if cot_path.exists():
+            cot_caches_arg = str(cot_path)
+            print(f"[demo] cot_caches: {cot_path.name}", file=sys.stderr)
+        else:
+            print(f"[demo] !! cot_caches not found: {cot_path} — disabling",
+                  file=sys.stderr)
+    cot_bucket_arg = args.cot_bucket or args.mode
 
     sys_prompt = resolve_system_prompt(args.mode, None)
     ids = _chatml_ids(tok, sys_prompt, args.prompt)
@@ -141,8 +175,9 @@ def main():
     Ks = args.K or [12, 16, 20, 24]
     best = None
     for K in Ks:
-        # JIT warmup: run a tiny SJD generation first so the compiled
-        # accept graph + verify graph are cached before the timed run.
+        # JIT warmup: a short run with seed+999 to pay compile costs only.
+        # Does NOT share the timed seed so the ngram cache stays cold — this
+        # gives honest throughput numbers without oracle pre-warming.
         dummy = mx.zeros((1, K), dtype=mx.int32)
         _l, _s = model(dummy, states=None); mx.eval(_l); del _l, _s, dummy
         if preload_ngram is not None:
@@ -151,7 +186,7 @@ def main():
         else:
             warm_ng, warm_rt = None, None
         warm_cfg = GenerationConfig(
-            max_tokens=24, temperature=args.temp,
+            max_tokens=32, temperature=args.temp,
             top_k=args.top_k, top_p=args.top_p, min_p=args.min_p,
             seed=args.seed + 999,
         )
@@ -159,11 +194,13 @@ def main():
             model, ids, warm_cfg, K=K,
             use_ngram=True, ngram_n=args.ngram_n, use_retrieval=True,
             preloaded_ngram=warm_ng, preloaded_retriever=warm_rt,
+            cot_caches=cot_caches_arg, cot_bucket=cot_bucket_arg,
             seed=args.seed + 999,
             stop_token_ids=[], no_eos_stop=True,
+            compile_verify=args.compile_verify,
         )
 
-        # Clone preloaded caches so each K run starts from the same state.
+        # Clone fresh caches for the timed run (independent of warmup path).
         if preload_ngram is not None:
             ng_for_K = NGramCache.from_state(preload_ngram.to_state())
         else:
@@ -181,9 +218,11 @@ def main():
             use_retrieval=True,
             preloaded_ngram=ng_for_K,
             preloaded_retriever=rt_for_K,
+            cot_caches=cot_caches_arg, cot_bucket=cot_bucket_arg,
             seed=args.seed,
             stop_token_ids=sorted(stop_set),
             no_eos_stop=args.no_eos_stop,
+            compile_verify=args.compile_verify,
         )
         dt = time.perf_counter() - t0
         speedup = r.decode_tps / max(ar_tps, 1e-6)

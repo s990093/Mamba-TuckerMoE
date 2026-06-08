@@ -12,6 +12,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from mamba3_mlx.utils.config import Mamba3Config, GenerationConfig
 from mamba3_mlx.utils.system_prompts import MODE_ALIASES, resolve_system_prompt
+from mamba3_mlx.utils.mode_configs import get_mode_gen_config
 from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
 from mamba3_mlx.mlx_model.weights import load_checkpoint, _sidecar_path
 from mamba3_mlx.inference.generator import generate
@@ -63,16 +64,17 @@ def get_args():
                    help="Custom system prompt (ignored when --mode is set).")
 
     # ── Generation ────────────────────────────────────────────────────────────
-    p.add_argument("--max_tokens", type=int, default=256)
-    p.add_argument("--temp",       type=float, default=0.8)
-    p.add_argument("--top_k",      type=int,   default=40)
-    p.add_argument("--top_p",      type=float, default=0.9)
-    p.add_argument("--min_p",      type=float, default=0.05)
-    p.add_argument("--rep_pen",    type=float, default=1.1)
-    p.add_argument("--pres_pen",   type=float, default=0.0)
-    p.add_argument("--freq_pen",   type=float, default=0.02)
-    p.add_argument("--repeat_last_n", type=int, default=64)
-    p.add_argument("--seed",       type=int,   default=0)
+    # Defaults are None so per-mode configs can fill in; ultimate fallbacks below.
+    p.add_argument("--max_tokens", type=int,   default=256)
+    p.add_argument("--temp",       type=float, default=None)
+    p.add_argument("--top_k",      type=int,   default=None)
+    p.add_argument("--top_p",      type=float, default=None)
+    p.add_argument("--min_p",      type=float, default=None)
+    p.add_argument("--rep_pen",    type=float, default=None)
+    p.add_argument("--pres_pen",   type=float, default=None)
+    p.add_argument("--freq_pen",   type=float, default=None)
+    p.add_argument("--repeat_last_n", type=int, default=128)
+    p.add_argument("--seed",       type=int,   default=None)
 
     # ── Stop conditions ───────────────────────────────────────────────────────
     p.add_argument("--no-eos-stop", action="store_true",
@@ -170,19 +172,23 @@ def main():
     if args.full_decode_compile:
         print(f"[compile] mx.compile enabled — warmup={args.warmup} steps", file=sys.stderr)
 
-    # ── Generation config ─────────────────────────────────────────────────────
+    # ── Generation config — mode defaults then CLI overrides ─────────────────
+    # Priority: CLI arg (not None) > mode config > GenerationConfig defaults.
+    mc = get_mode_gen_config(args.mode)
     gen_cfg = GenerationConfig(
         max_tokens=args.max_tokens,
-        temperature=args.temp,
-        top_k=args.top_k,
-        top_p=args.top_p,
-        min_p=args.min_p,
-        rep_pen=args.rep_pen,
-        pres_pen=args.pres_pen,
-        freq_pen=args.freq_pen,
+        temperature=args.temp    if args.temp    is not None else mc.get("temperature", 0.426),
+        top_k=     args.top_k   if args.top_k   is not None else mc.get("top_k",       20),
+        top_p=     args.top_p   if args.top_p   is not None else mc.get("top_p",        0.981),
+        min_p=     args.min_p   if args.min_p   is not None else mc.get("min_p",        0.067),
+        rep_pen=   args.rep_pen  if args.rep_pen  is not None else mc.get("rep_pen",    1.146),
+        pres_pen=  args.pres_pen if args.pres_pen is not None else mc.get("pres_pen",   0.143),
+        freq_pen=  args.freq_pen if args.freq_pen is not None else mc.get("freq_pen",   0.133),
         repeat_last_n=args.repeat_last_n,
-        seed=args.seed,
+        seed=      args.seed    if args.seed    is not None else mc.get("seed",         0),
     )
+    if args.mode:
+        print(f"[mode-cfg] {args.mode}: temp={gen_cfg.temperature} top_k={gen_cfg.top_k} seed={gen_cfg.seed}", file=sys.stderr)
 
     # ── Stop token ids (EOS / im_end) ─────────────────────────────────────────
     stop_ids: list[int] = []

@@ -27,6 +27,7 @@ class MixtralMoEFeedForward(nn.Module):
 class TransformerBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.config = config
         self.head_dim = 64
         self.num_heads = config.d_model // 64
         self.num_kv_heads = config.num_kv_heads
@@ -43,8 +44,73 @@ class TransformerBlock(nn.Module):
         self.ls_attn = LayerScale(config.d_model, init_value=config.layer_scale_init)
         self.ls_ffn = LayerScale(config.d_model, init_value=config.layer_scale_init)
 
+        # Compiled decode sub-functions — set by precompute().
+        self._compiled_pre:  object | None = None
+        self._compiled_post: object | None = None
+
+    def precompute(self) -> None:
+        """Compile the decode-path sub-functions that have fixed output shapes.
+
+        For L=1 decode the KV cache grows each step, preventing full-block
+        compilation.  We split into two compiled pieces around the SDPA call:
+          _decode_pre : norm_attn + q/k/v projections  (fixed shapes)
+          _decode_post: o_proj + residual + norm_ffn + full inlined FFN (fixed shapes)
+
+        The non-compilable middle section (KV concat + SDPA) is only 2 Metal
+        kernel dispatches so its overhead is negligible.
+        """
+        self._compiled_pre  = mx.compile(self._decode_pre)
+        self._compiled_post = mx.compile(self._decode_post)
+        D   = self.config.d_model
+        H   = self.num_heads
+        kvH = self.num_kv_heads
+        _dx   = mx.zeros((1, 1, D),            dtype=mx.bfloat16)
+        _dattn = mx.zeros((1, H, 1, 64),        dtype=mx.bfloat16)
+        q_w, k_w, v_w = self._compiled_pre(_dx)
+        mx.eval(q_w, k_w, v_w)
+        _out = self._compiled_post(_dattn, _dx)
+        mx.eval(_out)
+
+    def _decode_pre(self, x):
+        """Compile: norm_attn + q/k/v projections (fixed shapes for decode)."""
+        B, L, D = x.shape
+        nx = self.norm_attn(x)
+        q = self.q_proj(nx).reshape(B, L, self.num_heads, 64).transpose(0, 2, 1, 3)
+        k = self.k_proj(nx).reshape(B, L, self.num_kv_heads, 64).transpose(0, 2, 1, 3)
+        v = self.v_proj(nx).reshape(B, L, self.num_kv_heads, 64).transpose(0, 2, 1, 3)
+        return q, k, v
+
+    def _decode_post(self, attn, x):
+        """Compile: o_proj + residual + norm_ffn + inlined FFN (fixed shapes).
+
+        attn: (B, H, 1, 64) output of SDPA — fixed shape for decode.
+        x:    (B, 1, D)     residual before attention.
+        """
+        B, L, D = x.shape
+        attn_out = attn.transpose(0, 2, 1, 3).reshape(B, L, D)
+        x = x + self.ls_attn(self.o_proj(attn_out))
+        h = self.norm_ffn(x)
+        gate = self.ffn.gate_proj._forward(h)
+        feat = self.ffn.up_proj._forward(h)
+        ffn_out = self.ffn.down_proj._forward(silu_gating(gate, feat))
+        return x + self.ls_ffn(ffn_out)
+
     def __call__(self, x, state=None):
         B, L, D = x.shape
+
+        # Fast decode path: compiled pre/post around the non-compilable KV concat.
+        if (L == 1 and state is not None
+                and self._compiled_pre is not None
+                and state.get("k") is not None):
+            q, k_new, v_new = self._compiled_pre(x)
+            past_k, past_v = state["k"], state["v"]
+            k_full = mx.concatenate([past_k, k_new], axis=2)
+            v_full = mx.concatenate([past_v, v_new], axis=2)
+            attn = mx.fast.scaled_dot_product_attention(q, k_full, v_full, scale=self.scale)
+            out = self._compiled_post(attn, x)
+            return out, {"k": k_full, "v": v_full}
+
+        # Prefill / first-token path.
         residual = x
         nx = self.norm_attn(x)
         q = self.q_proj(nx).reshape(B, L, self.num_heads, 64).transpose(0, 2, 1, 3)

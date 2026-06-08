@@ -46,6 +46,7 @@ MODE_ALIASES: dict[str, str] = {
     "self":                "self_awareness",
     "self_awareness":      "self_awareness",
     "email":               "summarize_email",
+    "email_summary":       "summarize_email",
     "summarize_email":     "summarize_email",
     "movie":               "movie_intro",
     "movie_intro":         "movie_intro",

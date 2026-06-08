@@ -1008,6 +1008,15 @@ header{
 .ctl-block .ctl-tok.ctl-result .s{color:#e6db74}
 
 /* Sampling controls (drawer tab) */
+.sampling-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sampling-header .drawer-section-title{margin-bottom:0}
+.sampling-mode-badge{
+  display:inline-flex;align-items:center;
+  font-size:.6rem;font-weight:600;text-transform:capitalize;letter-spacing:.04em;
+  background:rgba(204,120,92,.15);border:1px solid rgba(204,120,92,.35);color:var(--accent-2);
+  border-radius:20px;padding:2px 8px;white-space:nowrap;
+}
+.sampling-mode-badge[hidden]{display:none}
 .sampling-grid{display:flex;flex-direction:column;gap:10px}
 .sampling-row{
   display:grid;grid-template-columns:108px 1fr 62px;align-items:center;gap:10px;

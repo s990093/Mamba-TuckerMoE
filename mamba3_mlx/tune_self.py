@@ -32,23 +32,61 @@ from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
 from mamba3_mlx.mlx_model.weights import load_checkpoint, _sidecar_path
 from mamba3_mlx.inference.generator import generate
 
-DEFAULT_MODEL     = str(REPO_ROOT / "checkpoints" / "v2" / "latest_sft_cot_model.npz")
+DEFAULT_MODEL     = str(REPO_ROOT / "checkpoints" / "v3" / "latest_sft_cot_model.npz")
 DEFAULT_TOKENIZER = str(REPO_ROOT / "cot_dataset" / "tokenizer.json")
 DEFAULT_PROMPT    = "Who are you?"
 
 PARAM_SPACE = {
-    "temperature":   (0.20, 0.70),
-    "top_k":         [20, 30, 40, 50, 60, 80],
-    "top_p":         (0.70, 0.98),
-    "min_p":         (0.02, 0.15),
-    "rep_pen":       (1.0,  1.45),
-    "pres_pen":      (0.0,  0.45),
-    "freq_pen":      (0.0,  0.18),
+    "temperature":   (0.02, 0.55),   # extend low: near-greedy helps identity phrases
+    "top_k":         [5, 10, 15, 20, 30, 40, 50, 60],
+    "top_p":         (0.80, 0.99),
+    "min_p":         (0.01, 0.20),
+    "rep_pen":       (1.05, 1.50),
+    "pres_pen":      (0.05, 0.50),
+    "freq_pen":      (0.02, 0.20),
 }
 
 FIXED_REPEAT_LAST_N = 128
 DEFAULT_MAX_TOKENS  = 300
 DTYPE_MAP = {"fp32": mx.float32, "bf16": mx.bfloat16, "fp16": mx.float16}
+
+# ── Identity keywords for self_awareness scoring ─────────────────────────
+# EXACT PHRASES: "I am Mamba" / "I'm Mamba" — big bonus, this is the gold standard
+_IDENTITY_EXACT: list[str] = [
+    "i am mamba", "i'm mamba", "i am a mamba",
+    "my name is mamba", "called mamba", "named mamba",
+    "i am the mamba", "this is mamba",
+]
+# REQUIRED: at least one must appear for any credit
+_IDENTITY_REQUIRED: list[str] = [
+    "mamba", "i am", "i'm",
+]
+# HIGH-SIGNAL: architectural / deployment facts from the system prompt
+_IDENTITY_HIGH: list[str] = [
+    "hybrid", "tuckermoe", "tucker", "moe", "mixture of experts",
+    "edge", "offline", "iphone", "apple", "silicon",
+    "state space", "ssm", "transformer",
+    "architecture", "model", "language model",
+]
+# MEDIUM: generic self-description words still count
+_IDENTITY_MED: list[str] = [
+    "assistant", "ai", "built", "designed", "trained",
+    "capable", "run", "deployed", "compute",
+]
+# NEGATIVE: signs of hallucination / wrong identity
+_IDENTITY_NEG: list[str] = [
+    "gpt", "chatgpt", "openai", "claude", "gemini", "llama",
+    "anthropic", "google", "meta ai",
+]
+
+# Prompts exercising the "who are you?" identity space
+IDENTITY_PROMPTS: list[str] = [
+    "Who are you?",
+    "What are you?",
+    "Tell me about yourself.",
+    "What can you do?",
+    "Are you an AI?",
+]
 
 # ── Param sampler ─────────────────────────────────────────────────────────
 
@@ -149,6 +187,44 @@ def english_word_ratio(text: str) -> float:
     return ok / len(words)
 
 
+# ── Identity accuracy scoring ─────────────────────────────────────────────
+
+def score_identity_accuracy(text: str) -> float:
+    """Score 0-1: how well the text reflects 'I am Mamba / hybrid / edge' identity.
+
+    Tiered scoring:
+      - Exact phrase ("I am Mamba" etc.) → base 0.70 + bonuses
+      - Required keyword only            → base 0.35 + bonuses
+      - Neither                          → 0.0  (hard gate)
+    """
+    lo = text.lower()
+
+    # Tier 1: exact "I am Mamba" phrases — gold standard
+    has_exact    = any(kw in lo for kw in _IDENTITY_EXACT)
+    # Tier 2: required token present at all
+    has_required = has_exact or any(kw in lo for kw in _IDENTITY_REQUIRED)
+
+    if not has_required:
+        return 0.0
+
+    # Base score: higher reward for exact phrase
+    score = 0.70 if has_exact else 0.35
+
+    # Architectural facts add up to 0.25
+    high_hits = sum(1 for kw in _IDENTITY_HIGH if kw in lo)
+    score += min(high_hits, 5) / 5.0 * 0.25
+
+    # Generic self-desc adds up to 0.05
+    med_hits = sum(1 for kw in _IDENTITY_MED if kw in lo)
+    score += min(med_hits, 3) / 3.0 * 0.05
+
+    # Wrong-identity hallucination penalty
+    neg_hits = sum(1 for kw in _IDENTITY_NEG if kw in lo)
+    score -= neg_hits * 0.30
+
+    return max(0.0, min(1.0, score))
+
+
 # ── Text quality scoring ──────────────────────────────────────────────────
 
 def _words(text: str) -> list[str]:
@@ -190,14 +266,14 @@ def max_dup_span(text: str, max_window: int = 16) -> int:
     return best
 
 
-def score_cot_output(raw_text: str) -> dict:
-    """Score CoT-formatted output with structure + coherence checks.
+def score_cot_output(raw_text: str, check_identity: bool = True) -> dict:
+    """Score CoT-formatted output.
 
-    Weights:
-      25% structural validity  (<think> + <final> present)
-      40% final-text quality   (coherence, English-likeness, non-repetitive)
+    Weights (identity mode):
+      15% structural validity  (<think> + <final> present)
+      30% identity accuracy    (I am Mamba / hybrid / edge / offline …)
+      35% final-text quality   (coherence, English-likeness, non-repetitive)
       20% diversity            (n-gram variety in final block)
-      15% length sanity
 
     Returns dict with component scores and composite.
     """
@@ -219,16 +295,19 @@ def score_cot_output(raw_text: str) -> dict:
     words = _words(eval_text)
     nw = len(words)
 
+    id_score = score_identity_accuracy(eval_text) if check_identity else 0.0
+
     if nw < 5:
         return {
             "n_words_think": len(_words(think_body)),
             "n_words_final": nw,
             "has_think": has_think, "has_final": has_final,
             "struct_score": struct,
+            "identity_score": round(id_score, 4),
             "english_ratio": 0.0,
             "rep_rate_3": 0.0, "distinct_2": 0.0,
             "max_dup": 0,
-            "composite": max(0.1, struct * 0.3),
+            "composite": max(0.1, struct * 0.10 + id_score * 0.50),
         }
 
     r3 = rep_rate(eval_text, 3)
@@ -242,8 +321,7 @@ def score_cot_output(raw_text: str) -> dict:
     if dup >= 4:
         anti_rep *= max(0.1, 1.0 - (dup - 3) * 0.25)
 
-    # English coherence (0-1): heavy penalty for gibberish
-    # Map eng_ratio [0,1] → strongly nonlinear: <0.5 is near-zero
+    # English coherence: nonlinear, hard penalty for gibberish
     if eng_ratio < 0.3:
         eng_score = 0.0
     elif eng_ratio < 0.6:
@@ -256,7 +334,7 @@ def score_cot_output(raw_text: str) -> dict:
     # Diversity
     div_score = d2
 
-    # Length sanity
+    # Length sanity (folded into quality sub-score)
     if nw >= 80:
         len_ok = 1.0
     elif nw >= 30:
@@ -264,14 +342,22 @@ def score_cot_output(raw_text: str) -> dict:
     else:
         len_ok = 0.5 * nw / 30.0
 
-    quality = anti_rep * 0.30 + eng_score * 0.40 + div_score * 0.20 + len_ok * 0.10
-    composite = struct * 0.25 + quality * 0.75
+    quality = anti_rep * 0.35 + eng_score * 0.45 + len_ok * 0.20
+
+    # Composite: struct 10% + identity 50% + quality 30% + diversity 10%
+    composite = (
+        struct    * 0.10
+        + id_score  * 0.50
+        + quality   * 0.30
+        + div_score * 0.10
+    )
 
     return {
         "n_words_think": len(_words(think_body)),
         "n_words_final": nw,
         "has_think": has_think, "has_final": has_final,
         "struct_score":     round(struct, 4),
+        "identity_score":   round(id_score, 4),
         "english_ratio":    round(eng_ratio, 4),
         "eng_score":        round(eng_score, 4),
         "rep_rate_3":       round(r3, 4),
@@ -358,9 +444,10 @@ def show_trial(model, tok, prompt_ids, params, max_tokens, stop_ids,
         return
     elapsed = time.time() - t0
 
-    scores = score_cot_output(text)
+    scores = score_cot_output(text, check_identity=True)
     print(text)
     print(f"\n  score={scores['composite']:.4f}  "
+          f"id={scores.get('identity_score', 0):.2f}  "
           f"struct={scores['struct_score']:.2f}  "
           f"eng={scores['english_ratio']:.2f}  "
           f"think={scores['has_think']}  final={scores['has_final']}  "
@@ -370,6 +457,26 @@ def show_trial(model, tok, prompt_ids, params, max_tokens, stop_ids,
 
 # ── Main ──────────────────────────────────────────────────────────────────
 
+def _patch_makefile(makefile_path: Path, bp: dict) -> bool:
+    """Patch Makefile sampling knobs in-place.  Returns True if changed."""
+    if not makefile_path.exists():
+        return False
+    text = makefile_path.read_text()
+    replacements = {
+        r"(TEMP\s+\?=\s*)[^\s#]+":     f"\\g<1>{bp['temperature']:.3f}",
+        r"(TOP_K\s+\?=\s*)[^\s#]+":    f"\\g<1>{bp['top_k']}",
+        r"(TOP_P\s+\?=\s*)[^\s#]+":    f"\\g<1>{bp['top_p']:.3f}",
+        r"(MIN_P\s+\?=\s*)[^\s#]+":    f"\\g<1>{bp['min_p']:.3f}",
+        r"(REP_PEN\s+\?=\s*)[^\s#]+":  f"\\g<1>{bp['rep_pen']:.3f}",
+        r"(PRES_PEN\s+\?=\s*)[^\s#]+": f"\\g<1>{bp['pres_pen']:.3f}",
+        r"(FREQ_PEN\s+\?=\s*)[^\s#]+": f"\\g<1>{bp['freq_pen']:.3f}",
+    }
+    for pattern, repl in replacements.items():
+        text = re.sub(pattern, repl, text)
+    makefile_path.write_text(text)
+    return True
+
+
 def main():
     p = argparse.ArgumentParser(
         description="Hyperparameter tuner for make self (self_awareness mode)",
@@ -378,15 +485,22 @@ def main():
     p.add_argument("--model-path",    default=DEFAULT_MODEL)
     p.add_argument("--tokenizer-path",default=DEFAULT_TOKENIZER)
     p.add_argument("--dtype",         default="bf16", choices=["bf16","fp16","fp32"])
-    p.add_argument("--prompt",        default=DEFAULT_PROMPT)
+    p.add_argument("--prompt",        default=DEFAULT_PROMPT,
+                   help="Single prompt override (default: 'Who are you?')")
+    p.add_argument("--multi-prompt",  action="store_true",
+                   help="Average score over all IDENTITY_PROMPTS instead of one prompt")
     p.add_argument("--max-tokens",    type=int, default=DEFAULT_MAX_TOKENS)
-    p.add_argument("--trials",        type=int, default=96)
+    p.add_argument("--trials",        type=int, default=200)
     p.add_argument("--top-n",         type=int, default=5)
     p.add_argument("--seed",          type=int, default=42)
     p.add_argument("--output",        type=str, default=None)
     p.add_argument("--verbose-top",   type=int, default=3,
                    help="Re-run top-N configs with full output display")
     p.add_argument("--no-seed-think", action="store_true")
+    p.add_argument("--patch-makefile", action="store_true",
+                   help="Auto-patch Makefile with best params when done")
+    p.add_argument("--exact-only", action="store_true",
+                   help="Only show/rank configs where exact 'I am Mamba' phrase appears")
     args = p.parse_args()
 
     # ── Checkpoint ──────────────────────────────────────────────────────
@@ -400,14 +514,24 @@ def main():
     model, tok = load_everything(model_path, args.tokenizer_path, args.dtype)
 
     sys_prompt = resolve_system_prompt("self_awareness", "")
-    prompt_ids, prompt_text = build_prompt_ids(
-        tok, sys_prompt, args.prompt, seed_think=not args.no_seed_think)
+
+    # Build prompt list: single or multi
+    prompts_to_test = IDENTITY_PROMPTS if args.multi_prompt else [args.prompt]
+
+    all_prompt_ids = []
+    for pr in prompts_to_test:
+        ids, _ = build_prompt_ids(tok, sys_prompt, pr, seed_think=not args.no_seed_think)
+        all_prompt_ids.append(ids)
 
     print(f"\n[mode] self_awareness", file=sys.stderr)
-    print(f"[user] {args.prompt}", file=sys.stderr)
+    if args.multi_prompt:
+        print(f"[prompts] {len(prompts_to_test)} identity prompts", file=sys.stderr)
+        for pr in prompts_to_test:
+            print(f"  • {pr}", file=sys.stderr)
+    else:
+        print(f"[user] {args.prompt}", file=sys.stderr)
     print(f"[sys]  {sys_prompt[:80]}...", file=sys.stderr)
-    print(f"[toks] prompt={len(prompt_ids)}  max_gen={args.max_tokens}\n",
-          file=sys.stderr)
+    print(f"[toks] max_gen={args.max_tokens}\n", file=sys.stderr)
 
     stop_ids = []
     for name in ("<|im_end|>", "</s>"):
@@ -426,34 +550,54 @@ def main():
         params["_seed"] = trial_seed
 
         t0 = time.time()
-        try:
-            text = run_one(model, tok, params, prompt_ids, args.max_tokens, stop_ids)
-        except Exception as exc:
-            text = ""
-            print(f"\n  [err] trial {i+1}: {exc}", file=sys.stderr)
+        texts: list[str] = []
+        for pids in all_prompt_ids:
+            try:
+                t = run_one(model, tok, params, pids, args.max_tokens, stop_ids)
+            except Exception as exc:
+                t = ""
+                print(f"\n  [err] trial {i+1}: {exc}", file=sys.stderr)
+            texts.append(t)
         elapsed = time.time() - t0
 
-        scores = score_cot_output(text)
+        # Average scores across prompts (union of keys; missing → 0.0)
+        all_sc = [score_cot_output(tx, check_identity=True) for tx in texts]
+        all_keys = set().union(*all_sc)
+        scores = {
+            k: round(sum(s.get(k, 0.0) for s in all_sc) / len(all_sc), 4)
+            if isinstance(all_sc[0].get(k, 0.0), float) else all_sc[0].get(k)
+            for k in all_keys
+        }
+        # Store the primary-prompt text for display
+        primary_text = texts[0]
+
+        # Check if any exact "I am Mamba" phrase appeared across all texts
+        has_exact_any = any(
+            any(kw in tx.lower() for kw in _IDENTITY_EXACT)
+            for tx in texts
+        )
 
         trials.append({
             "trial":  i + 1,
             "params": {k: v for k, v in params.items() if not k.startswith("_")},
             "scores": scores,
-            "text":   text,
+            "text":   primary_text,
+            "texts":  texts,
             "elapsed": round(elapsed, 2),
             "_seed":  params["_seed"],
+            "has_exact": has_exact_any,
         })
 
         # progress
-        n_bars = 30
+        n_bars = 28
         done = int(n_bars * (i + 1) / args.trials)
         bar = "█" * done + "░" * (n_bars - done)
         sys.stderr.write(
             f"\r[{bar}] {i+1:3d}/{args.trials}  "
             f"comp={scores['composite']:.4f}  "
+            f"id={scores.get('identity_score', 0):.2f}  "
             f"struct={scores['struct_score']:.2f}  "
             f"eng={scores['english_ratio']:.2f}  "
-            f"think={int(scores['has_think'])} fin={int(scores['has_final'])}  "
             f"{elapsed:.1f}s  "
         )
         sys.stderr.flush()
@@ -466,18 +610,28 @@ def main():
     trials.sort(key=lambda r: r["scores"]["composite"], reverse=True)
     best_score = trials[0]["scores"]["composite"]
 
-    W = 70
+    exact_trials = [t for t in trials if t["has_exact"]]
+    n_exact = len(exact_trials)
+
+    W = 72
     print("=" * W)
     print(f"TOP {min(args.top_n, len(trials))} CONFIGS  |  "
           f"make self / self_awareness  |  best={best_score:.4f}")
+    print(f"  'I am Mamba' exact phrase found in: {n_exact}/{len(trials)} trials")
     print("=" * W)
 
-    for rank, t in enumerate(trials[:args.top_n], 1):
+    ranked_list = exact_trials if (args.exact_only and exact_trials) else trials
+    if args.exact_only and exact_trials:
+        print(f"\n[--exact-only] showing only {len(exact_trials)} configs with exact phrase\n")
+
+    for rank, t in enumerate(ranked_list[:args.top_n], 1):
         pa = t["params"]
         sc = t["scores"]
+        exact_flag = "  *** EXACT PHRASE ***" if t["has_exact"] else ""
         print(f"\n── #{rank}  composite={sc['composite']:.4f}  "
+              f"id={sc.get('identity_score',0):.2f}  "
               f"struct={sc['struct_score']:.2f}  eng={sc['english_ratio']:.2f}  "
-              f"final_words={sc['n_words_final']}  {t['elapsed']:.1f}s")
+              f"final_words={sc['n_words_final']}  {t['elapsed']:.1f}s{exact_flag}")
         print(f"   TEMP={pa['temperature']:.3f}  TOP_K={pa['top_k']}  "
               f"TOP_P={pa['top_p']:.3f}  MIN_P={pa['min_p']:.3f}")
         print(f"   REP_PEN={pa['rep_pen']:.3f}  PRES_PEN={pa['pres_pen']:.3f}  "
@@ -485,21 +639,22 @@ def main():
         print(f"   rep3={sc['rep_rate_3']:.3f}  dist2={sc['distinct_2']:.3f}  "
               f"dup={sc['max_dup']}  think={sc['has_think']}  final={sc['has_final']}")
         tx = t["text"]
-        print(f"   text: {tx[:250]}{'...' if len(tx) > 250 else ''}")
+        print(f"   text: {tx[:260]}{'...' if len(tx) > 260 else ''}")
 
     # ── Best config Makefile snippet ─────────────────────────────────────
-    best_trial = trials[0]
+    # Prefer exact-phrase configs; fall back to overall best
+    best_trial = exact_trials[0] if exact_trials else trials[0]
     bp = best_trial["params"]
     print("\n" + "=" * W)
-    print("BEST CONFIG — Makefile defaults (paste lines 25-37)")
+    print("BEST CONFIG — Makefile defaults")
     print("=" * W)
-    print(f"TEMP      ?= {bp['temperature']:.3f}")
-    print(f"TOP_K     ?= {bp['top_k']}")
-    print(f"TOP_P     ?= {bp['top_p']:.3f}")
-    print(f"MIN_P     ?= {bp['min_p']:.3f}")
-    print(f"REP_PEN   ?= {bp['rep_pen']:.3f}")
-    print(f"PRES_PEN  ?= {bp['pres_pen']:.3f}")
-    print(f"FREQ_PEN  ?= {bp['freq_pen']:.3f}")
+    print(f"TEMP      ?= {bp['temperature']:.3f}   # tune_self identity best")
+    print(f"TOP_K     ?= {bp['top_k']}      # tune_self identity best")
+    print(f"TOP_P     ?= {bp['top_p']:.3f}   # tune_self identity best")
+    print(f"MIN_P     ?= {bp['min_p']:.3f}   # tune_self identity best")
+    print(f"REP_PEN   ?= {bp['rep_pen']:.3f}   # tune_self identity best")
+    print(f"PRES_PEN  ?= {bp['pres_pen']:.3f}   # tune_self identity best")
+    print(f"FREQ_PEN  ?= {bp['freq_pen']:.3f}   # tune_self identity best")
     print("=" * W)
 
     # ── Quality check ───────────────────────────────────────────────────
@@ -507,16 +662,27 @@ def main():
         print("\n[!] WARNING: best composite < 0.55 — "
               "quality may be poor, consider more trials", file=sys.stderr)
 
+    # ── Auto-patch Makefile ──────────────────────────────────────────────
+    if args.patch_makefile:
+        mk = Path(__file__).resolve().parent / "Makefile"
+        patched = _patch_makefile(mk, bp)
+        if patched:
+            print(f"\n[patched] {mk}", file=sys.stderr)
+        else:
+            print(f"\n[!] Makefile not found at {mk}", file=sys.stderr)
+
     # ── Verbose re-run of top-N ─────────────────────────────────────────
     num_verbose = min(args.verbose_top, len(trials))
     if num_verbose > 0:
+        primary_ids = all_prompt_ids[0]
         print("\n" + "=" * W)
-        print(f"INDIVIDUAL VERIFICATION — re-running top {num_verbose} config(s)")
+        print(f"INDIVIDUAL VERIFICATION — re-running top {num_verbose} config(s) "
+              f"on: \"{prompts_to_test[0]}\"")
         print("=" * W)
-        for rank, t in enumerate(trials[:num_verbose]):
+        for rank, t in enumerate(ranked_list[:num_verbose]):
             verb_params = dict(t["params"])
             verb_params["_seed"] = t["_seed"]
-            show_trial(model, tok, prompt_ids, verb_params,
+            show_trial(model, tok, primary_ids, verb_params,
                        args.max_tokens, stop_ids,
                        label=f"Config #{rank+1}  (search rank #{rank+1})")
 

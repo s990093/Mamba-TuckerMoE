@@ -1,24 +1,24 @@
 {
-  "total_examples": 37963,
+  "total_examples": 25774,
   "token_len_min": 83,
-  "token_len_mean": 290.3,
+  "token_len_mean": 267.6,
   "token_len_max": 3575,
-  "p50": 286.0,
-  "p90": 405.0,
-  "p95": 449.0,
-  "p99": 598.0,
+  "p50": 244.0,
+  "p90": 404.0,
+  "p95": 461.0,
+  "p99": 637.0,
   "suggested_seq_len": 512,
   "truncation_by_seq_len": {
     "256": {
-      "n_truncated": 22626,
-      "truncation_rate": "59.6%"
+      "n_truncated": 11304,
+      "truncation_rate": "43.9%"
     },
     "512": {
-      "n_truncated": 924,
-      "truncation_rate": "2.4%"
+      "n_truncated": 781,
+      "truncation_rate": "3.0%"
     },
     "768": {
-      "n_truncated": 14,
+      "n_truncated": 11,
       "truncation_rate": "0.0%"
     },
     "1024": {
@@ -44,15 +44,6 @@
       "p95": 513.0,
       "p99": 638.0
     },
-    "emotion": {
-      "count": 10000,
-      "min": 237,
-      "mean": 340.5,
-      "max": 538,
-      "p50": 337.0,
-      "p95": 414.0,
-      "p99": 443.0
-    },
     "math_drill": {
       "count": 200,
       "min": 94,
@@ -61,15 +52,6 @@
       "p50": 102.0,
       "p95": 131.0,
       "p99": 133.0
-    },
-    "movie_intro": {
-      "count": 2189,
-      "min": 123,
-      "mean": 327.4,
-      "max": 808,
-      "p50": 308.0,
-      "p95": 532.0,
-      "p99": 646.0
     },
     "self_awareness": {
       "count": 9755,

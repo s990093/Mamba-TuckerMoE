@@ -110,6 +110,42 @@ _report.json
 memory.md
 distillation/
 
+# Agent / IDE config directories
+.claude/
+.opencode/
+
+# Logs
+*.log
+
+# HuggingFace cache (large model blobs)
+.hf_cache/
+
+# Bob auto-generated error logs
+.bob/
+
+# Checkpoints (model weights — already covered by *.npz, explicit dir for safety)
+checkpoints/
+
+# Profiling scripts (local dev artifacts)
+mamba3_mlx/_profile_*.py
+
+# Tuning result JSONs
+mamba3_mlx/tune_self*_results.json
+mamba3_mlx/*_results.json
+
+# Reference copies / backups (not intended for the repo)
+mamba3_mlx/mlx_model_optimized_backup/
+mamba3_mlx/mlx_model_pure_ref/
+
+# Paper artifacts
+mamba3_mlx/paper/
+
+# Transcripts (generated, large)
+transcripts/
+
+# Portrait images (large binary assets)
+Portrait/
+
 # CoT dataset — large JSON shards & text previews (keep locally; do not commit / push)
 cot_dataset/**/*.json
 cot_dataset/**/*.txt
