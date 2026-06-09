@@ -777,6 +777,150 @@ footer{
   flex-wrap:wrap;gap:8px;
 }
 
+/* ══════════════════════════════════════
+   ARTISTIC ENHANCEMENTS
+══════════════════════════════════════ */
+
+/* ── GRAIN NOISE TEXTURE ── */
+body::after{
+  content:'';position:fixed;inset:0;z-index:9998;
+  pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:.55;
+}
+
+/* ── DOT GRID OVERLAY ── */
+.dot-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:36px 36px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,#000 40%,transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,#000 40%,transparent 100%);
+}
+
+/* ── HERO DECORATIVE RINGS ── */
+.hero-ring{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.045);pointer-events:none}
+.ring-1{width:320px;height:320px;top:50%;left:50%;transform:translate(-50%,-50%);animation:ringPulse 6s ease-in-out infinite}
+.ring-2{width:520px;height:520px;top:50%;left:50%;transform:translate(-50%,-50%);animation:ringPulse 8s 1s ease-in-out infinite}
+.ring-3{width:720px;height:720px;top:50%;left:50%;transform:translate(-50%,-50%);animation:ringPulse 10s 2s ease-in-out infinite}
+@keyframes ringPulse{0%,100%{opacity:.4;transform:translate(-50%,-50%) scale(1)}50%{opacity:.15;transform:translate(-50%,-50%) scale(1.04)}}
+
+/* ── AMBIENT SECTION ORBS ── */
+.amb{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0}
+.amb-coral{background:radial-gradient(circle,rgba(224,90,43,.18),transparent 70%)}
+.amb-blue{background:radial-gradient(circle,rgba(74,141,183,.14),transparent 70%)}
+.amb-green{background:radial-gradient(circle,rgba(45,122,79,.12),transparent 70%)}
+.section{position:relative;overflow:hidden}
+
+/* ── GLASS CARDS ── */
+.arch-card,.td-card,.zone-card,.feat-card,.speed-panel,.jsx-card,.ppl-chart-card,.loss-v2,.res-table-card,.big-stat{
+  background:rgba(255,255,255,.03)!important;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+
+/* ── ANIMATED GRADIENT BORDERS ── */
+.arch-card,.td-card,.feat-card,.big-stat,.jsx-card{
+  position:relative;isolation:isolate;
+}
+.arch-card::after,.td-card::after,.feat-card::after,.big-stat::after,.jsx-card::after{
+  content:'';position:absolute;inset:-1px;border-radius:inherit;z-index:-1;
+  background:conic-gradient(from var(--a,0deg),
+    transparent 40%,rgba(224,90,43,.5) 50%,
+    transparent 60%,rgba(74,141,183,.35) 70%,transparent 80%);
+  animation:none;opacity:0;transition:opacity .35s;
+}
+.arch-card:hover::after,.td-card:hover::after,.feat-card:hover::after,.big-stat:hover::after,.jsx-card.best::after{
+  opacity:1;
+  animation:spinBorder 3s linear infinite;
+}
+@property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes spinBorder{to{--a:360deg}}
+
+/* ── WAVE DIVIDERS ── */
+.wave-div{width:100%;overflow:hidden;line-height:0;display:block;margin:0}
+.wave-div svg{display:block;width:100%}
+
+/* ── GLOW UNDERLINES for section labels ── */
+.section-label::after{
+  content:'';display:block;height:2px;width:0;margin-top:4px;
+  background:linear-gradient(90deg,var(--coral),transparent);
+  transition:width .6s .3s ease;
+}
+.section-label.on::after,.section-label.glow-on::after{width:48px}
+
+/* ── TEXT REVEAL MASK ── */
+.tr-wrap{overflow:hidden;display:inline-block;vertical-align:bottom}
+.tr-inner{display:inline-block;transform:translateY(110%);transition:transform .75s cubic-bezier(.16,1,.3,1)}
+.tr-inner.on{transform:none}
+
+/* ── GLOWING STAT NUMBERS ── */
+.hero-stat .num,.metric-pill .val,.big-stat .num{
+  text-shadow:0 0 20px currentColor;
+  filter:brightness(1.1);
+}
+
+/* ── CARD INNER GLOW ON HOVER ── */
+.arch-card:hover,.td-card:hover,.feat-card:hover{
+  box-shadow:0 0 0 1px rgba(224,90,43,.2),
+             0 20px 60px rgba(0,0,0,.5),
+             inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+
+/* ── SECTION GLOW LINES ── */
+.sgline{
+  width:100%;height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(224,90,43,.35) 35%,rgba(74,141,183,.25) 65%,transparent 100%);
+  margin-bottom:56px;
+  opacity:0;transform:scaleX(0);transition:opacity .8s ease,transform .8s ease;
+  transform-origin:left;
+}
+.sgline.on{opacity:1;transform:scaleX(1)}
+
+/* ── TYPING CURSOR ── */
+.cursor-blink{
+  display:inline-block;width:3px;height:1em;
+  background:var(--coral);margin-left:3px;vertical-align:middle;
+  animation:blink .9s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── METRIC PILL GLOW ── */
+.metric-pill.featured{
+  box-shadow:0 0 0 1px rgba(224,90,43,.25),0 8px 32px rgba(224,90,43,.12);
+  animation:statGlow 4s ease-in-out infinite;
+}
+@keyframes statGlow{
+  0%,100%{box-shadow:0 0 0 1px rgba(224,90,43,.25),0 8px 32px rgba(224,90,43,.12)}
+  50%{box-shadow:0 0 0 1px rgba(224,90,43,.45),0 8px 40px rgba(224,90,43,.25)}
+}
+
+/* ── SECTION NUMBER WATERMARK ── */
+.sec-watermark{
+  position:absolute;top:-30px;right:0;
+  font-size:8rem;font-weight:900;
+  color:rgba(255,255,255,.018);
+  letter-spacing:-.05em;pointer-events:none;
+  line-height:1;user-select:none;
+}
+
+/* ── CUSTOM CURSOR GLOW ── */
+#cursor-glow{
+  position:fixed;width:300px;height:300px;
+  border-radius:50%;pointer-events:none;z-index:9997;
+  background:radial-gradient(circle,rgba(224,90,43,.06) 0%,transparent 70%);
+  transform:translate(-50%,-50%);
+  transition:opacity .3s;
+  will-change:transform;
+}
+
+/* ── SCROLL PROGRESS ── */
+#progress-bar{height:2px}
+
+/* ── ACTIVE NAV INDICATOR ── */
+.nav-links a.active{color:#fff}
+.nav-links a.active::after{content:'';display:block;height:2px;background:var(--coral);margin-top:2px;border-radius:1px}
+
 /* ── MOBILE NAV DRAWER ── */
 #mobile-menu{
   position:fixed;inset:0;z-index:200;
@@ -870,18 +1014,26 @@ footer{
   </button>
 </nav>
 
+<!-- CURSOR GLOW -->
+<div id="cursor-glow"></div>
+
 <!-- HERO -->
 <section id="hero">
   <canvas id="bg-canvas"></canvas>
+  <div class="dot-grid"></div>
   <div class="hero-glow-1"></div>
   <div class="hero-glow-2"></div>
+  <div class="hero-ring ring-1"></div>
+  <div class="hero-ring ring-2"></div>
+  <div class="hero-ring ring-3"></div>
   <div class="hero-inner">
     <div class="hero-eyebrow">
       <span class="hero-eyebrow-dot"></span>
       ICLR 2026 · Apple Silicon Research
     </div>
-    <h1 class="hero-title">
-      Breaking the<br><span class="grad">Memory Wall</span>
+    <h1 class="hero-title" id="hero-title">
+      <span class="tr-wrap"><span class="tr-inner" id="ht1">Breaking the</span></span><br>
+      <span class="tr-wrap"><span class="tr-inner grad" id="ht2">Memory Wall</span></span>
     </h1>
     <p class="hero-sub">Hybrid Mamba-3 + Tucker-decomposed Mixture-of-Experts — 2.4B dense-equivalent capacity at only 417M parameters, designed for compute-bound inference on Apple Silicon.</p>
 
@@ -929,8 +1081,13 @@ footer{
   </div>
 </section>
 
+<!-- wave -->
+<div class="wave-div"><svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,24 C360,48 1080,0 1440,24 L1440,48 L0,48Z" fill="rgba(255,255,255,0.012)"/></svg></div>
+
 <!-- ARCHITECTURE -->
 <section id="arch" class="section">
+  <div class="amb amb-blue" style="width:500px;height:500px;top:-100px;right:-100px;opacity:.6"></div>
+  <div class="sec-watermark">01</div>
   <div class="section-inner">
     <div class="r">
       <div class="section-label">Architecture</div>
@@ -1032,8 +1189,14 @@ footer{
   </div>
 </section>
 
+<!-- wave -->
+<div class="wave-div"><svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,0 C480,48 960,0 1440,32 L1440,48 L0,48Z" fill="rgba(13,26,26,1)"/></svg></div>
+
 <!-- TUCKER DECOMP -->
 <section id="tucker" class="section section-alt">
+  <div class="amb amb-coral" style="width:600px;height:600px;bottom:-150px;left:-150px;opacity:.5"></div>
+  <div class="amb amb-blue" style="width:400px;height:400px;top:100px;right:-50px;opacity:.4"></div>
+  <div class="sec-watermark">02</div>
   <div class="section-inner">
     <div class="rl">
       <div class="section-label">Tucker Decomposition</div>
@@ -1293,8 +1456,13 @@ footer{
   </div>
 </section>
 
+<!-- wave -->
+<div class="wave-div"><svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,32 C360,0 1080,48 1440,16 L1440,0 L0,0Z" fill="rgba(255,255,255,0.01)"/></svg></div>
+
 <!-- TRAINING -->
 <section id="training" class="section">
+  <div class="amb amb-green" style="width:500px;height:500px;top:0;right:10%;opacity:.5"></div>
+  <div class="sec-watermark">03</div>
   <div class="section-inner">
     <div class="training-layout">
       <div>
@@ -1435,8 +1603,14 @@ footer{
   </div>
 </section>
 
+<!-- wave -->
+<div class="wave-div"><svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,16 C480,48 960,0 1440,32 L1440,0 L0,0Z" fill="rgba(255,255,255,0.01)"/></svg></div>
+
 <!-- JACOBI DECODING -->
 <section id="jacobi" class="section section-alt">
+  <div class="amb amb-coral" style="width:600px;height:600px;top:5%;left:-5%;opacity:.4"></div>
+  <div class="amb amb-blue" style="width:400px;height:400px;bottom:10%;right:5%;opacity:.45"></div>
+  <div class="sec-watermark" style="right:2%;top:4%">04</div>
   <div class="section-inner">
     <div class="r">
       <div class="section-label">Speculative Decoding</div>
@@ -1598,8 +1772,14 @@ footer{
   </div>
 </section>
 
+<!-- wave -->
+<div class="wave-div"><svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,32 C360,0 1080,48 1440,16 L1440,0 L0,0Z" fill="rgba(255,255,255,0.01)"/></svg></div>
+
 <!-- INFERENCE -->
 <section id="inference" class="section section-alt">
+  <div class="amb amb-blue" style="width:550px;height:550px;top:0;right:0%;opacity:.45"></div>
+  <div class="amb amb-green" style="width:350px;height:350px;bottom:5%;left:5%;opacity:.4"></div>
+  <div class="sec-watermark" style="left:2%;bottom:8%">05</div>
   <div class="section-inner">
     <div class="r">
       <div class="section-label">MLX Inference</div>
@@ -1678,8 +1858,14 @@ footer{
   </div>
 </section>
 
+<!-- wave -->
+<div class="wave-div"><svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,16 C480,48 960,0 1440,32 L1440,0 L0,0Z" fill="rgba(255,255,255,0.01)"/></svg></div>
+
 <!-- RESULTS -->
 <section id="results" class="section">
+  <div class="amb amb-coral" style="width:500px;height:500px;top:0;right:15%;opacity:.4"></div>
+  <div class="amb amb-green" style="width:400px;height:400px;bottom:5%;left:5%;opacity:.35"></div>
+  <div class="sec-watermark" style="right:2%;top:5%">06</div>
   <div class="section-inner">
     <div class="r">
       <div class="section-label">Results</div>
@@ -2016,6 +2202,43 @@ document.querySelectorAll('.arch-card,.feat-card,.big-stat,.metric-pill').forEac
     card.style.transform='';
   });
 });
+
+/* ── CURSOR GLOW ── */
+const cursorGlow=document.getElementById('cursor-glow');
+if(cursorGlow){
+  document.addEventListener('mousemove',e=>{
+    cursorGlow.style.left=(e.clientX-150)+'px';
+    cursorGlow.style.top=(e.clientY-150)+'px';
+  },{passive:true});
+}
+
+/* ── SPLIT-TEXT HERO TITLE ── */
+(function triggerHeroText(){
+  const els=document.querySelectorAll('.tr-inner');
+  function activate(){els.forEach((el,i)=>{setTimeout(()=>el.classList.add('on'),i*180+120);})}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',activate);
+  else activate();
+})();
+
+/* ── SECTION-LABEL GLOW ON SCROLL ── */
+const labelObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('glow-on');});
+},{threshold:0.4});
+document.querySelectorAll('.section-label').forEach(el=>labelObs.observe(el));
+
+/* ── ACTIVE NAV HIGHLIGHT ── */
+const navLinks=document.querySelectorAll('nav a[href^="#"]');
+const sections=[...document.querySelectorAll('section[id]')];
+const navObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      navLinks.forEach(a=>a.classList.remove('active'));
+      const active=document.querySelector(`nav a[href="#${e.target.id}"]`);
+      if(active)active.classList.add('active');
+    }
+  });
+},{rootMargin:'-40% 0px -55% 0px'});
+sections.forEach(s=>navObs.observe(s));
 </script>
 </body>
 </html>
