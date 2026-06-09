@@ -1,850 +1,996 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      /* ── Universal Academic Palette (Q1 Journal Standard) ──────────────────────────── */
-      :root {
-        --deep-navy: #2f4f4f; /* 深海军蓝 — main titles, critical borders, strong emphasis */
-        --gray-blue: #5c7a99; /* 莫兰迪灰蓝 — Mamba blocks, secondary architecture, general items */
-        --soft-purple: #5c7a99; /* 莫兰迪灰蓝 — replace purple, unified muted tone */
-        --mustard-gold: #de5a28; /* 学术橘 — Tucker core, key data highlights, critical comparisons */
-        --rust-red: #de5a28; /* 学术橘 — warnings, contrast, focal accent */
-        --deep-green: #2d5f3d; /* 深森林绿 — positive results, keep muted */
-        --ice-blue: #f4f7f9; /* 极淺冰藍灰 — large cold backgrounds, minimal visual noise */
-        --sand-beige: #ffffff; /* 純白 — small warm backgrounds, clean minimal */
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid Mamba-TuckerMoE — Breaking the Memory Wall</title>
+<style>
+/* ═══ VARIABLES & RESET ═══ */
+:root {
+  --navy: #2F4F4F;
+  --coral: #DE5A28;
+  --blue: #5C7A99;
+  --green: #1B5E34;
+  --ice: #F4F7F9;
+  --white: #FFFFFF;
+  --text: #2D3748;
+  --muted: #718096;
+  --border: rgba(47,79,79,0.15);
+  --radius: 12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:var(--text);background:var(--white);overflow-x:hidden}
 
-        /* Legacy aliases for compatibility */
-        --navy: #2f4f4f;
-        --burg: #de5a28;
-        --bg: #ffffff;
-        --card: #ffffff;
-        --tx: #333333;
-        --mu: #5c7a99;
-        --bo: #5c7a99;
-      }
-      @page {
-        size: A0 portrait;
-        margin: 0;
-      }
-      @media screen {
-        html {
-          background: #b0b8c8;
-          padding: 12px;
-        }
-        .pw {
-          transform: scale(0.45);
-          transform-origin: top left;
-        }
-      }
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        font-family: "Times New Roman", Times, Georgia, serif;
-        color: #333333;
-        font-size: 28.6pt;
-      }
+/* ═══ NAV ═══ */
+nav{position:fixed;top:0;left:0;right:0;height:60px;z-index:999;background:rgba(47,79,79,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 28px;gap:20px;transition:background .3s}
+nav .brand{font-weight:800;color:#fff;font-size:15px;letter-spacing:.02em;margin-right:auto;text-decoration:none;display:flex;align-items:center;gap:8px}
+nav .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--coral);display:inline-block}
+nav a:not(.brand){color:rgba(255,255,255,.65);text-decoration:none;font-size:13px;font-weight:500;transition:color .2s;white-space:nowrap}
+nav a:not(.brand):hover{color:var(--coral)}
+.nav-btn{background:var(--coral)!important;color:#fff!important;padding:6px 14px;border-radius:6px;font-weight:600!important}
+.nav-btn:hover{background:#c94e22!important}
+.nav-mobile-toggle{display:none;background:none;border:none;cursor:pointer;padding:6px}
+.nav-mobile-toggle span{display:block;width:22px;height:2px;background:#fff;margin:4px 0;transition:.3s}
 
-      /* ── POSTER SHELL ── */
-      .poster {
-        width: 841mm;
-        height: 1189mm;
-        padding: 12mm 16mm 10mm 16mm;
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        overflow: hidden;
-        background: var(--bg);
-      }
+/* ═══ HERO ═══ */
+#hero{position:relative;height:100vh;min-height:600px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--navy)}
+#particle-canvas{position:absolute;inset:0;width:100%;height:100%}
+.hero-content{position:relative;z-index:2;text-align:center;padding:0 24px;max-width:920px}
+.hero-badge{display:inline-block;background:rgba(222,90,40,.18);border:1px solid rgba(222,90,40,.45);color:#FF8A65;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 14px;border-radius:20px;margin-bottom:22px;animation:fadeSlideDown .8s ease both}
+.hero-title{font-size:clamp(2rem,5.5vw,3.8rem);font-weight:800;color:#fff;line-height:1.08;margin-bottom:18px;letter-spacing:-.03em;animation:fadeSlideDown .8s .15s ease both}
+.hero-title .accent{color:var(--coral)}
+.hero-sub{font-size:clamp(.95rem,2vw,1.2rem);color:rgba(255,255,255,.6);margin-bottom:40px;max-width:680px;margin-left:auto;margin-right:auto;line-height:1.65;animation:fadeSlideDown .8s .3s ease both}
+.hero-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:36px;animation:fadeSlideDown .8s .45s ease both}
+.hero-stat{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);border-radius:10px;padding:14px 18px;min-width:110px;backdrop-filter:blur(8px);transition:transform .25s,border-color .25s,background .25s;cursor:default}
+.hero-stat:hover{transform:translateY(-5px);border-color:rgba(222,90,40,.5);background:rgba(222,90,40,.08)}
+.hero-stat .num{font-size:1.7rem;font-weight:800;color:#fff;display:block;line-height:1;font-variant-numeric:tabular-nums}
+.hero-stat .label{font-size:.65rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.09em;margin-top:5px;display:block}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;animation:fadeSlideDown .8s .6s ease both}
+.btn{padding:11px 22px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.btn-primary{background:var(--coral);color:#fff}
+.btn-primary:hover{background:#c94e22}
+.btn-outline{background:transparent;border:1.5px solid rgba(255,255,255,.3);color:#fff}
+.btn-outline:hover{border-color:rgba(255,255,255,.7)}
+.scroll-ind{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:5px;color:rgba(255,255,255,.35);font-size:10px;letter-spacing:.1em;text-transform:uppercase;animation:bounce 2.2s infinite}
+.scroll-ind svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
 
-      /* ── HEADER ── */
-      .hdr {
-        display: flex;
-        align-items: flex-start;
-        gap: 8mm;
-        padding-bottom: 4.5mm;
-        border-bottom: 3.5px solid var(--deep-navy);
-        margin-bottom: 4.5mm;
-        flex-shrink: 0;
-        background: transparent;
-      }
-      .logo {
-        width: 48mm;
-        height: 48mm;
-        object-fit: contain;
-        flex-shrink: 0;
-        margin-top: 2mm;
-      }
-      .hb {
-        flex: 1;
-        text-align: center;
-      }
-      .ht {
-        font-size: 62.4pt;
-        font-weight: 800;
-        color: var(--deep-navy);
-        line-height: 1.08;
-        margin-bottom: 1.5mm;
-        letter-spacing: -0.3pt;
-        text-align: center;
-      }
-      .hv {
-        font-size: 41.6pt;
-        font-weight: 700;
-        color: #de5a28;
-        letter-spacing: 0.8pt;
-        margin-bottom: 2.5mm;
-        text-align: center;
-      }
-      .hauth {
-        display: flex;
-        gap: 0;
-        overflow: hidden;
-      }
-      .hau {
-        flex: 1;
-        padding: 2.5mm 3.5mm;
-        font-size: 16.9pt;
-        line-height: 1.38;
-        background: #ffffff;
-        text-align: center;
-      }
-      .hau .nm {
-        font-size: 31.2pt;
-        font-weight: 700;
-        color: var(--deep-navy);
-        display: block;
-        margin-bottom: 1.5mm;
-      }
-      .hau .af {
-        font-size: 20.8pt;
-        color: var(--mu);
-        display: block;
-        line-height: 1.38;
-      }
-      .hau .em {
-        font-size: 18.2pt;
-        color: var(--rust-red);
-        display: block;
-        margin-top: 1.5mm;
-      }
+/* ═══ SECTIONS ═══ */
+section{padding:88px 0}
+section:nth-child(even){background:var(--ice)}
+.container{max-width:1200px;margin:0 auto;padding:0 28px}
+.sec-head{margin-bottom:48px}
+.sec-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--coral);margin-bottom:10px}
+.sec-title{font-size:clamp(1.7rem,3.2vw,2.6rem);font-weight:800;color:var(--navy);line-height:1.18;margin-bottom:14px;letter-spacing:-.025em}
+.sec-desc{font-size:1rem;color:var(--muted);max-width:650px;line-height:1.7}
 
-      /* ── PIPELINE ── */
-      .pipe-wrap {
-        flex-shrink: 0;
-        margin-bottom: 5mm;
-      }
-      .pipe {
-        display: flex;
-        border-radius: 6px;
-        overflow: hidden;
-        border: 2px solid var(--deep-navy);
-      }
-      .pp {
-        flex: 1;
-        padding: 2.5mm 3.5mm;
-        font-size: 19.5pt;
-        line-height: 1.3;
-        border-right: 2px solid var(--gray-blue);
-      }
-      .pp:last-child {
-        border-right: none;
-      }
-      .pp b {
-        display: block;
-        font-size: 21.4pt;
-        font-weight: 700;
-        border-bottom: 2px solid var(--gray-blue);
-        padding-bottom: 0.8mm;
-        margin-bottom: 0.8mm;
-        color: var(--deep-navy);
-      }
-      .pp,
-      .pp * {
-        color: var(--deep-navy);
-      }
-      /* Flat design with universal palette */
-      .pp.amber {
-        background: #fef3c7;
-        border-right-color: #d97706;
-      }
-      .pp.blue {
-        background: var(--ice-blue);
-        border-right-color: var(--gray-blue);
-      }
-      .pp.green {
-        background: #d1fae5;
-        border-right-color: var(--deep-green);
-      }
-      .pp.purple {
-        background: #f3e8ff;
-        border-right-color: var(--soft-purple);
-      }
-      .pp.out {
-        background: var(--sand-beige);
-        border-right-color: var(--mustard-gold);
-      }
+/* ═══ ARCHITECTURE ═══ */
+.pipeline-wrap{overflow-x:auto;padding:24px 0 8px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.pipeline{display:flex;align-items:center;gap:0;min-width:max-content}
+.pipe-block{flex-shrink:0;border:1.5px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;min-width:90px;font-size:.78rem;font-weight:600;color:var(--navy);transition:transform .2s,box-shadow .2s;background:var(--white);line-height:1.35}
+.pipe-block:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(47,79,79,.1)}
+.pipe-block.embed-b{background:rgba(47,79,79,.08);border-color:var(--navy)}
+.pipe-block.mamba-b{background:rgba(92,122,153,.12);border-color:var(--blue)}
+.pipe-block.xfm-b{background:rgba(27,94,52,.1);border-color:var(--green)}
+.pipe-block.moe-b{background:rgba(222,90,40,.1);border-color:var(--coral)}
+.pipe-arrow{width:28px;flex-shrink:0;text-align:center;color:var(--muted);font-size:1.1rem}
+.arch-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:32px}
+.arch-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:28px;position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s}
+.arch-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+.arch-card.mamba::before{background:var(--blue)}
+.arch-card.tucker::before{background:var(--coral)}
+.arch-card:hover{transform:translateY(-6px);box-shadow:0 20px 48px rgba(47,79,79,.1)}
+.arch-card h3{font-size:1.15rem;font-weight:700;color:var(--navy);margin-bottom:8px}
+.arch-card p{color:var(--muted);font-size:.88rem;line-height:1.62;margin-bottom:16px}
+.arch-tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{background:var(--ice);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;color:var(--navy);font-family:'SF Mono','Fira Code',monospace}
+.tag.accent{background:rgba(222,90,40,.09);border-color:rgba(222,90,40,.3);color:var(--coral)}
+.tag.blue{background:rgba(92,122,153,.09);border-color:rgba(92,122,153,.3);color:var(--blue)}
+.tag.green{background:rgba(27,94,52,.09);border-color:rgba(27,94,52,.3);color:var(--green)}
 
-      /* ── COLUMNS ── */
-      .cols {
-        flex: 1;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12mm;
-        min-height: 0;
-        align-items: stretch;
-      }
-      .col {
-        display: flex;
-        flex-direction: column;
-        gap: 4.5mm;
-      }
-      [id^="slot-"] {
-        display: contents;
-      }
+/* ═══ TUCKER SECTION ═══ */
+.tucker-layout{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+.tucker-eq{background:var(--navy);color:#fff;border-radius:var(--radius);padding:22px 24px;margin-bottom:24px;font-family:'SF Mono','Fira Code',monospace;font-size:1rem;line-height:1.6;letter-spacing:.01em;overflow-x:auto}
+.tucker-eq .comment{color:rgba(255,255,255,.4);font-style:italic}
+.perf-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.perf-label{min-width:130px;font-size:.85rem;font-weight:600;color:var(--navy)}
+.perf-track{flex:1;height:9px;background:var(--ice);border-radius:100px;overflow:hidden;border:1px solid var(--border)}
+.perf-fill{height:100%;border-radius:100px;width:0;transition:width 1.3s cubic-bezier(.25,0,0,1)}
+.perf-fill.tucker{background:var(--coral)}
+.perf-fill.svd{background:var(--blue)}
+.perf-fill.dense{background:rgba(47,79,79,.25)}
+.perf-val{min-width:80px;text-align:right;font-weight:700;font-size:.85rem;color:var(--navy)}
+.tucker-vis-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:28px}
+.tucker-vis-card h4{font-size:1rem;font-weight:700;color:var(--navy);margin-bottom:16px}
+.decomp-svg{width:100%;overflow:visible}
+/* Animated decomposition */
+.decomp-part{opacity:0;transform-origin:center;animation:none}
+.decomp-part.visible{animation:popIn .5s ease both}
+@keyframes popIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
 
-      /* ── SECTION CARDS ── */
-      .sec {
-        border-radius: 6px;
-        overflow: hidden;
-        background: var(--card);
-        border: 2.5px solid var(--gray-blue);
-        box-shadow: none;
-      }
-      .sec.s {
-        background: var(--ice-blue);
-      }
+/* ═══ TRAINING SECTION ═══ */
+.training-layout{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+.timeline{position:relative;padding-left:36px}
+.timeline::before{content:'';position:absolute;left:10px;top:8px;bottom:8px;width:2px;background:linear-gradient(to bottom,var(--blue),var(--green),var(--coral))}
+.tl-item{position:relative;padding-bottom:36px}
+.tl-item:last-child{padding-bottom:0}
+.tl-dot{position:absolute;left:-32px;top:5px;width:16px;height:16px;border-radius:50%;border:2.5px solid var(--white);box-shadow:0 0 0 2px currentColor}
+.tl-item.s1 .tl-dot{background:var(--blue);color:var(--blue)}
+.tl-item.s2 .tl-dot{background:var(--green);color:var(--green)}
+.tl-item.s3 .tl-dot{background:var(--coral);color:var(--coral)}
+.tl-stage{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.tl-name{font-size:1.05rem;font-weight:700;color:var(--navy);margin-bottom:6px}
+.tl-tokens{font-size:1.6rem;font-weight:800;color:var(--coral);line-height:1;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.tl-desc{font-size:.865rem;color:var(--muted);line-height:1.58}
+.ppl-badge{display:inline-block;background:rgba(47,79,79,.09);border:1px solid rgba(47,79,79,.2);color:var(--navy);font-weight:700;font-size:.75rem;padding:2px 8px;border-radius:4px;margin-left:8px}
+.loss-card{background:var(--navy);color:#fff;border-radius:var(--radius);padding:24px 26px}
+.loss-card h4{font-size:.9rem;font-weight:700;margin-bottom:14px;color:rgba(255,255,255,.8);letter-spacing:.04em;text-transform:uppercase}
+.loss-eq{font-family:'SF Mono','Fira Code',monospace;font-size:.82rem;line-height:1.7;color:rgba(255,255,255,.85)}
+.loss-eq .hl{color:#FF8A65}
+.loss-eq .hl2{color:#87CEEB}
+.loss-weight-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.loss-weight-row:last-child{border-bottom:none}
+.lw-label{min-width:80px;font-size:.78rem;color:rgba(255,255,255,.55)}
+.lw-bar{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden}
+.lw-fill{height:100%;border-radius:100px;background:var(--coral)}
+.lw-val{font-size:.78rem;font-weight:700;color:rgba(255,255,255,.7)}
 
-      /* ── SECTION HEADERS — flat design with deep navy ── */
-      .sh,
-      .sh.green,
-      .sh.blue,
-      .sh.purple,
-      .sh.red {
-        font-family: Helvetica, Arial, sans-serif;
-        font-size: 39pt;
-        font-weight: 700;
-        color: var(--deep-navy);
-        padding: 2.5mm 5mm 2mm 8mm;
-        margin: 0;
-        line-height: 1.15;
-        background: var(--ice-blue);
-        border-left: 6px solid var(--deep-navy);
-        border-bottom: 2px solid var(--gray-blue);
-        letter-spacing: -0.2pt;
-      }
+/* ═══ INFERENCE SECTION ═══ */
+.infer-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:32px}
+.speed-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:26px}
+.speed-card h4{font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:10px}
+.spd-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.spd-label{min-width:150px;font-size:.82rem;font-weight:600;color:var(--navy);line-height:1.3}
+.spd-track{flex:1;height:7px;background:var(--ice);border-radius:100px;overflow:hidden}
+.spd-fill{height:100%;border-radius:100px;width:0;transition:width 1.4s cubic-bezier(.25,0,0,1)}
+.spd-fill.coral{background:var(--coral)}
+.spd-fill.blue{background:var(--blue)}
+.spd-fill.green{background:var(--green)}
+.spd-val{min-width:65px;text-align:right;font-weight:700;font-size:.82rem;color:var(--navy)}
+.chip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.chip-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 16px;text-align:center;transition:transform .2s}
+.chip-card:hover{transform:translateY(-4px)}
+.chip-icon{font-size:1.5rem;margin-bottom:8px;display:block}
+.chip-name{font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:4px}
+.chip-desc{font-size:.73rem;color:var(--muted);line-height:1.4}
 
-      .sc {
-        padding: 2mm 4mm;
-      }
-      .svgw {
-        width: 100%;
-        display: block;
-      }
-      .svgw svg {
-        width: 100%;
-        height: auto;
-        display: block;
-      }
+/* ═══ RESULTS SECTION ═══ */
+.stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:40px}
+.stat-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 14px;text-align:center;transition:transform .25s,box-shadow .25s}
+.stat-card:hover{transform:translateY(-5px);box-shadow:0 12px 32px rgba(47,79,79,.1)}
+.stat-card.hl-coral{border-color:var(--coral)}
+.stat-card.hl-green{border-color:var(--green)}
+.stat-num{font-size:1.9rem;font-weight:800;color:var(--navy);display:block;line-height:1;font-variant-numeric:tabular-nums}
+.stat-num.c{color:var(--coral)}
+.stat-num.g{color:var(--green)}
+.stat-label{font-size:.72rem;color:var(--muted);margin-top:6px;line-height:1.42}
+.table-wrap{border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.table-head{background:var(--navy);color:#fff;padding:10px 16px;font-size:.85rem;font-weight:700;text-align:center}
+table.mem-t{width:100%;border-collapse:collapse;font-size:.875rem}
+table.mem-t th{background:var(--navy);color:#fff;padding:9px 12px;text-align:center;font-weight:600;font-size:.8rem;white-space:nowrap}
+table.mem-t td{padding:9px 12px;text-align:center;border-bottom:1px solid var(--border)}
+table.mem-t tr:last-child td{border-bottom:none}
+table.mem-t tr:nth-child(even) td{background:rgba(244,247,249,.6)}
+table.mem-t .bad{color:var(--coral);font-weight:700}
+table.mem-t .good{color:var(--blue);font-weight:700}
+table.mem-t .best{background:var(--green)!important;color:#fff!important;font-weight:800}
+table.mem-t tr:hover td{background:rgba(47,79,79,.04)}
+.speedup-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.speedup-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:20px}
+.speedup-card h4{font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:14px}
+.sx-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.sx-row:last-child{border-bottom:none}
+.sx-k{font-weight:700;color:var(--navy);font-family:monospace}
+.sx-val{font-weight:700}
+.sx-val.good{color:var(--green)}
+.sx-val.best{color:var(--coral);font-size:1rem}
+.sx-val.bad{color:var(--muted)}
 
-      /* ── STAT BOXES ── */
-      .ks3 {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 2.5mm;
-      }
-      .ks2 {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2.5mm;
-      }
-      .sb {
-        background: var(--sand-beige);
-        border: 2px solid var(--gray-blue);
-        border-radius: 5px;
-        padding: 2.5mm 3mm;
-        text-align: center;
-        border-top: 3px solid var(--deep-navy);
-      }
-      .sn {
-        font-size: 62.4pt;
-        font-weight: 800;
-        color: var(--rust-red);
-        line-height: 1;
-        display: block;
-      }
-      .sl {
-        font-size: 19.5pt;
-        color: var(--mu);
-        line-height: 1.3;
-        display: block;
-        margin-top: 0.8mm;
-      }
+/* ═══ FOOTER ═══ */
+footer{background:var(--navy);color:rgba(255,255,255,.65);padding:56px 0 28px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:48px;margin-bottom:36px}
+footer h4{color:#fff;font-size:.88rem;font-weight:700;margin-bottom:12px;letter-spacing:.04em}
+footer p{font-size:.83rem;line-height:1.65}
+footer a{color:rgba(255,255,255,.55);text-decoration:none;font-size:.83rem;display:block;margin-bottom:7px;transition:color .2s}
+footer a:hover{color:var(--coral)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.09);padding-top:20px;display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:rgba(255,255,255,.35);flex-wrap:wrap;gap:8px}
 
-      /* ── FIGURES ── */
-      .figph {
-        background: var(--ice-blue);
-        border: 2px dashed var(--gray-blue);
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        color: var(--mu);
-        font-size: 19.5pt;
-        font-style: italic;
-        padding: 5mm;
-      }
-      .figimg {
-        width: 100%;
-        border-radius: 4px;
-        border: 2px solid var(--gray-blue);
-        display: block;
-      }
-      .fc {
-        font-size: 19.5pt;
-        color: var(--mu);
-        margin-top: 1.5mm;
-        font-style: italic;
-        padding: 0 3mm 2mm;
-      }
+/* ═══ REVEAL ANIMATIONS ═══ */
+.reveal,.reveal-l,.reveal-r{transition:opacity .75s ease,transform .75s ease}
+.reveal{opacity:0;transform:translateY(30px)}
+.reveal-l{opacity:0;transform:translateX(-30px)}
+.reveal-r{opacity:0;transform:translateX(30px)}
+.reveal.in,.reveal-l.in,.reveal-r.in{opacity:1;transform:none}
+.d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}.d4{transition-delay:.4s}.d5{transition-delay:.5s}
 
-      /* ── TABLE ── */
-      table.t {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 19.5pt;
-      }
-      table.t th {
-        background: var(--ice-blue);
-        color: var(--deep-navy);
-        font-weight: 700;
-        padding: 1.8mm 3mm;
-        border-bottom: 2px solid var(--gray-blue);
-        text-align: left;
-      }
-      table.t td {
-        padding: 1.4mm 3mm;
-        border-bottom: 1px solid var(--gray-blue);
-      }
-      table.t tr:last-child td {
-        border-bottom: none;
-      }
-      table.t .hl {
-        color: var(--rust-red);
-        font-weight: 700;
-      }
+/* ═══ KEYFRAMES ═══ */
+@keyframes fadeSlideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-7px)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
-      /* ── MISC ── */
-      .hr {
-        border: none;
-        border-top: 2px solid var(--gray-blue);
-        margin: 3mm 0;
-      }
-      .qrrow {
-        display: flex;
-        align-items: center;
-        gap: 5mm;
-      }
-      .qrbox {
-        width: 44mm;
-        height: 44mm;
-        flex-shrink: 0;
-        background: var(--ice-blue);
-        border: 2px solid var(--gray-blue);
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        font-size: 18.2pt;
-        color: var(--mu);
-        font-style: italic;
-      }
-      .qt {
-        font-size: 22.1pt;
-        color: var(--mu);
-        line-height: 1.45;
-      }
-      .qt strong {
-        color: var(--deep-navy);
-      }
-      .acc {
-        color: var(--rust-red);
-        font-weight: 700;
-      }
-      ul.bl {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-      ul.bl li {
-        position: relative;
-        padding-left: 7mm;
-        margin-bottom: 2mm;
-        font-size: 24.7pt;
-        line-height: 1.4;
-      }
-      ul.bl li::before {
-        content: "▸";
-        position: absolute;
-        left: 0;
-        top: 0.05em;
-        color: var(--rust-red);
-        font-size: 22.1pt;
-      }
-      ul.bl li strong {
-        color: var(--deep-navy);
-      }
-      .loading {
-        color: var(--mu);
-        font-size: 19.5pt;
-        font-style: italic;
-        padding: 5mm;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="pw">
-      <div class="poster">
-        <!-- ═══ HEADER ═══ -->
-        <header class="hdr">
-          <!-- LEFT — NKUST logo -->
-          <img
-            class="logo"
-            src="assets/NKUST_Logo.png"
-            alt="NKUST"
-            onerror="this.style.visibility = 'hidden'"
-          />
-          <div class="hb">
-            <div class="ht">
-              Hybrid Mamba-TuckerMoE for On-Device LLM Inference
-            </div>
-            <div class="hv">
-              Joint Tucker Decomposition MoE &middot; Multi-Strategy Speculative
-              Decoding &middot; Resource-Constrained Devices
-            </div>
-            <div class="hauth">
-              <div class="hau">
-                <span class="nm"
-                  >Hung-Wei Lai · Hsin-An Lan · Chun-Ming Hsu · Yu-Han Lu</span
-                >
-                <span class="af"
-                  >Department of Computer Science and Information Engineering,
-                  National Kaohsiung University of Science and Technology,
-                  Kaohsiung, Taiwan</span
-                >
-              </div>
-            </div>
-          </div>
-          <!-- RIGHT — QR code with caption -->
-          <div
-            style="
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: flex-start;
-              gap: 1.5mm;
-              flex-shrink: 0;
-              width: 48mm;
-              margin-top: 2mm;
-            "
-          >
-            <img
-              src="assets/qrcode.png"
-              alt="QR code"
-              style="width: 42mm; height: 42mm; object-fit: contain"
-              onerror="this.style.visibility = 'hidden'"
-            />
-            <div
-              style="
-                font-family: &quot;Times New Roman&quot;, Times, serif;
-                font-size: 11.5pt;
-                font-weight: 700;
-                color: #2f4f4f;
-                text-align: center;
-                line-height: 1.2;
-                letter-spacing: 0.2px;
-              "
-            >
-              web &amp; source code
-            </div>
-          </div>
-        </header>
+/* ═══ RWD ═══ */
+@media(max-width:1024px){
+  .tucker-layout,.training-layout{grid-template-columns:1fr}
+  .infer-grid{grid-template-columns:1fr}
+  .speedup-wrap{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:768px){
+  section{padding:60px 0}
+  nav a:not(.brand):not(.nav-btn){display:none}
+  .arch-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .chip-grid{grid-template-columns:1fr 1fr}
+  .footer-grid{grid-template-columns:1fr;gap:28px}
+  .footer-bottom{flex-direction:column}
+  .hero-stats{gap:8px}
+  .hero-stat{min-width:95px;padding:12px 12px}
+  .hero-stat .num{font-size:1.45rem}
+  .perf-label{min-width:100px;font-size:.78rem}
+  table.mem-t th,table.mem-t td{padding:7px 8px;font-size:.78rem}
+}
+@media(max-width:480px){
+  .hero-title{font-size:1.85rem}
+  .hero-stats{justify-content:center}
+  .hero-stat{min-width:80px;padding:10px 10px}
+  .hero-stat .num{font-size:1.25rem}
+  .hero-cta{flex-direction:column;align-items:center}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .chip-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
 
-        <!-- ═══ PROBLEMS → SOLUTIONS ═══ -->
-        <div style="margin-bottom: 4mm">
-          <div
-            style="
-              border: 2px solid #2f4f4f;
-              border-radius: 7px;
-              overflow: hidden;
-              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            "
-          >
-            <svg
-              style="width: 100%; display: block"
-              viewBox="0 0 840 90"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <!-- Header band — deep teal-gray -->
-              <rect x="0" y="0" width="840" height="18" fill="#2F4F4F" />
-              <text
-                x="420"
-                y="12.5"
-                text-anchor="middle"
-                font-size="9.5"
-                fill="white"
-                font-weight="800"
-                font-family="Helvetica"
-                letter-spacing="1.8"
-              >
-                LLM INFERENCE BOTTLENECKS
-              </text>
-              <text
-                x="820"
-                y="12.5"
-                text-anchor="end"
-                font-size="7"
-                fill="rgba(255,255,255,0.55)"
-                font-family="Helvetica"
-              >
-                Why this model?
-              </text>
+<!-- NAV -->
+<nav id="main-nav">
+  <a href="#hero" class="brand"><span class="brand-dot"></span>Mamba-TuckerMoE</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#tucker">Tucker</a>
+  <a href="#training">Training</a>
+  <a href="#inference">Inference</a>
+  <a href="#results">Results</a>
+  <a href="poster.html" class="nav-btn">View Poster</a>
+</nav>
 
-              <!-- Body bg — clean white for all cols -->
-              <rect x="0" y="18" width="840" height="72" fill="#ffffff" />
+<!-- HERO -->
+<section id="hero">
+  <canvas id="particle-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-badge">ICLR 2026 · Apple Silicon Optimized</div>
+    <h1 class="hero-title">Breaking the Memory Wall<br>with <span class="accent">TuckerMoE</span></h1>
+    <p class="hero-sub">Hybrid Mamba-3 + Tucker-decomposed Mixture-of-Experts — achieving 2.4B dense-equivalent capacity with only 417M parameters, designed for compute-bound inference on Apple Silicon.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="num" id="c-compress">0%</span>
+        <span class="label">Compression</span>
+      </div>
+      <div class="hero-stat">
+        <span class="num" id="c-cost">~0%</span>
+        <span class="label">Cost Reduction</span>
+      </div>
+      <div class="hero-stat">
+        <span class="num">2.4B</span>
+        <span class="label">Dense Capacity</span>
+      </div>
+      <div class="hero-stat">
+        <span class="num" id="c-speed">0 tok/s</span>
+        <span class="label">Decode Speed</span>
+      </div>
+      <div class="hero-stat">
+        <span class="num">32K</span>
+        <span class="label">Context Window</span>
+      </div>
+    </div>
+    <div class="hero-cta">
+      <a href="#architecture" class="btn btn-primary">Explore Research →</a>
+      <a href="poster.html" class="btn btn-outline">Academic Poster</a>
+      <a href="https://github.com/s990093/Mamba-TuckerMoE" class="btn btn-outline" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+  <div class="scroll-ind">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    Scroll
+  </div>
+</section>
 
-              <!-- Subtle column dividers -->
-              <line
-                x1="280"
-                y1="18"
-                x2="280"
-                y2="90"
-                stroke="#D1D9E0"
-                stroke-width="1.2"
-              />
-              <line
-                x1="560"
-                y1="18"
-                x2="560"
-                y2="90"
-                stroke="#D1D9E0"
-                stroke-width="1.2"
-              />
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="sec-badge">Architecture</span>
+      <h2 class="sec-title">Hybrid Mamba-3 × TuckerMoE Design</h2>
+      <p class="sec-desc">A novel macro-block architecture interleaving selective SSM blocks with Tucker-decomposed experts — moving MoE from memory-bound to compute-bound on Apple Silicon's unified memory.</p>
+    </div>
 
-              <!-- ── COL 1: Attention O(N²) ── -->
-              <text
-                x="140"
-                y="32"
-                text-anchor="middle"
-                font-size="10.5"
-                fill="#2F4F4F"
-                font-weight="800"
-                font-family="Helvetica"
-              >
-                ① Attention O(N²)
-              </text>
+    <!-- Pipeline -->
+    <div class="pipeline-wrap reveal d1">
+      <div class="pipeline">
+        <div class="pipe-block embed-b">Input<br>Tokens</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block embed-b">Token<br>Embed</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block mamba-b">Mamba-3<br>× 24</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block xfm-b">Transformer<br>× 4</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block moe-b">TuckerMoE<br>× 4</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block embed-b">LM Head<br>Logits</div>
+      </div>
+    </div>
 
-              <!-- Lower-triangle heatmap — warm amber intensity -->
-              <rect x="20" y="37" width="8" height="8" rx="1" fill="#FDE68A" />
-              <rect x="20" y="47" width="8" height="8" rx="1" fill="#FDE68A" />
-              <rect x="30" y="47" width="8" height="8" rx="1" fill="#FCD34D" />
-              <rect x="20" y="57" width="8" height="8" rx="1" fill="#FCD34D" />
-              <rect x="30" y="57" width="8" height="8" rx="1" fill="#F59E0B" />
-              <rect x="40" y="57" width="8" height="8" rx="1" fill="#D97706" />
-              <rect x="20" y="67" width="8" height="8" rx="1" fill="#F59E0B" />
-              <rect x="30" y="67" width="8" height="8" rx="1" fill="#D97706" />
-              <rect x="40" y="67" width="8" height="8" rx="1" fill="#B45309" />
-              <rect x="50" y="67" width="8" height="8" rx="1" fill="#92400E" />
-              <rect x="20" y="77" width="8" height="8" rx="1" fill="#D97706" />
-              <rect x="30" y="77" width="8" height="8" rx="1" fill="#B45309" />
-              <rect x="40" y="77" width="8" height="8" rx="1" fill="#92400E" />
-              <rect x="50" y="77" width="8" height="8" rx="1" fill="#78350F" />
-              <rect x="60" y="77" width="8" height="8" rx="1" fill="#78350F" />
-              <text
-                x="72"
-                y="47"
-                font-size="6.5"
-                fill="#B45309"
-                font-family="Helvetica"
-              >
-                N →
-              </text>
-              <text
-                x="72"
-                y="72"
-                font-size="6.5"
-                fill="#B45309"
-                font-family="Helvetica"
-              >
-                N ↓
-              </text>
+    <div class="arch-grid">
+      <div class="arch-card mamba reveal-l d2">
+        <h3>Mamba-3 SSM Blocks</h3>
+        <p>Advanced selective State Space Model with trapezoidal discretization (Δt computed by trapezoid rule rather than zero-order hold), MIMO input/output projections, and chunk-wise parallel scan. Processes arbitrarily long sequences with O(1) recurrent decode state — enabling 32K context on a 16 GB M2 Pro.</p>
+        <div class="arch-tags">
+          <span class="tag blue">Trapezoidal Δt</span>
+          <span class="tag blue">MIMO proj</span>
+          <span class="tag blue">Chunk-wise scan</span>
+          <span class="tag blue">O(1) state</span>
+          <span class="tag accent">32K context</span>
+        </div>
+      </div>
+      <div class="arch-card tucker reveal-r d3">
+        <h3>TuckerMoE Expert Blocks</h3>
+        <p>Tucker tensor decomposition applied to every MoE expert: <strong>W ≈ G ×₁ U₁ ×₂ U₂ ×₃ U₃</strong>. 8 experts with top-2 routing, reducing 2.4B dense parameters to 417M (82.87% compression) while preserving 99.87% of representational accuracy (Tucker MSE 0.00135 vs SVD 0.00247).</p>
+        <div class="arch-tags">
+          <span class="tag accent">8E × top-2</span>
+          <span class="tag accent">82.87% compression</span>
+          <span class="tag accent">Tucker MSE 0.00135</span>
+          <span class="tag">Metal fused kernel</span>
+          <span class="tag">bf16 compute</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-              <!-- Cost callout — coral highlight -->
-              <text
-                x="185"
-                y="56"
-                text-anchor="middle"
-                font-size="21"
-                fill="#DE5A28"
-                font-weight="800"
-                font-family="Helvetica"
-              >
-                ∝ N²
-              </text>
-              <text
-                x="185"
-                y="70"
-                text-anchor="middle"
-                font-size="8.5"
-                fill="#2F4F4F"
-                font-family="Helvetica"
-              >
-                16K seq → 256× cost
-              </text>
-              <text
-                x="185"
-                y="82"
-                text-anchor="middle"
-                font-size="8"
-                fill="#DE5A28"
-                font-family="Helvetica"
-              >
-                🔥 Compute-bound
-              </text>
-
-              <!-- ── COL 2: KV Cache O(N) ── -->
-              <text
-                x="420"
-                y="32"
-                text-anchor="middle"
-                font-size="10.5"
-                fill="#2F4F4F"
-                font-weight="800"
-                font-family="Helvetica"
-              >
-                ② KV Cache O(N)
-              </text>
-
-              <!-- Bars — vivid steel blue -->
-              <text
-                x="290"
-                y="46"
-                font-size="7.5"
-                fill="#6B7280"
-                font-family="Helvetica"
-              >
-                512 tok
-              </text>
-              <rect
-                x="330"
-                y="38"
-                width="200"
-                height="10"
-                rx="2"
-                fill="#DBEAFE"
-              />
-              <rect
-                x="330"
-                y="38"
-                width="11"
-                height="10"
-                rx="2"
-                fill="#1D6FA8"
-              />
-              <text
-                x="344"
-                y="46"
-                font-size="7"
-                fill="#1D6FA8"
-                font-family="Helvetica"
-              >
-                113 MiB
-              </text>
-
-              <text
-                x="290"
-                y="59"
-                font-size="7.5"
-                fill="#6B7280"
-                font-family="Helvetica"
-              >
-                4K tok
-              </text>
-              <rect
-                x="330"
-                y="51"
-                width="200"
-                height="10"
-                rx="2"
-                fill="#DBEAFE"
-              />
-              <rect
-                x="330"
-                y="51"
-                width="50"
-                height="10"
-                rx="2"
-                fill="#1D6FA8"
-              />
-              <text
-                x="383"
-                y="59"
-                font-size="7"
-                fill="#1D6FA8"
-                font-family="Helvetica"
-              >
-                357 MiB
-              </text>
-
-              <text
-                x="290"
-                y="74"
-                font-size="7.5"
-                fill="#DE5A28"
-                font-weight="700"
-                font-family="Helvetica"
-              >
-                16K tok
-              </text>
-              <rect
-                x="330"
-                y="63"
-                width="200"
-                height="15"
-                rx="2"
-                fill="#DBEAFE"
-              />
-              <rect
-                x="330"
-                y="63"
-                width="188"
-                height="15"
-                rx="2"
-                fill="#DE5A28"
-              />
-              <text
-                x="424"
-                y="73.5"
-                text-anchor="middle"
-                font-size="8.5"
-                fill="white"
-                font-weight="800"
-                font-family="Helvetica"
-              >
-                1.4 GiB · 88% RAM
-              </text>
-
-              <text
-                x="420"
-                y="86"
-                text-anchor="middle"
-                font-size="8"
-                fill="#DE5A28"
-                font-family="Helvetica"
-              >
-                ❌ Edge deployment impractical
-              </text>
-
-              <!-- ── COL 3: MoE Weight Redundancy ── -->
-              <text x="700" y="30" text-anchor="middle" font-size="10.5" fill="#2F4F4F" font-weight="800" font-family="Helvetica">③ MoE Weight Redundancy</text>
-              <text x="700" y="39" text-anchor="middle" font-size="6.5" fill="#6B7280" font-family="Helvetica">per-token decode cost  (M2 Pro · 68 GB/s)</text>
-
-              <!-- Row 1: Load — long coral bar -->
-              <text x="610" y="55" font-size="7" fill="#2F4F4F" font-weight="700" font-family="Helvetica" text-anchor="end">Load DRAM→GPU</text>
-              <rect x="613" y="46" width="192" height="13" rx="2" fill="#DE5A28"/>
-              <text x="811" y="55" font-size="8.5" fill="#DE5A28" font-weight="800" font-family="Helvetica">4.2 ms</text>
-
-              <!-- Row 2: Compute — tiny teal sliver -->
-              <text x="610" y="72" font-size="7" fill="#2F4F4F" font-weight="700" font-family="Helvetica" text-anchor="end">Compute</text>
-              <rect x="613" y="63" width="7" height="13" rx="1.5" fill="#2F4F4F"/>
-              <text x="623" y="72" font-size="8.5" fill="#2F4F4F" font-weight="800" font-family="Helvetica">0.04 ms</text>
-
-              <!-- Ratio callout — the shocking number -->
-              <text x="780" y="72" font-size="10" fill="#DE5A28" font-weight="800" font-family="Helvetica">× 105</text>
-              <line x1="778" y1="65" x2="778" y2="75" stroke="#DE5A28" stroke-width="1"/>
-              <line x1="621" y1="75" x2="778" y2="75" stroke="#DE5A28" stroke-width="1" stroke-dasharray="3,2"/>
-              <line x1="621" y1="65" x2="621" y2="75" stroke="#DE5A28" stroke-width="1"/>
-
-              <!-- Bottom takeaway -->
-              <text x="700" y="87" text-anchor="middle" font-size="6.5" fill="#2F4F4F" font-family="Helvetica">different experts each token · weights evicted · no cache reuse → BW-bound</text>
-            </svg>
-          </div>
+<!-- TUCKER DECOMP -->
+<section id="tucker">
+  <div class="container">
+    <div class="tucker-layout">
+      <div>
+        <div class="sec-head reveal">
+          <span class="sec-badge">Tucker Decomposition</span>
+          <h2 class="sec-title">Compress Without Compromise</h2>
+          <p class="sec-desc">Tucker decomposition factorizes each expert weight tensor into a compact core G and factor matrices U₁, U₂, U₃ — dramatically reducing parameter count while preserving model accuracy.</p>
         </div>
 
-        <!-- ═══ PHASE 1 — FULL WIDTH ═══ -->
-        <div id="slot-phase1" style="margin-bottom: 5mm">
-          <div class="loading">Loading…</div>
+        <div class="tucker-eq reveal d1">
+<span style="color:#FF8A65;font-weight:700">W</span> ≈ <span style="color:#87CEEB">G</span> ×₁ <span style="color:#A8E6CF">U₁</span> ×₂ <span style="color:#A8E6CF">U₂</span> ×₃ <span style="color:#A8E6CF">U₃</span>
+<span class="comment">
+W ∈ ℝ^{d×d}    (original expert weight)
+G ∈ ℝ^{r₁×r₂×r₃} (Tucker core tensor)
+Uᵢ ∈ ℝ^{dᵢ×rᵢ}  (factor matrices)</span>
         </div>
 
-        <!-- ═══ COLUMNS ═══ -->
-        <div class="cols">
-          <div class="col">
-            <div id="slot-phase3"><div class="loading">Loading…</div></div>
-            <div id="slot-phase4" style="margin-top:3mm"><div class="loading">Loading…</div></div>
-            <div id="slot-phase2" style="margin-top:3mm"><div class="loading">Loading…</div></div>
+        <div class="reveal d2" style="margin-top:28px">
+          <div style="font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:14px">Compression vs. Accuracy Trade-off</div>
+
+          <div class="perf-row">
+            <span class="perf-label">Tucker (ours)</span>
+            <div class="perf-track"><div class="perf-fill tucker" data-w="82.87"></div></div>
+            <span class="perf-val">82.87% ↓</span>
           </div>
-          <div class="col">
-            <div id="slot-results"><div class="loading">Loading…</div></div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:-6px;margin-bottom:12px;margin-left:130px">MSE: 0.00135</div>
+
+          <div class="perf-row">
+            <span class="perf-label">SVD baseline</span>
+            <div class="perf-track"><div class="perf-fill svd" data-w="82.87"></div></div>
+            <span class="perf-val">82.87% ↓</span>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:-6px;margin-bottom:12px;margin-left:130px">MSE: 0.00247 <span style="color:var(--coral);font-weight:700">45.3% worse ↑</span></div>
+
+          <div class="perf-row">
+            <span class="perf-label">Dense FFN</span>
+            <div class="perf-track"><div class="perf-fill dense" data-w="100"></div></div>
+            <span class="perf-val">2.43B params</span>
           </div>
         </div>
+      </div>
 
-        <!-- ═══ ACKNOWLEDGEMENTS FOOTER ═══ -->
-        <div
-          style="
-            margin-top: 5mm;
-            border-top: 3.5px solid #2f4f4f;
-            padding: 4.5mm 4mm 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6mm;
-            flex-shrink: 0;
-          "
-        >
-          <div
-            style="
-              flex: 1;
-              font-family: &quot;Times New Roman&quot;, Times, serif;
-              font-size: 23.4pt;
-              color: #333333;
-              line-height: 1.5;
-            "
-          >
-            <span style="font-weight: 800; color: #2d5f3d; font-size: 26pt"
-              >Acknowledgements
-            </span>
-            We thank Prof. Chun-Hao Chen for his invaluable suggestions and
-            guidance, and the
-            <span style="font-weight: 700; color: #5c7a99">Mamba</span> &amp;
-            <span style="font-weight: 700; color: #2f4f4f">MLX</span>
-            communities for their open-source contributions.
+      <div class="reveal-r d1" style="margin-top:4px">
+        <div class="tucker-vis-card">
+          <h4>Tensor Decomposition Visualization</h4>
+          <!-- Animated Tucker decomposition SVG -->
+          <svg class="decomp-svg" viewBox="0 0 320 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="td-ar" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#2F4F4F"/></marker>
+              <filter id="td-sf"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity=".1"/></filter>
+            </defs>
+            <!-- Original W tensor (left) -->
+            <g id="td-W" class="decomp-part" style="animation-delay:.1s">
+              <!-- 3D cube illusion for W -->
+              <polygon points="20,90 80,90 80,150 20,150" fill="rgba(222,90,40,.15)" stroke="#DE5A28" stroke-width="2"/>
+              <polygon points="20,90 38,74 98,74 80,90" fill="rgba(222,90,40,.1)" stroke="#DE5A28" stroke-width="2"/>
+              <polygon points="80,90 98,74 98,134 80,150" fill="rgba(222,90,40,.12)" stroke="#DE5A28" stroke-width="2"/>
+              <text x="50" y="123" text-anchor="middle" font-size="18" font-weight="800" fill="#DE5A28">W</text>
+              <text x="50" y="168" text-anchor="middle" font-size="10" fill="#5C7A99">d × d × …</text>
+              <text x="50" y="62" text-anchor="middle" font-size="11" fill="#2F4F4F" font-weight="700">Original</text>
+            </g>
+            <!-- Arrow -->
+            <g id="td-arrow" class="decomp-part" style="animation-delay:.4s">
+              <line x1="104" y1="112" x2="130" y2="112" stroke="#2F4F4F" stroke-width="2" marker-end="url(#td-ar)"/>
+              <text x="117" y="106" text-anchor="middle" font-size="9" fill="#5C7A99" font-weight="600">Tucker</text>
+            </g>
+            <!-- Core G -->
+            <g id="td-G" class="decomp-part" style="animation-delay:.6s">
+              <polygon points="136,100 172,100 172,136 136,136" fill="rgba(135,206,235,.2)" stroke="#5C7A99" stroke-width="2"/>
+              <polygon points="136,100 150,86 186,86 172,100" fill="rgba(135,206,235,.15)" stroke="#5C7A99" stroke-width="2"/>
+              <polygon points="172,100 186,86 186,122 172,136" fill="rgba(135,206,235,.18)" stroke="#5C7A99" stroke-width="2"/>
+              <text x="161" y="122" text-anchor="middle" font-size="14" font-weight="800" fill="#2F4F4F">G</text>
+              <text x="161" y="148" text-anchor="middle" font-size="9" fill="#5C7A99">r₁×r₂×r₃</text>
+              <text x="161" y="72" text-anchor="middle" font-size="10" fill="#2F4F4F" font-weight="700">Core</text>
+            </g>
+            <!-- Connector lines to U factors -->
+            <g id="td-lines" class="decomp-part" style="animation-delay:.9s">
+              <line x1="186" y1="93" x2="205" y2="60" stroke="#A8E6CF" stroke-width="1.5" stroke-dasharray="3,2"/>
+              <line x1="186" y1="111" x2="205" y2="118" stroke="#A8E6CF" stroke-width="1.5" stroke-dasharray="3,2"/>
+              <line x1="186" y1="128" x2="205" y2="175" stroke="#A8E6CF" stroke-width="1.5" stroke-dasharray="3,2"/>
+            </g>
+            <!-- U1 factor -->
+            <g id="td-U1" class="decomp-part" style="animation-delay:1.1s">
+              <rect x="206" y="38" width="58" height="36" rx="6" fill="rgba(168,230,207,.25)" stroke="#1B5E34" stroke-width="1.8"/>
+              <text x="235" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E34">U₁</text>
+              <text x="235" y="84" text-anchor="middle" font-size="9" fill="#5C7A99">d₁ × r₁</text>
+            </g>
+            <!-- U2 factor -->
+            <g id="td-U2" class="decomp-part" style="animation-delay:1.2s">
+              <rect x="206" y="100" width="58" height="36" rx="6" fill="rgba(168,230,207,.25)" stroke="#1B5E34" stroke-width="1.8"/>
+              <text x="235" y="121" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E34">U₂</text>
+              <text x="235" y="146" text-anchor="middle" font-size="9" fill="#5C7A99">d₂ × r₂</text>
+            </g>
+            <!-- U3 factor -->
+            <g id="td-U3" class="decomp-part" style="animation-delay:1.3s">
+              <rect x="206" y="160" width="58" height="36" rx="6" fill="rgba(168,230,207,.25)" stroke="#1B5E34" stroke-width="1.8"/>
+              <text x="235" y="181" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E34">U₃</text>
+              <text x="235" y="206" text-anchor="middle" font-size="9" fill="#5C7A99">d₃ × r₃</text>
+            </g>
+            <!-- Equals result -->
+            <g id="td-result" class="decomp-part" style="animation-delay:1.5s">
+              <text x="160" y="248" text-anchor="middle" font-size="11" fill="#2F4F4F" font-weight="600">417M params  ←  2.43B original</text>
+              <rect x="60" y="255" width="200" height="18" rx="9" fill="rgba(244,247,249,.8)" stroke="rgba(47,79,79,.2)" stroke-width="1"/>
+              <rect x="60" y="255" width="34" height="18" rx="9" fill="var(--coral)" style="transition:width 1.5s"/>
+              <text x="160" y="267" text-anchor="middle" font-size="9" fill="#2F4F4F" font-weight="600">82.87% reduction</text>
+            </g>
+          </svg>
+
+          <div style="margin-top:12px;padding:12px 14px;background:var(--ice);border-radius:8px;font-size:.8rem;color:var(--muted);line-height:1.55">
+            <strong style="color:var(--navy)">Why Tucker beats SVD:</strong> Tucker factorizes all modes simultaneously, preserving cross-mode structure that SVD's sequential rank-1 decomposition discards. Result: 45.3% lower reconstruction error at the same compression ratio.
           </div>
         </div>
       </div>
     </div>
-    <script>
-      async function load(id, file) {
-        const el = document.getElementById(id);
-        try {
-          const r = await fetch(file);
-          if (!r.ok) throw r.status;
-          el.innerHTML = await r.text();
-        } catch (e) {
-          el.innerHTML = `<div style="padding:5mm;color:#DE5A28;font-size:18.2pt">⚠ ${file} not found</div>`;
+  </div>
+</section>
+
+<!-- TRAINING -->
+<section id="training">
+  <div class="container">
+    <div class="training-layout">
+      <div>
+        <div class="sec-head reveal">
+          <span class="sec-badge">Training Pipeline</span>
+          <h2 class="sec-title">3-Stage Progressive Curriculum</h2>
+          <p class="sec-desc">Progressive training starting from raw web data, refined through instruction alignment, and finalized with a novel 5-component Chain-of-Thought loss.</p>
+        </div>
+
+        <div class="timeline">
+          <div class="tl-item s1 reveal d1">
+            <div class="tl-dot"></div>
+            <div class="tl-stage">Stage 1 · Pre-training</div>
+            <div class="tl-name">Language Foundation <span class="ppl-badge">PPL 24.6</span></div>
+            <div class="tl-tokens">4.3B tokens</div>
+            <p class="tl-desc">Next-token prediction on FineWeb-Edu. Establishes language understanding and factual knowledge base.</p>
+          </div>
+          <div class="tl-item s2 reveal d2">
+            <div class="tl-dot"></div>
+            <div class="tl-stage">Stage 2 · SFT</div>
+            <div class="tl-name">Instruction Alignment <span class="ppl-badge">PPL 18.3</span></div>
+            <div class="tl-tokens">2.3B tokens</div>
+            <p class="tl-desc">UltraChat 200K instruction dataset. Activates CoT stage when val PPL ≤ 16.</p>
+          </div>
+          <div class="tl-item s3 reveal d3">
+            <div class="tl-dot"></div>
+            <div class="tl-stage">Stage 3 · CoT ★</div>
+            <div class="tl-name">Chain-of-Thought <span class="ppl-badge" style="border-color:var(--coral);color:var(--coral)">PPL 12.1</span></div>
+            <div class="tl-tokens">3.3B tokens</div>
+            <p class="tl-desc">Custom dataset with &lt;think&gt;/&lt;final&gt; structured outputs. 5-component product loss enforces reasoning quality at each step.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal-r d1">
+        <div class="loss-card">
+          <h4>CoT Loss Design</h4>
+          <div class="loss-eq">
+ℒ = (<span class="hl">w<sub>sc</sub>·w<sub>go</sub>·w<sub>fw</sub>·w<sub>pd</sub>·w<sub>ie</sub></span>)·ℓ<sub>CE</sub>
+  + λ·<span class="hl2">ℒ<sub>FCP</sub></span>   <span style="color:rgba(255,255,255,.35)">↑ forward-consistency</span>
+  + α·<span class="hl">ℒ<sub>lb</sub></span>    <span style="color:rgba(255,255,255,.35)">↑ load balance</span>
+  + β·<span class="hl">ℒ<sub>z</sub></span>     <span style="color:rgba(255,255,255,.35)">↑ router sparsity</span>
+          </div>
+          <div style="margin-top:20px;font-size:.78rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Loss Weight Components</div>
+          <div class="loss-weight-row">
+            <span class="lw-label">w_sc (struct)</span>
+            <div class="lw-bar"><div class="lw-fill" data-w="85" style="width:0;background:#FF8A65"></div></div>
+            <span class="lw-val">0.85</span>
+          </div>
+          <div class="loss-weight-row">
+            <span class="lw-label">w_go (grammar)</span>
+            <div class="lw-bar"><div class="lw-fill" data-w="90" style="width:0;background:#87CEEB"></div></div>
+            <span class="lw-val">0.90</span>
+          </div>
+          <div class="loss-weight-row">
+            <span class="lw-label">w_fw (forward)</span>
+            <div class="lw-bar"><div class="lw-fill" data-w="80" style="width:0;background:#A8E6CF"></div></div>
+            <span class="lw-val">0.80</span>
+          </div>
+          <div class="loss-weight-row">
+            <span class="lw-label">w_pd (predict)</span>
+            <div class="lw-bar"><div class="lw-fill" data-w="78" style="width:0;background:#FF8A65"></div></div>
+            <span class="lw-val">0.78</span>
+          </div>
+          <div class="loss-weight-row">
+            <span class="lw-label">w_ie (infer)</span>
+            <div class="lw-bar"><div class="lw-fill" data-w="88" style="width:0;background:#87CEEB"></div></div>
+            <span class="lw-val">0.88</span>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;padding:16px;background:var(--ice);border-radius:var(--radius);border:1.5px solid var(--border)">
+          <div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:8px">Training Dataset Distribution</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <span style="font-size:.75rem;padding:3px 8px;background:rgba(92,122,153,.12);border:1px solid rgba(92,122,153,.3);border-radius:4px;color:var(--blue);font-weight:600">emotion</span>
+            <span style="font-size:.75rem;padding:3px 8px;background:rgba(27,94,52,.1);border:1px solid rgba(27,94,52,.3);border-radius:4px;color:var(--green);font-weight:600">self_awareness</span>
+            <span style="font-size:.75rem;padding:3px 8px;background:rgba(222,90,40,.09);border:1px solid rgba(222,90,40,.3);border-radius:4px;color:var(--coral);font-weight:600">deep_dive</span>
+            <span style="font-size:.75rem;padding:3px 8px;background:rgba(47,79,79,.08);border:1px solid rgba(47,79,79,.2);border-radius:4px;color:var(--navy);font-weight:600">email_summary</span>
+            <span style="font-size:.75rem;padding:3px 8px;background:rgba(47,79,79,.08);border:1px solid rgba(47,79,79,.2);border-radius:4px;color:var(--navy);font-weight:600">movie_intro</span>
+            <span style="font-size:.75rem;padding:3px 8px;background:rgba(47,79,79,.08);border:1px solid rgba(47,79,79,.2);border-radius:4px;color:var(--navy);font-weight:600">system_call</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INFERENCE -->
+<section id="inference">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="sec-badge">MLX Inference</span>
+      <h2 class="sec-title">Optimized for Apple Silicon</h2>
+      <p class="sec-desc">Full MLX inference stack exploiting unified memory, compiled Metal kernels, and Jacobi speculative decoding — achieving up to 2.82× throughput speedup vs. autoregressive baseline.</p>
+    </div>
+
+    <div class="infer-grid">
+      <div class="speed-card reveal d1">
+        <h4>Decode Throughput (M2 Pro · bf16)</h4>
+        <div class="spd-row">
+          <span class="spd-label">Jacobi K=32 (warm)</span>
+          <div class="spd-track"><div class="spd-fill coral" data-w="100"></div></div>
+          <span class="spd-val">~100 tok/s</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">8-bit quantized</span>
+          <div class="spd-track"><div class="spd-fill coral" data-w="68"></div></div>
+          <span class="spd-val">~68 tok/s</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">bf16 compiled</span>
+          <div class="spd-track"><div class="spd-fill blue" data-w="70"></div></div>
+          <span class="spd-val">~70 tok/s</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">bf16 baseline</span>
+          <div class="spd-track"><div class="spd-fill blue" data-w="42"></div></div>
+          <span class="spd-val">~42 tok/s</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">Prefill</span>
+          <div class="spd-track"><div class="spd-fill green" data-w="100"></div></div>
+          <span class="spd-val">~3800 tok/s</span>
+        </div>
+      </div>
+
+      <div class="speed-card reveal d2">
+        <h4>Jacobi Speculative Decoding — Speedup by K</h4>
+        <div class="spd-row">
+          <span class="spd-label">K = 32 (best warm)</span>
+          <div class="spd-track"><div class="spd-fill coral" data-w="94"></div></div>
+          <span class="spd-val">2.82×</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">K = 16 (demo)</span>
+          <div class="spd-track"><div class="spd-fill coral" data-w="85"></div></div>
+          <span class="spd-val">3.20×</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">K = 16 (SJD warm)</span>
+          <div class="spd-track"><div class="spd-fill blue" data-w="66"></div></div>
+          <span class="spd-val">2.49×</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">K = 8 (SJD 1024)</span>
+          <div class="spd-track"><div class="spd-fill blue" data-w="63"></div></div>
+          <span class="spd-val">2.37×</span>
+        </div>
+        <div class="spd-row">
+          <span class="spd-label">K = 1 (baseline)</span>
+          <div class="spd-track"><div class="spd-fill green" data-w="25"></div></div>
+          <span class="spd-val">1.00×</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chip-grid reveal d3" style="margin-top:0">
+      <div class="chip-card">
+        <span class="chip-icon">🧠</span>
+        <div class="chip-name">Unified Memory</div>
+        <div class="chip-desc">Zero-copy CPU↔GPU data sharing. KV cache stays in unified pool — no PCIe transfer penalty.</div>
+      </div>
+      <div class="chip-card">
+        <span class="chip-icon">⚡</span>
+        <div class="chip-name">Metal Kernels</div>
+        <div class="chip-desc">Custom fused Metal shaders for SSM scan and Tucker einsum. Moves MoE from memory-bound to compute-bound.</div>
+      </div>
+      <div class="chip-card">
+        <span class="chip-icon">🔧</span>
+        <div class="chip-name">mx.compile</div>
+        <div class="chip-desc">MLX graph compilation for decode loop. Compiled mode achieves 47→70 tok/s with bitwise-identical output.</div>
+      </div>
+      <div class="chip-card">
+        <span class="chip-icon">🎯</span>
+        <div class="chip-name">N-gram Cache</div>
+        <div class="chip-desc">3-strategy candidate pool: NGramCache (MRU 8192) + SuffixRetriever (PLD) + Runtime N-gram. Feeds Jacobi decode tree.</div>
+      </div>
+      <div class="chip-card">
+        <span class="chip-icon">📦</span>
+        <div class="chip-name">O(1) State Memory</div>
+        <div class="chip-desc">Mamba-3 recurrent decode: 14.1 MiB SSM state vs O(n) KV cache for Transformers. Constant memory at any context length.</div>
+      </div>
+      <div class="chip-card">
+        <span class="chip-icon">🗜️</span>
+        <div class="chip-name">Asymmetric Quant</div>
+        <div class="chip-desc">MoE experts quantized to 4-bit or 8-bit separately from attention layers — maximizing bandwidth without perplexity regression.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="sec-badge">Results</span>
+      <h2 class="sec-title">Main Results &amp; Compression Study</h2>
+      <p class="sec-desc">Benchmarked on M2 Pro 16 GB in bf16 precision. TuckerMoE is the only configuration that handles 32K context without OOM.</p>
+    </div>
+
+    <!-- 5 key stats -->
+    <div class="stat-grid">
+      <div class="stat-card hl-coral reveal d1">
+        <span class="stat-num c" id="r-compress">0%</span>
+        <div class="stat-label">Compression<br>2.43B → 417M</div>
+      </div>
+      <div class="stat-card hl-coral reveal d2">
+        <span class="stat-num c">~90%</span>
+        <div class="stat-label">Inference Cost<br>Reduction</div>
+      </div>
+      <div class="stat-card reveal d3">
+        <span class="stat-num">2.4B</span>
+        <div class="stat-label">Dense-Equiv<br>Capacity</div>
+      </div>
+      <div class="stat-card hl-green reveal d4">
+        <span class="stat-num g">0.00135</span>
+        <div class="stat-label">Tucker MSE<br>@ 82.87%</div>
+      </div>
+      <div class="stat-card reveal d5">
+        <span class="stat-num c">0.00247</span>
+        <div class="stat-label">SVD MSE<br><span style="color:var(--coral);font-weight:700">45.3% worse</span></div>
+      </div>
+    </div>
+
+    <!-- Memory comparison table -->
+    <div class="table-wrap reveal d1">
+      <div class="table-head">Decode Memory Comparison (M2 Pro, bf16) — by Context Length</div>
+      <table class="mem-t">
+        <thead>
+          <tr>
+            <th>Context</th>
+            <th style="color:#FF8A65">Dense FFN (2.4B)</th>
+            <th style="color:#87CEEB">TuckerMoE (417M)</th>
+            <th style="color:#87CEEB">Pure Transformer (2.4B)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>512</strong></td><td class="bad">9.8 GB</td><td class="good">1.2 GB</td><td>9.5 GB</td></tr>
+          <tr><td><strong>1K</strong></td><td class="bad">10.1 GB</td><td class="good">1.3 GB</td><td>10.0 GB</td></tr>
+          <tr><td><strong>4K</strong></td><td class="bad">10.9 GB</td><td class="good">1.6 GB</td><td>10.8 GB</td></tr>
+          <tr><td><strong>32K ★</strong></td><td class="bad">OOM (&gt;16 GB)</td><td class="best">3.1 GB ✓</td><td class="bad">OOM (&gt;16 GB)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:32px;font-style:italic">★ Dense FFN &amp; Pure Transformer OOM at 32K. TuckerMoE fits on M2 Pro 16 GB: 14.1 MiB SSM state O(1) vs KV cache O(n).</p>
+
+    <!-- Training results table -->
+    <div class="table-wrap reveal d2">
+      <div class="table-head">Training Curriculum: 3-Stage Progressive Loss</div>
+      <table class="mem-t">
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Dataset</th>
+            <th>Train Tokens</th>
+            <th>Objective</th>
+            <th>Val PPL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pre-train</strong></td>
+            <td style="font-style:italic">FineWeb-Edu</td>
+            <td>4.3B</td>
+            <td>next-token prediction</td>
+            <td><strong>24.6</strong></td>
+          </tr>
+          <tr>
+            <td style="color:var(--coral);font-weight:700">SFT</td>
+            <td style="font-style:italic">UltraChat 200k</td>
+            <td>2.3B</td>
+            <td>instruction alignment</td>
+            <td><strong>18.3</strong></td>
+          </tr>
+          <tr style="background:var(--navy)">
+            <td style="color:#fff;font-weight:800">CoT ★</td>
+            <td style="color:#fff;font-style:italic">Custom Dataset</td>
+            <td style="color:#fff;font-weight:700">3.3B</td>
+            <td style="color:rgba(255,255,255,.8)">5-weight CoT loss</td>
+            <td style="color:#FF8A65;font-weight:800">12.1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Hybrid Mamba-TuckerMoE</h4>
+        <p>Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid State Space Models. Submitted to ICLR 2026. Developed at National Kaohsiung University of Science and Technology.</p>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+          <a href="poster.html" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);padding:7px 12px;border-radius:6px;font-size:.8rem;color:rgba(255,255,255,.7);text-decoration:none;border:1px solid rgba(255,255,255,.1)">📄 Academic Poster</a>
+          <a href="https://github.com/s990093/Mamba-TuckerMoE" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);padding:7px 12px;border-radius:6px;font-size:.8rem;color:rgba(255,255,255,.7);text-decoration:none;border:1px solid rgba(255,255,255,.1)">⭐ GitHub</a>
+        </div>
+      </div>
+      <div>
+        <h4>Research</h4>
+        <a href="#architecture">Architecture Overview</a>
+        <a href="#tucker">Tucker Decomposition</a>
+        <a href="#training">Training Pipeline</a>
+        <a href="#inference">MLX Inference</a>
+        <a href="#results">Benchmark Results</a>
+      </div>
+      <div>
+        <h4>Resources</h4>
+        <a href="poster.html">Academic Poster (A0)</a>
+        <a href="https://github.com/s990093/Mamba-TuckerMoE" target="_blank" rel="noopener">Source Code</a>
+        <a href="https://github.com/s990093/Mamba-TuckerMoE/tree/main/paper" target="_blank" rel="noopener">Technical Report</a>
+        <a href="https://github.com/s990093/Mamba-TuckerMoE/tree/main/cot_dataset" target="_blank" rel="noopener">CoT Dataset</a>
+        <a href="https://github.com/s990093/Mamba-TuckerMoE/tree/main/metal" target="_blank" rel="noopener">Metal Kernels</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Lai Hung-Wei · NKUST · ICLR 2026 Submission</span>
+      <span>Mamba-3 + TuckerMoE · MLX · Apple Silicon</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════
+   PARTICLE SYSTEM
+═══════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [], mouse = {x:-9999,y:-9999};
+  const COLORS = ['rgba(222,90,40,', 'rgba(92,122,153,', 'rgba(255,255,255,', 'rgba(168,230,207,'];
+  const N = () => window.innerWidth < 600 ? 55 : 90;
+
+  function resize(){
+    W = canvas.width = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+
+  function Particle(){
+    this.x = Math.random()*W;
+    this.y = Math.random()*H;
+    this.vx = (Math.random()-.5)*.35;
+    this.vy = (Math.random()-.5)*.35;
+    this.r = Math.random()*2+1;
+    this.c = COLORS[Math.floor(Math.random()*COLORS.length)];
+    this.op = Math.random()*.5+.2;
+  }
+
+  function init(){
+    resize();
+    particles = [];
+    const n = N();
+    for(let i=0;i<n;i++) particles.push(new Particle());
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // parallax bg gradient (moves slightly with scroll)
+    const sy = window.scrollY * .05;
+    const grd = ctx.createRadialGradient(W*.3,H*.6+sy,0,W*.3,H*.6+sy,W*.7);
+    grd.addColorStop(0,'rgba(222,90,40,0.05)');
+    grd.addColorStop(1,'transparent');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,W,H);
+
+    for(let i=0;i<particles.length;i++){
+      const p = particles[i];
+
+      // Gentle mouse attraction
+      const dx = mouse.x - p.x, dy = mouse.y - p.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist < 180){
+        p.vx += dx/dist * .012;
+        p.vy += dy/dist * .012;
+      }
+
+      // Velocity cap
+      const spd = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+      if(spd > .9){ p.vx*=.9/spd; p.vy*=.9/spd; }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap
+      if(p.x<-5) p.x=W+5;
+      if(p.x>W+5) p.x=-5;
+      if(p.y<-5) p.y=H+5;
+      if(p.y>H+5) p.y=-5;
+
+      // Draw particle
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = p.c + p.op + ')';
+      ctx.fill();
+
+      // Draw connections
+      for(let j=i+1;j<particles.length;j++){
+        const q = particles[j];
+        const cx=p.x-q.x, cy=p.y-q.y;
+        const cd = Math.sqrt(cx*cx+cy*cy);
+        if(cd < 115){
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y);
+          ctx.lineTo(q.x,q.y);
+          ctx.strokeStyle = 'rgba(255,255,255,'+((.12*(1-cd/115))).toFixed(3)+')';
+          ctx.lineWidth = .6;
+          ctx.stroke();
         }
       }
-      load("slot-phase1", "s_phase1.html");
-      load("slot-phase2", "s_phase2.html");
-      load("slot-phase3", "s_phase3.html");
-      load("slot-phase4", "s_phase4.html");
-      load("slot-results", "s_results.html");
-    </script>
-  </body>
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', ()=>{ resize(); });
+  canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect(); mouse.x=e.clientX-r.left; mouse.y=e.clientY-r.top; });
+  canvas.addEventListener('mouseleave', ()=>{ mouse.x=-9999; mouse.y=-9999; });
+  canvas.addEventListener('touchmove', e=>{ const r=canvas.getBoundingClientRect(); const t=e.touches[0]; mouse.x=t.clientX-r.left; mouse.y=t.clientY-r.top; },{passive:true});
+
+  init();
+  draw();
+})();
+
+/* ═══════════════════════════════════
+   COUNTER ANIMATIONS
+═══════════════════════════════════ */
+function animCounter(el, target, suffix, prefix, duration){
+  prefix = prefix||''; suffix = suffix||'';
+  const start = performance.now();
+  const isFloat = target%1!==0;
+  function step(now){
+    const t = Math.min((now-start)/duration, 1);
+    const ease = 1-Math.pow(1-t,3);
+    const val = target*ease;
+    el.textContent = prefix + (isFloat ? val.toFixed(2) : Math.round(val)) + suffix;
+    if(t<1) requestAnimationFrame(step);
+    else el.textContent = prefix + (isFloat ? target.toFixed(2) : target) + suffix;
+  }
+  requestAnimationFrame(step);
+}
+
+// Hero counters — run on load with small delay
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    animCounter(document.getElementById('c-compress'), 82.87, '%', '', 1800);
+    animCounter(document.getElementById('c-cost'), 90, '%', '~', 1500);
+    animCounter(document.getElementById('c-speed'), 68, ' tok/s', '', 2000);
+  }, 600);
+});
+
+/* ═══════════════════════════════════
+   INTERSECTION OBSERVER — REVEALS + BARS
+═══════════════════════════════════ */
+const revealObs = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      revealObs.unobserve(e.target);
+    }
+  });
+},{threshold:0.12});
+
+document.querySelectorAll('.reveal,.reveal-l,.reveal-r').forEach(el=>revealObs.observe(el));
+
+// Bar animations
+const barObs = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting) return;
+    e.target.querySelectorAll('[data-w]').forEach(bar=>{
+      bar.style.width = bar.dataset.w + '%';
+    });
+    // Tucker decomp SVG parts
+    e.target.querySelectorAll('.decomp-part').forEach(p=>{
+      p.classList.add('visible');
+    });
+    // Loss bars in dark card
+    e.target.querySelectorAll('.lw-fill[data-w]').forEach(b=>{
+      setTimeout(()=>{ b.style.width = b.dataset.w + '%'; }, 300);
+    });
+    // Results stat counter
+    const rc = e.target.querySelector('#r-compress');
+    if(rc) animCounter(rc, 82.87, '%', '', 1600);
+    barObs.unobserve(e.target);
+  });
+},{threshold:0.18});
+
+document.querySelectorAll('section, .tucker-vis-card, .stat-grid, .loss-card').forEach(el=>barObs.observe(el));
+
+/* ═══════════════════════════════════
+   PARALLAX
+═══════════════════════════════════ */
+let ticking = false;
+window.addEventListener('scroll',()=>{
+  if(ticking) return;
+  ticking = true;
+  requestAnimationFrame(()=>{
+    const sy = window.scrollY;
+    // Hero content subtle parallax
+    const hc = document.querySelector('.hero-content');
+    if(hc) hc.style.transform = `translateY(${sy*.15}px)`;
+    // Nav bg opacity
+    const nav = document.getElementById('main-nav');
+    if(nav){
+      const op = Math.min(.98, .92 + sy/500*.06);
+      nav.style.background = `rgba(47,79,79,${op})`;
+    }
+    ticking = false;
+  });
+});
+
+/* ═══════════════════════════════════
+   SMOOTH SCROLL NAV
+═══════════════════════════════════ */
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if(t) t.scrollIntoView({behavior:'smooth'});
+  });
+});
+</script>
+</body>
 </html>
