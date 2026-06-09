@@ -1,0 +1,594 @@
+<!-- s_cot_loss.html — CoT Loss Design: per-token weighting across the <think>→<final> timeline (compact) -->
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap");
+  .cl-inter {
+    font-family: "Inter", Helvetica, Arial, sans-serif;
+  }
+</style>
+
+<div class="sec" style="max-width: 100%; overflow: visible">
+  <div
+    class="sh"
+    style="background: #f4f7f9; color: #1b325f; border-left: 6px solid #1b325f"
+  >
+    ③ CoT Loss Design — Per-Token Weighting Across the
+    &lt;think&gt;→&lt;final&gt; Timeline
+  </div>
+  <div
+    class="sc"
+    style="padding: 2mm 2.5mm; max-width: 100%; overflow: visible"
+  >
+    <!-- Full Loss Formula (compact) -->
+    <div
+      style="
+        background: #f4f7f9;
+        border: 2.5px solid #1b325f;
+        border-radius: 7px;
+        padding: 1.8mm 3mm;
+        margin-bottom: 2mm;
+        text-align: center;
+      "
+    >
+      <div
+        style="
+          font-family: &quot;Times New Roman&quot;, Times, serif;
+          font-size: 18pt;
+          font-weight: 700;
+          color: #1b325f;
+          line-height: 1.25;
+        "
+      >
+        ℒ<sub style="font-size: 12pt">total</sub> = <sup>1</sup>/<sub
+          style="font-size: 11pt"
+          >N</sub
+        >Σ<sub style="font-size: 9pt">t</sub> [<span style="color: #1b325f"
+          >w<sub>scale</sub></span
+        >·<span style="color: #1b5e34">w<sub>sftgo</sub></span
+        >·<span style="color: #d86c4f">w<sub>final</sub></span
+        >·<span style="color: #5c7a99">w<sub>pdl</sub></span
+        >·<span style="color: #b85c42">w<sub>ie</sub></span
+        >]·ℓ<sub>CE</sub> +
+        <span style="color: #c0392b">λℒ<sub>FCP</sub></span> +
+        <span style="color: #6b5b95">αℒ<sub>lb</sub> + βℒ<sub>z</sub></span>
+      </div>
+    </div>
+
+    <!-- ═══ Token-generation timeline (compact narrative) ═══ -->
+    <div
+      style="
+        background: #fff;
+        border: 1.8px solid #1b325f;
+        border-radius: 7px;
+        overflow: hidden;
+        margin-bottom: 2mm;
+      "
+    >
+      <svg
+        viewBox="0 0 1000 150"
+        xmlns="http://www.w3.org/2000/svg"
+        style="
+          font-family: &quot;Times New Roman&quot;, Times, serif;
+          width: 100%;
+          display: block;
+        "
+      >
+        <defs>
+          <marker
+            id="cax"
+            markerWidth="8"
+            markerHeight="7"
+            refX="7"
+            refY="3.5"
+            orient="auto"
+          >
+            <path d="M0,0 L8,3.5 L0,7 L1.5,3.5 Z" fill="#1B325F" />
+          </marker>
+          <linearGradient id="fswFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#D86C4F" stop-opacity="0.28" />
+            <stop offset="1" stop-color="#D86C4F" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+
+        <!-- zones -->
+        <rect
+          x="5"
+          y="3"
+          width="552"
+          height="144"
+          rx="5"
+          fill="#FCEEEC"
+          stroke="#E8B8B0"
+          stroke-width="1"
+        />
+        <rect
+          x="559"
+          y="3"
+          width="436"
+          height="144"
+          rx="5"
+          fill="#EAF5EE"
+          stroke="#B6D8C2"
+          stroke-width="1"
+        />
+        <line
+          x1="558"
+          y1="3"
+          x2="558"
+          y2="147"
+          stroke="#1B325F"
+          stroke-width="1.3"
+          stroke-dasharray="5 3"
+        />
+
+        <!-- tags -->
+        <rect x="12" y="7" width="60" height="15" rx="3.5" fill="#C0392B" />
+        <text
+          x="42"
+          y="18"
+          font-size="9"
+          fill="#FFF"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          &lt;think&gt;
+        </text>
+        <text
+          x="78"
+          y="18"
+          font-size="9"
+          fill="#9A3B30"
+          font-weight="700"
+          font-style="italic"
+        >
+          Internal Reasoning
+        </text>
+        <text
+          x="540"
+          y="18"
+          font-size="8"
+          fill="#9A3B30"
+          text-anchor="end"
+          font-family="'JetBrains Mono',monospace"
+        >
+          &lt;/think&gt;
+        </text>
+        <rect x="566" y="7" width="56" height="15" rx="3.5" fill="#1B5E34" />
+        <text
+          x="594"
+          y="18"
+          font-size="9"
+          fill="#FFF"
+          text-anchor="middle"
+          font-weight="700"
+          font-family="'JetBrains Mono',monospace"
+        >
+          &lt;final&gt;
+        </text>
+        <text
+          x="628"
+          y="18"
+          font-size="9"
+          fill="#1B5E34"
+          font-weight="700"
+          font-style="italic"
+        >
+          Final Output
+        </text>
+
+        <!-- value axis -->
+        <line
+          x1="44"
+          y1="30"
+          x2="44"
+          y2="92"
+          stroke="#CBD5E1"
+          stroke-width="0.7"
+        />
+        <text x="40" y="33" font-size="7" fill="#64748B" text-anchor="end">
+          1.0
+        </text>
+        <text x="40" y="93" font-size="7" fill="#64748B" text-anchor="end">
+          0
+        </text>
+
+        <!-- SFT-GO bars -->
+        <rect
+          x="50"
+          y="40"
+          width="8"
+          height="52"
+          fill="#1B5E34"
+          opacity="0.40"
+        />
+        <rect
+          x="536"
+          y="40"
+          width="8"
+          height="52"
+          fill="#1B5E34"
+          opacity="0.40"
+        />
+        <rect
+          x="570"
+          y="40"
+          width="8"
+          height="52"
+          fill="#1B5E34"
+          opacity="0.40"
+        />
+        <rect
+          x="230"
+          y="70"
+          width="5"
+          height="22"
+          fill="#1B5E34"
+          opacity="0.30"
+        />
+        <rect
+          x="400"
+          y="70"
+          width="5"
+          height="22"
+          fill="#1B5E34"
+          opacity="0.30"
+        />
+        <rect
+          x="760"
+          y="70"
+          width="5"
+          height="22"
+          fill="#1B5E34"
+          opacity="0.30"
+        />
+        <rect
+          x="880"
+          y="70"
+          width="5"
+          height="22"
+          fill="#1B5E34"
+          opacity="0.30"
+        />
+
+        <!-- PDL (gray-blue dashed) + InfoEntropy (brick dotted) -->
+        <path
+          d="M 46 80 L 120 78 L 132 66 L 146 78 L 300 80 L 312 67 L 326 80 L 520 78 L 640 80 L 652 67 L 666 80 L 860 78 L 988 79"
+          fill="none"
+          stroke="#5C7A99"
+          stroke-width="1.2"
+          stroke-dasharray="4 2.5"
+          opacity="0.8"
+        />
+        <path
+          d="M 46 87 L 200 85 L 360 88 L 520 85 L 680 88 L 840 85 L 988 87"
+          fill="none"
+          stroke="#B85C42"
+          stroke-width="1.1"
+          stroke-dasharray="1.5 2.5"
+          opacity="0.8"
+        />
+
+        <!-- SCALe cosine -->
+        <path
+          d="M 46 32 C 360 38, 560 66, 988 74"
+          fill="none"
+          stroke="#1B325F"
+          stroke-width="2.4"
+        />
+        <text x="120" y="30" font-size="8" fill="#1B325F" font-weight="800">
+          SCALe · cosine anneal 1.0→0.3
+        </text>
+
+        <!-- Final-SW (final zone) -->
+        <path
+          d="M 560 36 C 660 58, 800 72, 988 78 L 988 92 L 560 92 Z"
+          fill="url(#fswFill)"
+          stroke="none"
+        />
+        <path
+          d="M 560 36 C 660 58, 800 72, 988 78"
+          fill="none"
+          stroke="#D86C4F"
+          stroke-width="2.2"
+        />
+        <text x="690" y="44" font-size="8" fill="#D86C4F" font-weight="800">
+          Final-SW · prefix focus
+        </text>
+
+        <!-- token axis -->
+        <line
+          x1="44"
+          y1="102"
+          x2="988"
+          y2="102"
+          stroke="#1B325F"
+          stroke-width="1.8"
+          marker-end="url(#cax)"
+        />
+        <text
+          x="500"
+          y="99"
+          font-size="8"
+          fill="#475569"
+          text-anchor="middle"
+          font-style="italic"
+        >
+          token generation order →
+        </text>
+        <text
+          x="54"
+          y="114"
+          font-size="7.5"
+          fill="#B0707A"
+          font-style="italic"
+          font-family="'JetBrains Mono',monospace"
+        >
+          Let me reason … step by step …
+        </text>
+        <text
+          x="566"
+          y="114"
+          font-size="7.5"
+          fill="#4A8A60"
+          font-style="italic"
+          font-family="'JetBrains Mono',monospace"
+        >
+          The answer is 42 . &lt;|im_end|&gt;
+        </text>
+
+        <!-- FCP barrier -->
+        <rect
+          x="12"
+          y="120"
+          width="530"
+          height="24"
+          rx="4"
+          fill="#FBDAD5"
+          stroke="#C0392B"
+          stroke-width="1.3"
+        />
+        <text x="24" y="130" font-size="8.4" fill="#C0392B" font-weight="800">
+          ℒ
+          <tspan baseline-shift="sub" font-size="6">FCP</tspan>
+          · P(EOS) penalty ON — no early stop
+        </text>
+        <text
+          x="24"
+          y="140.5"
+          font-size="7.6"
+          fill="#922"
+          font-family="'Times New Roman',Times,serif"
+        >
+          max( P(EOS|t) − δ , 0 )² for every token inside &lt;think&gt;
+        </text>
+        <rect
+          x="566"
+          y="120"
+          width="428"
+          height="24"
+          rx="4"
+          fill="#D8F0DE"
+          stroke="#1B5E34"
+          stroke-width="1.3"
+        />
+        <text x="578" y="130" font-size="8.4" fill="#1B5E34" font-weight="800">
+          ✓ EOS released — natural termination
+        </text>
+        <text
+          x="578"
+          y="140.5"
+          font-size="7.6"
+          fill="#2D5F3D"
+          font-family="'Times New Roman',Times,serif"
+        >
+          FCP penalty = 0 · model ends when answer complete
+        </text>
+      </svg>
+    </div>
+
+    <!-- ═══ 5-weight legend (compact strip) ═══ -->
+    <div
+      class="cl-inter"
+      style="
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1.8mm;
+        margin-bottom: 2mm;
+      "
+    >
+      <div
+        style="
+          border: 1.4px solid #1b325f;
+          border-left: 4px solid #1b325f;
+          border-radius: 4px;
+          padding: 1.3mm 2mm;
+        "
+      >
+        <div style="font-size: 9pt; font-weight: 800; color: #1b325f">
+          ① SCALe
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8pt;
+            color: #1b325f;
+          "
+        >
+          0.3+0.35(1+cos πs/S)
+        </div>
+        <div style="font-size: 7pt; color: #64748b">
+          global anneal · think 1.0→0.3
+        </div>
+      </div>
+      <div
+        style="
+          border: 1.4px solid #1b5e34;
+          border-left: 4px solid #1b5e34;
+          border-radius: 4px;
+          padding: 1.3mm 2mm;
+        "
+      >
+        <div style="font-size: 9pt; font-weight: 800; color: #1b5e34">
+          ② SFT-GO
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8pt;
+            color: #1b5e34;
+          "
+        >
+          struct-token boost
+        </div>
+        <div style="font-size: 7pt; color: #64748b">
+          boundary ×8 · step ×2.5
+        </div>
+      </div>
+      <div
+        style="
+          border: 1.4px solid #d86c4f;
+          border-left: 4px solid #d86c4f;
+          border-radius: 4px;
+          padding: 1.3mm 2mm;
+        "
+      >
+        <div style="font-size: 9pt; font-weight: 800; color: #d86c4f">
+          ③ Final-SW
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8pt;
+            color: #c2410c;
+          "
+        >
+          λe<sup>−i/τ</sup>+(1−λ)(1−i/L)
+        </div>
+        <div style="font-size: 7pt; color: #64748b">
+          prefix focus · &lt;final&gt; only
+        </div>
+      </div>
+      <div
+        style="
+          border: 1.4px solid #5c7a99;
+          border-left: 4px solid #5c7a99;
+          border-radius: 4px;
+          padding: 1.3mm 2mm;
+        "
+      >
+        <div style="font-size: 9pt; font-weight: 800; color: #3d5a7f">
+          ④ PDL
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8pt;
+            color: #3d5a7f;
+          "
+        >
+          ((f+ε)/f<sub>max</sub>)<sup>−0.4</sup>
+        </div>
+        <div style="font-size: 7pt; color: #64748b">low-freq token boost</div>
+      </div>
+      <div
+        style="
+          border: 1.4px solid #b85c42;
+          border-left: 4px solid #b85c42;
+          border-radius: 4px;
+          padding: 1.3mm 2mm;
+        "
+      >
+        <div style="font-size: 9pt; font-weight: 800; color: #b85c42">
+          ⑤ InfoEntropy
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8pt;
+            color: #b85c42;
+          "
+        >
+          (1 − H/log V)<sup>0.5</sup>
+        </div>
+        <div style="font-size: 7pt; color: #64748b">
+          entropy-guided · dynamic
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MoE Aux + stats (one compact row) ═══ -->
+    <div
+      class="cl-inter"
+      style="display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 1.8mm"
+    >
+      <div
+        style="
+          background: #f3f1f8;
+          border: 1.5px solid #6b5b95;
+          border-radius: 5px;
+          padding: 1.5mm 2mm;
+        "
+      >
+        <div style="font-size: 8.5pt; font-weight: 800; color: #5a4a85">
+          α · ℒ<sub>Load-Balance</sub>
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8.5pt;
+            color: #4a3d70;
+          "
+        >
+          ℒ<sub>lb</sub> = E·Σ<sub>e</sub> f<sub>e</sub>·p<sub>e</sub>
+        </div>
+        <div style="font-size: 7pt; color: #8a7ba8">
+          balance tokens across experts
+        </div>
+      </div>
+      <div
+        style="
+          background: #f3f1f8;
+          border: 1.5px solid #6b5b95;
+          border-radius: 5px;
+          padding: 1.5mm 2mm;
+        "
+      >
+        <div style="font-size: 8.5pt; font-weight: 800; color: #5a4a85">
+          β · ℒ<sub>Router-Z</sub>
+        </div>
+        <div
+          style="
+            font-family: &quot;Times New Roman&quot;, Times, serif;
+            font-size: 8.5pt;
+            color: #4a3d70;
+          "
+        >
+          ℒ<sub>z</sub> = (1/B)Σ<sub>x</sub>(log Σ<sub>e</sub> e<sup
+            >z<sub>e</sub></sup
+          >)²
+        </div>
+        <div style="font-size: 7pt; color: #8a7ba8">
+          stabilise router softmax
+        </div>
+      </div>
+      <div
+        style="
+          background: #1b325f;
+          border-radius: 5px;
+          padding: 1.5mm 2mm;
+          color: #fff;
+        "
+      >
+        <div style="font-size: 8pt; font-weight: 700">
+          Trigger: val PPL ≤ 16 → warmup 500 steps
+        </div>
+        <div style="font-size: 7.5pt; color: #a9c0d6; margin-top: 0.6mm">
+          20,078 samples · 281 avg tok · 13M total
+        </div>
+        <div style="font-size: 7.5pt; color: #7fa3c4">
+          Final-SW+PDL+IE via ENABLE_FINAL_ENHANCE
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
