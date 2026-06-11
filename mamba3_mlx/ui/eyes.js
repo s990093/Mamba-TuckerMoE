@@ -14,7 +14,7 @@ const CFG = {
   sleepTimeout: 65_000,
   reconnectDelay: 2200,
   ttsBreak: /[。！？…\n.!?;；]/,
-  defaultCategory: 'daily_conversation',
+  defaultCategory: 'self_awareness',
   defaultMaxTokens: 512,
   listenTimeoutMs: 15_000,   // hold-Space silent timeout
   winkProbability: 0.18,     // chance a blink becomes a wink
@@ -27,7 +27,7 @@ const DEFAULTS = {
   voiceURI: '',           // empty = auto pick best en-US local voice
   rate: 1.10,
   pitch: 1.20,
-  maxTokens: 512,
+  maxTokens: 2048,
   mouseTrack: true,
 };
 let SETTINGS = loadSettings();
@@ -224,25 +224,53 @@ let _categories = [];   // [{key, title}]
 let _activeCat = CFG.defaultCategory;
 let _catSysPrompts = {};  // key → system prompt text
 
+// ── Sampling state (mirrors chat_demo.js) ─────────────────────────────────────
+let _samplingModeConfigs = {};  // mode_key → {temperature, top_k, …}
+let _samplingState = {};        // current active sampling params
+let _reasoningOn = true;        // current reasoning flag
+let _maxTokens = 2048;          // mirrors chat slider default
+let _maxTokensCap = 20480;
+
+// demo-config uses 'summarize_email' as mode key; category key is 'email_summary'
+const _CAT_TO_MODE = { 'email_summary': 'summarize_email' };
+function _resolveModeKey(catKey) { return _CAT_TO_MODE[catKey] || catKey; }
+
+function applyModeConfig(catKey) {
+  const modeKey = _resolveModeKey(catKey);
+  const mc = _samplingModeConfigs[modeKey];
+  if (!mc) return;
+  const { reasoning, seed, ...sampling } = mc;
+  _samplingState = { ...sampling, ...(seed != null ? { seed } : {}) };
+  if (typeof reasoning === 'boolean') _reasoningOn = reasoning;
+}
+
 function _activeSysPrompt() {
   return (_activeCat && _catSysPrompts[_activeCat]) ? String(_catSysPrompts[_activeCat]) : '';
 }
+
+const _EYES_ALLOWED_CATS = new Set(['self_awareness', 'email_summary']);
 
 async function loadCategories() {
   try {
     const res = await fetch('/api/demo-config');
     const data = await res.json();
-    const cats = (data.categories || []).map(c => ({ key: c.key, title: c.title || c.key }));
+    const cats = (data.categories || [])
+      .filter(c => _EYES_ALLOWED_CATS.has(c.key))
+      .map(c => ({ key: c.key, title: c.title || c.key }));
     if (cats.length === 0) return;
     _categories = cats;
     _catSysPrompts = (data.category_system_prompts && typeof data.category_system_prompts === 'object')
       ? data.category_system_prompts : {};
+    _samplingModeConfigs = (data.sampling_mode_configs && typeof data.sampling_mode_configs === 'object')
+      ? data.sampling_mode_configs : {};
+    if (data.max_new_tokens_cap) _maxTokensCap = data.max_new_tokens_cap;
     // Ensure default exists
     if (!cats.find(c => c.key === _activeCat)) _activeCat = cats[0].key;
+    CFG.defaultCategory = _activeCat;
+    applyModeConfig(_activeCat);
     renderSysMenu();
     updateSysLabel();
-    // Proactively show KV cost of initial system prompt.
-    window.PF?.reset(null, { sys: _activeSysPrompt(), user: '', history: [], reasoning: false });
+    window.PF?.reset(null, { sys: _activeSysPrompt(), user: '', history: [], reasoning: _reasoningOn });
   } catch { }
 }
 
@@ -258,10 +286,11 @@ function renderSysMenu() {
     btn.addEventListener('click', () => {
       _activeCat = cat.key;
       CFG.defaultCategory = cat.key;
+      applyModeConfig(cat.key);
       updateSysLabel();
       closeSysMenu();
       renderSysMenu();
-      window.PF?.reset(null, { sys: _activeSysPrompt(), user: '', history: [], reasoning: false });
+      window.PF?.reset(null, { sys: _activeSysPrompt(), user: '', history: [], reasoning: _reasoningOn });
     });
     $sysMenu.appendChild(btn);
   });
@@ -309,8 +338,55 @@ function wsSend(obj) {
   return false;
 }
 
+// ── Raw-sampling tag parser ───────────────────────────────────────────────────
+// raw_sampling=True (self_awareness, email_summary) sends ALL tokens as
+// type:"token" — including <think> CoT </think> <final> answer </final>.
+// This parser routes: think→CoT display only, final→TTS, tags→discard.
+// Non-raw mode sends CoT as reasoning_token events; we detect that with
+// _nonRawDetected and fall back to the original direct-TTS path.
+let _rawMode = 'head';          // 'head' | 'think' | 'between' | 'final' | 'done'
+let _nonRawDetected = false;    // set on first reasoning_token → non-raw path
+
+// <think> is injected into the PROMPT (not generated), so it never appears
+// in the token stream. Generated sequence: CoT... </think> <final> ans </final>
+const _RAW_TAG_MAP = {
+  '</think>':  'between',
+  '<final>':   'final',
+  '</final>':  'done',
+};
+
+function _rawTokenRoute(text) {
+  if (!text) return;
+  for (const [tag, nextMode] of Object.entries(_RAW_TAG_MAP)) {
+    const idx = text.indexOf(tag);
+    if (idx < 0) continue;
+    if (idx > 0) _rawTokenRoute(text.slice(0, idx));
+    const prevMode = _rawMode;
+    _rawMode = nextMode;
+    console.log('[raw]', tag, '->', nextMode);
+    if (nextMode === 'final' && _state !== 'speaking') {
+      setState('speaking'); setStatus('Speaking…'); _tokenCount = 0;
+      setTimeout(cotFade, 600);
+    }
+    _rawTokenRoute(text.slice(idx + tag.length));
+    return;
+  }
+  if (_rawMode === 'think') {
+    console.log('[cot]', JSON.stringify(text).slice(0, 40));
+    cotAppend(text);
+  } else if (_rawMode === 'final') {
+    _tokenCount += text.length;
+    ttsAccum(text);
+  }
+}
+
 // ── WS event handler ──────────────────────────────────────────────────────────
 function handleWS(msg) {
+  // DEBUG: log first 5 events per turn
+  if (!window._dbgN) window._dbgN = 0;
+  if (msg.type === 'meta') window._dbgN = 0;
+  if (window._dbgN < 5) { console.log('[eyes WS]', msg.type, JSON.stringify(msg).slice(0, 120)); window._dbgN++; }
+
   switch (msg.type) {
     case 'connected':
       setState('greeting');
@@ -321,35 +397,41 @@ function handleWS(msg) {
       cotClear();
       setState('thinking');
       setStatus('Thinking…');
+      // <think> is in the prompt, not generated — stream starts with CoT directly.
+      // reasoning=True → tokens are CoT first; reasoning=False → tokens are answer.
+      _rawMode = _reasoningOn ? 'think' : 'final';
+      _nonRawDetected = false;
       window.PF?.reset(msg.prompt_tokens);
       break;
 
     case 'reasoning_token':
-      // Individual CoT token streamed live from backend
+      // Non-raw mode: CoT tokens come as dedicated events → display only, no TTS
+      _nonRawDetected = true;
       cotAppend(msg.text || '');
       break;
 
     case 'reasoning':
-      // Final accumulated CoT blob — used as mock fallback when no
-      // reasoning_token events were received (e.g. --mock mode)
+      // Final accumulated CoT blob (mock fallback)
       if (!_cotStreaming) {
         setState('thinking');
         setStatus('Thinking…');
         const raw = (msg.markdown || '').trim();
         if (raw) cotTypewrite(raw);
       }
-      // If we already got streaming tokens, the 'reasoning' blob is redundant
       break;
 
     case 'token':
-      if (_state !== 'speaking') {
-        cotFade();
-        setState('speaking');
-        setStatus('Speaking…');
-        _tokenCount = 0;
+      if (_nonRawDetected) {
+        // Non-raw path: tokens are clean final-answer text only
+        if (_state !== 'speaking') {
+          cotFade(); setState('speaking'); setStatus('Speaking…'); _tokenCount = 0;
+        }
+        _tokenCount += (msg.text || '').length;
+        ttsAccum(msg.text || '');
+      } else {
+        // Raw-sampling path: parse <think> CoT </think> <final> answer </final>
+        _rawTokenRoute(msg.text || '');
       }
-      _tokenCount += (msg.text || '').length;
-      ttsAccum(msg.text || '');
       if (msg.tok_s != null) window.PF?.tick(msg.tok_s, msg.n);
       break;
 
@@ -506,6 +588,7 @@ function flashInject() {
 let _cotStreaming = false;
 let _cotBuf = '';
 let _cotRenderT = null;
+let _cotRafPending = false;    // rAF render pending flag
 let _typeT = null, _typeTarget = '', _typePos = 0;
 
 function _md(text) {
@@ -527,12 +610,18 @@ function cotAppend(text) {
     $cotStream.classList.add('visible');
   }
   _cotBuf += text;
-  clearTimeout(_cotRenderT);
-  _cotRenderT = setTimeout(() => {
-    const atBottom = $cotStream.scrollTop + $cotStream.clientHeight >= $cotStream.scrollHeight - 6;
-    $cotContent.innerHTML = _md(_cotBuf);
-    if (atBottom) $cotStream.scrollTop = $cotStream.scrollHeight;
-  }, 28);
+  // Use rAF instead of setTimeout debounce — tokens arrive every ~10ms which
+  // constantly resets a 28ms timer; rAF renders at most once per 16ms frame.
+  if (!_cotRafPending) {
+    _cotRafPending = true;
+    requestAnimationFrame(() => {
+      _cotRafPending = false;
+      if (!_cotBuf) return;
+      const atBottom = $cotStream.scrollTop + $cotStream.clientHeight >= $cotStream.scrollHeight - 6;
+      $cotContent.innerHTML = _md(_cotBuf);
+      if (atBottom) $cotStream.scrollTop = $cotStream.scrollHeight;
+    });
+  }
 }
 
 function cotTypewrite(text) {
@@ -571,7 +660,7 @@ function cotFade() {
 
 function cotClear() {
   clearInterval(_typeT); clearTimeout(_cotRenderT);
-  _cotStreaming = false; _cotBuf = '';
+  _cotStreaming = false; _cotBuf = ''; _cotRafPending = false;
   if (_char === 'tars') { _tarsCotBuf = ''; return; }
   $cotStream.classList.remove('visible', 'fading');
   $cotContent.innerHTML = '';
@@ -678,7 +767,7 @@ function ttsNext() {
   // Build subtitle DOM before speak() — CSS hides it for TARS, FINAL channel takes over
   showSubtitle(text);
   if (_char === 'tars') setTarsFinalSentence(text);
-  utt.onstart = () => _startSubtitleTimer();
+  // onstart is unreliable in Safari/WebKit; start timer after speak() with a brief offset
   utt.onboundary = ev => {
     if (ev.name === 'sentence') return;
     pulseMouth();
@@ -689,6 +778,8 @@ function ttsNext() {
 
   synth.speak(utt);
   synthResumePump();
+  // Fallback: start subtitle timer ~100ms after speak() in case onstart never fires
+  setTimeout(() => { if (_subTimer === null && _subWords.length) _startSubtitleTimer(); }, 100);
 }
 
 // ── Mouth pulse (TTS boundary-driven) ────────────────────────────────────────
@@ -701,6 +792,7 @@ function pulseMouth() {
 function ttsCancel() {
   clearInterval(_synthResumeT); synth.cancel();
   _ttsBuf = ''; _ttsQueue = []; _ttsSpeaking = false;
+  _rawMode = 'head'; _nonRawDetected = false;
   hideSubtitle();
   stopTarsFinal();
 }
@@ -708,11 +800,13 @@ function ttsCancel() {
 // ── Subtitle (karaoke word highlight) ─────────────────────────────────────────
 let _subWords = [];   // [{el, start, end}] for current utterance
 let _subTimer = null;
+let _subHideT = null;
 let _subT0 = 0;
 let _subCumMs = [];   // cumulative ms to end of each word (estimated)
 
 function showSubtitle(text) {
-  clearInterval(_subTimer);
+  clearInterval(_subTimer); _subTimer = null;
+  clearTimeout(_subHideT); _subHideT = null;
   $subtitle.innerHTML = '';
   _subWords = [];
   _subCumMs = [];
@@ -782,9 +876,9 @@ function highlightSubtitleWord(charIndex) {
 }
 
 function hideSubtitle() {
-  clearInterval(_subTimer);
+  clearInterval(_subTimer); _subTimer = null;
   $subtitle.classList.remove('visible');
-  setTimeout(() => { $subtitle.innerHTML = ''; _subWords = []; _subCumMs = []; }, 350);
+  _subHideT = setTimeout(() => { _subHideT = null; $subtitle.innerHTML = ''; _subWords = []; _subCumMs = []; }, 350);
 }
 if (typeof synth !== 'undefined') {
   synth.getVoices();
@@ -912,6 +1006,12 @@ function resetListenTimeout() {
   }, CFG.listenTimeoutMs);
 }
 
+const _5W_RE = /^(who|what|when|where|why|誰|什麼|何時|哪裡|哪邊|在哪|為什麼|為何|如何|怎麼|怎樣)\b/i;
+function _maybeAddQuestion(text) {
+  if (_5W_RE.test(text) && !/[?？]\s*$/.test(text)) return text + '？';
+  return text;
+}
+
 function pttEnd() {
   if (!pttActive) return;
   pttActive = false;
@@ -925,7 +1025,8 @@ function pttEnd() {
 
   if (text) {
     hideTranscript(true);
-    sendPrompt(text);
+    const normalized = text.charAt(0).toUpperCase() + text.slice(1);
+    sendPrompt(_maybeAddQuestion(normalized));
   } else {
     hideTranscript(false);
     setState('idle'); setStatus('');
@@ -957,8 +1058,9 @@ function _doSend(text) {
   wsSend({
     action: 'chat',
     prompt: text,
-    max_tokens: SETTINGS.maxTokens,
-    reasoning: true,
+    max_tokens: Math.min(SETTINGS.maxTokens, _maxTokensCap),
+    reasoning: _reasoningOn,
+    sampling: { ..._samplingState },
     category_key: CFG.defaultCategory,
   });
 }
@@ -1158,6 +1260,7 @@ document.addEventListener('keydown', ev => {
       const idx = _categories.findIndex(c => c.key === _activeCat);
       const next = _categories[(idx + 1) % _categories.length];
       _activeCat = next.key; CFG.defaultCategory = next.key;
+      applyModeConfig(next.key);
       updateSysLabel(); renderSysMenu();
       setStatus(next.title, '');
       setTimeout(() => { if (_state === 'idle') setStatus(''); }, 1500);

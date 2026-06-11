@@ -527,6 +527,112 @@ header{
 .md-body.streaming ol:last-child::after,
 .md-body.streaming pre:last-child::after{display:none}
 
+/* ───────────────────── CoT think / final / raw blocks ───────────────────── */
+
+/* Think block — collapsible, open by default (DeepSeek style) */
+.cot-think-block{
+  margin-bottom:14px;
+  animation:msgEnter 200ms ease-out both;
+}
+
+/* Summary row: brain icon + "Thought for Xs" + chevron */
+.cot-think-summary{
+  display:inline-flex;align-items:center;gap:6px;
+  cursor:pointer;list-style:none;
+  padding:2px 0 6px;
+  -webkit-user-select:none;user-select:none;
+  color:var(--fg3);
+  font-size:.80rem;font-weight:500;
+  transition:color .15s;
+}
+.cot-think-summary::-webkit-details-marker{display:none}
+.cot-think-summary:hover{color:var(--fg2)}
+
+.cot-brain-icon{
+  flex:0 0 14px;width:14px;height:14px;
+  color:var(--accent);opacity:.85;
+  flex-shrink:0;
+}
+.cot-label{letter-spacing:.005em}
+
+/* Chevron — rotates when details is closed */
+.cot-chev{
+  flex:0 0 14px;width:14px;height:14px;
+  color:var(--fg4);opacity:.7;
+  transition:transform .2s ease;
+}
+.cot-think-block[open] .cot-chev{transform:rotate(180deg)}
+
+/* Streaming state: accent pulse on brain icon */
+.cot-think-block.cot-streaming .cot-brain-icon{
+  animation:cotBrainPulse 1.6s ease-in-out infinite;
+}
+@keyframes cotBrainPulse{
+  0%,100%{opacity:.85;color:var(--accent)}
+  50%{opacity:.45;color:var(--accent-2)}
+}
+
+/* Think body — dimmer text, left-indented */
+.cot-think-body{
+  padding:4px 0 4px 20px;
+  font-size:.82rem;
+  color:var(--fg3);
+  line-height:1.68;
+  border-left:2px solid rgba(255,255,255,.08);
+}
+.cot-think-body p{margin-bottom:6px}
+.cot-think-body p:last-child{margin-bottom:0}
+.cot-think-body ul,.cot-think-body ol{margin-left:16px;margin-bottom:6px}
+.cot-think-body strong{color:var(--fg2);font-weight:600}
+.cot-think-body code{font-size:.78rem}
+
+/* Final answer — clear top spacing after think block */
+.cot-final-body{margin-top:2px}
+.cot-final-body > *:first-child{margin-top:0}
+
+/* Raw output dropdown */
+.cot-raw-block{
+  margin-top:14px;
+  padding-top:8px;
+  border-top:1px solid var(--border);
+}
+.cot-raw-summary{
+  cursor:pointer;
+  font-size:.65rem;font-weight:500;color:var(--fg4);
+  list-style:none;display:inline-flex;align-items:center;gap:5px;
+  -webkit-user-select:none;user-select:none;
+  padding:2px 4px;border-radius:4px;
+  transition:color .12s,background .12s;
+}
+.cot-raw-summary::-webkit-details-marker{display:none}
+.cot-raw-summary:hover{color:var(--fg3);background:rgba(255,255,255,.04)}
+.cot-raw-block[open] .cot-raw-summary{color:var(--fg3)}
+.cot-raw-pre{
+  margin-top:8px;padding:10px 12px;
+  font-family:var(--mono);font-size:.68rem;line-height:1.55;
+  color:var(--fg4);background:var(--bg-deep);
+  border-radius:var(--radius-xs);border:1px solid var(--border);
+  white-space:pre-wrap;word-break:break-word;overflow-x:auto;
+}
+
+/* Per-message performance bar */
+.msg-perf-bar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:5px 10px;
+  margin-top:12px;padding:6px 10px;
+  background:rgba(255,255,255,.024);
+  border:1px solid var(--border);
+  border-radius:var(--radius-xs);
+  font-family:var(--mono);font-size:.63rem;
+  color:var(--fg4);line-height:1;
+}
+.mpb-section{display:inline-flex;align-items:center;gap:5px}
+.mpb-lbl{
+  font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  font-size:.57rem;color:var(--fg3);
+}
+.mpb-nums{color:var(--fg4);letter-spacing:.01em}
+.mpb-dot{color:var(--border-2);font-size:.65rem}
+
 /* ───────────────────── Reasoning block ───────────────────── */
 .reasoning-block{
   border:1px solid var(--border);border-radius:var(--radius-md);background:#2c2b29;

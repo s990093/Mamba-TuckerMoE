@@ -16,7 +16,7 @@
   >
     Multi-Stage Training &amp; CoT Loss Design
   </div>
-  <div class="sc" style="padding: 2mm 3mm">
+  <div class="sc" style="padding: 1.5mm 3mm 1mm">
     <!-- breadcrumb -->
     <div
       class="p2"
@@ -25,7 +25,7 @@
         align-items: center;
         justify-content: center;
         gap: 0;
-        margin-bottom: 2mm;
+        margin-bottom: 1mm;
         font-size: 13pt;
         flex-wrap: wrap;
       "
@@ -52,19 +52,19 @@
     </div>
 
     <!-- ═════ master equation — NO BOX ═════ -->
-    <div style="text-align: center; margin-bottom: 3mm; padding: 1mm 0 0mm">
+    <div style="text-align: center; margin-bottom: 2mm; padding: 0.5mm 0 0mm">
       <div
         style="
           font-family: &quot;Times New Roman&quot;, Times, serif;
-          font-size: 34pt;
+          font-size: 32pt;
           font-weight: 700;
           color: #2F4F4F;
           line-height: 1.25;
         "
       >
-        ℒ<sub style="font-size: 20pt">CoT</sub>&nbsp;=&nbsp;
-        <sup style="font-size: 18pt">1</sup>/<sub style="font-size: 18pt">N</sub
-        >Σ<sub style="font-size: 15pt">t</sub> (<span style="color: #2F4F4F"
+        ℒ<sub style="font-size: 18pt">CoT</sub>&nbsp;=&nbsp;
+        <sup style="font-size: 16pt">1</sup>/<sub style="font-size: 16pt">N</sub
+        >Σ<sub style="font-size: 14pt">t</sub> (<span style="color: #2F4F4F"
           >w<sub>sc</sub></span
         >&thinsp;·&thinsp;<span style="color: #1b5e34">w<sub>go</sub></span
         >&thinsp;·&thinsp;<span style="color: #DE5A28">w<sub>fw</sub></span
@@ -81,7 +81,7 @@
       <div
         class="p2"
         style="
-          font-size: 12pt;
+          font-size: 14pt;
           color: #94a3b8;
           margin-top: 1.8mm;
           letter-spacing: 0.1px;
@@ -102,14 +102,14 @@
 
     <!-- ═════ HERO timeline — signal-processing style, enlarged ═════ -->
     <svg
-      viewBox="0 0 1000 228"
+      viewBox="0 0 1000 175"
       xmlns="http://www.w3.org/2000/svg"
       style="
         font-family: &quot;Times New Roman&quot;, Times, serif;
         width: 100%;
         display: block;
         background: #ffffff;
-        margin-bottom: 1mm;
+        margin-bottom: 0.5mm;
       "
     >
       <defs>
@@ -140,6 +140,7 @@
           <stop offset="1" stop-color="#DE5A28" stop-opacity="0.04" />
         </linearGradient>
       </defs>
+      <g transform="scale(1, 0.768)">
 
       <!-- light grid -->
       <line
@@ -599,294 +600,129 @@
       <text x="626" y="206.5" font-size="9" fill="#DCFCE7" font-weight="700">
         EOS released — natural termination in &lt;final&gt;
       </text>
+      </g>
     </svg>
 
-    <!-- ═════ bottom: Before/After + Expert utilization (enlarged) ═════ -->
-    <div
-      style="
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 3mm;
-        margin-top: 2.5mm;
-      "
-    >
-      <!-- LEFT: Before / After case study -->
-      <div>
-        <div
-          class="p2"
-          style="
-            font-size: 15pt;
-            font-weight: 800;
-            color: #2F4F4F;
-            margin-bottom: 2.5mm;
-          "
-        >
-          Reasoning Quality · Without vs. With Custom Loss
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm">
-          <div
-            style="
-              background: #fef2f2;
-              border: 3px solid #fca5a5;
-              border-radius: 6px;
-              padding: 3mm 3.5mm;
-            "
-          >
-            <div
-              class="p2"
-              style="
-                font-size: 13.5pt;
-                font-weight: 800;
-                color: #DE5A28;
-                margin-bottom: 2.5mm;
-              "
-            >
-              ✗ Without Custom Loss
-            </div>
-            <div
-              class="p2-mono"
-              style="font-size: 13pt; color: #374151; line-height: 1.9"
-            >
-              <span style="color: #94a3b8; font-size: 12pt">&lt;think&gt;</span
-              ><br />
-              Let me reason …<br />
-              <span
-                style="
-                  background: #fca5a5;
-                  color: #7f1d1d;
-                  padding: 1px 4px;
-                  border-radius: 3px;
-                  font-weight: 800;
-                "
-                >&lt;|im_end|&gt;</span
-              ><br />
-              <span style="color: #ef4444; font-weight: 700"
-                >← premature EOS</span
-              ><br />
-              <span style="color: #ef4444; font-style: italic"
-                >chain truncated</span
-              ><br />
-              <span style="color: #DE5A28; font-weight: 800; font-size: 13pt"
-                >Answer: ✗ wrong</span
-              >
-            </div>
-          </div>
+    <!-- bottom: A·Expert Load Balance + B·Router Logit Stability side by side -->
+    <div style="margin-top:1mm">
+      <svg viewBox="0 0 900 148" xmlns="http://www.w3.org/2000/svg"
+        style="font-family:Helvetica,Arial,sans-serif;width:100%;display:block;background:#fff;">
+        <defs>
+          <linearGradient id="moe_coral" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#DE5A28"/><stop offset="1" stop-color="#DE5A28" stop-opacity="0.55"/>
+          </linearGradient>
+          <linearGradient id="moe_teal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2F4F4F"/><stop offset="1" stop-color="#2F4F4F" stop-opacity="0.55"/>
+          </linearGradient>
+        </defs>
 
-          <div
-            style="
-              background: #f0fdf4;
-              border: 3px solid #86efac;
-              border-radius: 6px;
-              padding: 3mm 3.5mm;
-            "
-          >
-            <div
-              class="p2"
-              style="
-                font-size: 13.5pt;
-                font-weight: 800;
-                color: #1b5e34;
-                margin-bottom: 2.5mm;
-              "
-            >
-              ✓ With Custom CoT Loss
-            </div>
-            <div
-              class="p2-mono"
-              style="font-size: 13pt; color: #374151; line-height: 1.9"
-            >
-              <span style="color: #94a3b8; font-size: 12pt">&lt;think&gt;</span
-              ><br />
-              step by step … therefore<br />
-              <span style="color: #6b7280; font-size: 12pt">&lt;/think&gt;</span
-              ><span style="color: #1b5e34; font-size: 12pt">&lt;final&gt;</span
-              ><br />
-              <span
-                style="
-                  background: #bbf7d0;
-                  color: #14532d;
-                  padding: 2px 7px;
-                  border-radius: 3px;
-                  font-weight: 800;
-                  font-size: 14pt;
-                "
-                >42</span
-              >
-              <span style="color: #1b5e34; font-size: 12pt"> &lt;/final&gt;</span
-              ><br />
-              <span style="color: #1b5e34; font-weight: 800; font-size: 13pt"
-                >Answer: ✓ correct</span
-              >
-            </div>
-          </div>
-        </div>
-        <div
-          class="p2"
-          style="
-            margin-top: 2mm;
-            font-size: 10.5pt;
-            color: #94a3b8;
-            font-style: italic;
-            line-height: 1.4;
-          "
-        >
-          FCP penalty suppresses early
-          <span class="p2-mono" style="color: #DE5A28; font-size: 9pt"
-            >&lt;|im_end|&gt;</span
-          >
-          inside <span class="p2-mono">&lt;think&gt;</span>, protecting the
-          reasoning chain · 20,078 samples · 281 avg tok · 13M total
-        </div>
-      </div>
+        <!-- ══════════════ PANEL A: Expert Load Balance ══════════════ -->
+        <rect x="0" y="0" width="443" height="22" fill="#F1F5F9"/>
+        <text x="221" y="16" text-anchor="middle" font-size="13" fill="#2F4F4F" font-weight="800">
+          A · Expert Load Balance (αℒ<tspan font-size="10" baseline-shift="sub">lb</tspan>) — Uniform dispatch prevents expert collapse
+        </text>
 
-      <!-- RIGHT: MoE expert utilization -->
-      <div>
-        <svg viewBox="0 0 420 185" xmlns="http://www.w3.org/2000/svg"
-          style="font-family:Helvetica,Arial,sans-serif;width:100%;display:block;background:#fff;">
-          <defs>
-            <linearGradient id="gCoral" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#DE5A28"/><stop offset="1" stop-color="#DE5A28" stop-opacity="0.55"/>
-            </linearGradient>
-            <linearGradient id="gTeal" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#2F4F4F"/><stop offset="1" stop-color="#2F4F4F" stop-opacity="0.55"/>
-            </linearGradient>
-          </defs>
+        <!-- Sub-header left -->
+        <rect x="2" y="23" width="200" height="17" rx="2.5" fill="#FDE8DC"/>
+        <text x="102" y="35" text-anchor="middle" font-size="11" fill="#DE5A28" font-weight="800">✗ w/o αℒ<tspan font-size="8" baseline-shift="sub">lb</tspan> — Expert Collapse</text>
 
-          <!-- ══ PANEL A HEADER ══ -->
-          <rect x="0" y="0" width="420" height="13" fill="#F1F5F9"/>
-          <text x="210" y="9.5" text-anchor="middle" font-size="7.5" fill="#2F4F4F" font-weight="800">
-            A · Expert Load Balance (αℒ<tspan font-size="5.5" baseline-shift="sub">lb</tspan>) — Uniform dispatch prevents expert collapse
-          </text>
+        <!-- Left bars: baseline y=131, max h=79 (55%).
+             x: 8,30,52,74,96,118,140,162  w=18 -->
+        <rect x="8"   y="52" width="18" height="79" rx="1.5" fill="url(#moe_coral)"/>
+        <rect x="30"  y="99" width="18" height="32" rx="1.5" fill="#DE5A28" opacity="0.70"/>
+        <rect x="52"  y="117" width="18" height="14" rx="1.5" fill="#DE5A28" opacity="0.52"/>
+        <rect x="74"  y="121" width="18" height="10" rx="1.5" fill="#DE5A28" opacity="0.40"/>
+        <rect x="96"  y="127" width="18" height="4"  rx="1.5" fill="#DE5A28" opacity="0.30"/>
+        <rect x="118" y="130" width="18" height="1"  rx="1.5" fill="#DE5A28" opacity="0.22"/>
+        <rect x="140" y="130" width="18" height="1"  rx="1.5" fill="#DE5A28" opacity="0.18"/>
+        <rect x="162" y="130" width="18" height="1"  rx="1.5" fill="#DE5A28" opacity="0.18"/>
+        <text x="17"  y="50" text-anchor="middle" font-size="10" fill="#DE5A28" font-weight="800">55%</text>
+        <text x="39"  y="97" text-anchor="middle" font-size="8.5" fill="#DE5A28">22%</text>
+        <line x1="2" y1="131" x2="202" y2="131" stroke="#CBD5E1" stroke-width="1"/>
+        <g font-size="10" fill="#94A3B8" text-anchor="middle">
+          <text x="17"  y="144">e₁</text><text x="39"  y="144">e₂</text>
+          <text x="61"  y="144">e₃</text><text x="83"  y="144">e₄</text>
+          <text x="105" y="144">e₅</text><text x="127" y="144">e₆</text>
+          <text x="149" y="144">e₇</text><text x="171" y="144">e₈</text>
+        </g>
 
-          <!-- ── Left: Collapsed (w/o αℒlb) ── -->
-          <rect x="4" y="14" width="196" height="11" rx="2" fill="#FDE8DC"/>
-          <text x="102" y="22" text-anchor="middle" font-size="7" fill="#DE5A28" font-weight="800">✗  w/o αℒ<tspan font-size="5" baseline-shift="sub">lb</tspan>  — Expert Collapse</text>
+        <!-- → arrow + divider between sub-panels -->
+        <text x="214" y="95" text-anchor="middle" font-size="28" fill="#2F4F4F" font-weight="700">→</text>
+        <line x1="205" y1="22" x2="205" y2="145" stroke="#E2E8F0" stroke-width="1"/>
 
-          <!-- y=93 baseline; bars grow upward. Scale: 60%→68px, so 1%≈1.13px -->
-          <!-- e₁=55%→62  e₂=22%→25  e₃=10%→11  e₄=7%→8  e₅=3%→3  e₆=2%→2  e₇=1%→1  e₈=1%→1 -->
-          <rect x="9"   y="31" width="17" height="62" rx="1.5" fill="url(#gCoral)"/>
-          <rect x="31"  y="68" width="17" height="25" rx="1.5" fill="#DE5A28" opacity="0.72"/>
-          <rect x="53"  y="82" width="17" height="11" rx="1.5" fill="#DE5A28" opacity="0.55"/>
-          <rect x="75"  y="85" width="17" height="8"  rx="1.5" fill="#DE5A28" opacity="0.44"/>
-          <rect x="97"  y="90" width="17" height="3"  rx="1.5" fill="#DE5A28" opacity="0.35"/>
-          <rect x="119" y="91" width="17" height="2"  rx="1.5" fill="#DE5A28" opacity="0.28"/>
-          <rect x="141" y="92" width="17" height="1"  rx="1.5" fill="#DE5A28" opacity="0.22"/>
-          <rect x="163" y="92" width="17" height="1"  rx="1.5" fill="#DE5A28" opacity="0.22"/>
-          <!-- top labels -->
-          <text x="17"  y="29" text-anchor="middle" font-size="7" fill="#DE5A28" font-weight="800">55%</text>
-          <text x="39"  y="66" text-anchor="middle" font-size="6" fill="#DE5A28">22%</text>
-          <text x="61"  y="80" text-anchor="middle" font-size="5.5" fill="#DE5A28">10%</text>
-          <text x="83"  y="83" text-anchor="middle" font-size="5" fill="#DE5A28">7%</text>
-          <!-- baseline -->
-          <line x1="4" y1="93" x2="190" y2="93" stroke="#CBD5E1" stroke-width="1"/>
-          <!-- expert labels -->
-          <g font-size="6.5" fill="#94A3B8" text-anchor="middle">
-            <text x="17"  y="101">e₁</text><text x="39"  y="101">e₂</text>
-            <text x="61"  y="101">e₃</text><text x="83"  y="101">e₄</text>
-            <text x="105" y="101">e₅</text><text x="127" y="101">e₆</text>
-            <text x="149" y="101">e₇</text><text x="171" y="101">e₈</text>
-          </g>
+        <!-- Sub-header right -->
+        <rect x="224" y="23" width="216" height="17" rx="2.5" fill="#D3EFD8"/>
+        <text x="332" y="35" text-anchor="middle" font-size="11" fill="#2b8a3e" font-weight="800">✓ w/ αℒ<tspan font-size="8" baseline-shift="sub">lb</tspan> — Near-Uniform Load</text>
 
-          <!-- ── Center arrow ── -->
-          <text x="207" y="62" text-anchor="middle" font-size="16" fill="#2F4F4F" font-weight="800">→</text>
-          <line x1="204" y1="14" x2="204" y2="104" stroke="#E2E8F0" stroke-width="1"/>
+        <!-- Dashed 1/8 target: 12.5/55*79≈18px → y=113 -->
+        <line x1="224" y1="113" x2="440" y2="113" stroke="#2F4F4F" stroke-width="1.5" stroke-dasharray="6 3.5"/>
+        <text x="232" y="111" font-size="9.5" fill="#2F4F4F" font-weight="700">1/8</text>
 
-          <!-- ── Right: Balanced (w/ αℒlb) ── -->
-          <rect x="212" y="14" width="204" height="11" rx="2" fill="#E0EDE6"/>
-          <text x="314" y="22" text-anchor="middle" font-size="7" fill="#2F4F4F" font-weight="800">✓  w/ αℒ<tspan font-size="5" baseline-shift="sub">lb</tspan>  — Near-Uniform Load</text>
+        <!-- Right uniform bars, all end at baseline y=131 -->
+        <rect x="228" y="113" width="18" height="18" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="250" y="115" width="18" height="16" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="272" y="111" width="18" height="20" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="294" y="114" width="18" height="17" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="316" y="113" width="18" height="18" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="338" y="115" width="18" height="16" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="360" y="111" width="18" height="20" rx="1.5" fill="url(#moe_teal)"/>
+        <rect x="382" y="114" width="18" height="17" rx="1.5" fill="url(#moe_teal)"/>
+        <line x1="224" y1="131" x2="440" y2="131" stroke="#CBD5E1" stroke-width="1"/>
+        <g font-size="10" fill="#94A3B8" text-anchor="middle">
+          <text x="237" y="144">e₁</text><text x="259" y="144">e₂</text>
+          <text x="281" y="144">e₃</text><text x="303" y="144">e₄</text>
+          <text x="325" y="144">e₅</text><text x="347" y="144">e₆</text>
+          <text x="369" y="144">e₇</text><text x="391" y="144">e₈</text>
+        </g>
+        <text x="422" y="138" font-size="9.5" fill="#2F4F4F" text-anchor="middle">≈12.5%</text>
 
-          <!-- dashed 1/8 target at y=79 (14px height ≈ 12.5%) -->
-          <line x1="212" y1="79" x2="416" y2="79" stroke="#2F4F4F" stroke-width="1.4" stroke-dasharray="5 3"/>
-          <text x="216" y="76.5" font-size="5.8" fill="#2F4F4F" font-weight="700">1/8 target</text>
+        <!-- ═══ VERTICAL DIVIDER ═══ -->
+        <line x1="449" y1="0" x2="449" y2="148" stroke="#CBD5E1" stroke-width="1.5"/>
 
-          <!-- 8 near-uniform bars, slight variation for realism -->
-          <rect x="217" y="79" width="17" height="14" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="239" y="81" width="17" height="12" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="261" y="78" width="17" height="15" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="283" y="80" width="17" height="13" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="305" y="79" width="17" height="14" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="327" y="81" width="17" height="12" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="349" y="78" width="17" height="15" rx="1.5" fill="url(#gTeal)"/>
-          <rect x="371" y="80" width="17" height="13" rx="1.5" fill="url(#gTeal)"/>
-          <!-- baseline -->
-          <line x1="212" y1="93" x2="416" y2="93" stroke="#CBD5E1" stroke-width="1"/>
-          <!-- expert labels -->
-          <g font-size="6.5" fill="#94A3B8" text-anchor="middle">
-            <text x="225" y="101">e₁</text><text x="247" y="101">e₂</text>
-            <text x="269" y="101">e₃</text><text x="291" y="101">e₄</text>
-            <text x="313" y="101">e₅</text><text x="335" y="101">e₆</text>
-            <text x="357" y="101">e₇</text><text x="379" y="101">e₈</text>
-          </g>
-          <!-- ≈12.5% annotation -->
-          <text x="395" y="89" font-size="5.8" fill="#2F4F4F">≈12.5%</text>
+        <!-- ══════════════ PANEL B: Router Logit Stability ══════════════ -->
+        <rect x="452" y="0" width="448" height="22" fill="#F1F5F9"/>
+        <text x="676" y="16" text-anchor="middle" font-size="13" fill="#2F4F4F" font-weight="800">
+          B · Router Logit Stability (βℒ<tspan font-size="10" baseline-shift="sub">z</tspan>) — Per-token routing probability across 8 experts
+        </text>
 
-          <!-- ══ SEPARATOR ══ -->
-          <line x1="0" y1="106" x2="420" y2="106" stroke="#CBD5E1" stroke-width="1.5"/>
+        <!-- Row 1: w/o βℒz (y=23..56, h=33). Bars x=520..893 (w=373).
+             e₁=70%→261  e₂=18%→67  e₃+=12%→45 -->
+        <text x="453" y="38" font-size="11" fill="#DE5A28" font-weight="800">w/o βℒ<tspan font-size="8" baseline-shift="sub">z</tspan></text>
+        <text x="453" y="51" font-size="9.5" fill="#DE5A28">collapsed</text>
+        <rect x="520" y="23" width="261" height="33" fill="#DE5A28" rx="2"/>
+        <rect x="781" y="23" width="67"  height="33" fill="#DE5A28" opacity="0.60" rx="0"/>
+        <rect x="848" y="23" width="45"  height="33" fill="#DE5A28" opacity="0.32" rx="0"/>
+        <text x="650" y="43.5" text-anchor="middle" font-size="12" fill="white" font-weight="800">e₁ · 70%</text>
+        <text x="814" y="43.5" text-anchor="middle" font-size="10" fill="white" font-weight="700">e₂ · 18%</text>
+        <text x="870" y="43.5" text-anchor="middle" font-size="9" fill="white">e₃⁺ 12%</text>
 
-          <!-- ══ PANEL B HEADER ══ -->
-          <rect x="0" y="107" width="420" height="12" fill="#F1F5F9"/>
-          <text x="210" y="115.5" text-anchor="middle" font-size="7.5" fill="#2F4F4F" font-weight="800">
-            B · Router Logit Stability (βℒ<tspan font-size="5.5" baseline-shift="sub">z</tspan>) — Per-token routing probability across 8 experts
-          </text>
+        <!-- ↓ arrow -->
+        <text x="484" y="71" text-anchor="middle" font-size="18" fill="#2F4F4F" font-weight="700">↓</text>
 
-          <!-- ── Row 1: w/o βℒz (collapsed) ── -->
-          <text x="6" y="130" font-size="7" fill="#DE5A28" font-weight="800">w/o βℒ<tspan font-size="5" baseline-shift="sub">z</tspan></text>
-          <text x="6" y="140" font-size="6" fill="#DE5A28">collapsed</text>
+        <!-- Row 2: w/ βℒz (y=77..110, h=33).
+             e₁=33%→123  e₂=28%→104  e₃=20%→75  e₄=12%→45  e₅+=7%→26 -->
+        <text x="453" y="91" font-size="11" fill="#2F4F4F" font-weight="800">w/ βℒ<tspan font-size="8" baseline-shift="sub">z</tspan></text>
+        <text x="453" y="104" font-size="9.5" fill="#2F4F4F">balanced</text>
+        <rect x="520" y="77" width="123" height="33" fill="#2F4F4F" rx="2"/>
+        <rect x="643" y="77" width="104" height="33" fill="#2F4F4F" opacity="0.80" rx="0"/>
+        <rect x="747" y="77" width="75"  height="33" fill="#2F4F4F" opacity="0.60" rx="0"/>
+        <rect x="822" y="77" width="45"  height="33" fill="#2F4F4F" opacity="0.42" rx="0"/>
+        <rect x="867" y="77" width="26"  height="33" fill="#2F4F4F" opacity="0.26" rx="0"/>
+        <text x="581" y="97.5" text-anchor="middle" font-size="11.5" fill="white" font-weight="800">e₁ · 33%</text>
+        <text x="695" y="97.5" text-anchor="middle" font-size="11.5" fill="white" font-weight="700">e₂ · 28%</text>
+        <text x="784" y="97.5" text-anchor="middle" font-size="10" fill="white">e₃ · 20%</text>
+        <text x="844" y="97.5" text-anchor="middle" font-size="9.5" fill="white">e₄ · 12%</text>
+        <text x="880" y="97.5" text-anchor="middle" font-size="9" fill="white">7%</text>
 
-          <!-- stacked horizontal bar, total width=320, x=70→390 -->
-          <!-- e₁=70% → 224px  e₂=18% → 58px  others=12% → 38px -->
-          <rect x="70"  y="121" width="224" height="17" fill="#DE5A28" rx="1"/>
-          <rect x="294" y="121" width="58"  height="17" fill="#DE5A28" opacity="0.60" rx="0"/>
-          <rect x="352" y="121" width="38"  height="17" fill="#DE5A28" opacity="0.32" rx="0"/>
-          <text x="182" y="133" text-anchor="middle" font-size="7.5" fill="white" font-weight="800">e₁ · 70%</text>
-          <text x="323" y="133" text-anchor="middle" font-size="6.5" fill="white" font-weight="700">e₂ · 18%</text>
-          <text x="371" y="133" text-anchor="middle" font-size="6" fill="white">e₃⁺ 12%</text>
+        <!-- Scale axis -->
+        <line x1="520" y1="120" x2="893" y2="120" stroke="#CBD5E1" stroke-width="1"/>
+        <line x1="520" y1="117" x2="520" y2="123" stroke="#CBD5E1" stroke-width="1"/>
+        <line x1="893" y1="117" x2="893" y2="123" stroke="#CBD5E1" stroke-width="1"/>
+        <text x="520" y="133" text-anchor="middle" font-size="9.5" fill="#94A3B8">0%</text>
+        <text x="893" y="133" text-anchor="middle" font-size="9.5" fill="#94A3B8">100%</text>
+        <text x="706" y="133" text-anchor="middle" font-size="9.5" fill="#94A3B8">routing probability per token →</text>
 
-          <!-- ── Row 2: w/ βℒz (balanced) ── -->
-          <text x="6" y="156" font-size="7" fill="#2F4F4F" font-weight="800">w/ βℒ<tspan font-size="5" baseline-shift="sub">z</tspan></text>
-          <text x="6" y="166" font-size="6" fill="#2F4F4F">balanced</text>
-
-          <!-- e₁=33%→106  e₂=28%→90  e₃=20%→64  e₄=12%→38  e₅-e₈=7%→22 -->
-          <rect x="70"  y="144" width="106" height="17" fill="#2F4F4F" rx="1"/>
-          <rect x="176" y="144" width="90"  height="17" fill="#2F4F4F" opacity="0.80" rx="0"/>
-          <rect x="266" y="144" width="64"  height="17" fill="#2F4F4F" opacity="0.60" rx="0"/>
-          <rect x="330" y="144" width="38"  height="17" fill="#2F4F4F" opacity="0.42" rx="0"/>
-          <rect x="368" y="144" width="22"  height="17" fill="#2F4F4F" opacity="0.26" rx="0"/>
-          <text x="123" y="156" text-anchor="middle" font-size="7" fill="white" font-weight="800">e₁ · 33%</text>
-          <text x="221" y="156" text-anchor="middle" font-size="7" fill="white" font-weight="700">e₂ · 28%</text>
-          <text x="298" y="156" text-anchor="middle" font-size="6.5" fill="white">e₃ · 20%</text>
-          <text x="349" y="156" text-anchor="middle" font-size="6" fill="white">e₄·12%</text>
-          <text x="379" y="156" text-anchor="middle" font-size="5.5" fill="white">5%</text>
-
-          <!-- ↕ between two rows -->
-          <text x="44" y="148" text-anchor="middle" font-size="14" fill="#2F4F4F" font-weight="700">↓</text>
-
-          <!-- scale axis -->
-          <line x1="70" y1="168" x2="390" y2="168" stroke="#CBD5E1" stroke-width="0.8"/>
-          <line x1="70" y1="165" x2="70" y2="171" stroke="#CBD5E1" stroke-width="0.8"/>
-          <line x1="390" y1="165" x2="390" y2="171" stroke="#CBD5E1" stroke-width="0.8"/>
-          <text x="70"  y="176" text-anchor="middle" font-size="5.5" fill="#94A3B8">0%</text>
-          <text x="390" y="176" text-anchor="middle" font-size="5.5" fill="#94A3B8">100%</text>
-          <text x="230" y="176" text-anchor="middle" font-size="5.5" fill="#94A3B8">routing probability per token →</text>
-
-          <!-- caption -->
-          <text x="210" y="184" text-anchor="middle" font-size="5.5" fill="#94A3B8" font-style="italic">
-            αℒ<tspan font-size="4.5" baseline-shift="sub">lb</tspan>: penalises uneven expert load · βℒ<tspan font-size="4.5" baseline-shift="sub">z</tspan>: z-loss regularises router logits, shrinks single-expert dominance 0.70→0.33
-          </text>
-        </svg>
-        <div
-          class="p2"
-          style="
-            font-size: 10pt;
-            color: #94a3b8;
-            margin-top: 1.5mm;
-            font-style: italic;
-            line-height: 1.4;
-          "
-        >
-          αℒ<sub>lb</sub> prevents expert collapse (e₁: 55% → 12.5%) · βℒ<sub>z</sub> suppresses logit explosion (single-expert dominance: 70% → 33%)
-        </div>
-      </div>
+      </svg>
     </div>
 
     <!-- convergence chart removed -->

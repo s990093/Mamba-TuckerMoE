@@ -212,6 +212,7 @@
     if (s.x != null) { panel.style.left = s.x + 'px'; panel.style.top = s.y + 'px'; }
     else { panel.style.right = '16px'; panel.style.top = '16px'; }
     if (s.w) panel.style.width = s.w + 'px';
+    if (s.h) panel.style.height = s.h + 'px';
     if (s.mini) { body.classList.add('pf-hidden'); minBtn.textContent = '+'; }
     else minBtn.textContent = '−';
     if (s.hide) panel.style.display = 'none';
@@ -221,7 +222,8 @@
   function save() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
-        x: panel.offsetLeft, y: panel.offsetTop, w: panel.offsetWidth,
+        x: panel.offsetLeft, y: panel.offsetTop,
+        w: panel.offsetWidth, h: panel.offsetHeight,
         mini: body.classList.contains('pf-hidden'),
         hide: panel.style.display === 'none', expanded,
       }));
@@ -246,20 +248,31 @@
   });
   document.addEventListener('mouseup', () => { if (dragging) { dragging = false; save(); } });
 
-  // ── Resize ────────────────────────────────────────────────────
-  let resizing = false, rw0 = 0, rx0 = 0;
+  // ── Resize (width + height) ───────────────────────────────────
+  let resizing = false, rw0 = 0, rx0 = 0, rh0 = 0, ry0 = 0;
   document.getElementById('pf-rzh').addEventListener('mousedown', e => {
     if (e.button !== 0) return;
-    resizing = true; rw0 = panel.offsetWidth; rx0 = e.clientX;
+    resizing = true;
+    rw0 = panel.offsetWidth;  rx0 = e.clientX;
+    rh0 = panel.offsetHeight; ry0 = e.clientY;
     e.preventDefault(); e.stopPropagation();
   });
   document.addEventListener('mousemove', e => {
     if (!resizing) return;
-    panel.style.width = Math.max(expanded ? 280 : 192, rw0 + e.clientX - rx0) + 'px';
+    const minW = expanded ? 280 : 192;
+    const newW = Math.max(minW, Math.min(rw0 + e.clientX - rx0, window.innerWidth - 24));
+    const newH = Math.max(80, Math.min(rh0 + e.clientY - ry0, window.innerHeight - 24));
+    panel.style.width  = newW + 'px';
+    panel.style.height = newH + 'px';
     sparkDirty = true;
     chartDirty = true;
   });
   document.addEventListener('mouseup', () => { if (resizing) { resizing = false; save(); } });
+
+  // Auto-redraw charts whenever the panel is resized (covers both drag-resize and window resize)
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => { sparkDirty = true; chartDirty = true; }).observe(panel);
+  }
 
   // ── Buttons ───────────────────────────────────────────────────
   minBtn.addEventListener('click', () => {
@@ -276,7 +289,8 @@
     compact.style.display = on ? 'none' : '';
     charts.style.display = on ? '' : 'none';
     if (on) {
-      if (!panel.style.width || parseInt(panel.style.width) < 280) panel.style.width = '320px';
+      if (!panel.style.width || parseInt(panel.style.width) < 300) panel.style.width = '340px';
+      if (!panel.style.height || parseInt(panel.style.height) < 300) panel.style.height = '420px';
       chartDirty = true;
     }
     if (!silent) save();
@@ -363,11 +377,12 @@
     ctx.lineTo((n - 1) * step, H); ctx.lineTo(0, H); ctx.closePath();
     ctx.fillStyle = c.fill; ctx.fill();
 
-    // Y labels
-    ctx.fillStyle = c.stroke; ctx.font = 'bold 9px ui-monospace,monospace'; ctx.textAlign = 'right';
+    // Y labels — font scales with chart height
+    const fs = Math.max(8, Math.min(11, Math.round(H * 0.16)));
+    ctx.fillStyle = c.stroke; ctx.font = `bold ${fs}px ui-monospace,monospace`; ctx.textAlign = 'right';
     const topLbl = maxVal > 20 ? Math.round(maxVal) + '%' : maxVal.toFixed(1) + 'G';
-    ctx.fillText(topLbl, W - 3, 10);
-    ctx.fillStyle = 'rgba(138,135,125,0.45)'; ctx.font = '9px ui-monospace,monospace';
+    ctx.fillText(topLbl, W - 3, fs + 1);
+    ctx.fillStyle = 'rgba(138,135,125,0.45)'; ctx.font = `${fs}px ui-monospace,monospace`;
     ctx.fillText('0', W - 3, H - 3);
   }
 
@@ -401,8 +416,9 @@
     ctx.restore();
 
     // SSM label on line
+    const kvFs = Math.max(8, Math.min(11, Math.round(H * 0.16)));
     ctx.fillStyle = 'rgba(140,205,100,0.55)';
-    ctx.font = '9px ui-monospace,monospace'; ctx.textAlign = 'left';
+    ctx.font = `${kvFs}px ui-monospace,monospace`; ctx.textAlign = 'left';
     ctx.fillText(fmtMib(SSM_MIB), 4, ssmY - 3);
 
     // ── Line 2: GQA KV (grows with tokens) ────────────────────
@@ -423,9 +439,9 @@
 
     // Y labels
     ctx.fillStyle = 'rgba(155,110,220,0.60)';
-    ctx.font = 'bold 9px ui-monospace,monospace'; ctx.textAlign = 'right';
-    ctx.fillText(fmtMib(dynMax), W - 3, 10);
-    ctx.fillStyle = 'rgba(138,135,125,0.45)'; ctx.font = '9px ui-monospace,monospace';
+    ctx.font = `bold ${kvFs}px ui-monospace,monospace`; ctx.textAlign = 'right';
+    ctx.fillText(fmtMib(dynMax), W - 3, kvFs + 1);
+    ctx.fillStyle = 'rgba(138,135,125,0.45)'; ctx.font = `${kvFs}px ui-monospace,monospace`;
     ctx.fillText('0', W - 3, H - 3);
 
     // Legend values
@@ -557,31 +573,44 @@
     if (cnv) {
       const dpr = window.devicePixelRatio || 1;
       const cssW = cnv.clientWidth || (panel.offsetWidth - 100);
-      const cssH = 4;
+      const cssH = cnv.clientHeight || 16;
       cnv.width = Math.round(cssW * dpr);
       cnv.height = Math.round(cssH * dpr);
       const ctx = cnv.getContext('2d');
       ctx.resetTransform();
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, cssW, cssH);
+      const r = Math.min(5, cssH / 2);
       // Track bg
       ctx.fillStyle = 'rgba(255,255,255,0.07)';
-      ctx.roundRect(0, 0, cssW, cssH, 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.roundRect(0, 0, cssW, cssH, r); ctx.fill();
       if (tn > 0) {
         const preFrac = pfxN / MODEL.max_seq;
         const decFrac = decN / MODEL.max_seq;
         const preW = Math.min(cssW, preFrac * cssW);
         const decW = Math.min(cssW - preW, decFrac * cssW);
-        // Prefill segment — muted violet
+        const totalW = preW + decW;
+        // Prefill segment — muted violet (left, rounded-left only)
         if (preW > 0) {
           ctx.fillStyle = 'rgba(140,95,200,0.60)';
-          ctx.fillRect(0, 0, preW, cssH);
+          ctx.beginPath();
+          ctx.roundRect(0, 0, preW, cssH, decW > 0 ? [r, 0, 0, r] : r);
+          ctx.fill();
         }
-        // Decode segment — bright violet
+        // Decode segment — bright violet (right portion)
         if (decW > 0) {
           ctx.fillStyle = 'rgba(175,130,240,0.90)';
-          ctx.fillRect(preW, 0, decW, cssH);
+          ctx.beginPath();
+          ctx.roundRect(preW, 0, decW, cssH, [0, r, r, 0]);
+          ctx.fill();
+        }
+        // Percentage label inside bar if bar is tall enough
+        if (cssH >= 12 && totalW > 28) {
+          const pct = ((tn / MODEL.max_seq) * 100).toFixed(0) + '%';
+          ctx.fillStyle = 'rgba(255,255,255,0.82)';
+          ctx.font = `bold ${Math.max(9, cssH * 0.58).toFixed(0)}px ui-monospace,monospace`;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.fillText(pct, Math.min(preW, cssW - 32) + 4, cssH / 2);
         }
       }
     }

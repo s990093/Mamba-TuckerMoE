@@ -5,9 +5,13 @@
 .pf-panel {
   position: fixed;
   z-index: 9997;
-  width: 224px; /* fixed default — JS overrides on restore/expand */
-  min-width: 192px;
-  max-width: 600px;
+  width: 280px; /* fixed default — JS overrides on restore/expand */
+  min-width: 248px;
+  max-width: 90vw;
+  min-height: 60px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
   background: rgba(16, 15, 13, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 14px;
@@ -19,7 +23,7 @@
     0 2px 8px -2px rgba(0, 0, 0, 0.4);
   font-family:
     -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: rgba(238, 236, 226, 0.82);
   user-select: none;
   overflow: hidden;
@@ -93,7 +97,7 @@
 
 /* ── Header text ─────────────────────────────────────────────── */
 .pf-title {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -103,7 +107,7 @@
 .pf-mini-stats {
   flex: 1;
   min-width: 0; /* allow flex child to shrink below content size */
-  font-size: 10px;
+  font-size: 12px;
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
   color: rgba(201, 197, 184, 0.55);
   white-space: nowrap;
@@ -136,8 +140,17 @@
 
 /* ── Body ────────────────────────────────────────────────────── */
 .pf-body {
-  padding: 10px 10px 8px;
+  padding: 10px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+}
+#pf-compact {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 0 0 auto;
 }
 .pf-body.pf-hidden {
   display: none;
@@ -162,12 +175,12 @@
   gap: 7px;
 }
 .pf-row-lbl {
-  font-size: 8.5px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: rgba(138, 135, 125, 0.55);
-  width: 26px;
+  width: 34px;
   flex-shrink: 0;
 }
 .pf-bar-wrap {
@@ -206,7 +219,7 @@
 
 .pf-row-val {
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba(238, 236, 226, 0.82);
   width: 40px;
@@ -215,9 +228,9 @@
   letter-spacing: 0.01em;
 }
 .pf-row-sub {
-  font-size: 9px;
+  font-size: 11px;
   color: rgba(138, 135, 125, 0.4);
-  padding-left: 33px;
+  padding-left: 41px;
   margin-top: -4px;
   letter-spacing: 0.03em;
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
@@ -239,7 +252,7 @@
 }
 .pf-val {
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   color: #eeece2;
   line-height: 1.2;
@@ -249,9 +262,9 @@
   color: #cc785c;
 }
 .pf-lbl {
-  font-size: 7.5px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   color: rgba(138, 135, 125, 0.5);
   margin-top: 2px;
 }
@@ -273,15 +286,15 @@
   min-width: 0;
 }
 .pf-cache-title {
-  font-size: 8.5px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: rgba(138, 135, 125, 0.55);
 }
 .pf-cache-ctx {
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
-  font-size: 9px;
+  font-size: 11px;
   color: rgba(138, 135, 125, 0.55);
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -295,28 +308,28 @@
 
 /* GQA: two-segment canvas bar */
 .pf-lbl-gqa {
-  color: rgba(160, 120, 220, 0.65);
+  color: rgba(160, 120, 220, 0.80);
 }
 .pf-kv-canvas {
   flex: 1;
-  height: 4px;
+  height: 16px;
   min-width: 0;
   display: block;
-  border-radius: 2px;
+  border-radius: 5px;
 }
 /* Breakdown legend row under GQA bar */
 .pf-kv-legend-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-left: 32px;
-  margin-top: -2px;
+  gap: 8px;
+  padding-left: 41px;
+  margin-top: 2px;
 }
 .pf-kv-seg-dot {
   display: inline-block;
-  width: 7px;
-  height: 3px;
-  border-radius: 1px;
+  width: 9px;
+  height: 4px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 .pf-kv-seg-pre {
@@ -328,19 +341,19 @@
 
 /* SSM bar: green (fixed) */
 .pf-lbl-ssm {
-  color: rgba(140, 200, 110, 0.65);
+  color: rgba(140, 200, 110, 0.80);
 }
 .pf-bar-wrap-ssm {
   flex: 1;
-  height: 3px;
+  height: 10px;
   background: rgba(140, 200, 110, 0.07);
-  border-radius: 2px;
+  border-radius: 5px;
   overflow: hidden;
-  border: 1px dashed rgba(140, 200, 110, 0.2);
+  border: 1px dashed rgba(140, 200, 110, 0.25);
 }
 .pf-bar-ssm {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 5px;
   background: linear-gradient(
     90deg,
     rgba(110, 175, 85, 0.45),
@@ -356,17 +369,22 @@
   opacity: 0.75;
 }
 
-/* ── Time-series chart view ──────────────────────────────────── */
+/* ── Time-series chart view — fills available body height ────── */
 #pf-charts {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  flex: 1;
+  gap: 6px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pf-chart-block {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  flex: 1;
+  min-height: 36px;
+  gap: 2px;
 }
 
 .pf-chart-hdr {
@@ -377,9 +395,9 @@
 }
 
 .pf-chart-lbl {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 .pf-clbl-gpu {
@@ -418,52 +436,62 @@
 }
 .pf-legend-lbl {
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
-  font-size: 9px;
+  font-size: 11px;
   color: rgba(180, 172, 158, 0.62);
   letter-spacing: 0.02em;
 }
 
 .pf-chart-cur {
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(238, 236, 226, 0.82);
 }
 
+/* Canvases fill flex space — JS reads clientWidth/clientHeight for DPR math */
 .pf-chart-canvas {
   display: block;
   width: 100%;
-  height: 56px; /* CSS height; JS reads clientHeight for DPR math */
-  border-radius: 6px;
+  flex: 1;
+  min-height: 0;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 .pf-chart-canvas-kv {
-  height: 68px; /* taller for the two-line cache chart */
+  flex: 1.3; /* KV cache chart gets a bit more room */
 }
 
 /* ── Time axis ───────────────────────────────────────────────── */
 .pf-time-axis {
   position: relative;
   height: 14px;
-  margin-top: 3px;
-  font-size: 9px;
+  flex: 0 0 14px;
+  margin-top: 2px;
+  font-size: 10px;
   color: rgba(138, 135, 125, 0.42);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   font-family: "JetBrains Mono", "Menlo", ui-monospace, monospace;
 }
 
-/* ── Resize handle ───────────────────────────────────────────── */
+/* ── Resize handle (SE corner, drag for width + height) ──────── */
 .pf-rzh {
-  position: absolute;
-  bottom: 3px;
-  right: 4px;
-  font-size: 10px;
+  position: sticky;
+  bottom: 0;
+  left: 100%;
+  margin-left: auto;
+  display: block;
+  width: 18px;
+  height: 14px;
+  padding: 2px 3px;
+  font-size: 11px;
   line-height: 1;
-  color: rgba(138, 135, 125, 0.2);
+  color: rgba(138, 135, 125, 0.22);
   cursor: se-resize;
   transition: color 0.15s;
+  text-align: right;
+  flex-shrink: 0;
 }
 .pf-rzh:hover {
-  color: rgba(204, 120, 92, 0.55);
+  color: rgba(204, 120, 92, 0.7);
 }

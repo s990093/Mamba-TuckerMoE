@@ -175,6 +175,7 @@ def main():
     # ── Generation config — mode defaults then CLI overrides ─────────────────
     # Priority: CLI arg (not None) > mode config > GenerationConfig defaults.
     mc = get_mode_gen_config(args.mode)
+
     gen_cfg = GenerationConfig(
         max_tokens=args.max_tokens,
         temperature=args.temp    if args.temp    is not None else mc.get("temperature", 0.426),

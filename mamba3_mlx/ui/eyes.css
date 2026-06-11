@@ -978,14 +978,22 @@ body {
   margin-top: 0;
   opacity: 0;
   transition:
-    max-height 0.5s var(--ease-soft),
-    opacity 0.4s ease,
-    margin-top 0.4s ease;
+    max-height 0.4s var(--ease-soft),
+    opacity 0.3s ease,
+    margin-top 0.3s ease;
 }
 .cot-stream.visible {
-  max-height: 190px;
+  max-height: 260px;
   opacity: 1;
-  margin-top: 20px;
+  margin-top: 18px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+/* CSS fallback: force visible whenever scene is in thinking state */
+.state-thinking .cot-stream {
+  max-height: 260px !important;
+  opacity: 1 !important;
+  margin-top: 18px !important;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -1017,7 +1025,7 @@ body {
   font-weight: 300;
   line-height: 1.68;
   letter-spacing: 0.025em;
-  color: rgba(200, 180, 150, 0.5);
+  color: rgba(200, 180, 150, 0.65);
   word-break: break-word;
   text-align: left;
   padding: 0 12px 8px;
@@ -1124,17 +1132,16 @@ body {
 /* ── TTS Subtitle (karaoke-style word highlight) ──────────────── */
 .subtitle {
   position: fixed;
-  bottom: 68px;
+  bottom: 64px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(680px, 78vw);
+  width: min(700px, 82vw);
   text-align: center;
   font-family: var(--font-serif);
-  font-size: clamp(16px, 2vw, 22px);
-  line-height: 1.55;
-  color: rgba(236, 227, 216, 0.88);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8);
+  font-size: clamp(15px, 1.7vw, 20px);
+  line-height: 1.6;
   letter-spacing: 0.02em;
+  word-break: break-word;
   opacity: 0;
   transform: translateX(-50%) translateY(6px);
   transition:
@@ -1148,34 +1155,30 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Word spans inside subtitle */
+/* Word spans — karaoke 特寫: only active word stands out */
 .sub-word {
   display: inline-block;
-  padding: 1px 3px;
-  margin: 0 1px;
-  border-radius: 4px;
+  vertical-align: middle;
   transition:
-    color 0.18s ease,
-    background 0.14s ease;
+    color 0.10s ease,
+    transform 0.12s ease,
+    font-weight 0.10s ease,
+    text-shadow 0.10s ease;
+  color: rgba(236, 227, 216, 0.16);
+  transform: scale(1);
+  transform-origin: center bottom;
 }
-/* not yet spoken */
-.sub-word {
-  color: rgba(236, 227, 216, 0.55);
-}
-/* already spoken (past) */
 .sub-word.spoken {
-  color: rgba(236, 227, 216, 0.4);
+  color: rgba(236, 227, 216, 0.34);
 }
-/* currently being spoken — karaoke highlight */
+/* active — 特寫: bright + scale up */
 .sub-word.active {
-  color: #1a0a04;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 210, 140, 0.95) 0%,
-    rgba(232, 149, 106, 0.95) 100%
-  );
-  text-shadow: 0 0 12px rgba(255, 200, 140, 0.45);
-  box-shadow: 0 1px 8px rgba(232, 149, 106, 0.35);
+  color: rgba(235, 165, 78, 1.0);
+  font-weight: 600;
+  transform: scale(1.22);
+  text-shadow:
+    0 0 6px rgba(232, 149, 106, 0.45),
+    0 0 18px rgba(232, 149, 106, 0.18);
 }
 
 /* ── Transcript overlay ───────────────────────────────────────── */

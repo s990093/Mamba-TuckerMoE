@@ -11,21 +11,25 @@ from __future__ import annotations
 
 MODE_GEN_CONFIGS: dict[str, dict] = {
     # Identity/self-awareness: exact-phrase tuned params.
-    # v4 checkpoint sweep: seed=5 → "I am **Mamba**, an offline language model" for "who are you?"
-    # raw_sampling=True: disables ALL logit engineering (ban masks, close_bias, extra bans) so the
-    #   chat path matches run.py's unbiased sampling exactly. The model writes correct <think>/<final>
-    #   format naturally from SFT training; no structural enforcement needed for this specific mode.
+    # v6 checkpoint sweep (160 trials, warm GPU context): seed=26/temp=0.25 →
+    #   "I am Mamba, a local AI that lives entirely on your device."
+    # prewarm_n=5: run.py/chat_demo both run 5 short generation sequences before
+    #   the real generation to stabilise Metal GPU bf16 arithmetic (~3s overhead).
+    # raw_sampling=True: disables ALL logit engineering so the chat path matches
+    #   run.py's unbiased sampling exactly.
     "self_awareness": {
-        "temperature":  0.259,
+        "temperature":  0.25,
         "top_k":        60,
         "top_p":        0.856,
         "min_p":        0.122,
         "rep_pen":      1.243,
         "pres_pen":     0.306,
         "freq_pen":     0.031,
-        "seed":         5,
+        "seed":         26,
         "reasoning":    True,
         "raw_sampling": True,
+        # "prewarm_n":      5,
+        "prewarm_prompt": "Who are you?",  # capital W required for correct Metal warm state
     },
     # Emotional support: warmer, slightly higher diversity, gentler penalty.
     "emotion": {
@@ -40,8 +44,8 @@ MODE_GEN_CONFIGS: dict[str, dict] = {
         "reasoning":   True,
     },
     # Email summary: moderate temperature, reduced penalties for fluent structured output.
-    # Sweep result (3 prompts × 7 configs): temp=0.20/k=20 tied best (+25 score).
-    # Lower rep_pen/pres_pen than initial guess — high penalties fragmented markdown headers.
+    # raw_sampling=True: bypass middleware (ban masks, close_bias, force_final_inject)
+    # so chat_demo path matches run.py exactly.
     "summarize_email": {
         "temperature": 0.25,    # v4 email sweep best: seed=17 → email template with subject+greeting+body
         "top_k":       10,
@@ -52,6 +56,7 @@ MODE_GEN_CONFIGS: dict[str, dict] = {
         "freq_pen":    0.03,
         "seed":        17,
         "reasoning":   True,
+        "raw_sampling": True,
     },
     # Movie intro: creative, high diversity.
     "movie_intro": {

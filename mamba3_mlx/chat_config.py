@@ -9,7 +9,7 @@ HOST = "0.0.0.0"
 PORT = 7860
 
 # ── Paths (relative to REPO_ROOT, resolved at runtime in chat_demo.py) ───────
-CHECKPOINT_RELPATH = "checkpoints/v4/latest_sft_cot_model.npz"
+CHECKPOINT_RELPATH = "checkpoints/v6/latest_sft_cot_model.npz"
 TOKENIZER_RELPATH  = "cot_dataset"
 
 # ── Model sizing ──────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v5/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v6/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 
 # ── Auto-select fastest checkpoint ────────────────────────────────────────────
@@ -19,8 +19,8 @@ _SIDECAR   := $(_CKPT_STEM).mlx_bf16.npz
 _FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
 
 # ── Generation defaults ────────────────────────────────────────────────────────
-PROMPT    ?=who are you?
-# PROMPT    ?= Write a email
+# PROMPT    ?= Who are you?
+PROMPT    ?= Write a email
 MODE      ?= self_awareness
 MAX_TOK   ?= 1024      # 保持：符合 v2 SFT 規範的預算
 STREAM    ?= 1
@@ -94,7 +94,7 @@ _REQUIRE_PROMPT = @test -n "$(PROMPT)" || \
 $(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $(CHECKPOINT)  (sidecar not found — will convert on first run)))
 
 .PHONY: run self emotion email movie daily syscall deep default debug help \
-        cot-demo cot-verify chat chat-mock chat-smoke chat-kill \
+        cot-demo cot-verify chat chat-mock chat-smoke chat-kill kill \
         profiler profiler-kill \
         convert-sidecar tune-self \
         sjd sjd-self sjd-math sjd-daily sjd-emotion sjd-email \
@@ -198,8 +198,15 @@ cot-verify:
 # ── Chat demo (WebSocket / FastAPI, mamba3_mlx native stack) ──────────────────
 CHAT_PORT ?= 7860
 
-## chat: boot chat_demo; also starts profiler on $PROFILER_PORT if not already running
+## chat: boot chat_demo; auto-kill any existing process on $CHAT_PORT first
 chat:
+	@_pid="$$(lsof -ti tcp:$(CHAT_PORT) 2>/dev/null)"; \
+	  if [ -n "$$_pid" ]; then \
+	    echo "[chat] port $(CHAT_PORT) busy (pid=$$_pid) — killing …"; \
+	    kill -9 $$_pid 2>/dev/null; sleep 0.5; \
+	  else \
+	    echo "[chat] port $(CHAT_PORT) free"; \
+	  fi
 	@cd $(REPO) && \
 	  PROF_PID="" ; \
 	  if ! lsof -Pi :$(PROFILER_PORT) -sTCP:LISTEN -t >/dev/null 2>&1 ; then \
@@ -238,6 +245,9 @@ profiler-kill:
 	@pid="$$(lsof -ti tcp:$(PROFILER_PORT) 2>/dev/null)"; \
 	if [ -n "$$pid" ]; then echo "killing pid $$pid on port $(PROFILER_PORT)"; kill -9 $$pid; \
 	else echo "no process on port $(PROFILER_PORT)"; fi
+
+## kill: terminate chat server AND profiler in one shot
+kill: chat-kill profiler-kill
 
 # ── Speculative Jacobi Decoding ───────────────────────────────────────────────
 # Calls run_sjd_best.sh which uses greedy Jacobi + adaptive_K + cot_caches.

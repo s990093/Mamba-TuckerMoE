@@ -50,7 +50,9 @@ for _p in (_REPO_ROOT, os.path.join(_INF_DIR, "mv")):
 import mlx.core as mx
 
 from mamba3_mlx import chat_config as _cfg
-from mamba3_mlx.utils.config import Mamba3Config
+from mamba3_mlx.utils.config import Mamba3Config, GenerationConfig
+from mamba3_mlx.utils.system_prompts import resolve_system_prompt
+from mamba3_mlx.inference.generator import generate as _gen_pure
 from mamba3_mlx.utils.mode_configs import get_mode_gen_config
 from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
 from mamba3_mlx.mlx_model.weights import load_checkpoint, _sidecar_path
@@ -210,6 +212,44 @@ def _build_final_ban_mask(tokenizer: Any, vocab_size: int) -> mx.array | None:
     """
     ids = [_tok_id(tokenizer, n) for n in ("<think>", "<final>", "</think>")]
     return _build_ban_mask(ids, vocab_size)
+
+
+def _prewarm_identity(n: int = 5) -> float:
+    """Run N short generations to stabilise Metal GPU bf16 arithmetic for identity mode.
+
+    5 prior sequences (max_tokens=20) is enough to warm the Metal JIT/GPU power
+    state so seed=26/temp=0.25 → "I am Mamba" on the first real request (~3s).
+    """
+    sys_prompt = resolve_system_prompt("self_awareness", "")
+    prompt_text = (
+        f"<|im_start|>system\n{sys_prompt}<|im_end|>\n"
+        f"<|im_start|>user\nWho are you?<|im_end|>\n"
+        f"<|im_start|>assistant\n<think>\n"
+    )
+    bos_id = _tokenizer.convert_tokens_to_ids("<s>")
+    ids: list[int] = _tokenizer(prompt_text, add_special_tokens=False)["input_ids"]
+    if isinstance(bos_id, int) and bos_id >= 0:
+        ids = [bos_id] + ids
+
+    stop_ids_pw: list[int] = []
+    for nm in ("<|im_end|>", "</s>"):
+        tid = _tokenizer.convert_tokens_to_ids(nm)
+        if isinstance(tid, int) and tid >= 0:
+            stop_ids_pw.append(tid)
+
+    t0 = time.perf_counter()
+    print(f"[chat_demo] identity pre-warm: {n} sequences ...", end="", flush=True)
+    for i in range(n):
+        gc = GenerationConfig(
+            max_tokens=20, temperature=0.25, top_k=60,
+            top_p=0.856, min_p=0.122, rep_pen=1.243,
+            pres_pen=0.306, freq_pen=0.031,
+            repeat_last_n=256, seed=i,
+        )
+        _gen_pure(_model, ids, gc, stop_token_ids=stop_ids_pw, no_eos_stop=True)
+    elapsed = time.perf_counter() - t0
+    print(f" done ({elapsed:.1f}s)")
+    return elapsed * 1000
 
 
 def _load_model(args: argparse.Namespace) -> dict[str, Any]:
@@ -465,6 +505,7 @@ def _stream_generate(
     ttft_ms: float | None = None
     n_out = 0
     stop_after = False
+    _raw_prev_text = ""   # cumulative decoded string for raw_sampling delta tracking
 
     # When no_eos_stop is on, after the splitter enters "done" we keep decoding
     # tokens but bypass the splitter — text streams through `_nes_decode_and_yield`.
@@ -538,43 +579,67 @@ def _stream_generate(
         if ttft_ms is None:
             ttft_ms = (time.perf_counter() - t_dec) * 1000
 
+        # 2a) Compute display text — raw uses cumulative decode for correct spacing;
+        #     non-raw uses single-token decode (middleware handles its own tracking).
+        prev_mode = mw.mode
+        if _raw:
+            try:
+                _raw_full = _tokenizer.decode(
+                    all_tids, skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                )
+                _raw_text = _raw_full[len(_raw_prev_text):]
+                _raw_prev_text = _raw_full
+            except Exception:
+                _raw_text = ""
+        else:
+            try:
+                _raw_text = _tokenizer.decode([tid], skip_special_tokens=False,
+                                              clean_up_tokenization_spaces=False)
+            except Exception:
+                _raw_text = ""
+
         # Live console: stream decoded token coloured by FSM mode.
         #   think/head  → dim grey  (reasoning in progress)
         #   final/done  → green     (answer tokens)
         #   between     → yellow    (transition zone)
-        try:
-            _tok_text = _tokenizer.decode([tid], skip_special_tokens=False,
-                                          clean_up_tokenization_spaces=False)
+        if _raw_text:
             _mode_now = mw.mode
             if _mode_now in ("head", "think"):
-                _cprint(_tok_text, style="dim")
+                _cprint(_raw_text, style="dim")
             elif _mode_now == "between":
-                _cprint(_tok_text, style="yellow")
+                _cprint(_raw_text, style="yellow")
             else:
-                _cprint(_tok_text, style="green")
-        except Exception:
-            pass
+                _cprint(_raw_text, style="green")
 
-        # Stream individual CoT tokens so the frontend can display them live.
-        # Only emitted while in "think" mode; special tokens are stripped.
-        if mw.mode == "think" and not _nes_bypass:
-            try:
-                _cot_chunk = _tokenizer.decode(
-                    [tid], skip_special_tokens=True,
-                    clean_up_tokenization_spaces=False,
-                )
-                if _cot_chunk:
-                    yield {"type": "reasoning_token", "text": _cot_chunk, "n": n_out}
-            except Exception:
-                pass
-
-        # 2) Middleware step — yields reasoning / token / __stop__.
-        prev_mode = mw.mode
-        if _nes_bypass:
+        # 2b) Token routing — raw yields the cumulative delta directly.
+        if _raw:
+            if _raw_text:
+                el = elapsed_s_fn()
+                yield {
+                    "type": "token",
+                    "text": _raw_text,
+                    "n": n_out,
+                    "tok_s": round(n_out / max(el, 1e-9), 1),
+                }
+            if tid in set(_stop_ids or []):
+                stop_after = True
+        elif _nes_bypass:
             ev = _nes_decode_and_yield(tid)
             if ev:
                 yield ev
         else:
+            # Stream individual CoT tokens so the frontend can display them live.
+            if mw.mode == "think":
+                try:
+                    _cot_chunk = _tokenizer.decode(
+                        [tid], skip_special_tokens=True,
+                        clean_up_tokenization_spaces=False,
+                    )
+                    if _cot_chunk:
+                        yield {"type": "reasoning_token", "text": _cot_chunk, "n": n_out}
+                except Exception:
+                    pass
             for evt in mw.step(tid, n_out=n_out, elapsed_s_fn=elapsed_s_fn):
                 if evt.get("__stop__"):
                     if not no_eos_stop:
@@ -601,7 +666,8 @@ def _stream_generate(
         mx.eval(last_logits, *_iter_state_arrays(states))
 
         # 5) Multi-stage <final> injection — fires at most once per turn.
-        if prev_mode == "think" and mw.mode == "between":
+        # raw_sampling: model generates <final> naturally (SFT), no injection needed.
+        if not _raw and prev_mode == "think" and mw.mode == "between":
             states, pos, inj_row, did_inject, inj_ms = mw.maybe_inject_final(
                 caches=states, pos=pos,
             )
@@ -738,9 +804,29 @@ def _serve_no_store(path: Path, media_type: str):
     )
 
 
+@app.get("/ui/eyes.js")
+async def ui_eyes_js():
+    return _serve_no_store(_UI_DIR / "eyes.js", "application/javascript")
+
+
+@app.get("/ui/eyes.css")
+async def ui_eyes_css():
+    return _serve_no_store(_UI_DIR / "eyes.css", "text/css")
+
+
 @app.get("/eyes", response_class=HTMLResponse)
 async def eyes_page():
     html = (_UI_DIR / "eyes.html").read_text(encoding="utf-8")
+    try:
+        js_v = int((_UI_DIR / "eyes.js").stat().st_mtime)
+    except OSError:
+        js_v = 0
+    try:
+        css_v = int((_UI_DIR / "eyes.css").stat().st_mtime)
+    except OSError:
+        css_v = 0
+    html = html.replace("/static/eyes.js", f"/ui/eyes.js?v={js_v}")
+    html = html.replace("/static/eyes.css", f"/ui/eyes.css?v={css_v}")
     resp = HTMLResponse(html)
     resp.headers["Cache-Control"] = "no-store"
     return resp
@@ -793,11 +879,15 @@ def _sampling_defaults_dict() -> dict[str, Any]:
 
 
 def _sampling_mode_configs_dict() -> dict[str, Any]:
-    """Return per-mode sampling configs keyed by mode name for frontend consumption."""
+    """Return per-mode sampling configs keyed by mode name for frontend consumption.
+    Also exposes category-key aliases (e.g. 'email_summary' alongside 'summarize_email')
+    so the chat UI can look up by category_key directly.
+    """
     from mamba3_mlx.utils.mode_configs import MODE_GEN_CONFIGS
+    from mamba3_mlx.utils.system_prompts import MODE_ALIASES
     out: dict[str, Any] = {}
     for mode_key, cfg in MODE_GEN_CONFIGS.items():
-        out[mode_key] = {
+        entry = {
             "temperature": cfg.get("temperature", 0.426),
             "top_k": cfg.get("top_k", 20),
             "top_p": cfg.get("top_p", 0.981),
@@ -808,6 +898,11 @@ def _sampling_mode_configs_dict() -> dict[str, Any]:
             "seed": cfg.get("seed", 0),
             "reasoning": cfg.get("reasoning", True),
         }
+        out[mode_key] = entry
+        # Also register under every alias that maps to this mode_key
+        for alias, canonical in MODE_ALIASES.items():
+            if canonical == mode_key and alias != mode_key:
+                out[alias] = entry
     return out
 
 

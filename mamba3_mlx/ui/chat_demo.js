@@ -446,6 +446,10 @@ let typingDots = null;
 let streamText = "";
 let lastReasoningText = "";  // accumulated reasoning for delta decode
 let thinkOpen = false;        // <think> shown but </think> not yet
+let lastPromptTokens = 0;     // prompt token count from meta event (for prefill tok/s)
+let cotThinkStartTime = 0;    // wall-clock when first think token arrives
+let lastThinkMs = 0;          // elapsed ms for think phase (set when </think> detected)
+let cotThinkDone = false;     // avoid re-recording think time
 /** @type {string|null} */
 let pendingExampleId = null;
 
@@ -758,11 +762,130 @@ function morphChildren(parent, newKids) {
   }
 }
 
+// ── CoT block rendering ───────────────────────────────────────────────────
+
+/** Parse <think>…</think><final>…</final> structure from raw assistant text.
+ *  Handles streaming partial state: think content visible before </think> arrives. */
+function parseCot(raw) {
+  const r = raw || "";
+  const thinkOpenIdx  = r.indexOf("<think>");
+  const thinkCloseIdx = r.indexOf("</think>");
+  const finalOpenIdx  = r.indexOf("<final>");
+  const finalCloseIdx = r.indexOf("</final>");
+  const hasThinkOpen  = thinkOpenIdx  !== -1;
+  const hasThinkClose = thinkCloseIdx !== -1;
+  const hasFinalOpen  = finalOpenIdx  !== -1;
+  const hasFinalClose = finalCloseIdx !== -1;
+  if (!hasThinkOpen && !hasThinkClose && !hasFinalOpen) return { hasCoT: false };
+
+  let thinkContent = "";
+  if (hasThinkClose) {
+    // Complete think block
+    const start = hasThinkOpen ? thinkOpenIdx + 7 : 0;
+    thinkContent = r.slice(start, thinkCloseIdx).trim();
+  } else if (hasThinkOpen) {
+    // Streaming partial think (no </think> yet) — show everything after <think>
+    thinkContent = r.slice(thinkOpenIdx + 7).trim();
+  }
+
+  let finalContent = "";
+  if (hasFinalOpen) {
+    const start = finalOpenIdx + 7;
+    finalContent = hasFinalClose
+      ? r.slice(start, finalCloseIdx).trim()
+      : r.slice(start).trim();
+  }
+
+  return {
+    hasCoT: true, thinkContent, finalContent,
+    hasThinkClose, hasFinalOpen, hasFinalClose,
+    complete: hasThinkClose && (hasFinalClose || !hasFinalOpen),
+  };
+}
+
+function _countSteps(text) {
+  const m = (text || "").match(/\bStep\s+\d+/gi);
+  return m ? m.length : 0;
+}
+
+function _buildThinkBlockHtml(thinkContent, closed) {
+  // Time label: "Thought for Xs" when closed, "Thinking…" while streaming
+  let timeLabel = "Thinking…";
+  if (closed) {
+    const s = lastThinkMs > 0 ? (lastThinkMs / 1000).toFixed(1) : null;
+    timeLabel = s ? `Thought for ${s}s` : "Thought";
+  }
+  // SVG brain icon
+  const brainSvg =
+    `<svg class="cot-brain-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<path d="M9 18h6"/><path d="M10 22h4"/>` +
+    `<path d="M12 2a7 7 0 00-4.95 11.95c.6.6.95 1.41.95 2.26V17h8v-.79c0-.85.35-1.66.95-2.26A7 7 0 0012 2z"/>` +
+    `</svg>`;
+  // Chevron SVG (rotates via CSS when open)
+  const chevSvg =
+    `<svg class="cot-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<path d="M6 9l6 6 6-6"/>` +
+    `</svg>`;
+  return (
+    `<details class="cot-think-block${closed ? "" : " cot-streaming"}" open>` +
+    `<summary class="cot-think-summary">` +
+    brainSvg +
+    `<span class="cot-label">${timeLabel}</span>` +
+    chevSvg +
+    `</summary>` +
+    `<div class="cot-think-body">${renderMd(thinkContent.trim())}</div>` +
+    `</details>`
+  );
+}
+
+function _buildRawDropdownHtml(raw) {
+  const clean = (raw || "")
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/<\/?final>/g, "")
+    .trim();
+  if (!clean) return "";
+  return (
+    `<details class="cot-raw-block">` +
+    `<summary class="cot-raw-summary">` +
+    `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/>` +
+    `</svg>Raw text</summary>` +
+    `<pre class="cot-raw-pre">${escapeHtml(clean)}</pre>` +
+    `</details>`
+  );
+}
+
+/** Render assistant body HTML, lifting <think>/<final> into styled CoT blocks.
+ *  Falls back to plain markdown when no CoT markers are detected. */
+function renderCotBody(raw, finalized) {
+  const cot = parseCot(raw);
+  if (!cot.hasCoT) return renderMd(raw);
+
+  let html = "";
+
+  // Think block — always visible (collapsible) when CoT detected
+  if (cot.thinkContent) {
+    html += _buildThinkBlockHtml(cot.thinkContent, cot.hasThinkClose);
+  }
+
+  // Final answer — flows naturally below think block
+  if (cot.finalContent) {
+    html += `<div class="cot-final-body">${renderMd(cot.finalContent.trim())}</div>`;
+  }
+
+  // Raw text dropdown — only when complete + finalized
+  if (cot.complete && finalized) {
+    html += _buildRawDropdownHtml(raw);
+  }
+
+  return html;
+}
+
 /** Progressive render: parse the partial stream as markdown, then morph the
  *  body in place so already-visible nodes don't re-animate. New blocks (and
  *  new <tr>/<li> inside tables/lists) pick up `.fresh` → CSS fade-slide-in. */
-function streamRenderInto(bodyEl, raw) {
-  const html = postProcessMarkers(renderMd(raw || ""));
+function streamRenderInto(bodyEl, raw, finalized) {
+  const html = postProcessMarkers(renderCotBody(raw || "", !!finalized));
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
   morphChildren(bodyEl, Array.from(tmp.children));
@@ -817,7 +940,7 @@ function renderControlBlock(raw) {
 
 function finalizeAssistantBody(bodyEl, raw) {
   bodyEl.classList.remove("streaming", "markdown-streaming");
-  streamRenderInto(bodyEl, raw);
+  streamRenderInto(bodyEl, raw, true);
 }
 
 function renderSidebarCategories(categories) {
@@ -933,17 +1056,22 @@ function renderStyleAndTools(constraints, tools) {
   }
 }
 
+// Only these two modes are shown in the sys-call selector
+const ALLOWED_SYS_CATS = new Set(["email_summary", "self_awareness"]);
+
 function fillSysCategorySelect(categories) {
   if (!sysCatSelect) return;
   sysCatSelect.innerHTML = "";
-  (categories || []).forEach((cat) => {
-    const key = cat.key || "";
-    if (!key) return;
-    const opt = document.createElement("option");
-    opt.value = key;
-    opt.textContent = cat.title || key;
-    sysCatSelect.appendChild(opt);
-  });
+  (categories || [])
+    .filter((cat) => ALLOWED_SYS_CATS.has(cat.key || ""))
+    .forEach((cat) => {
+      const key = cat.key || "";
+      if (!key) return;
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = cat.title || key;
+      sysCatSelect.appendChild(opt);
+    });
   if (sysCatSelect.options.length && !sysCatSelect.value)
     sysCatSelect.selectedIndex = 0;
   refreshExampleDisabled();
@@ -1392,19 +1520,42 @@ function addInjectBadge(obj, data) {
 
 function addMetrics(obj, data) {
   const m = document.createElement("div");
-  m.className = "msg-metrics";
-  m.innerHTML =
-    "<span>" +
-    Number(data.tok_s).toFixed(1) +
-    " tok/s</span><span>TTFT " +
-    Number(data.ttft_ms).toFixed(1) +
-    "ms</span><span>Prefill " +
-    Number(data.prefill_ms).toFixed(1) +
-    "ms</span><span>" +
-    data.total_tokens +
-    " tok</span><span>" +
-    Number(data.total_ms).toFixed(0) +
-    "ms</span>";
+  m.className = "msg-perf-bar";
+  const prefillMs  = Number(data.prefill_ms) || 0;
+  const totalMs    = Number(data.total_ms) || 0;
+  const decodeMs   = Math.max(0, totalMs - prefillMs);
+  const decodeTps  = Number(data.tok_s) || 0;
+  const totalTok   = Number(data.total_tokens) || 0;
+  const ttftMs     = Number(data.ttft_ms) || 0;
+  const ptok       = lastPromptTokens || 0;
+  const prefillTps = ptok > 0 && prefillMs > 0
+    ? (ptok / (prefillMs / 1000)).toFixed(0)
+    : null;
+
+  const parts = [];
+  if (prefillTps) {
+    parts.push(
+      `<span class="mpb-section">` +
+      `<span class="mpb-lbl">Prefill</span>` +
+      `<span class="mpb-nums">${prefillTps} tok/s · ${ptok} tok · ${prefillMs.toFixed(0)}ms</span>` +
+      `</span>`
+    );
+  }
+  parts.push(
+    `<span class="mpb-section">` +
+    `<span class="mpb-lbl">Decode</span>` +
+    `<span class="mpb-nums">${decodeTps.toFixed(1)} tok/s · ${totalTok} tok · ${decodeMs.toFixed(0)}ms</span>` +
+    `</span>`
+  );
+  if (ttftMs > 0) {
+    parts.push(
+      `<span class="mpb-section">` +
+      `<span class="mpb-lbl">TTFT</span>` +
+      `<span class="mpb-nums">${ttftMs.toFixed(0)}ms</span>` +
+      `</span>`
+    );
+  }
+  m.innerHTML = parts.join('<span class="mpb-dot">·</span>');
   obj.content.appendChild(m);
 }
 
@@ -1522,7 +1673,8 @@ function handleMsg(m) {
     currentMsg = addRow("assistant", "");
     currentMsg.body.classList.add("streaming", "markdown-streaming");
     typingDots = addDots(currentMsg);
-    streamText = ""; lastReasoningText = ""; thinkOpen = false;
+    streamText = ""; lastReasoningText = ""; thinkOpen = false; lastPromptTokens = 0;
+    cotThinkStartTime = 0; lastThinkMs = 0; cotThinkDone = false;
     inIntro = false;
     nudgeScroll();
     return;
@@ -1532,6 +1684,7 @@ function handleMsg(m) {
       typingDots.remove();
       typingDots = null;
     }
+    lastPromptTokens = Number(m.prompt_tokens) || 0;
     if (currentMsg) addPrefill(currentMsg, m);
     const mp = $("#m-prefill");
     if (mp) mp.textContent = Number(m.prefill_ms).toFixed(0) + "ms";
@@ -1548,6 +1701,21 @@ function handleMsg(m) {
     if (thinkOpen) {
       streamText += "\n</think>\n<final>\n";
       thinkOpen = false;
+    }
+    // Raw_sampling mode (no `reasoning` events): the prompt's <think>\n marker
+    // wasn't echoed back as a token, so prepend it on first token when reasoning
+    // is on so parseCot() can detect we're in the think phase from the start.
+    if (streamText === "" && isReasoningOn() && !lastReasoningText) {
+      streamText = "<think>\n";
+    }
+    // Track think-phase wall-clock time
+    if (!cotThinkDone) {
+      if (!cotThinkStartTime && (m.text || "").trim()) cotThinkStartTime = Date.now();
+      const willHaveClose = (streamText + m.text).includes("</think>");
+      if (cotThinkStartTime && willHaveClose) {
+        lastThinkMs = Date.now() - cotThinkStartTime;
+        cotThinkDone = true;
+      }
     }
     streamText += m.text;
     if (currentMsg) {
@@ -1596,7 +1764,8 @@ function handleMsg(m) {
     if (mtr) mtr.textContent = turnCount;
     currentMsg = null;
     typingDots = null;
-    streamText = ""; lastReasoningText = ""; thinkOpen = false;
+    streamText = ""; lastReasoningText = ""; thinkOpen = false; lastPromptTokens = 0;
+    cotThinkStartTime = 0; lastThinkMs = 0; cotThinkDone = false;
     inIntro = false;
     isGenerating = false;
     sendBtn.disabled = false;
