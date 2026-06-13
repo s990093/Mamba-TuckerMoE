@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Speed Race · PyTorch vs MLX</title>
+  <link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
+  <link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
+  <link rel="stylesheet" href="/static/styles/speed_race.css"/>
+</head>
+<body>
+
+<!-- ── Topbar ──────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <img src="/static/assets/tuckericon.png" class="topbar-logo" alt="Mamba">
+    <div class="topbar-brand">
+      <span class="topbar-title">Speed Race</span>
+      <span class="topbar-chip">RUNTIME BENCHMARK</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a href="/" class="nav-link">← Chat</a>
+    <a href="/compare" class="nav-link">Model Showdown</a>
+    <button class="race-btn" id="race-btn">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+      Start Race
+    </button>
+  </div>
+</header>
+
+<!-- ── Sub-bar ─────────────────────────────────────────────────────── -->
+<div class="sub-bar">
+  <div class="sub-left">
+    <span class="sub-tag">PROMPT</span>
+    <span class="sub-val">"Who are you?"</span>
+    <span class="sub-divider">·</span>
+    <span class="sub-tag">MODE</span>
+    <span class="sub-val">self_awareness</span>
+    <span id="phase-label" class="phase-label"></span>
+  </div>
+  <div class="sub-right">
+    <span class="status-dot" id="pt-status-dot"></span>
+    <span class="sub-status-text" id="pt-status-text">Checking PyTorch backend…</span>
+  </div>
+</div>
+
+<!-- ── Race Arena ──────────────────────────────────────────────────── -->
+<div class="race-arena">
+
+  <!-- Lane: PyTorch -->
+  <div class="lane" id="col-pt">
+    <div class="lane-header">
+      <div class="lane-engine">
+        <div class="engine-badge badge-pt">🐍</div>
+        <div class="engine-info">
+          <div class="engine-name" id="engine-name-pt">
+            PyTorch MPS
+            <span class="crown-icon" id="crown-pt"></span>
+          </div>
+          <div class="engine-desc">Eager · float16 · no fusion · no quantization</div>
+        </div>
+      </div>
+      <span class="status-badge" id="badge-pt">READY</span>
+    </div>
+
+    <!-- Live metrics -->
+    <div class="live-metrics">
+      <div class="lm-cell">
+        <div class="lm-value" id="ttft-pt">—</div>
+        <div class="lm-label">TTFT</div>
+      </div>
+      <div class="lm-sep"></div>
+      <div class="lm-cell lm-accent-pt">
+        <div class="lm-value" id="toks-pt">—</div>
+        <div class="lm-label">tok/s</div>
+      </div>
+      <div class="lm-sep"></div>
+      <div class="lm-cell">
+        <div class="lm-value" id="prefill-pt">—</div>
+        <div class="lm-label">prefill tok/s</div>
+      </div>
+      <div class="lm-sep"></div>
+      <div class="lm-cell">
+        <div class="lm-value" id="total-pt">—</div>
+        <div class="lm-label">tokens</div>
+      </div>
+    </div>
+
+    <!-- Speed bar -->
+    <div class="speed-runway">
+      <div class="runway-fill fill-pt" id="bar-pt"></div>
+    </div>
+
+    <!-- Think block -->
+    <div class="think-block" id="think-pt" hidden>
+      <button class="think-toggle" id="think-toggle-pt">
+        <span class="think-dot dot-pt"></span>
+        <span class="think-lbl" id="think-lbl-pt">Thinking…</span>
+        <span class="think-dur" id="think-time-pt"></span>
+        <span class="chevron-ico">▾</span>
+      </button>
+      <div class="think-body" id="think-body-pt"></div>
+    </div>
+
+    <!-- Response -->
+    <div class="response-pane" id="resp-pt">
+      <span class="resp-idle">Waiting to start…</span>
+    </div>
+  </div><!-- /lane-pt -->
+
+  <!-- VS divider -->
+  <div class="vs-divider"><span class="vs-label">VS</span></div>
+
+  <!-- Lane: MLX -->
+  <div class="lane" id="col-mlx">
+    <div class="lane-header">
+      <div class="lane-engine">
+        <div class="engine-badge badge-mlx">⚡</div>
+        <div class="engine-info">
+          <div class="engine-name" id="engine-name-mlx">
+            MLX + Metal + Q8
+            <span class="crown-icon" id="crown-mlx"></span>
+          </div>
+          <div class="engine-desc">StaticDecoder · fused SSM · INT8 quant · compiled graph</div>
+        </div>
+      </div>
+      <span class="status-badge" id="badge-mlx">READY</span>
+    </div>
+
+    <!-- Live metrics -->
+    <div class="live-metrics">
+      <div class="lm-cell">
+        <div class="lm-value" id="ttft-mlx">—</div>
+        <div class="lm-label">TTFT</div>
+      </div>
+      <div class="lm-sep"></div>
+      <div class="lm-cell lm-accent-mlx">
+        <div class="lm-value" id="toks-mlx">—</div>
+        <div class="lm-label">tok/s</div>
+      </div>
+      <div class="lm-sep"></div>
+      <div class="lm-cell">
+        <div class="lm-value" id="prefill-mlx">—</div>
+        <div class="lm-label">prefill tok/s</div>
+      </div>
+      <div class="lm-sep"></div>
+      <div class="lm-cell">
+        <div class="lm-value" id="total-mlx">—</div>
+        <div class="lm-label">tokens</div>
+      </div>
+    </div>
+
+    <!-- Speed bar -->
+    <div class="speed-runway">
+      <div class="runway-fill fill-mlx" id="bar-mlx"></div>
+    </div>
+
+    <!-- Think block -->
+    <div class="think-block" id="think-mlx" hidden>
+      <button class="think-toggle" id="think-toggle-mlx">
+        <span class="think-dot dot-mlx"></span>
+        <span class="think-lbl" id="think-lbl-mlx">Thinking…</span>
+        <span class="think-dur" id="think-time-mlx"></span>
+        <span class="chevron-ico">▾</span>
+      </button>
+      <div class="think-body" id="think-body-mlx"></div>
+    </div>
+
+    <!-- Response -->
+    <div class="response-pane" id="resp-mlx">
+      <span class="resp-idle">Waiting to start…</span>
+    </div>
+  </div><!-- /lane-mlx -->
+
+</div><!-- /race-arena -->
+
+<!-- ── Speedup banner (shown after race) ───────────────────────────── -->
+<div class="speedup-banner" id="speedup-banner" hidden>
+  <div class="speedup-left">
+    <div class="speedup-number" id="speedup-num">—×</div>
+    <div class="speedup-sub">MLX faster than PyTorch MPS</div>
+  </div>
+  <div class="banner-divider"></div>
+  <div class="banner-stat">
+    <div class="banner-stat-v" id="banner-mlx-tps">—</div>
+    <div class="banner-stat-l">⚡ MLX tok/s</div>
+  </div>
+  <div class="banner-divider"></div>
+  <div class="banner-stat">
+    <div class="banner-stat-v" id="banner-pt-tps">—</div>
+    <div class="banner-stat-l">🐍 PyTorch tok/s</div>
+  </div>
+  <div class="banner-divider"></div>
+  <div class="banner-note">
+    Same model · same weights · same M2 Pro<br>
+    Pure compute speed (post-warmup measurement)
+  </div>
+</div>
+
+<!-- ── Performance Matrix (shown after race) ───────────────────────── -->
+<div class="perf-matrix" id="perf-matrix" hidden>
+  <div class="matrix-header">
+    <h2 class="matrix-title">Performance Matrix</h2>
+    <p class="matrix-sub">Full runtime comparison — measured this session</p>
+  </div>
+
+  <div class="matrix-table">
+    <!-- Column headers -->
+    <div class="mt-head">
+      <div class="mt-row-label"></div>
+      <div class="mt-col-head mt-col-pt">
+        <span>🐍</span> PyTorch MPS
+      </div>
+      <div class="mt-col-head mt-col-mlx">
+        <span>⚡</span> MLX + Metal + Q8
+      </div>
+    </div>
+
+    <!-- Section: Runtime Performance -->
+    <div class="mt-section-label">Runtime Performance</div>
+
+    <div class="mt-row" id="mrow-decode">
+      <div class="mt-row-label">Decode speed <span class="mt-badge-live">LIVE</span></div>
+      <div class="mt-val mt-val-pt" id="mx-decode-pt">—</div>
+      <div class="mt-val mt-val-mlx" id="mx-decode-mlx">—</div>
+    </div>
+    <div class="mt-row" id="mrow-prefill">
+      <div class="mt-row-label">Prefill speed <span class="mt-badge-live">LIVE</span></div>
+      <div class="mt-val mt-val-pt" id="mx-prefill-pt">—</div>
+      <div class="mt-val mt-val-mlx" id="mx-prefill-mlx">—</div>
+    </div>
+    <div class="mt-row" id="mrow-ttft">
+      <div class="mt-row-label">TTFT <span class="mt-badge-live">LIVE</span></div>
+      <div class="mt-val mt-val-pt" id="mx-ttft-pt">—</div>
+      <div class="mt-val mt-val-mlx" id="mx-ttft-mlx">—</div>
+    </div>
+
+    <!-- Section: Optimizations -->
+    <div class="mt-section-label">Optimisations</div>
+
+    <div class="mt-row">
+      <div class="mt-row-label">Graph compilation</div>
+      <div class="mt-val mt-val-pt mt-no">✗ Eager</div>
+      <div class="mt-val mt-val-mlx mt-yes">✓ mx.compile</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Kernel fusion</div>
+      <div class="mt-val mt-val-pt mt-no">✗ None</div>
+      <div class="mt-val mt-val-mlx mt-yes">✓ SSM + Tucker Metal</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Quantization</div>
+      <div class="mt-val mt-val-pt mt-no">✗ float16 (full)</div>
+      <div class="mt-val mt-val-mlx mt-yes">✓ INT8 MoE + proj + head</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Norm folding</div>
+      <div class="mt-val mt-val-pt mt-no">✗ Separate pass</div>
+      <div class="mt-val mt-val-mlx mt-yes">✓ Fused into SSM kernel</div>
+    </div>
+
+    <!-- Section: Model & Memory -->
+    <div class="mt-section-label">Model &amp; Memory</div>
+
+    <div class="mt-row">
+      <div class="mt-row-label">Architecture</div>
+      <div class="mt-val mt-val-pt">Mamba-3 TuckerMoE</div>
+      <div class="mt-val mt-val-mlx">Mamba-3 TuckerMoE</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Parameters</div>
+      <div class="mt-val mt-val-pt">417M active</div>
+      <div class="mt-val mt-val-mlx">417M active</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Dense-equivalent</div>
+      <div class="mt-val mt-val-pt">2.4B (TuckerMoE)</div>
+      <div class="mt-val mt-val-mlx">2.4B (TuckerMoE)</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Model footprint</div>
+      <div class="mt-val mt-val-pt">~1.1 GB (fp16)</div>
+      <div class="mt-val mt-val-mlx mt-yes">~460 MB (INT8)</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Compute precision</div>
+      <div class="mt-val mt-val-pt">float16</div>
+      <div class="mt-val mt-val-mlx">bfloat16 + INT8</div>
+    </div>
+    <div class="mt-row">
+      <div class="mt-row-label">Hardware</div>
+      <div class="mt-val mt-val-pt">Apple M2 Pro MPS</div>
+      <div class="mt-val mt-val-mlx">Apple M2 Pro Metal</div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/scripts/speed_race.js"></script>
+</body>
+</html>

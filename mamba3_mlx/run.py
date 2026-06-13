@@ -16,6 +16,7 @@ from mamba3_mlx.utils.mode_configs import get_mode_gen_config
 from mamba3_mlx.mlx_model.hybrid_model import Mamba3LanguageModel
 from mamba3_mlx.mlx_model.weights import load_checkpoint, _sidecar_path
 from mamba3_mlx.inference.generator import generate
+from mamba3_mlx.mlx_model.static_decode import StaticDecoder, StaticGenerateResult
 
 
 DTYPE_MAP = {"fp32": mx.float32, "bf16": mx.bfloat16, "fp16": mx.float16}
@@ -105,6 +106,23 @@ def get_args():
                    help="Skip pre-seeding <think>\\n after the assistant tag.")
     p.add_argument("--raw-prompt", action="store_true",
                    help="Use --prompt verbatim; skip ChatML wrapping.")
+
+    # ── Static decoder (fast path: 1 dispatch/token, metal_fuse, q8) ─────
+    p.add_argument("--static", action="store_true",
+                   help="Use StaticDecoder (single compiled graph) instead of "
+                        "the per-block reference path.  ~2-3x faster decode.")
+    p.add_argument("--metal-fuse", action="store_true",
+                   help="Fused Metal kernel for Mamba SSM inner chain "
+                        "(value-identical, ~+50% over compiled-graph path).")
+    p.add_argument("--quant-moe", type=int, default=0,
+                   help="Quantize TuckerMoE U_in/U_out weight matrices to N bits "
+                        "(recommended: 8).  Router stays bf16.  +25-30% throughput.")
+    p.add_argument("--quant-proj", type=int, default=0,
+                   help="Quantize in_proj/dense_proj/qkv/o_proj weights to N bits "
+                        "(recommended: 8).  dt/A/lambda tail stays bf16.")
+    p.add_argument("--quant-head", type=int, default=0,
+                   help="Quantize head projection weight (49 MB) to N bits "
+                        "(recommended: 8).")
 
     # ── Speculative (scaffold) ────────────────────────────────────────────────
     p.add_argument("--speculative",   action="store_true")
@@ -207,53 +225,91 @@ def main():
             _STRUCT_TAGS[_t] = _s
 
     # ── Streaming callback ────────────────────────────────────────────────────
+    # Sliding-window decode: O(WINDOW) per token instead of O(n).
+    # Each call decodes only the last WINDOW tokens, not the full history.
+    _STREAM_WINDOW = 32
+
     on_token = None
     if args.stream:
         seen: list[int] = []
-        prev_len = [0]
         skip_special = not args.show_special
+        _ws   = [0]          # window start index into seen
+        _prev = ['']         # decoded text of seen[_ws[0]:-1] (window without latest token)
 
         def _on_token(tid: int) -> None:
             seen.append(tid)
+            n = len(seen)
+
             if skip_special and tid in _STRUCT_TAGS:
-                # Flush buffered text before printing the structural tag
-                text_before = tok.decode(seen[:-1], skip_special_tokens=True)
-                pending = text_before[prev_len[0]:]
+                # Flush pending text before structural tag
+                ctx_prev = seen[_ws[0] : -1]
+                cur_prev = tok.decode(ctx_prev, skip_special_tokens=True)
+                pending  = cur_prev[len(_prev[0]):]
                 if pending:
                     print(pending, end="", flush=True)
-                prev_len[0] = len(text_before)
                 print(_STRUCT_TAGS[tid], end="", flush=True)
-            else:
-                text_full = tok.decode(seen, skip_special_tokens=skip_special)
-                new = text_full[prev_len[0]:]
-                prev_len[0] = len(text_full)
-                if new:
-                    print(new, end="", flush=True)
+                # Reset window to start fresh after the tag
+                _ws[0]   = n
+                _prev[0] = ''
+                return
+
+            # Slide window when it grows too large (amortised O(WINDOW))
+            if n - _ws[0] > _STREAM_WINDOW * 2:
+                new_ws = n - _STREAM_WINDOW
+                _ws[0] = new_ws
+                _prev[0] = tok.decode(seen[new_ws : -1], skip_special_tokens=skip_special)
+
+            # Decode only the current window (O(WINDOW))
+            cur = tok.decode(seen[_ws[0]:], skip_special_tokens=skip_special)
+            new = cur[len(_prev[0]):]
+            _prev[0] = cur
+            if new:
+                print(new, end="", flush=True)
 
         on_token = _on_token
 
     # ── Generate ──────────────────────────────────────────────────────────────
-    result = generate(
-        model, ids, gen_cfg,
-        stop_token_ids=stop_ids,
-        stop_strings=args.stop_strings or [],
-        no_eos_stop=args.no_eos_stop,
-        full_decode_compile=args.full_decode_compile,
-        warmup_steps=args.warmup,
-        tokenizer=tok if args.stop_strings else None,
-        on_token=on_token,
-    )
+    if args.static:
+        decoder = StaticDecoder(
+            model,
+            metal_fuse=args.metal_fuse,
+            quant_moe_bits=args.quant_moe,
+            quant_proj_bits=args.quant_proj,
+            quant_head_bits=args.quant_head,
+        )
+        result = decoder.generate(
+            ids, gen_cfg,
+            stop_token_ids=stop_ids,
+            on_token=on_token,
+        )
+    else:
+        result = generate(
+            model, ids, gen_cfg,
+            stop_token_ids=stop_ids,
+            stop_strings=args.stop_strings or [],
+            no_eos_stop=args.no_eos_stop,
+            full_decode_compile=args.full_decode_compile,
+            warmup_steps=args.warmup,
+            tokenizer=tok if args.stop_strings else None,
+            on_token=on_token,
+        )
 
     if args.stream:
         print()   # newline after streamed content
 
-    n_timed = len(result.tokens) - result.n_warmup
-    warmup_note = f"  warmup={result.n_warmup}" if result.n_warmup else ""
+    n_timed = len(result.tokens)
+    compile_note = ""
+    if isinstance(result, StaticGenerateResult):
+        compile_note = f"  compile={result.compile_s:.1f}s" if result.compile_s else ""
+        n_timed = len(result.tokens)
+    else:
+        n_timed = len(result.tokens) - result.n_warmup
+        compile_note = f"  warmup={result.n_warmup}" if result.n_warmup else ""
     print(
         f"===== "
         f"prefill {result.prefill_tps:,.0f} tok/s ({result.n_prompt} tok, {result.elapsed_prefill*1000:.0f} ms)  |  "
         f"decode  {result.decode_tps:,.0f} tok/s ({n_timed} tok, {result.elapsed_decode*1000:.0f} ms)"
-        f"{warmup_note}  |  stop={result.stop_reason}"
+        f"{compile_note}  |  stop={result.stop_reason}"
         f" =====",
         file=sys.stderr,
     )

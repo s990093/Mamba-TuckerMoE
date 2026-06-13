@@ -70,6 +70,89 @@ from cot_middleware import (  # noqa: E402 (sys.path tweak above)
 # profiler bridge intentionally not imported here — runs as a separate process
 # to avoid any impact on inference throughput.
 
+# ── Load-progress tracking (for browser overlay) ─────────────────────────────
+_load_stage:    str = "Initialising…"
+_load_progress: int = 0          # 0-100 integer
+_static_bench_tps: float | None = None   # cached pure-compute decode speed
+
+
+def _set_stage(stage: str, pct: int, *, bar: bool = True) -> None:
+    """Update load stage + progress. Also prints a terminal progress bar."""
+    global _load_stage, _load_progress
+    _load_stage    = stage
+    _load_progress = max(0, min(100, pct))
+    if bar:
+        filled = _load_progress // 5          # 20-char bar
+        empty  = 20 - filled
+        print(f"\r  [{'█' * filled}{'░' * empty}] {_load_progress:3d}%  {stage:<40}", end="", flush=True)
+
+
+# ── PyTorch reference backend (for /speed-race) ──────────────────────────────
+_pt_model    = None
+_pt_tok      = None
+_pt_ready    = False
+_pt_info:    dict = {}
+
+
+def _load_pytorch_backend(checkpoint: str, tokenizer_path: str) -> None:
+    """Load PyTorch reference model in background (non-blocking startup)."""
+    global _pt_model, _pt_tok, _pt_ready, _pt_info
+    try:
+        import torch
+        from mamba3_mlx.pure_torch_mlx.config  import Mamba3Config as PTConfig
+        from mamba3_mlx.pure_torch_mlx.model   import Mamba3LM
+        from mamba3_mlx.pure_torch_mlx.weights import load_checkpoint as pt_load
+        from tokenizers import Tokenizer as HFTok
+        import time as _time
+
+        # Resolve tokenizer: accept a .json file OR a directory containing tokenizer.json
+        tok_path = Path(tokenizer_path)
+        if tok_path.is_dir():
+            tok_json = tok_path / "tokenizer.json"
+        else:
+            tok_json = tok_path
+        if not tok_json.exists():
+            raise FileNotFoundError(f"tokenizer.json not found at {tok_json}")
+
+        # Use the original .npz (not MLX sidecar) for numpy loading
+        ckpt_path = Path(checkpoint)
+        if not ckpt_path.exists() or ckpt_path.is_dir():
+            # Fall back to looking for the base .npz alongside the sidecar
+            for candidate in ckpt_path.parent.glob("*.npz"):
+                if "mlx_bf16" not in candidate.name:
+                    ckpt_path = candidate
+                    break
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"checkpoint not found: {ckpt_path}")
+
+        dev   = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+        dtype = torch.float16 if dev.type == "mps" else torch.float32
+        print(f"[pt-ref] loading weights on {dev} ({dtype})…", flush=True)
+        t0   = _time.perf_counter()
+        ptok = HFTok.from_file(str(tok_json))
+        cfg  = PTConfig(vocab_size=ptok.get_vocab_size())
+        mdl  = Mamba3LM(cfg).to(device=dev, dtype=dtype)
+        pt_load(mdl, str(ckpt_path), dtype=dtype)
+        mdl.eval()
+        # Warm-up: 3 rounds to fully settle MPS command-buffer JIT
+        print(f"[pt-ref] warming up MPS pipeline (3 rounds)…", flush=True)
+        with torch.no_grad():
+            for _wi in range(3):
+                _, _st = mdl.prefill([1, 2, 3, 4, 5], kv_len=128)
+                for _ in range(8):
+                    _, _st = mdl.decode_step(1, _st)
+                if dev.type == "mps":
+                    torch.mps.synchronize()
+        print(f"[pt-ref] warmup done", flush=True)
+        elapsed = _time.perf_counter() - t0
+        _pt_model = mdl
+        _pt_tok   = ptok
+        _pt_ready = True
+        _pt_info  = {"device": str(dev), "dtype": str(dtype), "load_s": round(elapsed, 1)}
+        print(f"[pt-ref] ready in {elapsed:.1f}s  ({dev}, {dtype})", flush=True)
+    except Exception as exc:
+        print(f"[pt-ref] WARN: could not load PyTorch reference: {exc}", flush=True)
+
 
 _CATEGORY_PROMPTS_MERGE: Any = None
 
@@ -109,6 +192,10 @@ _direct_head_ban: mx.array | None = None    # <think> ban in head mode when reas
 _model_ready = False
 _vocab_size: int = 0
 _MOCK_MODE: bool = False
+# Fast forward path: StaticDecoder streaming session (metal_fuse + selective
+# q8 + norm_fold) — replaces only the per-token model forward; sampling /
+# penalties / CoT middleware stay on the exact same Python code path.
+_static_decoder: Any = None
 
 # Rich console for live terminal output (token streaming + injection markers).
 try:
@@ -260,46 +347,70 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     timings: dict[str, Any] = {}
     t0 = time.perf_counter()
 
+    print()   # newline so the bar starts on its own line
+
+    # ── Stage 1: Tokenizer ────────────────────────────────────────────────────
+    _set_stage("Loading tokenizer…", 5)
     dtype_map = {"fp32": mx.float32, "bf16": mx.bfloat16, "fp16": mx.float16}
     target_dtype = dtype_map[args.dtype]
 
     from transformers import AutoTokenizer
     _tok_path = args.tokenizer
-    # If a .json file is given, AutoTokenizer needs the parent directory
     if _tok_path.endswith(".json"):
         _tok_path = str(Path(_tok_path).parent)
     _tokenizer = AutoTokenizer.from_pretrained(_tok_path, trust_remote_code=True)
     _vocab_size = len(_tokenizer) if args.vocab_size <= 0 else args.vocab_size
     timings["tokenizer_ms"] = (time.perf_counter() - t0) * 1000
 
+    # ── Stage 2: Model init ───────────────────────────────────────────────────
+    _set_stage("Initialising model graph…", 12)
     t1 = time.perf_counter()
     _config = Mamba3Config(vocab_size=_vocab_size)
     _model = Mamba3LanguageModel(_config)
     timings["model_init_ms"] = (time.perf_counter() - t1) * 1000
 
+    # ── Stage 3: Weights ──────────────────────────────────────────────────────
     t2 = time.perf_counter()
     if args.checkpoint:
         sidecar = _sidecar_path(args.checkpoint, target_dtype)
         if sidecar.exists():
             load_kind = "mmap-instant"
-            print(f"[chat_demo] weights: sidecar mmap → {sidecar.name}")
+            _set_stage(f"Loading weights (mmap)…  {sidecar.name}", 20)
         else:
             load_kind = "convert+save"
-            print(f"[chat_demo] weights: converting {Path(args.checkpoint).name}"
-                  f" → {sidecar.name}  (one-time)")
+            _set_stage(f"Converting weights → {Path(sidecar).name}…", 20)
+
+        # Animate progress during the blocking load (20 → 70 %)
+        _weight_done = threading.Event()
+        def _weight_anim():
+            pct = 20
+            while not _weight_done.is_set():
+                time.sleep(0.4)
+                if pct < 68:
+                    pct += 2
+                _set_stage(_load_stage, pct)
+        threading.Thread(target=_weight_anim, daemon=True).start()
+
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
             load_checkpoint(_model, args.checkpoint, dtype=target_dtype)
+        _weight_done.set()
+
         timings["checkpoint"] = args.checkpoint
         timings["kind"] = load_kind
         args.checkpoint_label = Path(args.checkpoint).stem
     else:
-        print("[chat_demo] No checkpoint — random weights (smoke test).")
+        _set_stage("Random weights (smoke test)", 20)
         timings["checkpoint"] = "(random init)"
         timings["kind"] = "none"
         args.checkpoint_label = "Mamba3-XR"
+
+    _set_stage("Evaluating parameters…", 72)
     mx.eval(_model.parameters())
     timings["weights_ms"] = (time.perf_counter() - t2) * 1000
+
+    # ── Stage 4: Middleware ───────────────────────────────────────────────────
+    _set_stage("Setting up CoT middleware…", 76)
 
     # Middleware deps (tokenizer ids + bias vectors).
     existing_stop: list[int] = []
@@ -347,15 +458,72 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
     if _direct_head_ban is not None:
         print("[chat_demo] ban[direct-head]:   <think> in head mode when reasoning=False")
 
-    # Warmup — one decode step to amortise lazy MLX kernel compile.
+    # ── Stage 5: Warmup ───────────────────────────────────────────────────────
+    _set_stage("JIT warmup…", 84)
     t3 = time.perf_counter()
     warm = mx.array([[0]], dtype=mx.int32)
     for _ in range(max(0, int(args.warmup))):
         lo, st = _model(warm, states=None)
         mx.eval(lo, *_iter_state_arrays(st))
     timings["warmup_ms"] = (time.perf_counter() - t3) * 1000
+
+    # ── Stage 6: StaticDecoder compile + benchmark ───────────────────────────
+    global _static_decoder, _static_bench_tps
+    _static_decoder = None
+    if getattr(args, "static_stream", False):
+        _set_stage("Compiling StaticDecoder (metal_fuse + q8)…", 88)
+        t4 = time.perf_counter()
+        try:
+            from mamba3_mlx.mlx_model.static_decode import StaticDecoder
+            from mamba3_mlx.utils.config import GenerationConfig as _GC
+            _static_decoder = StaticDecoder(
+                _model, metal_fuse=True,
+                quant_moe_bits=int(getattr(args, "quant_moe", 0) or 0),
+                quant_proj_bits=int(getattr(args, "quant_proj", 0) or 0),
+                quant_head_bits=int(getattr(args, "quant_head", 0) or 0),
+            )
+            # Pay the trace+compile cost now, not on the first user message.
+            lo, st = _model(warm, states=None)
+            mx.eval(lo, *_iter_state_arrays(st))
+            sess = _static_decoder.start_stream(st, 1, max_new=8)
+            mx.eval(sess.step(0))
+            timings["static_compile_ms"] = (time.perf_counter() - t4) * 1000
+            print(f"\n[chat_demo] static-stream ready: metal_fuse + "
+                  f"q8(moe={args.quant_moe},proj={args.quant_proj},"
+                  f"head={args.quant_head}) + norm_fold "
+                  f"({timings['static_compile_ms']:.0f} ms compile)")
+
+            # ── Warm-up (5 rounds) + benchmark ───────────────────────────
+            _set_stage("Warming up Metal pipeline (5 rounds)…", 94)
+            try:
+                # Use realistic sampling params — closer to actual chat speed
+                _bench_gc = _GC(
+                    max_tokens=128, temperature=0.426, top_k=20, top_p=0.981,
+                    min_p=0.067, rep_pen=1.146, pres_pen=0.143, freq_pen=0.133,
+                    seed=0,
+                )
+                _bench_ids = [1, 2, 3, 4, 5, 6, 7, 8]
+                # 5 warmup rounds: fully settles MPS command queues + Metal kernel cache
+                for _wi in range(5):
+                    _wr = _static_decoder.generate(_bench_ids, _bench_gc, stop_token_ids=())
+                    _set_stage(f"Warming up Metal pipeline ({_wi+1}/5)… {_wr.decode_tps:.0f} tok/s", 94)
+                # Timed round (take the stable post-warmup number)
+                _br = _static_decoder.generate(_bench_ids, _bench_gc, stop_token_ids=())
+                _static_bench_tps = round(_br.decode_tps, 1)
+                print(f"\n[chat_demo] bench: {_static_bench_tps} tok/s  "
+                      f"(StaticDecoder sampled, {len(_br.tokens)} steps, 5 warmup rounds)")
+            except Exception as _be:
+                print(f"[chat_demo] WARN: bench skipped ({_be})")
+                _static_bench_tps = None
+
+        except Exception as exc:
+            _static_decoder = None
+            print(f"[chat_demo] WARN: static-stream unavailable, falling back "
+                  f"to reference decode ({exc})")
     timings["total_ms"] = (time.perf_counter() - t0) * 1000
 
+    _set_stage("Ready ✓", 100)
+    print()   # newline after the progress bar
     _model_ready = True
     return timings
 
@@ -470,12 +638,26 @@ def _stream_generate(
     last_logits, states = _prefill_chunked(prompt_ids)
     prefill_ms = (time.perf_counter() - t_pre) * 1000
 
+    _prefill_tps = round(len(prompt_ids) / max(prefill_ms / 1000, 1e-6), 1)
     yield {
         "type": "meta",
         "prefill_ms": round(prefill_ms, 2),
+        "prefill_tps": _prefill_tps,
         "prompt_tokens": len(prompt_ids),
         "turns": len([m for m in history if m["role"] == "user"]),
     }
+
+    # ── Static streaming session (fast forward path) ────────────────────────
+    # Wraps ONLY the model forward in the compiled static graph; the token
+    # loop below (masks, penalties, sampling, middleware FSM) is unchanged.
+    _sess = None
+    if _static_decoder is not None:
+        try:
+            _sess = _static_decoder.start_stream(
+                states, len(prompt_ids),
+                max_new=int(max_tokens) + 64)
+        except Exception as exc:
+            print(f"[chat_demo] WARN: static session failed, reference path ({exc})")
 
     # ── Middleware (per-turn) ───────────────────────────────────────────────
     mw_cfg = _mw_cfg or CotMiddlewareConfig.config_from_args(_args)
@@ -485,6 +667,12 @@ def _stream_generate(
         mw_cfg = replace(mw_cfg, force_final_inject=False)
     def _model_apply(x: mx.array, ca: Any, sp: mx.array):
         # mamba3_mlx model ignores seq_pos / router_temp.
+        if _sess is not None:
+            # Feed the injected ids through the static session one by one;
+            # middleware only consumes logits[0, -1, :].  ``ca`` is passed
+            # through untouched (the session owns the real state).
+            rows = [_sess.step(int(t)) for t in x[0].tolist()]
+            return mx.stack(rows)[None, :], ca
         return _model(x, states=ca)
 
     mw = CotMiddleware(
@@ -659,11 +847,16 @@ def _stream_generate(
             break
 
         # 4) Advance model by one token.
-        x = mx.array([[tid]], dtype=mx.int32)
-        logits_d, states = _model(x, states=states)
-        last_logits = logits_d[0, -1]
-        pos += 1
-        mx.eval(last_logits, *_iter_state_arrays(states))
+        if _sess is not None:
+            last_logits = _sess.step(tid)        # one compiled dispatch
+            pos += 1
+            mx.eval(last_logits)
+        else:
+            x = mx.array([[tid]], dtype=mx.int32)
+            logits_d, states = _model(x, states=states)
+            last_logits = logits_d[0, -1]
+            pos += 1
+            mx.eval(last_logits, *_iter_state_arrays(states))
 
         # 5) Multi-stage <final> injection — fires at most once per turn.
         # raw_sampling: model generates <final> naturally (SFT), no injection needed.
@@ -686,14 +879,23 @@ def _stream_generate(
     for evt in mw.flush(n_out=n_out, elapsed_s_fn=elapsed_s_fn):
         yield evt
     elapsed = time.perf_counter() - t_dec
-    yield {
+    streaming_tps = round(n_out / max(elapsed, 1e-9), 1)
+
+    # ── bench_tps: use pre-measured cached value (measured at server startup) ──
+    # _static_bench_tps is set once after StaticDecoder compiles using
+    # generate() with full compiled loop — no JSON/asyncio overhead.
+    done_evt = {
         "type": "done",
         "total_tokens": n_out,
         "total_ms": round(elapsed * 1000, 2),
-        "tok_s": round(n_out / max(elapsed, 1e-9), 1),
+        "tok_s": streaming_tps,
+        "prefill_tps": _prefill_tps if '_prefill_tps' in dir() else 0,
         "ttft_ms": round(ttft_ms or 0.0, 2),
         "prefill_ms": round(prefill_ms, 2),
     }
+    if getattr(sample_args, "bench_mode", False) and _static_bench_tps is not None:
+        done_evt["bench_tps"] = _static_bench_tps
+    yield done_evt
 
     _cprint("\n")  # end the streaming token line before the summary rule
     try:
@@ -771,18 +973,19 @@ _load_timings: dict[str, Any] = {}
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    ui_dir = Path(__file__).parent / "ui"
-    html = (ui_dir / "chat_demo.html").read_text(encoding="utf-8")
+    html = (_UI_DIR / "templates" / "chat_demo.html").read_text(encoding="utf-8")
     try:
-        js_v = int((ui_dir / "chat_demo.js").stat().st_mtime)
+        js_v = int((_UI_DIR / "scripts" / "chat_demo.js").stat().st_mtime)
     except OSError:
         js_v = 0
     try:
-        css_v = int((ui_dir / "chat_demo.css").stat().st_mtime)
+        css_v = int((_UI_DIR / "styles" / "chat_demo.css").stat().st_mtime)
     except OSError:
         css_v = 0
-    html = html.replace("/static/chat_demo.js", f"/ui/chat_demo.js?v={js_v}")
-    html = html.replace("/static/chat_demo.css", f"/ui/chat_demo.css?v={css_v}")
+    html = html.replace("/static/scripts/chat_demo.js", f"/ui/chat_demo.js?v={js_v}")
+    html = html.replace("/static/styles/chat_demo.css", f"/ui/chat_demo.css?v={css_v}")
+    html = html.replace("/static/scripts/perf_float.js", f"/ui/perf_float.js?v={js_v}")
+    html = html.replace("/static/styles/perf_float.css", f"/ui/perf_float.css?v={css_v}")
     resp = HTMLResponse(html)
     resp.headers["Cache-Control"] = "no-store"
     return resp
@@ -806,40 +1009,213 @@ def _serve_no_store(path: Path, media_type: str):
 
 @app.get("/ui/eyes.js")
 async def ui_eyes_js():
-    return _serve_no_store(_UI_DIR / "eyes.js", "application/javascript")
+    return _serve_no_store(_UI_DIR / "scripts" / "eyes.js", "application/javascript")
 
 
 @app.get("/ui/eyes.css")
 async def ui_eyes_css():
-    return _serve_no_store(_UI_DIR / "eyes.css", "text/css")
+    return _serve_no_store(_UI_DIR / "styles" / "eyes.css", "text/css")
 
 
 @app.get("/eyes", response_class=HTMLResponse)
 async def eyes_page():
-    html = (_UI_DIR / "eyes.html").read_text(encoding="utf-8")
+    html = (_UI_DIR / "templates" / "eyes.html").read_text(encoding="utf-8")
     try:
-        js_v = int((_UI_DIR / "eyes.js").stat().st_mtime)
+        js_v = int((_UI_DIR / "scripts" / "eyes.js").stat().st_mtime)
     except OSError:
         js_v = 0
     try:
-        css_v = int((_UI_DIR / "eyes.css").stat().st_mtime)
+        css_v = int((_UI_DIR / "styles" / "eyes.css").stat().st_mtime)
     except OSError:
         css_v = 0
-    html = html.replace("/static/eyes.js", f"/ui/eyes.js?v={js_v}")
-    html = html.replace("/static/eyes.css", f"/ui/eyes.css?v={css_v}")
+    html = html.replace("/static/scripts/eyes.js", f"/ui/eyes.js?v={js_v}")
+    html = html.replace("/static/styles/eyes.css", f"/ui/eyes.css?v={css_v}")
+    html = html.replace("/static/scripts/perf_float.js", f"/ui/perf_float.js?v={js_v}")
+    html = html.replace("/static/styles/perf_float.css", f"/ui/perf_float.css?v={css_v}")
     resp = HTMLResponse(html)
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
 
+@app.get("/compare", response_class=HTMLResponse)
+async def compare_page():
+    html = (_UI_DIR / "templates" / "compare.html").read_text(encoding="utf-8")
+    try:
+        js_v  = int((_UI_DIR / "scripts" / "compare.js").stat().st_mtime)
+        css_v = int((_UI_DIR / "styles" / "compare.css").stat().st_mtime)
+    except OSError:
+        js_v = css_v = 0
+    html = html.replace("/static/scripts/compare.js",  f"/ui/compare.js?v={js_v}")
+    html = html.replace("/static/styles/compare.css", f"/ui/compare.css?v={css_v}")
+    resp = HTMLResponse(html)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.get("/ui/compare.js")
+async def ui_compare_js():
+    return _serve_no_store(_UI_DIR / "scripts" / "compare.js", "application/javascript")
+
+
+@app.get("/ui/compare.css")
+async def ui_compare_css():
+    return _serve_no_store(_UI_DIR / "styles" / "compare.css", "text/css")
+
+
+@app.get("/speed-race", response_class=HTMLResponse)
+async def speed_race_page():
+    html = (_UI_DIR / "templates" / "speed_race.html").read_text(encoding="utf-8")
+    try:
+        js_v  = int((_UI_DIR / "scripts" / "speed_race.js").stat().st_mtime)
+        css_v = int((_UI_DIR / "styles"  / "speed_race.css").stat().st_mtime)
+    except OSError:
+        js_v = css_v = 0
+    html = html.replace("/static/scripts/speed_race.js", f"/ui/speed_race.js?v={js_v}")
+    html = html.replace("/static/styles/speed_race.css",  f"/ui/speed_race.css?v={css_v}")
+    resp = HTMLResponse(html)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.get("/ui/speed_race.js")
+async def ui_speed_race_js():
+    return _serve_no_store(_UI_DIR / "scripts" / "speed_race.js", "application/javascript")
+
+
+@app.get("/ui/speed_race.css")
+async def ui_speed_race_css():
+    return _serve_no_store(_UI_DIR / "styles" / "speed_race.css", "text/css")
+
+
+@app.get("/api/load-status")
+async def load_status():
+    """Live loading progress — poll this until ready:true."""
+    return JSONResponse({
+        "ready":    _model_ready,
+        "stage":    _load_stage,
+        "progress": _load_progress,
+    })
+
+
+@app.get("/api/pytorch-status")
+async def pytorch_status():
+    return JSONResponse({
+        "ready": _pt_ready,
+        "info":  _pt_info,
+    })
+
+
+@app.get("/api/bench-tps")
+async def bench_tps_endpoint():
+    """Return the pre-measured pure-compute decode speed for MLX and PyTorch."""
+    return JSONResponse({
+        "mlx_bench_tps": _static_bench_tps,
+        "pt_ready":      _pt_ready,
+    })
+
+
+@app.websocket("/ws/pytorch")
+async def pytorch_ws(ws: WebSocket):
+    """
+    PyTorch reference inference WebSocket (for /speed-race page).
+    Protocol mirrors /ws: accepts {action:'chat', prompt, max_tokens, category_key, seed}
+    Sends: {type:'meta'}, {type:'token', text, tok_s}, {type:'done', total_tokens, tok_s}
+    """
+    await ws.accept()
+    await ws.send_json({"type": "connected", "ready": _pt_ready})
+
+    if not _pt_ready or _pt_model is None:
+        await ws.send_json({"type": "error", "message": "PyTorch model not ready yet — loading weights in background"})
+        await ws.close()
+        return
+
+    try:
+        data = await ws.receive_json()
+    except Exception:
+        await ws.close()
+        return
+
+    if data.get("action") != "chat":
+        await ws.close()
+        return
+
+    prompt_text  = data.get("prompt", "Who are you?")
+    max_tokens   = int(data.get("max_tokens", 256))
+    category_key = data.get("category_key", "self_awareness")
+    seed         = int(data.get("seed", 0))
+    samp         = data.get("sampling") or {}
+    temperature  = float(samp.get("temperature", 0.426))
+    top_k        = int(samp.get("top_k", 20))
+
+    # Build ChatML prompt (same logic as MLX path)
+    sys_prompt = resolve_system_prompt(category_key, None)
+    full_prompt = (
+        f"<|im_start|>system\n{sys_prompt}<|im_end|>\n"
+        f"<|im_start|>user\n{prompt_text}<|im_end|>\n"
+        f"<|im_start|>assistant\n<think>\n"
+    )
+    bos  = _pt_tok.token_to_id("<s>") or 1
+    ids  = [bos] + _pt_tok.encode(full_prompt, add_special_tokens=False).ids
+    stop = []
+    for n in ("<|im_end|>", "</s>"):
+        t = _pt_tok.token_to_id(n)
+        if t is not None:
+            stop.append(t)
+
+    import torch
+    from mamba3_mlx.pure_torch_mlx.generate import GenConfig, stream as pt_stream
+
+    gen_cfg = GenConfig(
+        max_tokens=max_tokens, temperature=temperature, top_k=top_k,
+        top_p=0.981, min_p=0.067, rep_pen=1.146, pres_pen=0.143,
+        freq_pen=0.133, seed=seed,
+    )
+
+    loop  = asyncio.get_event_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def _worker():
+        try:
+            for ev in pt_stream(_pt_model, ids, gen_cfg, _pt_tok,
+                                 stop_token_ids=tuple(stop)):
+                loop.call_soon_threadsafe(queue.put_nowait, ev)
+        except Exception as exc:
+            loop.call_soon_threadsafe(queue.put_nowait, {"type": "error", "message": str(exc)})
+        loop.call_soon_threadsafe(queue.put_nowait, None)
+
+    threading.Thread(target=_worker, daemon=True).start()
+    await ws.send_json({"type": "meta", "n_prompt": len(ids)})
+
+    try:
+        while True:
+            ev = await queue.get()
+            if ev is None:
+                break
+            await ws.send_json(ev)
+    except Exception:
+        pass
+    finally:
+        await ws.close()
+
+
 @app.get("/ui/chat_demo.js")
 async def ui_js():
-    return _serve_no_store(Path(__file__).parent / "ui" / "chat_demo.js", "application/javascript")
+    return _serve_no_store(_UI_DIR / "scripts" / "chat_demo.js", "application/javascript")
 
 
 @app.get("/ui/chat_demo.css")
 async def ui_css():
-    return _serve_no_store(Path(__file__).parent / "ui" / "chat_demo.css", "text/css")
+    return _serve_no_store(_UI_DIR / "styles" / "chat_demo.css", "text/css")
+
+
+@app.get("/ui/perf_float.js")
+async def ui_perf_float_js():
+    return _serve_no_store(_UI_DIR / "scripts" / "perf_float.js", "application/javascript")
+
+
+@app.get("/ui/perf_float.css")
+async def ui_perf_float_css():
+    return _serve_no_store(_UI_DIR / "styles" / "perf_float.css", "text/css")
 
 
 @app.get("/api/status")
@@ -1384,6 +1760,11 @@ async def websocket_chat(ws: WebSocket):
                     args_for_call = _copy.copy(args_for_call)
                     args_for_call.format_guard_call_override = False
                     args_for_call.raw_sampling = True
+                # bench_mode: after generation run a short compute-only timing loop
+                if msg.get("bench_mode"):
+                    import copy as _copy
+                    args_for_call = _copy.copy(args_for_call)
+                    args_for_call.bench_mode = True
                 no_eos_stop_flag = bool(msg.get("no_eos_stop", False))
 
                 conversation.append({"role": "user", "content": prompt})
@@ -1395,6 +1776,7 @@ async def websocket_chat(ws: WebSocket):
                     fut.result()
 
                 def run_gen() -> str:
+                    global _static_bench_tps
                     text_parts: list[str] = []
                     try:
                         for ev in _stream_generate(
@@ -1411,6 +1793,25 @@ async def websocket_chat(ws: WebSocket):
                             _send_now({"type": "error", "message": str(exc)})
                         except Exception:
                             pass
+                    # Fresh benchmark after streaming (bench_mode only, e.g. /speed-race).
+                    # GPU is already in steady state — 1 warmup + 1 timed gives a clean number.
+                    if getattr(args_for_call, "bench_mode", False) and _static_decoder is not None:
+                        try:
+                            from mamba3_mlx.utils.config import GenerationConfig as _GC2
+                            _fresh_gc = _GC2(
+                                max_tokens=128, temperature=0.426, top_k=20, top_p=0.981,
+                                min_p=0.067, rep_pen=1.146, pres_pen=0.143, freq_pen=0.133,
+                                seed=0)
+                            _fresh_ids = [1, 2, 3, 4, 5, 6, 7, 8]
+                            _static_decoder.generate(_fresh_ids, _fresh_gc, stop_token_ids=())
+                            _fresh_br = _static_decoder.generate(_fresh_ids, _fresh_gc,
+                                                                  stop_token_ids=())
+                            _static_bench_tps = round(_fresh_br.decode_tps, 1)
+                            _send_now({"type": "bench", "bench_tps": _static_bench_tps})
+                            print(f"\n[bench] fresh post-race: {_static_bench_tps} tok/s",
+                                  flush=True)
+                        except Exception as _be:
+                            print(f"\n[bench] WARN: fresh bench failed: {_be}", flush=True)
                     return "".join(text_parts)
 
                 async def _abort_listener():
@@ -1516,6 +1917,18 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-force-final-inject", dest="force_final_inject", action="store_false")
     p.add_argument("--final-min-tokens", dest="final_min_tokens", type=int,
                    default=_cfg.FINAL_MIN_TOKENS)
+    p.add_argument("--static-stream", dest="static_stream", action="store_true",
+                   default=True,
+                   help="Per-token forward through the StaticDecoder compiled "
+                        "graph (metal_fuse + q8 + norm_fold). ~2x decode tok/s.")
+    p.add_argument("--no-static-stream", dest="static_stream", action="store_false")
+    p.add_argument("--quant-moe", dest="quant_moe", type=int, default=8,
+                   help="TuckerMoE U_in/U_out quant bits for the static path "
+                        "(0 = bf16 bit-exact).")
+    p.add_argument("--quant-proj", dest="quant_proj", type=int, default=8,
+                   help="in_proj/dense/qkv/o quant bits (dt/A/λ stays bf16).")
+    p.add_argument("--quant-head", dest="quant_head", type=int, default=8,
+                   help="Head projection quant bits.")
     return p.parse_args()
 
 
@@ -1552,7 +1965,17 @@ def main():
 
     print(f"\n  Server: http://localhost:{args.port}")
     print(f"  WebSocket: ws://localhost:{args.port}/ws")
+    print(f"  Speed Race: http://localhost:{args.port}/speed-race")
     print(f"{'='*60}\n")
+
+    # Load PyTorch reference model in background (for /speed-race page)
+    if not _MOCK_MODE:
+        _pt_thread = threading.Thread(
+            target=_load_pytorch_backend,
+            args=(args.checkpoint, args.tokenizer),
+            daemon=True,
+        )
+        _pt_thread.start()
 
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")

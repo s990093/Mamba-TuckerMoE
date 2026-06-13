@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model Showdown · Mamba</title>
+  <link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
+  <link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
+  <link rel="stylesheet" href="/static/styles/compare.css" />
+</head>
+<body>
+
+  <!-- ── Top bar ─────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <img src="/static/assets/tuckericon.png" class="topbar-logo" alt="Mamba">
+      <span class="topbar-title">Model Showdown</span>
+      <span class="topbar-chip">BENCHMARK</span>
+    </div>
+    <div class="topbar-right">
+      <a href="/" class="topbar-back">← Chat</a>
+      <button class="start-btn" id="cmp-start">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+        Start
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Prompt + sys prompt bar ─────────────────────────────── -->
+  <div class="prompt-bar">
+    <div class="prompt-left">
+      <span class="prompt-tag">PROMPT</span>
+      <span class="prompt-text">"Who are you?"</span>
+      <span class="prompt-sep">·</span>
+      <span class="prompt-tag">SYS</span>
+      <span class="prompt-sys">self_awareness</span>
+    </div>
+    <button class="sys-toggle" id="sys-toggle">
+      Show system prompt <span id="sys-chevron">▾</span>
+    </button>
+  </div>
+  <div class="sys-body" id="sys-body" hidden>
+    <div class="sys-body-text" id="sys-body-text">Loading…</div>
+  </div>
+
+  <!-- ── 3-column grid ────────────────────────────────────────── -->
+  <div class="grid">
+
+    <!-- ── Mamba ────────────────────────────────────────────── -->
+    <div class="col" id="col-mamba">
+      <div class="col-head">
+        <div class="model-id">
+          <img src="/static/assets/tuckericon.png" class="model-icon" alt="Mamba">
+          <div class="model-text">
+            <div class="model-name">Mamba 3</div>
+            <div class="model-meta">Local · Apple Silicon · 417M · TuckerMoE</div>
+          </div>
+        </div>
+        <span class="badge badge-m" id="status-mamba">READY</span>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric"><span class="metric-v" id="ttft-mamba">—</span><span class="metric-l">TTFT</span></div>
+        <div class="metric-sep"></div>
+        <div class="metric accent-m"><span class="metric-v" id="toks-mamba">—</span><span class="metric-l">tok/s</span></div>
+        <div class="metric-sep"></div>
+        <div class="metric"><span class="metric-v" id="total-mamba">—</span><span class="metric-l">tokens</span></div>
+      </div>
+      <div class="speed-track"><div class="speed-fill fill-m" id="bar-mamba"></div></div>
+
+      <div class="think-block" id="think-mamba" hidden>
+        <button class="think-toggle" id="think-toggle-mamba">
+          <span class="think-dot dot-m"></span>
+          <span class="think-lbl" id="think-lbl-mamba">Thinking…</span>
+          <span class="think-dur" id="think-time-mamba"></span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="think-body" id="think-body-mamba"></div>
+      </div>
+      <div class="response" id="resp-mamba"><span class="resp-idle">Waiting to start…</span></div>
+    </div>
+
+    <!-- ── GPT-4o ────────────────────────────────────────────── -->
+    <div class="col" id="col-openai">
+      <div class="col-head">
+        <div class="model-id">
+          <img src="/static/assets/openai-icon.webp" class="model-icon" alt="OpenAI">
+          <div class="model-text">
+            <div class="model-name">GPT-4o</div>
+            <div class="model-meta">Cloud · OpenAI · Simulated · ~30 tok/s</div>
+          </div>
+        </div>
+        <span class="badge badge-o" id="status-openai">READY</span>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric"><span class="metric-v" id="ttft-openai">—</span><span class="metric-l">TTFT</span></div>
+        <div class="metric-sep"></div>
+        <div class="metric accent-o"><span class="metric-v" id="toks-openai">—</span><span class="metric-l">tok/s</span></div>
+        <div class="metric-sep"></div>
+        <div class="metric"><span class="metric-v" id="total-openai">—</span><span class="metric-l">tokens</span></div>
+      </div>
+      <div class="speed-track"><div class="speed-fill fill-o" id="bar-openai"></div></div>
+
+      <div class="think-block" id="think-openai" hidden>
+        <button class="think-toggle" id="think-toggle-openai">
+          <span class="think-dot dot-o"></span>
+          <span class="think-lbl" id="think-lbl-openai">Thinking…</span>
+          <span class="think-dur" id="think-time-openai"></span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="think-body" id="think-body-openai"></div>
+      </div>
+      <div class="response" id="resp-openai"><span class="resp-idle">Waiting to start…</span></div>
+    </div>
+
+    <!-- ── Claude ───────────────────────────────────────────── -->
+    <div class="col" id="col-claude">
+      <div class="col-head">
+        <div class="model-id">
+          <img src="/static/assets/claude-color.svg" class="model-icon" alt="Claude">
+          <div class="model-text">
+            <div class="model-name">Claude Sonnet 4.6</div>
+            <div class="model-meta">Cloud · Anthropic · Simulated · ~30 tok/s</div>
+          </div>
+        </div>
+        <span class="badge badge-c" id="status-claude">READY</span>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric"><span class="metric-v" id="ttft-claude">—</span><span class="metric-l">TTFT</span></div>
+        <div class="metric-sep"></div>
+        <div class="metric accent-c"><span class="metric-v" id="toks-claude">—</span><span class="metric-l">tok/s</span></div>
+        <div class="metric-sep"></div>
+        <div class="metric"><span class="metric-v" id="total-claude">—</span><span class="metric-l">tokens</span></div>
+      </div>
+      <div class="speed-track"><div class="speed-fill fill-c" id="bar-claude"></div></div>
+
+      <div class="think-block" id="think-claude" hidden>
+        <button class="think-toggle" id="think-toggle-claude">
+          <span class="think-dot dot-c"></span>
+          <span class="think-lbl" id="think-lbl-claude">Thinking…</span>
+          <span class="think-dur" id="think-time-claude"></span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="think-body" id="think-body-claude"></div>
+      </div>
+      <div class="response" id="resp-claude"><span class="resp-idle">Waiting to start…</span></div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <!-- ── Result strip ─────────────────────────────────────────── -->
+  <div class="result-strip" id="cmp-result" hidden>
+    <div class="result-cell">
+      <span class="result-ico">⚡</span>
+      <div><div class="result-lbl">Fastest tok/s</div><div class="result-val" id="winner-speed-val">—</div></div>
+    </div>
+    <div class="result-rule"></div>
+    <div class="result-cell">
+      <span class="result-ico">🚀</span>
+      <div><div class="result-lbl">Lowest TTFT</div><div class="result-val" id="winner-ttft-val">—</div></div>
+    </div>
+    <div class="result-rule"></div>
+    <div class="result-cell">
+      <span class="result-ico">💻</span>
+      <div><div class="result-lbl">Local advantage</div><div class="result-val" id="winner-local-val">—</div></div>
+    </div>
+  </div>
+
+  <script src="/static/scripts/compare.js"></script>
+</body>
+</html>

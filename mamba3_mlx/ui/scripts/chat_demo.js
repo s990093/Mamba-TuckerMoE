@@ -446,6 +446,7 @@ let typingDots = null;
 let streamText = "";
 let lastReasoningText = "";  // accumulated reasoning for delta decode
 let thinkOpen = false;        // <think> shown but </think> not yet
+let _turnCat = "";            // category key captured at send time (stable for the whole turn)
 let lastPromptTokens = 0;     // prompt token count from meta event (for prefill tok/s)
 let cotThinkStartTime = 0;    // wall-clock when first think token arrives
 let lastThinkMs = 0;          // elapsed ms for think phase (set when </think> detected)
@@ -941,6 +942,139 @@ function renderControlBlock(raw) {
 function finalizeAssistantBody(bodyEl, raw) {
   bodyEl.classList.remove("streaming", "markdown-streaming");
   streamRenderInto(bodyEl, raw, true);
+}
+
+// ── Inline email card (injected into chat bubble for email_summary) ───────────
+
+// Render full email text through markdown, then wrap [placeholder] spans
+function _emailCardHtml(text) {
+  const rendered = renderMd(text || "");
+  return rendered.replace(/\[([^\]<]+)\]/g,
+    '<span class="email-ph" data-ph="[$1]">[$1]</span>');
+}
+
+function _buildChatEmailCard(fullText) {
+  const bv = _emailCardHtml(fullText);
+  return `<div class="chat-email-card">
+  <div class="cec-hdr">
+    <button class="cec-btn cec-edit-btn" title="Edit">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+      <span class="cec-edit-lbl">Edit</span>
+    </button>
+    <div class="cec-hdr-r">
+      <button class="cec-btn cec-copy-btn" title="Copy to clipboard">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+      <button class="cec-btn cec-send-btn" title="Open in Mail">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <span>Send</span>
+      </button>
+    </div>
+  </div>
+  <div class="cec-body" spellcheck="false">${bv}</div>
+</div>`;
+}
+
+function _wireChatEmailCard(cardEl) {
+  const editBtn  = cardEl.querySelector(".cec-edit-btn");
+  const editLbl  = cardEl.querySelector(".cec-edit-lbl");
+  const copyBtn  = cardEl.querySelector(".cec-copy-btn");
+  const sendBtn2 = cardEl.querySelector(".cec-send-btn");
+  const bodyEl2  = cardEl.querySelector(".cec-body");
+  let editing = false;
+
+  function getPlain() { return (bodyEl2.innerText || bodyEl2.textContent || "").trim(); }
+
+  function setEditMode(on) {
+    editing = on;
+    const phs = cardEl.querySelectorAll(".email-ph");
+    if (on) {
+      bodyEl2.setAttribute("contenteditable", "true");
+      phs.forEach(p => p.setAttribute("contenteditable", "true"));
+      editBtn.classList.add("cec-editing");
+      editLbl.textContent = "Done";
+      bodyEl2.focus();
+    } else {
+      bodyEl2.removeAttribute("contenteditable");
+      phs.forEach(p => p.removeAttribute("contenteditable"));
+      editBtn.classList.remove("cec-editing");
+      editLbl.textContent = "Edit";
+    }
+  }
+
+  // Click placeholder (edit mode) → select-all for instant replacement
+  cardEl.addEventListener("mousedown", e => {
+    const ph = e.target.closest(".email-ph");
+    if (!ph || !editing) return;
+    if (document.activeElement === ph) return;
+    e.preventDefault();
+    ph.focus();
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(ph);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+
+  cardEl.addEventListener("keydown", e => {
+    const ph = e.target.closest(".email-ph");
+    if (!ph) return;
+    if (e.key === "Enter") { e.preventDefault(); ph.blur(); }
+  });
+
+  cardEl.addEventListener("paste", e => {
+    if (!e.target.closest(".email-ph")) return;
+    e.preventDefault();
+    const plain = e.clipboardData.getData("text/plain").replace(/\n/g, " ");
+    document.execCommand("insertText", false, plain);
+  });
+
+  cardEl.addEventListener("blur", e => {
+    const ph = e.target.closest(".email-ph");
+    if (!ph) return;
+    if (!ph.textContent.trim()) ph.textContent = ph.dataset.ph || "[…]";
+  }, true);
+
+  editBtn.addEventListener("click", () => setEditMode(!editing));
+
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(getPlain());
+      copyBtn.classList.add("cec-copied");
+      setTimeout(() => copyBtn.classList.remove("cec-copied"), 1800);
+    } catch { }
+  });
+
+  sendBtn2.addEventListener("click", () => {
+    const body = getPlain();
+    // Try to extract Subject line from the plain text
+    const lines = body.split("\n");
+    const subjLine = lines.find(l => /^subject\s*:/i.test(l.trim()));
+    const subj = subjLine ? subjLine.replace(/^subject\s*:\s*/i, "").trim() : "";
+    const url = `https://mail.google.com/mail/u/0/?tf=cm&to=&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener");
+  });
+}
+
+function injectEmailCard(bodyEl, streamText) {
+  if (_turnCat !== "email_summary") return;
+  const cot = parseCot(streamText || "");
+  // Strip structural tags if no CoT parsed (fallback for raw stream without <think>)
+  const finalText = cot.hasCoT
+    ? (cot.finalContent || "").trim()
+    : (streamText || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/<\/?final>/g, "").trim();
+  if (!finalText) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = _buildChatEmailCard(finalText);
+  const card = wrapper.firstElementChild;
+
+  // Keep think block (if present), discard everything else, inject card
+  const thinkBlock = bodyEl.querySelector(".cot-think-block");
+  bodyEl.innerHTML = "";
+  if (thinkBlock) bodyEl.appendChild(thinkBlock);
+  bodyEl.appendChild(card);
+  _wireChatEmailCard(card);
 }
 
 function renderSidebarCategories(categories) {
@@ -1747,6 +1881,7 @@ function handleMsg(m) {
     }
     if (currentMsg) {
       finalizeAssistantBody(currentMsg.body, streamText);
+      injectEmailCard(currentMsg.body, streamText);
       if (!playOnly) addMetrics(currentMsg, m);
     }
     const mtok = $("#m-toks");
@@ -1766,6 +1901,7 @@ function handleMsg(m) {
     typingDots = null;
     streamText = ""; lastReasoningText = ""; thinkOpen = false; lastPromptTokens = 0;
     cotThinkStartTime = 0; lastThinkMs = 0; cotThinkDone = false;
+    _turnCat = "";
     inIntro = false;
     isGenerating = false;
     sendBtn.disabled = false;
@@ -1818,6 +1954,7 @@ function doSend() {
   currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
   streamText = ""; lastReasoningText = ""; thinkOpen = false;
+  _turnCat = (sysCatSelect && sysCatSelect.value) ? sysCatSelect.value : "";
   inIntro = false;
   forceFollow();
   const payload = {

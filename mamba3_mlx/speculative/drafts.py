@@ -163,8 +163,11 @@ class SuffixRetriever:
         # i to ``[max_L-1, n_buf-2]`` so (a) we have ``max_L`` preceding
         # tokens to inspect and (b) we have room for ≥ 1 continuation tok.
 
-        # Candidate end-position range:
-        last = n_buf - 1                # last valid end-pos (need 1 cont tok)
+        # Candidate end-position range.  n_buf-2, NOT n_buf-1: an end-pos must
+        # leave ≥ 1 buffer token after it as the continuation.  At n_buf-1 the
+        # query matches the just-appended tail itself (zero continuation) and,
+        # winning the recency tie-break, masks every earlier real match.
+        last = n_buf - 2                # last valid end-pos (need 1 cont tok)
         first = max_L - 1               # need max_L tokens before+including end
         if last < first:
             return None

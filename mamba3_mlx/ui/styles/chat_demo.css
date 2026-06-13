@@ -1345,3 +1345,138 @@ header{
   .input-area{padding:8px 14px 14px}
   .header-title-text{max-width:200px}
 }
+
+/* ── Inline email card (chat bubble, email_summary) ─────────────── */
+.chat-email-card{
+  margin-top:10px;
+  background:rgba(22,20,17,.97);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;
+  overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
+  box-shadow:0 4px 20px -6px rgba(0,0,0,.55),0 0 0 .5px rgba(204,120,92,.10) inset;
+}
+.cec-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;
+  background:linear-gradient(180deg,rgba(204,120,92,.07) 0%,transparent 100%);
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.cec-hdr-r{display:flex;gap:4px;align-items:center}
+.cec-btn{
+  display:flex;align-items:center;gap:5px;
+  background:none;border:none;
+  color:rgba(180,172,158,.60);
+  cursor:pointer;font-size:12px;font-family:inherit;font-weight:500;
+  padding:4px 8px;border-radius:6px;
+  transition:color .14s,background .14s;
+  white-space:nowrap;
+}
+.cec-btn:hover{color:rgba(238,236,226,.88);background:rgba(255,255,255,.07)}
+.cec-send-btn{
+  background:rgba(204,120,92,.13);
+  color:rgba(204,120,92,.85);
+  border:1px solid rgba(204,120,92,.22);
+}
+.cec-send-btn:hover{background:rgba(204,120,92,.23);color:#cc785c;border-color:rgba(204,120,92,.44)}
+.cec-btn.cec-editing{color:#cc785c;background:rgba(204,120,92,.11)}
+.cec-btn.cec-copied{color:rgba(140,200,110,.9)}
+.cec-body{
+  padding:10px 14px 14px;line-height:1.65;font-size:13.5px;
+  color:rgba(220,216,204,.85);outline:none;
+  word-break:break-word;
+  max-height:340px;overflow-y:auto;
+}
+.cec-body[contenteditable="true"]{background:rgba(255,255,255,.025);white-space:pre-wrap}
+/* Markdown inside email body */
+.cec-body p{margin:0 0 0.7em}
+.cec-body p:last-child{margin-bottom:0}
+.cec-body strong{font-weight:600;color:rgba(238,236,226,.92)}
+.cec-body em{font-style:italic}
+.cec-body hr{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+.cec-body ul,.cec-body ol{padding-left:18px;margin:0 0 0.7em}
+.cec-body li{margin:2px 0}
+/* Placeholder spans [like this] — directly contenteditable */
+.email-ph{
+  color:rgba(235,165,78,.95);background:rgba(235,165,78,.10);
+  border-radius:3px;padding:0 3px;cursor:text;
+  user-select:all;-webkit-user-select:all;font-style:italic;
+  outline:none;
+  border-bottom:1px dashed rgba(235,165,78,.38);
+  transition:background .12s;
+}
+.email-ph:hover{background:rgba(235,165,78,.18)}
+.email-ph:focus{
+  background:rgba(235,165,78,.22);
+  border-bottom:1px solid rgba(235,165,78,.72);
+  border-radius:3px 3px 0 0;
+}
+
+/* ── Loading overlay ─────────────────────────────────────────────────── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #09080a;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+.loading-overlay.hidden {
+  opacity: 0; visibility: hidden; pointer-events: none;
+}
+.loading-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px;
+  padding: 40px 48px;
+  background: #111009;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  width: 360px;
+  box-shadow: 0 0 80px rgba(0,0,0,0.6);
+}
+.loading-logo {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.10);
+  padding: 6px;
+  margin-bottom: 4px;
+  animation: logo-pulse 2s ease-in-out infinite;
+}
+@keyframes logo-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(204,120,92,0); }
+  50%      { box-shadow: 0 0 0 10px rgba(204,120,92,0.15); }
+}
+.loading-title {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.015em;
+  color: rgba(240,236,228,0.95);
+}
+.loading-subtitle {
+  font-size: 11px; color: rgba(165,158,148,0.5);
+  letter-spacing: 0.02em;
+  margin-top: -4px;
+}
+.loading-stage {
+  font-size: 12px; color: rgba(210,204,188,0.7);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  margin-top: 8px;
+  min-height: 18px;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+.loading-bar-track {
+  width: 100%; height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.loading-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(204,120,92,0.6), #cc785c);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.loading-pct {
+  font-size: 11px; font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: rgba(204,120,92,0.7);
+  letter-spacing: 0.05em;
+}

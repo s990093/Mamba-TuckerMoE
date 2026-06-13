@@ -21,6 +21,7 @@ const CFG = {
   mouseAimFadeMs: 4_000,    // idle → mouse aim window after move
 };
 
+
 // ── Persisted settings (localStorage) ─────────────────────────────────────────
 const SETTINGS_KEY = 'mamba.eyes.settings.v1';
 const DEFAULTS = {
@@ -346,13 +347,14 @@ function wsSend(obj) {
 // _nonRawDetected and fall back to the original direct-TTS path.
 let _rawMode = 'head';          // 'head' | 'think' | 'between' | 'final' | 'done'
 let _nonRawDetected = false;    // set on first reasoning_token → non-raw path
+let _emailFinalBuf = '';        // accumulates full final answer for email_summary card
 
 // <think> is injected into the PROMPT (not generated), so it never appears
 // in the token stream. Generated sequence: CoT... </think> <final> ans </final>
 const _RAW_TAG_MAP = {
-  '</think>':  'between',
-  '<final>':   'final',
-  '</final>':  'done',
+  '</think>': 'between',
+  '<final>': 'final',
+  '</final>': 'done',
 };
 
 function _rawTokenRoute(text) {
@@ -377,6 +379,7 @@ function _rawTokenRoute(text) {
   } else if (_rawMode === 'final') {
     _tokenCount += text.length;
     ttsAccum(text);
+    if (_activeCat === 'email_summary') _emailFinalBuf += text;
   }
 }
 
@@ -395,6 +398,8 @@ function handleWS(msg) {
 
     case 'meta':
       cotClear();
+      hideEmailCard();
+      _emailFinalBuf = '';
       setState('thinking');
       setStatus('Thinking…');
       // <think> is in the prompt, not generated — stream starts with CoT directly.
@@ -428,6 +433,7 @@ function handleWS(msg) {
         }
         _tokenCount += (msg.text || '').length;
         ttsAccum(msg.text || '');
+        if (_activeCat === 'email_summary') _emailFinalBuf += (msg.text || '');
       } else {
         // Raw-sampling path: parse <think> CoT </think> <final> answer </final>
         _rawTokenRoute(msg.text || '');
@@ -678,6 +684,9 @@ function doneClose() {
   cotClear(); hideSubtitle();
   stopTarsFinal();
   setStatus('');
+  if (_activeCat === 'email_summary' && _emailFinalBuf.trim()) {
+    showEmailCard(_emailFinalBuf.trim());
+  }
   if (_tokenCount > 200) {
     _tokenCount = 0;
     setState('celebrate');
@@ -688,6 +697,150 @@ function doneClose() {
     setTimeout(() => setState('idle'), 600);
   }
 }
+
+// ── Email card ────────────────────────────────────────────────────────────────
+const $emailCard = document.getElementById('email-card');
+const $ecSubj = document.getElementById('ec-subj-val');
+const $ecBody = document.getElementById('ec-body');
+const $ecEdit = document.getElementById('ec-edit');
+const $ecEditLbl = document.getElementById('ec-edit-lbl');
+const $ecCopy = document.getElementById('ec-copy');
+const $ecSend = document.getElementById('ec-send');
+let _ecEditing = false;
+
+function _stripMdInline(s) {
+  return (s || '').replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1').replace(/`([^`]+)`/g, '$1').trim();
+}
+
+function _stripMdBody(s) {
+  return (s || '')
+    .replace(/^[-*_]{3,}\s*$/gm, '')         // remove --- horizontal rules
+    .replace(/\*{1,2}([^*\n]+)\*{1,2}/g, '$1') // remove bold/italic
+    .replace(/^#{1,6}\s+/gm, '')              // remove headings
+    .replace(/`([^`]+)`/g, '$1')              // remove code
+    .replace(/\n{3,}/g, '\n\n')               // collapse multiple blank lines
+    .trim();
+}
+
+function _parseEmail(text) {
+  const lines = (text || '').split('\n');
+  let subject = '';
+  let bodyStart = 0;
+  const subjectRe = /^\*{0,2}subject\*{0,2}\s*:+\s*/i;
+  if (subjectRe.test(lines[0])) {
+    subject = _stripMdInline(lines[0].replace(subjectRe, ''));
+    bodyStart = 1;
+    while (bodyStart < lines.length &&
+           (!lines[bodyStart].trim() || /^[-*_]{3,}$/.test(lines[bodyStart].trim()))) {
+      bodyStart++;
+    }
+  }
+  const body = _stripMdBody(lines.slice(bodyStart).join('\n').trim());
+  if (!subject) subject = _stripMdInline(body.split('\n')[0] || '').slice(0, 80) || 'Email Draft';
+  return { subject, body };
+}
+
+function _emailHtml(text) {
+  return (text || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\[([^\]]+)\]/g, '<span class="email-ph" data-ph="[$1]">[$1]</span>')
+    .replace(/\n/g, '<br>');
+}
+
+function _emailPlain() {
+  const subj = $ecSubj.textContent.trim();
+  const body = ($ecBody.innerText || $ecBody.textContent).trim();
+  return { subj, body };
+}
+
+function showEmailCard(text) {
+  const { subject, body } = _parseEmail(text);
+  $ecSubj.innerHTML = _emailHtml(subject);
+  $ecBody.innerHTML = _emailHtml(body);
+  _ecEditing = false;
+  $ecSubj.removeAttribute('contenteditable');
+  $ecBody.removeAttribute('contenteditable');
+  $ecEdit.classList.remove('ec-editing');
+  $ecEditLbl.textContent = 'Edit';
+  $emailCard.hidden = false;
+  $emailCard.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => $emailCard.classList.add('visible'));
+}
+function hideEmailCard() {
+  if ($emailCard.hidden) return;
+  $emailCard.classList.remove('visible');
+  $emailCard.addEventListener('transitionend', () => {
+    $emailCard.hidden = true;
+    $emailCard.setAttribute('aria-hidden', 'true');
+  }, { once: true });
+}
+
+function _ecSetEditMode(on) {
+  _ecEditing = on;
+  const phs = $emailCard.querySelectorAll('.email-ph');
+  if (on) {
+    $ecSubj.setAttribute('contenteditable', 'true');
+    $ecBody.setAttribute('contenteditable', 'true');
+    phs.forEach(p => p.setAttribute('contenteditable', 'true'));
+    $ecEdit.classList.add('ec-editing');
+    $ecEditLbl.textContent = 'Done';
+    $ecBody.focus();
+  } else {
+    $ecSubj.removeAttribute('contenteditable');
+    $ecBody.removeAttribute('contenteditable');
+    phs.forEach(p => p.removeAttribute('contenteditable'));
+    $ecEdit.classList.remove('ec-editing');
+    $ecEditLbl.textContent = 'Edit';
+  }
+}
+
+// Click placeholder (edit mode only) → select-all for instant replacement
+$emailCard.addEventListener('mousedown', e => {
+  const ph = e.target.closest('.email-ph');
+  if (!ph || !_ecEditing) return;
+  if (document.activeElement === ph) return;
+  e.preventDefault();
+  ph.focus();
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(ph);
+  sel.removeAllRanges();
+  sel.addRange(range);
+});
+// Enter finishes editing placeholder
+$emailCard.addEventListener('keydown', e => {
+  if (!e.target.closest('.email-ph')) return;
+  if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+});
+// Plaintext-only paste in placeholders
+$emailCard.addEventListener('paste', e => {
+  if (!e.target.closest('.email-ph')) return;
+  e.preventDefault();
+  const plain = e.clipboardData.getData('text/plain').replace(/\n/g, ' ');
+  document.execCommand('insertText', false, plain);
+});
+// Restore placeholder text if user deletes everything
+$emailCard.addEventListener('blur', e => {
+  const ph = e.target.closest('.email-ph');
+  if (!ph) return;
+  if (!ph.textContent.trim()) ph.textContent = ph.dataset.ph || '[…]';
+}, true);
+
+$ecEdit.addEventListener('click', () => _ecSetEditMode(!_ecEditing));
+$ecCopy.addEventListener('click', async () => {
+  const { subj, body } = _emailPlain();
+  const full = `Subject: ${subj}\n\n${body}`;
+  try {
+    await navigator.clipboard.writeText(full);
+    $ecCopy.classList.add('ec-copied');
+    setTimeout(() => $ecCopy.classList.remove('ec-copied'), 1800);
+  } catch { }
+});
+$ecSend.addEventListener('click', () => {
+  const { subj, body } = _emailPlain();
+  const url = `https://mail.google.com/mail/u/0/?tf=cm&to=&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  window.open(url, '_blank', 'noopener');
+});
 
 // ── Sleep ─────────────────────────────────────────────────────────────────────
 let _sleepT = null;
@@ -793,7 +946,9 @@ function ttsCancel() {
   clearInterval(_synthResumeT); synth.cancel();
   _ttsBuf = ''; _ttsQueue = []; _ttsSpeaking = false;
   _rawMode = 'head'; _nonRawDetected = false;
+  _emailFinalBuf = '';
   hideSubtitle();
+  hideEmailCard();
   stopTarsFinal();
 }
 

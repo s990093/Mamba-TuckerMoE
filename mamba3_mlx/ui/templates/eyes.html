@@ -13,14 +13,16 @@
     />
     <meta name="theme-color" content="#0d0c0b" />
     <title>Eyes · Mamba</title>
+    <link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
+    <link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/eyes.css" />
-    <link rel="stylesheet" href="/static/perf_float.css" />
+    <link rel="stylesheet" href="/static/styles/eyes.css" />
+    <link rel="stylesheet" href="/static/styles/perf_float.css" />
   </head>
   <body>
     <div class="scene" id="scene">
@@ -1164,6 +1166,31 @@
       <!-- TTS subtitle (bottom-centre, shows current spoken sentence) -->
       <div class="subtitle" id="subtitle" aria-live="polite"></div>
 
+      <!-- Email draft card (shown after email_summary response) -->
+      <div class="email-card" id="email-card" hidden aria-hidden="true">
+        <div class="email-card-hdr">
+          <button class="ec-btn" id="ec-edit" title="Edit">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+            <span id="ec-edit-lbl">Edit</span>
+          </button>
+          <div class="email-card-hdr-r">
+            <button class="ec-btn" id="ec-copy" title="Copy to clipboard">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="ec-btn ec-btn-send" id="ec-send" title="Open in Mail">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <span>Send</span>
+            </button>
+          </div>
+        </div>
+        <div class="email-card-subj" id="ec-subj-row">
+          <span class="ec-subj-lbl">Subject</span>
+          <div class="ec-subj-val" id="ec-subj-val" spellcheck="false"></div>
+        </div>
+        <div class="email-card-sep"></div>
+        <div class="email-card-body" id="ec-body" spellcheck="false"></div>
+      </div>
+
       <!-- TARS FINAL channel (fixed bottom, replaces subtitle for TARS mode) -->
       <div class="tars-ch-final" id="tars-ch-final" aria-live="polite">
         <div class="tars-final-header">
@@ -1395,7 +1422,7 @@
     </div>
     <!-- /scene -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
-    <script src="/static/eyes.js" defer></script>
-    <script src="/static/perf_float.js" defer></script>
+    <script src="/static/scripts/eyes.js" defer></script>
+    <script src="/static/scripts/perf_float.js" defer></script>
   </body>
 </html>

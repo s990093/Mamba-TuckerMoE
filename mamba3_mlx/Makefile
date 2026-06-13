@@ -47,6 +47,12 @@ SHOW_SPEC ?= 0           # set to 1 to show special tokens in stream
 # Performance
 COMPILE   ?= 0           # set to 1 to enable mx.compile on decode steps
 WARMUP    ?= 3           # JIT warmup steps when COMPILE=1
+# StaticDecoder fast path: single compiled graph (131-144 tok/s with q8)
+STATIC    ?= 0           # set to 1 to use StaticDecoder (fast path)
+METAL_FUSE?= 0           # set to 1 to enable fused Metal SSM kernel
+QUANT_MOE ?=              # set to 8 for TuckerMoE U_in/U_out 8-bit quant
+QUANT_PROJ?=              # set to 8 for proj/dense/qkv 8-bit quant
+QUANT_HEAD?=              # set to 8 for head (49MB) 8-bit quant
 
 _STREAM_FLAG  = $(if $(filter 1,$(STREAM)),--stream,)
 _THINK_FLAG   = $(if $(filter 1,$(NO_THINK)),--no-seed-think,)
@@ -54,6 +60,11 @@ _NOEOS_FLAG   = $(if $(filter 1,$(NO_EOS)),--no-eos-stop,)
 _SPEC_FLAG    = $(if $(filter 1,$(SHOW_SPEC)),--show-special,)
 _COMPILE_FLAG = $(if $(filter 1,$(COMPILE)),--full-decode-compile --warmup $(WARMUP),)
 _STOPSTR_FLAG = $(if $(strip $(STOP_STR)),--stop-string "$(STOP_STR)",)
+_STATIC_FLAG  = $(if $(filter 1,$(STATIC)),--static,)
+_MFUSE_FLAG   = $(if $(filter 1,$(METAL_FUSE)),--metal-fuse,)
+_QMOE_FLAG    = $(if $(strip $(QUANT_MOE)),--quant-moe $(QUANT_MOE),)
+_QPROJ_FLAG   = $(if $(strip $(QUANT_PROJ)),--quant-proj $(QUANT_PROJ),)
+_QHEAD_FLAG   = $(if $(strip $(QUANT_HEAD)),--quant-head $(QUANT_HEAD),)
 
 # Sampling override flags — only emitted when the variable is explicitly set.
 _TEMP_FLAG   = $(if $(TEMP),--temp $(TEMP),)
@@ -85,7 +96,12 @@ _BASE = \
   $(_NOEOS_FLAG) \
   $(_SPEC_FLAG) \
   $(_COMPILE_FLAG) \
-  $(_STOPSTR_FLAG)
+  $(_STOPSTR_FLAG) \
+  $(_STATIC_FLAG) \
+  $(_MFUSE_FLAG) \
+  $(_QMOE_FLAG) \
+  $(_QPROJ_FLAG) \
+  $(_QHEAD_FLAG)
 
 _REQUIRE_PROMPT = @test -n "$(PROMPT)" || \
   (echo 'Set PROMPT="your question"  (current default: who are you?)' && exit 1)
@@ -93,14 +109,34 @@ _REQUIRE_PROMPT = @test -n "$(PROMPT)" || \
 # Print selected checkpoint path once at parse time (visible for every target).
 $(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $(CHECKPOINT)  (sidecar not found — will convert on first run)))
 
-.PHONY: run self emotion email movie daily syscall deep default debug help \
+.PHONY: run run-s self self-s emotion email movie daily syscall deep default debug help \
         cot-demo cot-verify chat chat-mock chat-smoke chat-kill kill \
         profiler profiler-kill \
         convert-sidecar tune-self \
         sjd sjd-self sjd-math sjd-daily sjd-emotion sjd-email \
         sjd-movie sjd-deep sjd-syscall \
         sjds sjds-self sjds-math sjds-daily sjds-emotion sjds-email \
-        sjds-movie sjds-deep sjds-syscall
+        sjds-movie sjds-deep sjds-syscall \
+        pt-server pt-bench pt-mock
+
+PT_PORT ?= 7861
+
+## pt-server: boot pure-PyTorch reference server on port 7861 (for speed-race page)
+pt-server:
+	cd $(REPO) && $(PYTHON) -m mamba3_mlx.pure_torch_mlx.server \
+	  --port $(PT_PORT) \
+	  --device mps \
+	  --checkpoint "$(CHECKPOINT)" \
+	  --tokenizer "$(TOKENIZER)"
+
+## pt-mock: boot PyTorch server in mock mode (no weights — UI + API only)
+pt-mock:
+	cd $(REPO) && $(PYTHON) -m mamba3_mlx.pure_torch_mlx.server --port $(PT_PORT) --mock
+
+## pt-bench: run PyTorch reference decode benchmark (reports tok/s)
+pt-bench:
+	cd $(REPO) && $(PYTHON) mamba3_mlx/bench_pytorch_ref.py \
+	  --checkpoint "$(CHECKPOINT)"
 
 ## tune-self: 200-trial identity param search (finds params that say "I am Mamba")
 tune-self:
@@ -122,9 +158,21 @@ convert-sidecar:
 run:
 	$(RUN) $(_BASE)
 
+## run-s: default StaticDecoder fastest path (metal_fuse + q8)
+##   make run-s     # always metal_fuse + q8, no extra flags needed
+run-s:
+	$(RUN) $(_BASE) --static \
+	  --metal-fuse --quant-moe 8 --quant-proj 8 --quant-head 8
+
 ## self: self-awareness / identity (standard single-pass)
 self:
 	$(RUN) $(_BASE) --mode self_awareness
+
+## self-s: self-awareness via StaticDecoder fastest path (~129-144 tok/s)
+##   make self-s     # always metal_fuse + q8, no extra flags needed
+self-s:
+	$(RUN) $(_BASE) --mode self_awareness --static \
+	  --metal-fuse --quant-moe 8 --quant-proj 8 --quant-head 8
 
 ## emotion: emotion support
 emotion:

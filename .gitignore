@@ -157,3 +157,9 @@ cot_dataset/**/*.txt
 .api
 
 /note
+
+# GPU traces and profiling artifacts (generated, large)
+*.gputrace/
+*.trace/
+Launch_*.trace/
+gputrace_analysis.md

@@ -4,14 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mamba · Edge</title>
+<link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
+<link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/chat_demo.css">
-<link rel="stylesheet" href="/static/perf_float.css">
+<link rel="stylesheet" href="/static/styles/chat_demo.css">
+<link rel="stylesheet" href="/static/styles/perf_float.css">
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
 </head>
 <body>
+
+<!-- ── Loading overlay ─────────────────────────────────────────────── -->
+<div id="loading-overlay" class="loading-overlay">
+  <div class="loading-card">
+    <img src="/static/assets/tuckericon.png" class="loading-logo" alt="Mamba">
+    <div class="loading-title">Mamba · Edge</div>
+    <div class="loading-subtitle">Hybrid Mamba-3 · TuckerMoE · 417M params</div>
+    <div class="loading-stage" id="loading-stage">Initialising…</div>
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill" id="loading-bar-fill"></div>
+    </div>
+    <div class="loading-pct" id="loading-pct">0%</div>
+  </div>
+</div>
 
 <div id="mock-banner" class="mock-banner" hidden>
   Mock: responses driven by <code>ui/mock_config.json</code> (seven GUIDE categories + CoT + optional <code>[CALL: …]</code>).
@@ -58,6 +74,18 @@
       </button>
     </nav>
 
+    <div class="side-section-label">Pages</div>
+    <nav class="side-quick" aria-label="Pages" style="margin-bottom:4px;">
+      <a href="/compare" class="qlink" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Model Showdown</span>
+      </a>
+      <a href="/speed-race" class="qlink" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="12" x2="23" y2="12"/></svg>
+        <span>Speed Race</span>
+      </a>
+    </nav>
+
     <div class="side-section-label">Recents</div>
     <div class="side-scroll" id="sidebar-categories"></div>
 
@@ -92,6 +120,12 @@
       </div>
       <div class="header-right">
         <div class="ws-pill connecting" id="ws-pill"><span class="dot"></span><span id="ws-label">Connecting</span></div>
+        <a href="/compare" class="btn-icon" title="Model Showdown benchmark" aria-label="Model comparison benchmark" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </a>
+        <a href="/speed-race" class="btn-icon" title="Speed Race · PyTorch vs MLX" aria-label="Speed Race benchmark" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21"/><line x1="19" y1="12" x2="23" y2="12"/></svg>
+        </a>
         <a href="/eyes" class="btn-icon" title="Eyes 語音介面" aria-label="Open Eyes voice interface" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
         </a>
@@ -136,7 +170,7 @@
       <div class="welcome-wrap landing" id="welcome-wrap">
         <div class="landing-inner">
           <div class="landing-logo" aria-hidden="true">
-            <img class="landing-logo-svg" src="/static/claude-color.svg" alt="" width="58" height="58" draggable="false">
+            <img class="landing-logo-svg" src="/static/assets/claude-color.svg" alt="" width="58" height="58" draggable="false">
           </div>
           <h1 class="landing-greeting" id="landing-greeting">Good evening</h1>
           <p class="landing-tagline" id="landing-tagline">How can we help you today?</p>
@@ -259,7 +293,7 @@
             <div class="nes-bar-glow"></div>
           </div>
           <div class="nes-info">
-            <img class="nes-icon" src="/static/claude-color.svg" alt="" width="14" height="14" draggable="false">
+            <img class="nes-icon" src="/static/assets/claude-color.svg" alt="" width="14" height="14" draggable="false">
             <span class="nes-label">Generating</span>
             <span class="nes-tokens"><span id="nes-cur">0</span><span class="nes-sep"> / </span><span id="nes-max">204800</span> tokens</span>
             <span class="nes-speed" id="nes-speed"></span>
@@ -373,7 +407,48 @@
   </div>
 </div>
 
-<script src="/static/chat_demo.js" defer></script>
-<script src="/static/perf_float.js" defer></script>
+<script src="/static/scripts/chat_demo.js" defer></script>
+<script src="/static/scripts/perf_float.js" defer></script>
+<script>
+/* ── Loading overlay controller ──────────────────────────────────────── */
+(function () {
+  const overlay = document.getElementById('loading-overlay');
+  const bar     = document.getElementById('loading-bar-fill');
+  const stage   = document.getElementById('loading-stage');
+  const pct     = document.getElementById('loading-pct');
+  if (!overlay) return;
+
+  let _displayed = 0;   // smoothed displayed percentage
+
+  function setProgress(p, stageText) {
+    if (stageText) stage.textContent = stageText;
+    // Smooth ratchet: never go backwards, ease towards target
+    if (p > _displayed) _displayed = Math.min(p, _displayed + 8);
+    bar.style.width   = _displayed + '%';
+    pct.textContent   = _displayed + '%';
+  }
+
+  function dismiss() {
+    setProgress(100, 'Ready ✓');
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      setTimeout(() => overlay.remove(), 700);
+    }, 400);
+  }
+
+  function poll() {
+    fetch('/api/load-status', { signal: AbortSignal.timeout(2000) })
+      .then(r => r.json())
+      .then(d => {
+        setProgress(d.progress ?? 0, d.stage);
+        if (d.ready) { dismiss(); return; }
+        setTimeout(poll, 350);
+      })
+      .catch(() => setTimeout(poll, 800));
+  }
+
+  poll();
+})();
+</script>
 </body>
 </html>
