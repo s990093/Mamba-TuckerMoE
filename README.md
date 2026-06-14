@@ -68,7 +68,7 @@ $$\frac{\partial P_{\text{dense}}}{\partial E} = d_{\text{in}} \cdot d_{\text{ou
 | **Completeness** | Tucker at full rank is an *exact* re-expression — zero loss before truncation (any tensor has a HOSVD) |
 | **Controlled truncation** | Error bounded by $\sum_n \sum_{i > r_n} \sigma_i^{(n)2}$ of dropped singular values — tensor analogue of Eckart–Young |
 | **Cross-expert sharing** | $U_{\text{in}},\ \mathcal{G},\ U_{\text{out}}$ shared; experts differ *only* via their $r_1$-dim row in $U_{\text{expert}}$ |
-| **Not a single linear map** | $\operatorname{RMSNorm} + \operatorname{softmax} + \operatorname{top\text{-}k}$ make the layer **input-conditional piecewise nonlinear** — does not collapse to one matrix |
+| **Not a single linear map** | $\text{RMSNorm} + \text{softmax} + \text{top-}k$ make the layer **input-conditional piecewise nonlinear** — does not collapse to one matrix |
 | **From-scratch trainable** | No pre-trained dense model needed. Tucker is a *parameterization* restricting the hypothesis class to $\mathcal{M}_r = \{\mathcal{W} : \text{multilinear rank} \le (r_1, r_3, r_2)\}$; the HOSVD error bound transfers via a Lipschitz bridge: $\min_{\mathcal{M}_r}\mathcal{L} \le \mathcal{L}^\star_{\text{dense}} + L\,\varepsilon$ |
 
 → Full mathematical derivation: [`docs/tucker_moe_justification.html`](docs/tucker_moe_justification.html)
