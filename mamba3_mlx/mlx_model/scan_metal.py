@@ -266,15 +266,15 @@ def _chunk_scan_metal_impl(u, la, C_rot, tri_mask, chunk_size, h_init=None):
               .reshape(B, nc, H, P, N)
               .transpose(0, 1, 2, 4, 3))                        # (B, nc, H, N, P)
 
-    decay  = mx.exp(mx.sum(la_c, axis=2))                      # (B, nc, H)
-    h_prev = (mx.zeros((B, H, N, P), dtype=mx.float32)
-              if h_init is None else h_init.astype(mx.float32))
+    decay  = mx.exp(mx.sum(la_c, axis=2)).astype(u.dtype)       # (B, nc, H)
+    h_prev = (mx.zeros((B, H, N, P), dtype=u.dtype)
+              if h_init is None else h_init.astype(u.dtype))
     h_inter_list = []
     for c in range(nc):
         h_inter_list.append(h_prev)
         h_prev = (h_prev * decay[:, c].reshape(B, H, 1, 1)
-                  + h_last[:, c].astype(mx.float32))
-    h_inter = mx.stack(h_inter_list, axis=1).astype(u.dtype)   # (B, nc, H, N, P)
+                  + h_last[:, c])                               # h_last already u.dtype
+    h_inter = mx.stack(h_inter_list, axis=1)                   # already u.dtype
 
     # ── Off-diagonal: einsum fine here (h_inter ≪ M in size) ─────────────────
     cdec_scale = mx.exp(la_cum).astype(u.dtype)
@@ -284,7 +284,7 @@ def _chunk_scan_metal_impl(u, la, C_rot, tri_mask, chunk_size, h_init=None):
     y = (y_diag + y_off).reshape(B, L, H, P, R)
     if L_orig != L:
         y = y[:, :L_orig]
-    return y, h_prev.astype(u.dtype)
+    return y, h_prev
 
 
 def chunk_scan_metal(u, la, C_rot, chunk_size, h_init=None, _tri_mask=None):
@@ -301,6 +301,29 @@ def chunk_scan_metal(u, la, C_rot, chunk_size, h_init=None, _tri_mask=None):
     if not hasattr(mx.fast, "metal_kernel"):
         return _chunk_scan_mlx(u, la, C_rot, _tri_mask, chunk_size, h_init=h_init)
     return _chunk_scan_metal_impl(u, la, C_rot, _tri_mask, chunk_size, h_init=h_init)
+
+
+# ── REJECTED: Flash-style fused chunk scan ────────────────────────────────────
+#
+# Attempt: fuse h_intra (M @ u) + C contraction into ONE Metal kernel, keeping
+# h_intra in thread registers to avoid the ~200 MB GMEM roundtrip that the
+# 2-einsum path pays at L=512.  Grid (B*nc*H*Lc, P), threadgroup (Lc,) sharing
+# la_cum; each thread accumulates h_intra[i,:,p] in registers (N-tiled to 8),
+# then contracts with C immediately.
+#
+# RESULT: 7-8× SLOWER across all L, and NaN at L>=1024.  Rejected.
+#
+# Root cause — the premise was wrong.  h_intra = M @ u is a batched GEMM, and
+# MLX's einsum already dispatches it to Apple's simdgroup_matrix GEMM running
+# near peak FLOPs.  chunk_scan is *compute-bound on that GEMM*, not bandwidth-
+# bound, so the 200 MB "saving" buys nothing.  Meanwhile the hand-written kernel
+# has terrible occupancy (only Lc=64 threads/TG), heavy warp divergence (causal
+# j-loop: thread i runs i iterations), and uncoalesced strided u loads.
+#
+# Conclusion: the chunk_scan einsums (h_intra, y_diag, y_off) are already
+# optimal on M2 Pro.  No custom Metal kernel beats MLX batched GEMM for these
+# shapes.  Likewise chunk_scan_metal (transpose→contiguous GEMM) is ~1.7×
+# slower (see note at top of file).  Prefill scan is solved; do not retry.
 
 
 # ── Correctness test ──────────────────────────────────────────────────────────

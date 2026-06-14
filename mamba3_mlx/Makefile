@@ -7,7 +7,7 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v6/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v7/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 
 # ── Auto-select fastest checkpoint ────────────────────────────────────────────
@@ -19,8 +19,8 @@ _SIDECAR   := $(_CKPT_STEM).mlx_bf16.npz
 _FAST_CKPT := $(if $(wildcard $(_SIDECAR)),$(_SIDECAR),$(CHECKPOINT))
 
 # ── Generation defaults ────────────────────────────────────────────────────────
-# PROMPT    ?= Who are you?
-PROMPT    ?= Write a email
+PROMPT    ?= Who are you?
+# PROMPT    ?= Write a email
 MODE      ?= self_awareness
 MAX_TOK   ?= 1024      # 保持：符合 v2 SFT 規範的預算
 STREAM    ?= 1

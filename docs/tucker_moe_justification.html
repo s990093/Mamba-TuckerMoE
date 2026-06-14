@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tucker-MoE 有效性論證（數學版）</title>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)'], ['$', '$']],
+      displayMath: [['\\[', '\\]'], ['$$', '$$']],
+      tags: 'ams'
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --fg: #1a1a1a; --bg: #fbfbf9; --muted: #6b6b6b;
+    --accent: #2b5797; --line: #e3e3df; --code-bg: #f3f3ef;
+    --box-bg: #f7f6f2; --warn: #b4531f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e6e6e6; --bg: #16171a; --muted: #9aa0a6;
+      --accent: #7aa7e6; --line: #2c2e33; --code-bg: #22242a;
+      --box-bg: #1d1f24; --warn: #e0975a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "Helvetica Neue", "PingFang TC", "Noto Sans TC", sans-serif;
+    line-height: 1.75; font-size: 17px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 56px 28px 120px; }
+  h1 { font-size: 2.0rem; line-height: 1.25; margin: 0 0 8px; letter-spacing: -.02em; }
+  h2 {
+    font-size: 1.4rem; margin: 56px 0 16px; padding-top: 18px;
+    border-top: 1px solid var(--line); letter-spacing: -.01em;
+  }
+  h3 { font-size: 1.12rem; margin: 32px 0 10px; color: var(--accent); }
+  p, li { color: var(--fg); }
+  .lede { color: var(--muted); font-size: 1.02rem; margin: 0 0 8px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: .88em;
+  }
+  .box {
+    background: var(--box-bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 20px; margin: 20px 0;
+  }
+  .box.accent { border-left: 4px solid var(--accent); }
+  .box.warn { border-left: 4px solid var(--warn); }
+  table {
+    border-collapse: collapse; width: 100%; margin: 20px 0; font-size: .92rem;
+  }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag {
+    display: inline-block; font-size: .72rem; letter-spacing: .05em;
+    background: var(--accent); color: #fff; padding: 2px 9px; border-radius: 99px;
+    vertical-align: middle; margin-left: 8px;
+  }
+  .muted { color: var(--muted); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+  .toc { font-size: .94rem; }
+  .toc a { display: block; padding: 2px 0; color: var(--fg); }
+  .center { text-align: center; }
+  ol.steps > li { margin-bottom: 14px; }
+  .key { font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Tucker-MoE 有效性論證 <span class="tag">數學版</span></h1>
+<p class="lede">從 dense MoE 出發，先確立 Tucker 是「真的能壓縮、有精確性保證」的分解；<br>
+再正面回答核心困惑：<strong>SVD / Tucker 古典上都是「先訓 dense 再壓縮」，反過來從零直接訓因子，憑什麼可以？</strong></p>
+<p class="muted">對應程式碼：<a href="../pre-train/sft_cot_bundle/scripts/model.py"><code>model.py</code></a>（<code>TritonTuckerMoE</code>，含反向傳播）、
+<a href="../mamba3_mlx/mlx_model/tucker_moe.py"><code>tucker_moe.py</code></a>（MLX 推論版）。維度取自 <code>Mamba3Config</code>：
+\(E=8,\ \text{top-}k=2,\ r_1=4,\ r_2=1024,\ r_3=256\)。</p>
+
+<div class="box toc">
+  <strong>目錄</strong>
+  <a href="#s1">1. 從 Dense MoE 出發</a>
+  <a href="#s2">2. 三步低秩約束 = Tucker 分解</a>
+  <a href="#s3">3. Tucker 壓縮的有效性與精確性保證</a>
+  <a href="#s4">4. 為何「反過來」從零訓練因子可以（核心）</a>
+  <a href="#s5">5. 為何不塌縮成單一矩陣？SVD 壓縮如何維持</a>
+  <a href="#s6">6. 為何有效（參數 / 容量 / 頻寬）</a>
+  <a href="#s7">7. 反向傳播的數學</a>
+  <a href="#s8">8. 證明計畫（ablation）</a>
+  <a href="#s9">9. 下一步與研究方向（應用場景）</a>
+</div>
+
+<!-- ===================================================== -->
+<h2 id="s1">1. 從 Dense MoE 出發</h2>
+
+<p>標準（dense）MoE 對輸入 \(x\in\mathbb{R}^{d_{\text{in}}}\)：</p>
+
+\[
+\begin{aligned}
+\text{router:}\quad & p = \operatorname{softmax}\!\big(W_r^\top x\big), && W_r\in\mathbb{R}^{d_{\text{in}}\times E}\\[2pt]
+\text{expert } e:\quad & y_e = W_e^\top x, && W_e\in\mathbb{R}^{d_{\text{in}}\times d_{\text{out}}}\\[2pt]
+\text{output:}\quad & \mathrm{out} = \sum_{k=1}^{K} p_{e_k}\, y_{e_k}, && K=\text{top-}k
+\end{aligned}
+\]
+
+<p>把所有專家權重堆成三維張量</p>
+
+\[
+\mathcal{W}\in\mathbb{R}^{E\times d_{\text{in}}\times d_{\text{out}}},\qquad
+\mathcal{W}_{e,:,:}=W_e .
+\]
+
+<p>參數量隨專家數線性爆炸（以 <code>gate_proj</code>，\(d_{\text{in}}=768,\ d_{\text{out}}=4608\) 為例）：</p>
+
+\[
+P_{\text{dense}} = E\,d_{\text{in}}\,d_{\text{out}} + d_{\text{in}}E
+\;=\; 8\cdot768\cdot4608 = 28{,}311{,}552 .
+\]
+
+<div class="box accent">
+<strong>關鍵觀察。</strong> 各專家處理同一語意空間，方向高度重疊，故 \(\mathcal{W}\) 各 mode 的展開 \(\mathcal{W}_{(n)}\) 秩遠低於維度：
+\(\operatorname{rank}\mathcal{W}_{(1)}\ll E,\ \operatorname{rank}\mathcal{W}_{(2)}\ll d_{\text{in}},\ \operatorname{rank}\mathcal{W}_{(3)}\ll d_{\text{out}}\)。這是低秩（Tucker）分解的切入點。
+</div>
+
+<!-- ===================================================== -->
+<h2 id="s2">2. 三步低秩約束 = Tucker 分解</h2>
+
+<ol class="steps">
+<li><strong>輸入 mode（共享 \(U_{\text{in}}\)）：</strong>
+\(\ x_{\text{shared}} = \operatorname{RMSNorm}\!\big(U_{\text{in}}^\top x\big)\in\mathbb{R}^{r_3},\quad U_{\text{in}}\in\mathbb{R}^{d_{\text{in}}\times r_3}.\)</li>
+<li><strong>專家 mode（core 共享，專家僅以 \(r_1\) 維係數區分）：</strong>
+\[
+G^{(e)} = \sum_{a=1}^{r_1}(U_{\text{expert}})_{e,a}\,\mathcal{G}_{a,:,:}\in\mathbb{R}^{r_3\times r_2},
+\qquad x_{\text{core}} = \sum_{k=1}^{K} p_{e_k}\big(G^{(e_k)}\big)^\top x_{\text{shared}} .
+\]</li>
+<li><strong>輸出 mode（共享 \(U_{\text{out}}\)）：</strong>
+\(\ \mathrm{out} = U_{\text{out}}^\top x_{\text{core}} + \beta,\quad U_{\text{out}}\in\mathbb{R}^{r_2\times d_{\text{out}}}.\)</li>
+</ol>
+
+<p>每個專家的等效權重 \(W_e = U_{\text{in}}\,G^{(e)}\,U_{\text{out}}\)，整個張量寫成標準 Tucker：</p>
+
+\[
+\boxed{\;\mathcal{W} = \mathcal{G}\times_1 U_{\text{expert}}\times_2 U_{\text{in}}\times_3 U_{\text{out}}^\top\;}
+\qquad
+\mathcal{W}_{e,i,j}=\sum_{a,b,c}\mathcal{G}_{a,b,c}\,(U_{\text{expert}})_{e,a}(U_{\text{in}})_{i,b}(U_{\text{out}})_{c,j}.
+\]
+
+<p class="muted">multilinear rank \(=(r_1,r_3,r_2)=(4,256,1024)\)。唯一偏離純線性 Tucker 之處：步驟 1 的 \(\operatorname{RMSNorm}\)（見 §5.3、§4.5）。</p>
+
+<!-- ===================================================== -->
+<h2 id="s3">3. Tucker 壓縮的有效性與精確性保證</h2>
+
+<p>先把「Tucker 到底是不是一個正當的壓縮、誤差能不能控制」講死。這一節完全站在<strong>古典逼近論</strong>立場（給定 \(\mathcal{W}\)），下一節才處理「反過來」。</p>
+
+<h3>3.1 完備性：full rank 時無損 —— 它是「精確的基底重寫」，不是近似</h3>
+<p>當 \((r_1,r_3,r_2)=(E,d_{\text{in}},d_{\text{out}})\) 時，Tucker 分解<strong>恆等成立</strong>（任何張量都有 HOSVD）：</p>
+\[
+\mathcal{W} = \mathcal{G}\times_1 U^{(1)}\times_2 U^{(2)}\times_3 U^{(3)},\qquad U^{(n)}\ \text{正交},\quad \|\mathcal{W}-\hat{\mathcal{W}}\|=0 .
+\]
+<p>也就是說 Tucker 本身<strong>不丟資訊</strong>——它只是把張量換到「各 mode 的奇異向量基底」下表示，core \(\mathcal{G}\) 是 \(\mathcal{W}\) 在該基底的座標。壓縮只發生在「<em>截斷</em>」那一步，而截斷的誤差是可量化的（§3.2）。這保證了：我們做的不是某種啟發式塌縮，而是有完備理論的基底分解。</p>
+
+<h3>3.2 截斷的精確性保證：HOSVD 誤差界</h3>
+<p>令 \(\sigma^{(n)}_i\) 為 mode-\(n\) 展開 \(\mathcal{W}_{(n)}\) 的第 \(i\) 個奇異值。把各 mode 截到秩 \(r_n\)，HOSVD 給出可計算的誤差上界：</p>
+\[
+\big\|\mathcal{W}-\hat{\mathcal{W}}_{\text{HOSVD}}\big\|_F^{2}\;\le\;\sum_{n=1}^{3}\ \sum_{i> r_n}\big(\sigma^{(n)}_i\big)^2 ,
+\]
+<p>且 HOSVD 與「最佳 Tucker 近似」只差一個 \(\sqrt{N}\) 常數（\(N=3\) 個 mode）：</p>
+\[
+\big\|\mathcal{W}-\hat{\mathcal{W}}_{\text{HOSVD}}\big\|_F\;\le\;\sqrt{3}\,\big\|\mathcal{W}-\hat{\mathcal{W}}_{\text{opt}}\big\|_F .
+\]
+<div class="box accent">
+這就是「<span class="key">保證精確性</span>」的精確意義：<strong>丟掉的誤差 = 被截掉的奇異值平方和</strong>。它是矩陣 Eckart–Young 定理（\(\|W-W_r\|_F^2=\sum_{i>r}\sigma_i^2\)）的高階張量版。要更準可用 HOOI/ALS 迭代逼近 \(\hat{\mathcal{W}}_{\text{opt}}\)。
+</div>
+
+<h3>3.3 壓縮 ↔ 精度：選 rank 就是選誤差上界</h3>
+<p>於是「壓縮」是一條有刻度的 trade-off：rank 越低，參數越少，§3.2 的尾巴越肥（誤差越大）。本專案選 \((4,256,1024)\) 等於宣稱「\(\mathcal{W}\) 的奇異值在這些 rank 之後衰減夠快，尾巴可忽略」——這是一個<strong>可被 §8 ablation 檢驗</strong>的經驗假設，而非信仰。</p>
+
+<!-- ===================================================== -->
+<h2 id="s4">4. 為何「反過來」從零訓練因子可以（核心）</h2>
+
+<div class="box warn">
+<strong>你的困惑（完全合理）。</strong> §3 的所有保證都建立在「<em>已經有一個 \(\mathcal{W}\)</em>」之上——SVD/Tucker 是逼近論，需要一個被逼近的對象。
+但我們<strong>從零隨機初始化、直接訓練因子，從不存在 dense \(\mathcal{W}\)</strong>。沒有對象可逼近，「壓縮」「精度保證」還剩什麼意義？
+</div>
+
+<h3>4.1 釐清：你把「兩個不同的問題」混成一個了</h3>
+<table>
+<tr><th></th><th>① 壓縮（approximation）</th><th>② 低秩參數化（hypothesis class）</th></tr>
+<tr><td>問題</td><td>給定 \(\mathcal{W}^\star\)，求最近的低秩 \(\hat{\mathcal{W}}\)</td><td>在所有低秩張量中，求任務損失最小者</td></tr>
+<tr><td>需要 target？</td><td><strong>需要</strong> \(\mathcal{W}^\star\)</td><td><strong>不需要</strong>，只需任務損失 \(\mathcal{L}\)</td></tr>
+<tr><td>目標</td><td>\(\min\|\mathcal{W}^\star-\hat{\mathcal{W}}\|\)</td><td>\(\min_{\mathcal{W}\in\mathcal{M}_r}\mathcal{L}(\mathcal{W})\)</td></tr>
+<tr><td>本專案</td><td>—（不做）</td><td><strong>← 我們做的是這個</strong></td></tr>
+</table>
+<p>古典 SVD/Tucker 是 ①。我們做的是 ②：把模型權重<strong>參數化</strong>成低秩，然後做標準的經驗風險最小化（ERM）。<strong>② 根本不是逼近，沒有 target，所以「沒有 \(\mathcal{W}^\star\) 可逼近」不是缺陷——它本來就不需要。</strong></p>
+<p>這跟「CNN 把全連接限制成卷積」「用 MLP 而非查表」是同一回事：我們<em>限制假設空間</em>當作歸納偏置，從不問「那你在逼近哪個全連接層？」——沒有那個層，我們直接在受限空間裡訓練。把低秩當成「壓縮一個既有 dense」只是<strong>歷史路徑</strong>，不是邏輯必需。</p>
+
+<h3>4.2 「反過來」= 在低秩流形 \(\mathcal{M}_r\) 上做 ERM</h3>
+\[
+\mathcal{M}_r=\big\{\mathcal{W}:\operatorname{rank}\mathcal{W}_{(1)}\le r_1,\ \operatorname{rank}\mathcal{W}_{(2)}\le r_3,\ \operatorname{rank}\mathcal{W}_{(3)}\le r_2\big\}.
+\]
+<p>因子 \((\mathcal{G},U^{(1)},U^{(2)},U^{(3)})\) 是 \(\mathcal{M}_r\) 的一個<strong>滿覆蓋參數化</strong>：任何 \(\mathcal{W}\in\mathcal{M}_r\) 都能被某組因子表示（§3.1 完備性的直接推論）。所以對因子做梯度下降，等價於在 \(\mathcal{M}_r\) 上直接搜尋任務最優解。可達集合與「post-hoc 截斷」完全相同，表達力不打折。</p>
+
+<h3>4.3 橋接：§3 的古典誤差界，其實正是 from-scratch 的精度保證</h3>
+<p>這是回答你「憑什麼保證精度」的關鍵。設任務損失 \(\mathcal{L}\) 對權重張量在工作區域 \(L\)-Lipschitz（輸入有界時成立）。令 \(\mathcal{W}^\star_{\text{dense}}\) 為<strong>假想的</strong> dense 最優解，\(\Pi_r\) 為其 HOSVD 投影到 \(\mathcal{M}_r\)。則 \(\Pi_r\mathcal{W}^\star_{\text{dense}}\in\mathcal{M}_r\) 是一個可行點，因此</p>
+\[
+\min_{\mathcal{W}\in\mathcal{M}_r}\mathcal{L}(\mathcal{W})
+\;\le\;
+\mathcal{L}\big(\Pi_r\mathcal{W}^\star_{\text{dense}}\big)
+\;\le\;
+\mathcal{L}\big(\mathcal{W}^\star_{\text{dense}}\big)
++ L\underbrace{\sqrt{\textstyle\sum_{n}\sum_{i> r_n}(\sigma^{(n)}_i)^2}}_{\text{§3.2 的 HOSVD 尾巴}} .
+\]
+<div class="box accent">
+<strong>解讀。</strong> 最好的低秩模型，其任務損失與「dense 最優」的差距，被 §3.2 那條 Eckart–Young/HOSVD 尾巴 \(\times\,L\) 界住。
+<strong>古典壓縮的誤差界沒有消失，而是「轉移」成了 from-scratch 模型的精度上界。</strong>
+而 from-scratch 訓練<em>直接</em>最小化左式 \(\min_{\mathcal{M}_r}\mathcal{L}\)，所以它達到的損失 \(\le\) 這個上界。
+注意：\(\mathcal{W}^\star_{\text{dense}}\) 只出現在<strong>證明裡</strong>，演算法從不計算它——這就是為什麼不需要真的先訓 dense。
+</div>
+
+<h3>4.4 主導性：post-hoc 的輸出只是 from-scratch 的一個可行點</h3>
+<p>把 §4.3 的不等式再讀一次：post-hoc 給的 \(\Pi_r\mathcal{W}^\star_{\text{dense}}\) 只是 \(\mathcal{M}_r\) 裡<strong>一個特定點</strong>；from-scratch 在<strong>整個 \(\mathcal{M}_r\)</strong> 上找最小。故（在最佳化成功的前提下）</p>
+\[
+\mathcal{L}\big(\text{from-scratch}\big)\;\le\;\mathcal{L}\big(\text{post-hoc}\big).
+\]
+<p>換句話說，post-hoc 唯一多給你的東西是一個<strong>好的起點（warm start）</strong>；它並沒有給你 from-scratch 達不到的解。我們用「好初始化 + 正規化 + 輔助損失」替代那個起點即可。</p>
+
+<h3>4.5 代價與緩解（為何工程上能成立）</h3>
+<table>
+<tr><th>風險（from-scratch 才有）</th><th>數學/成因</th><th>緩解（本專案已內建）</th></tr>
+<tr><td>失去 warm-start</td><td>冷啟動，須自行找到好盆地（§4.4 不等式的「最佳化成功」前提）</td><td>\(U_{\text{in}},U_{\text{out}}\) 正交初始化 + LR warmup</td></tr>
+<tr><td>gauge 冗餘 → 平坦極小</td><td>\(\forall R\in GL(r_3):\ U_{\text{in}}\!\mapsto\!U_{\text{in}}R^{-1},\ \mathcal{G}\!\mapsto\!\mathcal{G}\times_2 R\) 不變 \(\mathcal{W}\)</td><td>影響有限；中間 \(\operatorname{RMSNorm}\) 固定 \(r_3\) 尺度，正則宜對 \(\mathcal{W}\)</td></tr>
+<tr><td>rank 不足 → 欠擬合</td><td>§4.3 尾巴太肥 → \(\min_{\mathcal{M}_r}\mathcal{L}\) 不夠低</td><td>rank ablation（§8）驗證尾巴可忽略</td></tr>
+<tr><td>routing 從零學</td><td>topk 不可微（§7）：\(\partial e_k/\partial(\cdot)=0\)</td><td>溫度退火 \(T:2.0\!\to\!0.5\)、\(\mathcal{L}_{\text{lb}},\mathcal{L}_z\)</td></tr>
+</table>
+
+<h3>4.6 那什麼時候才該用 post-hoc？</h3>
+<p>當你<em>已擁有</em>訓練好的強 dense 模型、只為部署壓縮（warm-start 有現成價值），post-hoc 較省事。
+但本專案是「在 16GB 預算下<strong>從零</strong>訓練自己的模型」——根本不該、也付不起先訓一個 2.4B dense 再壓。
+此時 §4.1 的觀念轉換（壓縮≠逼近）+ §4.3 的精度橋接，說明 <strong>from-scratch 既合法、又免去最貴的步驟，且 §4.4 顯示它不會比 post-hoc 差。</strong></p>
+
+<!-- ===================================================== -->
+<h2 id="s5">5. 為何不塌縮成單一矩陣？SVD 壓縮效果如何維持</h2>
+
+<div class="box warn">
+<strong>常見疑慮。</strong> \(W_e = U_{\text{in}}\,G^{(e)}\,U_{\text{out}}\) 代數上等於某個單一矩陣 \(M_e\)，那不就「只是換個方式存一個矩陣」？壓縮在哪？
+</div>
+
+<h3>5.1 「塌縮成一個矩陣」正是低秩壓縮的定義，不是缺陷</h3>
+<p>固定專家 \(e\) 時三連乘確實塌縮成 \(M_e := U_{\text{in}}G^{(e)}U_{\text{out}}\in\mathbb{R}^{d_{\text{in}}\times d_{\text{out}}}\)。但 \(M_e\) <strong>不是任意矩陣</strong>，其秩被瓶頸卡住：</p>
+\[
+\operatorname{rank}(M_e)\le\min(r_3,r_2)=256<\min(d_{\text{in}},d_{\text{out}})=768 .
+\]
+<p>秩-\(r\) 的 \(m\times n\) 矩陣存因子只需 \(r(m+n)\) 個數而非 \(mn\)：滿秩 \(M_e=3{,}538{,}944\) 個自由度，秩-256 只 \(r(d_{\text{in}}+d_{\text{out}})=1{,}376{,}256\)。</p>
+<div class="box accent"><strong>「塌縮」與「壓縮」是同一件事：</strong> skinny 矩陣連乘 = 低秩矩陣。壓縮沒因塌縮消失；壓縮就是「塌縮後被約束在低秩」。前提是 rank 別開太大（\(r_3,r_2<\min(d_{\text{in}},d_{\text{out}})\)），否則 \(M_e\) 可滿秩，存因子反而更貴。</div>
+
+<h3>5.2 Tucker 就是高階 SVD（HOSVD）—— SVD 壓縮不但保留，還更強</h3>
+<p>矩陣 SVD 本身是 2-mode Tucker：\(W=U\Sigma V^\top=\Sigma\times_1 U\times_2 V\)。本專案是 3-mode，沿 expert/input/output 三軸同時低秩。且比「每專家各做一次秩-\(r\) SVD」更省，因為共同子空間被抽出共享：</p>
+\[
+\text{獨立 SVD：}\;E\cdot r(d_{\text{in}}+d_{\text{out}})
+\quad\text{vs}\quad
+\text{Tucker：}\;d_{\text{in}}r_3 + r_2 d_{\text{out}} + r_1 r_3 r_2 + \underbrace{E r_1}_{E\,\text{只乘}\,r_1}.
+\]
+<p>專家越多差距越大（§6.2）。</p>
+
+<h3>5.3 整層為何不塌縮成單一線性映射？（MoE 的真正答案）</h3>
+<p>§5.1 講「單一固定專家」。但整層輸出是<strong>輸入條件式</strong>的，不是任何固定矩陣的線性映射：</p>
+\[
+f(x)=U_{\text{out}}^\top\Big[\sum_{k=1}^{K}\underbrace{p_{e_k}(x)}_{\text{非線性 gate}}\big(G^{(e_k(x))}\big)^\top\underbrace{\operatorname{RMSNorm}(U_{\text{in}}^\top x)}_{\text{非線性}}\Big]+\beta .
+\]
+<p>三處破壞全域線性：\(\operatorname{RMSNorm}\)（輸入相依縮放）、\(\operatorname{softmax}\)（非線性 gating）、\(\operatorname{topk}\)（離散、把輸入空間切成 \(\binom{E}{k}\) 個區域）。故 \(f\) 是<strong>分段、由 \(E\) 個低秩映射加權混成的非線性函數</strong>——容量來自 gated 組合數，遠超單一線性映射。</p>
+
+<!-- ===================================================== -->
+<h2 id="s6">6. 為何有效：參數 / 容量 / 頻寬</h2>
+
+<h3>6.1 參數量與邊際專家成本</h3>
+\[
+P_{\text{tucker}} = \underbrace{d_{\text{in}}r_3}_{U_{\text{in}}} + \underbrace{r_2 d_{\text{out}}}_{U_{\text{out}}}
++ \underbrace{r_1 r_3 r_2}_{\mathcal{G}} + \underbrace{E r_1}_{U_{\text{expert}}} + \underbrace{d_{\text{in}}E}_{\text{router}} + d_{\text{out}} .
+\]
+\[
+\frac{\partial P_{\text{tucker}}}{\partial E}=\underbrace{r_1}_{=4}+\underbrace{d_{\text{in}}}_{\text{router}}
+\qquad\text{vs}\qquad
+\frac{\partial P_{\text{dense}}}{\partial E}=d_{\text{in}}d_{\text{out}}=3.5\text{M} .
+\]
+<table>
+<tr><th>張量</th><th>公式</th><th class="num">參數量（gate_proj）</th><th>隨 \(E\)？</th></tr>
+<tr><td>\(U_{\text{in}}\)</td><td>\(d_{\text{in}}r_3\)</td><td class="num">196,608</td><td>✗ 共享</td></tr>
+<tr><td>\(U_{\text{out}}\)</td><td>\(r_2 d_{\text{out}}\)</td><td class="num">4,718,592</td><td>✗ 共享</td></tr>
+<tr><td>\(\mathcal{G}\)</td><td>\(r_1 r_3 r_2\)</td><td class="num">1,048,576</td><td>✗ 共享</td></tr>
+<tr><td>\(U_{\text{expert}}\)</td><td>\(E r_1\)</td><td class="num">32</td><td>✓（係數僅 \(r_1\)）</td></tr>
+<tr><td>router</td><td>\(d_{\text{in}}E\)</td><td class="num">6,144</td><td>✓</td></tr>
+<tr><td>\(\beta\)</td><td>\(d_{\text{out}}\)</td><td class="num">4,608</td><td>✗</td></tr>
+<tr><th>合計</th><th></th><th class="num">5,974,560</th><th></th></tr>
+</table>
+\[
+\text{壓縮率}=1-\frac{5{,}974{,}560}{28{,}311{,}552}\approx78.9\%\ (4.74\times).
+\]
+
+<h3>6.2 容量隨 \(E\) 放大而暴增（417M ↔ 2.4B 的來源）</h3>
+\[
+\frac{P_{\text{dense}}}{P_{\text{tucker}}}\bigg|_{E=64}
+=\frac{226{,}492{,}416}{6{,}017{,}792}\approx 37.6\times .
+\]
+<div class="box accent">
+<strong>dense-equivalent</strong> = 將全模型所有 \(\mathcal{W}_{e,i,j}\) 展開後的 dense MoE 總參數：
+\(P_{\text{actual}}=417\text{M},\ P_{\text{dense-eq}}=2{,}434\text{M},\ 1-417/2434\approx82.87\%.\)
+機制：容量隨 \(E\) 與各層累加成長，實際存的因子幾乎不動。
+</div>
+
+<h3>6.3 直擊 decode 瓶頸：記憶體頻寬而非 FLOP</h3>
+<p>top-\(k\) 固定時 FLOP 與 dense 同數量級 \(\big(d_{\text{in}}r_3+K r_3 r_2+r_2 d_{\text{out}}\sim\mathcal{O}(\text{FLOP}_{\text{dense}})\big)\)，
+但<strong>權重足跡縮小 \(4.7\!-\!37.6\times\)</strong>、共享 \(\mathcal{G},U_{\text{out}}\) 常駐——省的是記憶體與每 token 串流的權重量，剛好打在單流 decode 的頻寬瓶頸上。</p>
+
+<!-- ===================================================== -->
+<h2 id="s7">7. 反向傳播的數學</h2>
+
+<p>令上游梯度 \(\delta=\partial\mathcal{L}/\partial x_{\text{core}}\in\mathbb{R}^{r_2}\)。核心 <code>FusedLatentMoE</code> 手寫三個梯度：</p>
+\[
+\frac{\partial\mathcal{L}}{\partial x_{\text{shared}}}=\sum_{k}p_{e_k}G^{(e_k)}\delta,\qquad
+\frac{\partial\mathcal{L}}{\partial p_{e_k}}=\big\langle\delta,(G^{(e_k)})^\top x_{\text{shared}}\big\rangle,
+\]
+\[
+\frac{\partial\mathcal{L}}{\partial G^{(e)}}=\sum_{b}\sum_{k:\,e_k^{(b)}=e}p^{(b)}_{e_k}\,x^{(b)}_{\text{shared}}\big(\delta^{(b)}\big)^\top\quad(\text{外積累加}).
+\]
+<p>其餘沿 Tucker 鏈由 autograd 處理：</p>
+\[
+\frac{\partial\mathcal{L}}{\partial\mathcal{G}_{a}}=\sum_e (U_{\text{expert}})_{e,a}\frac{\partial\mathcal{L}}{\partial G^{(e)}},\quad
+\frac{\partial\mathcal{L}}{\partial(U_{\text{expert}})_{e,a}}=\big\langle\mathcal{G}_a,\tfrac{\partial\mathcal{L}}{\partial G^{(e)}}\big\rangle,\quad
+\frac{\partial\mathcal{L}}{\partial U_{\text{out}}}=x_{\text{core}}\delta^\top .
+\]
+<div class="box warn">
+<strong>topk 不可微：</strong> \(\partial e_k/\partial(\cdot)=0\)，選擇集合無梯度。故 router 訓練需靠 \(\mathcal{L}_{\text{lb}}\)（load-balance）與 \(\mathcal{L}_z\)（z-loss）供給訊號，否則退化為單專家。
+</div>
+
+<!-- ===================================================== -->
+<h2 id="s8">8. 如何「證明」它真的有效（ablation 計畫）</h2>
+<ol>
+<li><strong>Rank–容量 Pareto：</strong> 掃 \(r_1\in\{2,4,8\},\ r_2\in\{512,1024,2048\},\ r_3\in\{128,256,512\}\)，畫 \(\mathcal{L}_{\text{val}}\) vs \(P_{\text{tucker}}\)，證明 §3.3 / §4.5 的「尾巴可忽略」假設成立、\((4,256,1024)\) 非欠擬合。</li>
+<li><strong>From-scratch vs Post-hoc：</strong> 對照 (a) 同預算 dense MoE、(b) 訓練 (a) 後 Tucker 截斷+微調、(c) 本專案。預期 \(\mathcal{L}^{(c)}\le\mathcal{L}^{(b)}\)（§4.4），且 (c) 無需訓練 (a)。</li>
+<li><strong>有效秩檢查：</strong> 對 \(G^{(e)}\) 做 SVD，看奇異值譜 \(\sigma_i(G^{(e)})\) 是否用滿 \(r_2\)（驗證 §3.1–3.2 的截斷假設）。</li>
+<li><strong>專家分化：</strong> 統計 router 對各 category 的負載，確認 \(\mathcal{L}_{\text{lb}}\) 使分工成立。</li>
+<li><strong>端到端：</strong> 壓縮率 + perplexity + CoT 正確率，對齊 417M / 2.4B / 82.87%。</li>
+</ol>
+
+<!-- ===================================================== -->
+<h2 id="s9">9. 下一步與研究方向（應用場景）</h2>
+
+<h3>9.1 下一步：把 §8 跑成可發表的完整性</h3>
+<p>近期、收斂導向的工作，目標是讓每條 claim（C1–C5）各自被證偽過：</p>
+<ol>
+<li><strong>小規模 dense head-to-head：</strong> 在能同時訓 dense 與 Tucker 的尺度做受控對照，證明「等品質下參數少 \(N\times\)」的趨勢，避開「2.4B dense 訓不動」的陷阱，再外推到大模型。</li>
+<li><strong>from-scratch vs post-hoc：</strong> 對照「訓 dense → Tucker 截斷 → 微調」，驗證 §4.4 的主導性 \(\mathcal{L}^{(\text{scratch})}\le\mathcal{L}^{(\text{post-hoc})}\)。</li>
+<li><strong>有效秩驗證：</strong> 對學到的 \(G^{(e)}\) 做 SVD，畫奇異值譜，實證 §3 / §4.3 的「尾巴可忽略」前提（這條前提無法事前證明，只能事後量）。</li>
+<li><strong>把界寫成 Proposition：</strong> §4.3 的條件式上界明確標為「motivation 而非 guarantee」，並用上一條的譜當作前提的經驗驗證。</li>
+</ol>
+
+<h3>9.2 研究方向：開放問題</h3>
+<table>
+<tr><th>方向</th><th>核心問題</th></tr>
+<tr><td><strong>自適應 / 學習式 rank</strong></td><td>依奇異值譜在訓練中動態分配 / 修剪 \((r_1,r_2,r_3)\)；各層異質 rank。把「選 rank」從超參數變成學習目標。</td></tr>
+<tr><td><strong>條件式 core</strong></td><td>讓 core \(\mathcal{G}\) 隨輸入或層深調變（input-conditioned core），在不漲參數下增容量。</td></tr>
+<tr><td><strong>Tucker × 量化</strong></td><td>與本專案既有的 selective 8-bit 結合：因子化後再量化，分析兩種壓縮的疊乘極限與精度交互。</td></tr>
+<tr><td><strong>最佳化理論</strong></td><td>因子化 MoE 的地形與隱式偏置（gauge 冗餘、是否有虛假局部極小）；對 \(\mathcal{W}\) 而非因子做正則的效果。</td></tr>
+<tr><td><strong>初始化</strong></td><td>比正交初始化更好的 from-scratch 因子初始化（譜先驗、data-aware init）。</td></tr>
+<tr><td><strong>Scaling laws</strong></td><td>壓縮率 / 品質隨 \(E\)、模型規模如何外推？dense-equivalent 的等價性在大規模是否仍成立？</td></tr>
+</table>
+
+<h3>9.3 應用場景：可以用在哪裡</h3>
+<div class="box accent">
+<strong>核心論點。</strong> 凡是「<em>某個軸上有大量相似的權重塊</em>」的結構，都能套這招（沿該軸做 Tucker、共享 core、用低維係數區分）——MoE 的專家軸只是其一。
+</div>
+<ul>
+<li><strong>端側 / 邊緣 LLM 推論</strong>（本專案主線）：Apple Silicon、手機、記憶體受限裝置——把 dense-equivalent 容量塞進可負擔的記憶體與頻寬。</li>
+<li><strong>專家數受限的 MoE</strong>：邊際專家成本 \(=r_1\)，可用極低成本「加專家」換容量；適合 domain-MoE（專家=領域）。</li>
+<li><strong>參數高效微調（Tucker-LoRA）</strong>：多個 adapter 共享一個 core，只用 \(r_1\) 係數區分任務 → 比獨立 LoRA 更省，天然支援多任務切換。</li>
+<li><strong>持續學習 / 多領域</strong>：新領域 = 新增一個 \(r_1\) 維係數向量，不膨脹主體，緩解災難性遺忘的容量壓力。</li>
+<li><strong>MoE 之外的「群組軸」</strong>：multi-head attention 的 head 軸、grouped convolution 的 group 軸、per-token routing——同樣可沿群組軸 Tucker 共享。</li>
+<li><strong>SSM 狀態 / KV 壓縮</strong>：把同思路用在 Mamba 狀態或 KV cache 的低秩因子化，攻長序列的記憶體牆。</li>
+</ul>
+
+<hr>
+<p class="muted">附：純文字 Markdown 版見 <a href="tucker_moe_justification.md"><code>docs/tucker_moe_justification.md</code></a>（內容較舊，以本 HTML 為準）。</p>
+
+</div>
+</body>
+</html>
