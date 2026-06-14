@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tucker-MoE 獨立論文完整計畫</title>
+<script>
+  window.MathJax = {
+    tex: { inlineMath:[['\\(','\\)'],['$','$']], displayMath:[['\\[','\\]'],['$$','$$']] },
+    svg: { fontCache:'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root{
+    --fg:#1a1a1a;--bg:#fbfbf9;--muted:#6b6b6b;--accent:#2b5797;
+    --green:#1a6b3a;--orange:#b4531f;--purple:#6b2b97;
+    --line:#e3e3df;--code-bg:#f3f3ef;--box-bg:#f7f6f2;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{--fg:#e6e6e6;--bg:#16171a;--muted:#9aa0a6;--accent:#7aa7e6;
+          --green:#4caf7d;--orange:#e0975a;--purple:#b07de0;
+          --line:#2c2e33;--code-bg:#22242a;--box-bg:#1d1f24;}
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font-family:-apple-system,"Helvetica Neue","PingFang TC","Noto Sans TC",sans-serif;
+       line-height:1.75;font-size:17px;}
+  .wrap{max-width:880px;margin:0 auto;padding:56px 28px 120px;}
+  h1{font-size:2rem;line-height:1.25;margin:0 0 4px;letter-spacing:-.02em;}
+  h2{font-size:1.4rem;margin:56px 0 16px;padding-top:20px;border-top:2px solid var(--line);}
+  h3{font-size:1.12rem;margin:32px 0 10px;color:var(--accent);}
+  h4{font-size:.98rem;margin:22px 0 6px;color:var(--muted);font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
+  p,li{color:var(--fg);}
+  .lede{color:var(--muted);font-size:1.02rem;margin:0 0 28px;}
+  a{color:var(--accent);text-decoration:none;} a:hover{text-decoration:underline;}
+  code{background:var(--code-bg);padding:1px 6px;border-radius:5px;
+       font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:.87em;}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
+      padding:14px 18px;overflow-x:auto;font-size:.84em;line-height:1.55;}
+  .box{background:var(--box-bg);border:1px solid var(--line);border-radius:10px;
+       padding:14px 20px;margin:20px 0;}
+  .box.accent{border-left:4px solid var(--accent);}
+  .box.green{border-left:4px solid var(--green);}
+  .box.warn{border-left:4px solid var(--orange);}
+  .box.purple{border-left:4px solid var(--purple);}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:.91rem;}
+  th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--code-bg);font-weight:600;}
+  td.c{text-align:center;} td.r{text-align:right;font-variant-numeric:tabular-nums;}
+  .tag{display:inline-block;font-size:.7rem;letter-spacing:.05em;background:var(--accent);
+       color:#fff;padding:2px 8px;border-radius:99px;vertical-align:middle;margin-left:4px;}
+  .tag.g{background:var(--green);} .tag.o{background:var(--orange);}
+  .tag.p{background:var(--purple);}
+  .muted{color:var(--muted);}
+  .toc a{display:block;padding:2px 0;color:var(--fg);font-size:.93rem;}
+  hr{border:none;border-top:1px solid var(--line);margin:48px 0;}
+  ol.steps>li{margin-bottom:14px;}
+  .contrib{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline;margin:16px 0;}
+  .contrib .key{font-weight:700;color:var(--accent);font-size:1.05rem;}
+  .timeline{position:relative;padding-left:28px;margin:20px 0;}
+  .timeline::before{content:'';position:absolute;left:9px;top:0;bottom:0;
+                    width:2px;background:var(--line);}
+  .titem{position:relative;margin-bottom:22px;}
+  .titem::before{content:'';position:absolute;left:-23px;top:6px;
+                  width:10px;height:10px;border-radius:50%;background:var(--accent);}
+  .titem.done::before{background:var(--green);}
+  .titem .wk{font-size:.78rem;color:var(--muted);font-weight:600;letter-spacing:.05em;
+              text-transform:uppercase;margin-bottom:2px;}
+  .section-card{border:1px solid var(--line);border-radius:10px;padding:14px 18px;
+                margin:10px 0;background:var(--box-bg);}
+  .section-card .num{font-size:.78rem;color:var(--muted);font-weight:700;letter-spacing:.08em;}
+  .section-card .title{font-weight:600;margin:2px 0 6px;}
+  .col2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0;}
+  @media(max-width:600px){.col2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Tucker-MoE 獨立論文<br>完整計畫</h1>
+<p class="lede">
+  聚焦單一貢獻：Tucker 分解作為 MoE Expert 張量的從零訓練參數化。<br>
+  不帶 Mamba、不帶 Apple Silicon 工程——讓審稿人只看到一件清楚的事。
+</p>
+
+<div class="box toc">
+  <strong>目錄</strong>
+  <a href="#s1">1. 為什麼要聚焦，現在的問題在哪</a>
+  <a href="#s2">2. 論文定位與核心主張（C1–C5）</a>
+  <a href="#s3">3. 論文架構（章節 × 內容 × 頁數）</a>
+  <a href="#s4">4. 方法細節（論文第 3–5 節的核心數學）</a>
+  <a href="#s5">5. 實驗設計（全套 Baselines + Ablations）</a>
+  <a href="#s6">6. Related Work（如何定位、如何區分）</a>
+  <a href="#s7">7. 執行時間表（8 週）</a>
+  <a href="#s8">8. 投稿目標與準備清單</a>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s1">1. 為什麼要聚焦，現在的問題在哪</h2>
+
+<div class="box warn">
+<strong>目前這個 repo 的問題。</strong> 它同時宣稱：
+Mamba-3（新 SSM 離散化）+ Tucker-MoE（新 expert 分解）+ Apple Silicon Metal 工程。
+審稿人讀完不知道你在說哪件事是貢獻——每件都要各自證明，互相稀釋。
+</div>
+
+<p>把這三件事拆開，Tucker MoE 單獨投一篇有幾個優勢：</p>
+<ul>
+  <li><strong>對照組可控</strong>：拿一個標準 Transformer FFN 換成 TuckerMoE 即可，不需要訓 Mamba。</li>
+  <li><strong>理論可以講完整</strong>：from-scratch 訓練的精度保證（你問的那些問題）可以完整寫成 Proposition + Proof，不會被 Metal kernel 實作細節蓋掉。</li>
+  <li><strong>反向傳播是真的新東西</strong>：FusedLatentMoE 的 Triton kernel 在 Tucker MoE 文獻裡沒人做過，單獨展開有論文價值。</li>
+  <li><strong>審稿人只需要相信一件事</strong>：Tucker 當 MoE expert 分解是對的，而你有理論 + 實驗同時支撐。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="s2">2. 論文定位與核心主張</h2>
+
+<div class="box purple">
+<strong>論文一句話</strong>：我們提出把 MoE 的 expert 權重張量 $\mathcal{W}\in\mathbb{R}^{E\times d_{\text{in}}\times d_{\text{out}}}$ 直接參數化為 Tucker 形式、從零訓練，並設計高效的 Triton backward kernel——在等參數預算下達到與 dense MoE 同等品質，且邊際專家成本僅為 $r_1$。
+</div>
+
+<h3>五條核心主張（C1–C5，各自可被證偽）</h3>
+
+<div class="contrib">
+  <span class="key">C1</span>
+  <span><strong>理論：Tucker 參數化是 MoE expert 張量的完備低秩假設空間。</strong>
+  在 multilinear rank $(r_1,r_3,r_2)$ 約束下，任何 $\mathcal{W}\in\mathcal{M}_r$ 都能被因子精確表示，且訓練直接最小化任務損失（不是重建誤差），透過 Lipschitz 橋接保留 HOSVD 的精度上界。</span>
+
+  <span class="key">C2</span>
+  <span><strong>方法：三因子 Tucker 分解的 MoE 前向，並設計穩定的 from-scratch 訓練食譜。</strong>
+  包含：正交初始化 $U_{\text{in}},U_{\text{out}}$、中間 RMSNorm、router 溫度退火、load-balance / z-loss。</span>
+
+  <span class="key">C3</span>
+  <span><strong>工程：FusedLatentMoE——Tucker MoE 的高效 Triton 反向傳播 kernel。</strong>
+  手寫 $\partial\mathcal{L}/\partial G^{(e)}$ 的外積累加（避免 naive autograd 的 $O(B\cdot E\cdot r_3\cdot r_2)$ 中間記憶體）；提供完整複雜度分析。</span>
+
+  <span class="key">C4</span>
+  <span><strong>實驗：等參數預算下，Tucker MoE 不輸 dense MoE，且 from-scratch ≥ post-hoc 截斷。</strong></span>
+
+  <span class="key">C5</span>
+  <span><strong>實驗：共享 core 的貢獻可被隔離。</strong>
+  對比「每 expert 獨立低秩（無共享 core）」vs「Tucker 共享 core」，證明共享帶來額外收益。</span>
+</div>
+
+<h3>明確不主張</h3>
+<ul>
+  <li>不主張在所有任務上優於 dense（只主張「等參數預算下接近」）。</li>
+  <li>不主張有 a priori 訓練成功保證（是條件式上界，需事後用有效秩驗證前提）。</li>
+  <li>不主張 Tucker 是唯一的低秩 MoE 方案（是其中一種，Related Work 如實列出競品）。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="s3">3. 論文架構（9頁 + References，NeurIPS / ICML 格式）</h2>
+
+<div class="section-card">
+  <div class="num">§1 · 1 頁</div>
+  <div class="title">Introduction</div>
+  MoE 的參數爆炸問題 → 低秩 expert 的動機 → Tucker 分解的特殊性（3-mode、共享 core、邊際成本 $r_1$）→ 列 C1–C5 貢獻 → paper roadmap。
+</div>
+
+<div class="section-card">
+  <div class="num">§2 · 1.5 頁</div>
+  <div class="title">Background</div>
+  2.1 Dense MoE（設符號）。
+  2.2 Tucker 分解（HOSVD、誤差界 $\|\mathcal{W}-\hat{\mathcal{W}}\|_F^2\le\sum_n\sum_{i>r_n}\sigma_i^{(n)2}$）。
+  2.3 為何「從零訓練因子」≠「post-hoc 壓縮」（ERM vs Approximation，概念區分；詳細論證在 §4）。
+</div>
+
+<div class="section-card">
+  <div class="num">§3 · 1.5 頁</div>
+  <div class="title">Tucker-MoE：前向</div>
+  3.1 Tucker 參數化（那條 boxed 公式 + 因子表）。<br>
+  3.2 前向計算（prefill / decode 兩路徑）。<br>
+  3.3 為何整層不塌縮成單一線性映射（RMSNorm + softmax + topk 三個非線性）。<br>
+  <span class="muted">→ 回答審稿人「這不就是三個矩陣相乘？」</span>
+</div>
+
+<div class="section-card">
+  <div class="num">§4 · 1.5 頁</div>
+  <div class="title">From-Scratch 訓練的理論基礎</div>
+  4.1 低秩流形 $\mathcal{M}_r$ 的 ERM 視角（不是逼近、是在受限假設空間做標準訓練）。<br>
+  4.2 <strong>Proposition 1（精度保證）</strong>：若 $\mathcal{L}$ 為 $L$-Lipschitz，則
+  $\min_{\mathcal{M}_r}\mathcal{L}\le\mathcal{L}^\star_{\text{dense}}+L\sqrt{\sum_n\sum_{i>r_n}\sigma_i^{(n)2}}$。<br>
+  &emsp;<em>Proof sketch</em>：HOSVD 投影是 $\mathcal{M}_r$ 的可行點，代入即得。<br>
+  4.3 主導性：post-hoc 輸出是 $\mathcal{M}_r$ 裡一個特定點；from-scratch 在整個 $\mathcal{M}_r$ 上找最小。<br>
+  4.4 訓練食譜（正交初始化、RMSNorm、溫度退火、aux loss；各設計決策各一行解釋）。<br>
+  <span class="muted">→ 回答審稿人「反過來為何可以？」「憑什麼保證精度？」</span>
+</div>
+
+<div class="section-card">
+  <div class="num">§5 · 1.5 頁</div>
+  <div class="title">高效反向傳播：FusedLatentMoE</div>
+  5.1 三個手寫梯度的推導（$\partial\mathcal{L}/\partial x_{\text{shared}}$、$\partial\mathcal{L}/\partial p_{e_k}$、$\partial\mathcal{L}/\partial G^{(e)}$）。<br>
+  5.2 Triton kernel 設計：$dG^{(e)}$ 的外積累加，網格切法 $(E,\lceil r_3/B_{r_3}\rceil,\lceil r_2/B_{r_2}\rceil)$，避開 nonzero / boolean mask 的 CPU-GPU 同步。<br>
+  5.3 複雜度對比：
+  <table style="margin:10px 0">
+  <tr><th>方法</th><th>$dG$ 計算複雜度</th><th>峰值記憶體</th></tr>
+  <tr><td>Naive autograd</td><td>$O(B\cdot E\cdot r_3\cdot r_2)$</td><td>高（展開 $G_{\text{experts}}$）</td></tr>
+  <tr><td>FusedLatentMoE（本方法）</td><td>$O(B\cdot K\cdot r_3\cdot r_2)$（$K\ll E$）</td><td>低（只計算被選中的 expert）</td></tr>
+  </table>
+  <span class="muted">→ 這是本論文在工程上最清楚的新貢獻。</span>
+</div>
+
+<div class="section-card">
+  <div class="num">§6 · 2 頁</div>
+  <div class="title">實驗</div>
+  見 §5 詳細設計。主要包含：<br>
+  Table 1：主結果（perplexity、參數量、訓練速度）。<br>
+  Table 2：from-scratch vs post-hoc。<br>
+  Figure 1：rank ablation Pareto 前緣。<br>
+  Figure 2：有效秩 SVD 譜（驗證 Proposition 1 的前提）。<br>
+  Figure 3：專家負載分布（驗證 routing 不退化）。<br>
+  Figure 4：backward kernel 時間 vs B（Triton vs autograd）。
+</div>
+
+<div class="section-card">
+  <div class="num">§7 · 0.5 頁</div>
+  <div class="title">Related Work</div>
+  見 §6 的定位表。
+</div>
+
+<div class="section-card">
+  <div class="num">§8 · 0.5 頁</div>
+  <div class="title">Conclusion &amp; Limitations</div>
+  限制：理論上界是條件式的、router 不可微需 aux loss、只在 FFN 上驗證（attention head 未測）。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s4">4. 方法細節（論文 §3–5 的核心數學）</h2>
+
+<h3>4.1 Tucker 前向（§3 的核心）</h3>
+
+$$\mathcal{W}_{e,i,j}=\sum_{a,b,c}\mathcal{G}_{a,b,c}(U_{\text{expert}})_{e,a}(U_{\text{in}})_{i,b}(U_{\text{out}})_{c,j}$$
+
+每個專家的等效矩陣 $M_e=U_{\text{in}}G^{(e)}U_{\text{out}}\in\mathbb{R}^{d_{\text{in}}\times d_{\text{out}}}$，
+秩被 $\min(r_3,r_2)$ 卡死，這是壓縮的根源。
+
+整層前向：
+$$f(x)=U_{\text{out}}^\top\!\left[\sum_{k=1}^{K}p_{e_k}(x)\cdot G^{(e_k(x))\top}\cdot\text{RMSNorm}(U_{\text{in}}^\top x)\right]+\beta$$
+
+三處非線性使得 $f$ 不可塌縮為任意固定矩陣的線性映射。
+
+<h3>4.2 Proposition 1（§4 的核心）</h3>
+
+<div class="box accent">
+<strong>Proposition 1（精度保證）。</strong>
+設 $\mathcal{W}^\star_{\text{dense}}$ 為假想的 dense MoE 最優解，$\mathcal{L}$ 在工作域上為 $L$-Lipschitz。
+令 $\Pi_r\mathcal{W}^\star_{\text{dense}}$ 為其 HOSVD 截斷到 $(r_1,r_3,r_2)$，則
+
+$$\min_{\mathcal{W}\in\mathcal{M}_r}\mathcal{L}(\mathcal{W})
+\;\le\;\mathcal{L}(\mathcal{W}^\star_{\text{dense}})
++L\underbrace{\sqrt{\sum_{n=1}^{3}\sum_{i>r_n}\!\big(\sigma^{(n)}_i\big)^2}}_{\text{HOSVD 截斷尾巴}\ \varepsilon}$$
+
+其中 $\mathcal{W}^\star_{\text{dense}}$ 僅出現在<strong>證明</strong>中，演算法從不計算它。
+</div>
+
+<p><em>Proof sketch（3 行）：</em> $\Pi_r\mathcal{W}^\star_{\text{dense}}\in\mathcal{M}_r$ 是可行點，故 $\min_{\mathcal{M}_r}\mathcal{L}\le\mathcal{L}(\Pi_r\mathcal{W}^\star_{\text{dense}})$。
+Lipschitz 性質給 $\mathcal{L}(\Pi_r\mathcal{W}^\star_{\text{dense}})\le\mathcal{L}(\mathcal{W}^\star_{\text{dense}})+L\|\mathcal{W}^\star_{\text{dense}}-\Pi_r\mathcal{W}^\star_{\text{dense}}\|_F$。
+HOSVD 誤差界代入即得。$\square$</p>
+
+<p class="muted">注意：$\varepsilon$ 在訓練前不可知；用 §5.2 的有效秩實驗事後驗證它夠小。這是誠實的論文寫法——條件式保證 + 實驗驗證前提。</p>
+
+<h3>4.3 三個梯度（§5 的核心）</h3>
+
+$$\frac{\partial\mathcal{L}}{\partial x_{\text{shared}}}=\sum_k p_{e_k}\,G^{(e_k)}\delta,\qquad
+\frac{\partial\mathcal{L}}{\partial p_{e_k}}=\langle\delta,(G^{(e_k)})^\top x_{\text{shared}}\rangle$$
+
+$$\frac{\partial\mathcal{L}}{\partial G^{(e)}}
+=\underbrace{\sum_{b}\sum_{k:\,e_k^{(b)}=e}p^{(b)}_{e_k}\,x^{(b)}_{\text{shared}}\,(\delta^{(b)})^\top}_{\text{外積累加，Triton kernel 處理這個}}
+\;\in\mathbb{R}^{r_3\times r_2}$$
+
+其餘沿 Tucker 鏈由 autograd 處理：
+$$\frac{\partial\mathcal{L}}{\partial\mathcal{G}_a}=\sum_e(U_{\text{expert}})_{e,a}\frac{\partial\mathcal{L}}{\partial G^{(e)}},\quad
+\frac{\partial\mathcal{L}}{\partial(U_{\text{expert}})_{e,a}}=\langle\mathcal{G}_a,\tfrac{\partial\mathcal{L}}{\partial G^{(e)}}\rangle$$
+
+<h3>4.4 訓練食譜（§4.4 的內容）</h3>
+<table>
+<tr><th>設計</th><th>作用</th><th>若拿掉會怎樣</th></tr>
+<tr><td>$U_{\text{in}},U_{\text{out}}$ 正交初始化</td><td>保持因子連乘的等距性，防梯度爆炸/消失</td><td>訓練前幾千步不穩定</td></tr>
+<tr><td>中間 RMSNorm（在 $r_3$ 瓶頸）</td><td>固定 gauge 冗餘的尺度，讓 core 條件數可控</td><td>$\mathcal{G}$ 和 $U_{\text{in}}$ 可以互相縮放，收斂慢</td></tr>
+<tr><td>Router 溫度退火 $T:2.0\to0.5$</td><td>初期 soft 讓所有 expert 都有梯度，後期 sharp 讓分工成型</td><td>Expert 分化不完整，負載偏倚</td></tr>
+<tr><td>Load-balance loss $\mathcal{L}_{\text{lb}}$</td><td>topk 不可微，唯一給 router 訓練訊號的方式之一</td><td>router 退化為永遠選同一個 expert</td></tr>
+<tr><td>Z-loss $\mathcal{L}_z$</td><td>防止 router logit 爆炸，穩定 softmax</td><td>訓練後期 logit 溢出，router collapse</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s5">5. 實驗設計</h2>
+
+<h3>5.1 實驗模型（乾淨、可重現）</h3>
+
+<div class="box green">
+<strong>設計原則：最小化無關變因。</strong> 拿 GPT-2 style Transformer，只把 FFN 那一塊換成 TuckerMoE。
+Mamba、Metal kernel、Apple Silicon 全部不碰——審稿人只需要相信「Tucker MoE 替代 FFN 有效」。
+</div>
+
+<pre>模型骨架：6-layer Transformer
+  d_model    = 512          （可控規模，不需大機器）
+  n_heads    = 8
+  d_ff       = 2048         （dense FFN baseline）
+  seq_len    = 512
+
+TuckerMoE 替換 d_ff 投影：
+  E          = 8, top-k = 2
+  r1 = 4,  r3 = 128,  r2 = 512   （預設）
+
+資料集：WikiText-103（標準 LM，好比較）
+訓練：100K steps, batch 64, AdamW lr=3e-4, cosine decay
+評測：perplexity（val），CoT-style few-shot accuracy（optional）</pre>
+
+<h3>5.2 Baselines（6 個，缺一都會被問）</h3>
+
+<table>
+<tr><th>名稱</th><th>描述</th><th>用來回答什麼</th></tr>
+<tr>
+  <td><strong>B1 Dense FFN</strong></td>
+  <td>標準 $d_{\text{in}}\to d_{ff}\to d_{\text{in}}$（無 MoE）</td>
+  <td>加 MoE routing 是否有收益</td>
+</tr>
+<tr>
+  <td><strong>B2 Dense MoE</strong></td>
+  <td>$E$ 個獨立全秩 expert，top-$k$ routing</td>
+  <td>Tucker MoE 在等參數下不輸（C4）</td>
+</tr>
+<tr>
+  <td><strong>B3 Independent Low-Rank MoE</strong></td>
+  <td>每個 expert 各自做秩-$r$ 分解（$W_e=A_e B_e$），無共享 core</td>
+  <td>Tucker 共享 core 的額外收益（C5）</td>
+</tr>
+<tr>
+  <td><strong>B4 Post-hoc Tucker</strong></td>
+  <td>先訓 B2，再 HOSVD 截斷成 $(r_1,r_3,r_2)$，再微調</td>
+  <td>from-scratch ≥ post-hoc（C4 + Proposition 1 §4.3）</td>
+</tr>
+<tr>
+  <td><strong>B5 LoRA-MoE</strong></td>
+  <td>每個 expert 是 LoRA adapter（$W_e=W_0+A_e B_e$，$W_0$ 共享）</td>
+  <td>Tucker vs LoRA 風格的共享方式</td>
+</tr>
+<tr>
+  <td><strong>B6 Tucker MoE w/o RMSNorm</strong></td>
+  <td>去掉中間的 inner_norm</td>
+  <td>Ablation：RMSNorm 的必要性</td>
+</tr>
+</table>
+
+<h3>5.3 主結果表（Table 1）</h3>
+<table>
+<tr>
+  <th>方法</th><th class="r">參數</th><th class="r">Expert 參數</th>
+  <th class="r">Val PPL</th><th class="r">訓練速度<br>(tok/s)</th>
+  <th class="r">Peak Mem</th>
+</tr>
+<tr><td>B1 Dense FFN</td><td class="r">—</td><td class="r">—</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+<tr><td>B2 Dense MoE</td><td class="r">—</td><td class="r">E·r·2</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+<tr><td>B3 Indep Low-Rank</td><td class="r">—</td><td class="r">E·2r</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+<tr><td>B4 Post-hoc Tucker</td><td class="r">same as C1</td><td class="r">E·r₁</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+<tr><td>B5 LoRA-MoE</td><td class="r">—</td><td class="r">E·2r</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>
+<tr style="background:var(--box-bg)"><td><strong>Tucker MoE (ours)</strong></td><td class="r"><strong>—</strong></td><td class="r"><strong>E·r₁</strong></td><td class="r"><strong>—</strong></td><td class="r"><strong>—</strong></td><td class="r"><strong>—</strong></td></tr>
+</table>
+<p class="muted">先填空格結構，實驗跑完填入數字。每個 config 跑 3 個 seed，報 mean ± std。</p>
+
+<h3>5.4 Tucker 特性 Ablation（Table 2 / Figure 1–4）</h3>
+
+<div class="col2">
+<div class="section-card">
+  <div class="num">Figure 1：Rank Pareto 前緣</div>
+  掃 $r_1\in\{2,4,8\}$，$r_3\in\{64,128,256\}$，$r_2\in\{256,512,1024\}$。
+  x 軸 = 總參數量，y 軸 = val perplexity。
+  <strong>用途：</strong>證明 $(r_1=4,r_3=128,r_2=512)$ 不是欠擬合，且在 Pareto 前緣上。
+</div>
+<div class="section-card">
+  <div class="num">Figure 2：有效秩 SVD 譜</div>
+  對每個 layer 的每個 $G^{(e)}$ 做 SVD，畫奇異值衰減曲線。
+  <strong>用途：</strong>實證 Proposition 1 的前提——截斷尾巴 $\varepsilon$ 確實小。
+</div>
+<div class="section-card">
+  <div class="num">Figure 3：Expert 負載分布</div>
+  統計訓練結束時每個 expert 被選中的頻率（per layer, per category）。
+  <strong>用途：</strong>證明 routing 未退化（非單 expert），load-balance loss 有效。
+</div>
+<div class="section-card">
+  <div class="num">Figure 4：Backward Kernel 效率</div>
+  比較 FusedLatentMoE vs naive autograd：x 軸 = batch size，
+  y 軸 = backward time (ms) 和 peak memory (GB)。
+  <strong>用途：</strong>工程貢獻（C3）的直接量測。
+</div>
+</div>
+
+<h3>5.5 Table 2：from-scratch vs post-hoc</h3>
+<table>
+<tr><th>方法</th><th>需要預訓 dense？</th><th class="r">微調 Steps</th><th class="r">Val PPL</th></tr>
+<tr><td>Tucker MoE from-scratch（ours）</td><td class="c">✗</td><td class="r">0</td><td class="r">?</td></tr>
+<tr><td>Tucker MoE post-hoc（B4）</td><td class="c">✅ 需先訓 B2</td><td class="r">10K</td><td class="r">?</td></tr>
+<tr><td>Tucker MoE post-hoc（no finetune）</td><td class="c">✅</td><td class="r">0</td><td class="r">?</td></tr>
+</table>
+<p>預期：from-scratch PPL ≤ post-hoc（with finetune），遠低於 post-hoc（no finetune）——驗證 Proposition 1 §4.3。</p>
+
+<!-- ============================================================ -->
+<h2 id="s6">6. Related Work（如何定位）</h2>
+
+<table>
+<tr><th>方法</th><th>Expert 結構</th><th>需要 pre-trained dense？</th><th>Tucker 共享 core？</th><th>custom backward？</th></tr>
+<tr><td>Mixtral / Switch Transformer</td><td>全秩獨立 expert</td><td class="c">✗</td><td class="c">✗</td><td class="c">✗</td></tr>
+<tr><td>LoRA-MoE（MoLoRA 等）</td><td>低秩 adapter</td><td class="c">✅</td><td class="c">✗</td><td class="c">✗</td></tr>
+<tr><td>Tensor-Train MoE</td><td>TT 分解</td><td class="c">視論文</td><td class="c">✗（TT 不是 Tucker）</td><td class="c">✗</td></tr>
+<tr><td>Tucker 卷積（Tucker-CNN）</td><td>Conv 權重 Tucker</td><td class="c">✅（post-hoc）</td><td class="c">✅（但單層）</td><td class="c">✗</td></tr>
+<tr><td>Shared Expert MoE（DeepSeek 等）</td><td>部分 expert 共享</td><td class="c">✗</td><td class="c">✗（不做 Tucker 分解）</td><td class="c">✗</td></tr>
+<tr style="background:var(--box-bg)"><td><strong>Tucker-MoE (ours)</strong></td><td><strong>Tucker 因子共享 core</strong></td><td class="c"><strong>✗（from-scratch）</strong></td><td class="c"><strong>✅</strong></td><td class="c"><strong>✅ Triton</strong></td></tr>
+</table>
+
+<div class="box accent">
+<strong>定位句（論文第 2 段用）。</strong>
+最接近的工作是 Tucker-CNN（把 Tucker 用在卷積層、post-hoc 壓縮）和 LoRA-MoE（低秩 expert）。
+本方法的差異在：(1) 把 Tucker 施加在 MoE 的<strong>三維 expert 張量</strong>（而非單層矩陣）；
+(2) <strong>從零訓練</strong>，不需要預訓 dense；(3) 設計了針對外積累加的 <strong>Triton backward kernel</strong>，
+使訓練實際可行。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s7">7. 執行時間表（8 週）</h2>
+
+<div class="timeline">
+  <div class="titem done">
+    <div class="wk">已完成</div>
+    Tucker MoE 前向（MLX + PyTorch）、FusedLatentMoE backward Triton kernel、理論推導（tucker_moe_justification.html）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 1</div>
+    <strong>建立實驗框架。</strong> 用 GPT-2 style 模型 + WikiText-103 跑 B1（dense FFN）baseline，確認 perplexity 數字和訓練速度合理。寫 training script（可以從 <code>pre-train/train.py</code> 裁剪）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 2</div>
+    <strong>Tucker MoE from-scratch（主方法）+ B2 Dense MoE。</strong> 跑 3 seeds，確認 Table 1 中 Tucker 不輸 Dense MoE。若 Tucker 輸了，先查 routing collapse（Figure 3）和 init（B6 ablation）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 3</div>
+    <strong>B3 Independent Low-Rank + B5 LoRA-MoE。</strong> 隔離共享 core 的貢獻（C5）。
+    + 開始跑 rank ablation（Figure 1）——掃描可平行跑，丟到背景。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 4</div>
+    <strong>B4 Post-hoc Tucker（Table 2）。</strong> 先訓 B2，再做 HOSVD 截斷，微調 10K steps。驗證 from-scratch ≥ post-hoc。+ 有效秩 SVD 譜（Figure 2）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 5</div>
+    <strong>Backward kernel benchmark（Figure 4）。</strong> FusedLatentMoE vs naive autograd：sweep batch size，記錄時間 + 記憶體。+ Router 負載分布（Figure 3）+ B6 ablation（去掉 RMSNorm）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 6</div>
+    <strong>整理所有數字，畫圖。</strong> Pareto 前緣（Figure 1）、SVD 譜（Figure 2）、負載圖（Figure 3）、kernel benchmark（Figure 4）。確認所有 claim 都有對應數字支撐。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 7</div>
+    <strong>撰寫論文主體（§1–§6）。</strong> §4 的 Proposition 1 和 Proof 最重要，先寫完。§5 的 Triton kernel 描述（不貼全部程式碼，只描述 tiling 策略和複雜度）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 8</div>
+    <strong>Related work、Introduction、修稿、Limitations。</strong>
+    最後確認：每條 C1–C5 都有對應的 section 和實驗，Proposition 1 的前提被 Figure 2 驗證，Table 2 驗證 §4.3 的主導性。
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s8">8. 投稿目標與準備清單</h2>
+
+<h3>目標會議（依難度排）</h3>
+<table>
+<tr><th>會議</th><th>DDL 參考</th><th>適合點</th><th>建議</th></tr>
+<tr><td><strong>NeurIPS 2026</strong></td><td>5 月</td><td>方法 + 理論 + 實驗兼顧</td><td>主要目標</td></tr>
+<tr><td><strong>ICML 2026</strong></td><td>1–2 月</td><td>理論 + 實驗並重，Tucker §4 的 Proposition 適合</td><td>備選（與本計畫 8 週時間衝突，視進度）</td></tr>
+<tr><td><strong>ACL 2026（NLP track）</strong></td><td>2 月</td><td>若實驗聚焦語言模型 perplexity</td><td>備選</td></tr>
+<tr><td><strong>ICLR 2027</strong></td><td>9–10 月</td><td>最充裕時間，可補更多實驗</td><td>保底</td></tr>
+</table>
+
+<h3>提交前確認清單</h3>
+<ul>
+  <li>☐ C1–C5 每條都有對應的 section 和實驗數字</li>
+  <li>☐ Proposition 1 有 proof sketch（不需完整但要自洽）</li>
+  <li>☐ Figure 2（有效秩）驗證了 Proposition 1 的前提 $\varepsilon$ 夠小</li>
+  <li>☐ Table 2 驗證 from-scratch ≥ post-hoc</li>
+  <li>☐ Figure 4 驗證 FusedLatentMoE 比 naive autograd 快且省記憶體</li>
+  <li>☐ Limitations 節明確說「條件式保證」「只測 FFN 替換」「未測 attention」</li>
+  <li>☐ Code + configs + seeds 可重現（GitHub repo 公開）</li>
+  <li>☐ Related work 明確說明與 Tucker-CNN / LoRA-MoE / Shared-Expert MoE 的差異</li>
+</ul>
+
+<hr>
+<p class="muted">相關文件：
+<a href="tucker_moe_justification.html">Tucker MoE 完整理論（數學版）</a> ·
+<a href="edge_deployment_plan.html">端側部署方案</a> ·
+<a href="../pre-train/sft_cot_bundle/scripts/model.py"><code>model.py — FusedLatentMoE（Triton backward）</code></a>
+</p>
+
+</div>
+</body>
+</html>
