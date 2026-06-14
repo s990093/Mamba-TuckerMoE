@@ -36,60 +36,56 @@ The single biggest idea: **Tucker tensor decomposition applied to the expert wei
 
 ### The Problem with Dense MoE
 
-A standard MoE stacks `E` independent weight matrices:
+A standard MoE stacks $E$ independent weight matrices, forming a three-dimensional tensor:
 
-```
-W ∈ ℝ^(E × d_in × d_out)     # all expert weights
-```
+$$\mathcal{W} \in \mathbb{R}^{E \times d_{\text{in}} \times d_{\text{out}}}, \qquad \mathcal{W}_{e,:,:} = W_e$$
 
-Adding one expert costs `d_in × d_out = 3.5M` parameters. At scale, this is prohibitive.
+The marginal cost of adding one expert is $d_{\text{in}} \times d_{\text{out}} = 3.5\text{M}$ parameters. At scale, this is prohibitive.
 
 ### Tucker Decomposition: One Shared Core, Tiny Per-Expert Coefficients
 
 Tucker MoE factorizes the **entire expert weight tensor** across all three axes simultaneously:
 
-```
-W[e, i, j] = Σ_{a,b,c}  G[a,b,c] · U_expert[e,a] · U_in[i,b] · U_out[c,j]
-              └── core ──┘  └─ expert axis ─┘  └─ input axis ─┘ └─ output axis ─┘
+$$\boxed{\mathcal{W}_{e,i,j} = \sum_{a=1}^{r_1}\sum_{b=1}^{r_3}\sum_{c=1}^{r_2} \mathcal{G}_{a,b,c} \cdot (U_{\text{expert}})_{e,a} \cdot (U_{\text{in}})_{i,b} \cdot (U_{\text{out}})_{c,j}}$$
 
-where:
-  U_expert  ∈ ℝ^(E  × r₁)    r₁ = 4      ← only part that grows with E
-  U_in      ∈ ℝ^(d_in × r₃)  r₃ = 256    ← shared across all experts
-  core      ∈ ℝ^(r₁ × r₃ × r₂)           ← shared across all experts
-  U_out     ∈ ℝ^(r₂ × d_out) r₂ = 1024   ← shared across all experts
-```
+In compact Tucker notation: $\mathcal{W} = \mathcal{G} \times_1 U_{\text{expert}} \times_2 U_{\text{in}} \times_3 U_{\text{out}}^\top$
 
-**Adding one expert costs only `r₁ = 4` new parameters** instead of 3.5M.
+| Factor | Shape | Value | Grows with $E$? |
+|---|---|---|:---:|
+| $U_{\text{expert}}$ | $E \times r_1$ | $r_1 = 4$ | ✅ only this one |
+| $U_{\text{in}}$ | $d_{\text{in}} \times r_3$ | $r_3 = 256$ | ✗ shared |
+| $\mathcal{G}$ (core) | $r_1 \times r_3 \times r_2$ | — | ✗ shared |
+| $U_{\text{out}}$ | $r_2 \times d_{\text{out}}$ | $r_2 = 1024$ | ✗ shared |
+
+**Adding one expert costs only $r_1 = 4$ new parameters** instead of 3.5M:
+
+$$\frac{\partial P_{\text{dense}}}{\partial E} = d_{\text{in}} \cdot d_{\text{out}} = 3{,}538{,}944 \qquad \text{vs} \qquad \frac{\partial P_{\text{Tucker}}}{\partial E} = r_1 = 4$$
 
 ### Why This Works — Five Key Properties
 
 | Property | What it means |
 |---|---|
-| **Completeness** | Tucker is an *exact* re-expression of any tensor at full rank — zero information loss before truncation |
-| **Controlled truncation** | Truncation error bounded by `Σ σᵢ²` of dropped singular values (HOSVD error bound, tensor analogue of Eckart–Young) |
-| **Cross-expert sharing** | `U_in`, `core`, `U_out` shared across all experts — experts differ *only* via their `r₁`-dim coefficient row in `U_expert` |
-| **Not a single linear map** | RMSNorm + softmax gating + discrete top-k selection make the full layer **input-conditional piecewise nonlinear** — it does not collapse to one matrix |
-| **From-scratch trainable** | No pre-trained dense model required. Tucker here is a *parameterization* (restrict hypothesis class to multilinear rank ≤ (r₁, r₃, r₂)), not a post-hoc compression step — the classical error bound still provides a precision guarantee via a Lipschitz bridge |
+| **Completeness** | Tucker at full rank is an *exact* re-expression — zero loss before truncation (any tensor has a HOSVD) |
+| **Controlled truncation** | Error bounded by $\sum_n \sum_{i > r_n} \sigma_i^{(n)2}$ of dropped singular values — tensor analogue of Eckart–Young |
+| **Cross-expert sharing** | $U_{\text{in}},\ \mathcal{G},\ U_{\text{out}}$ shared; experts differ *only* via their $r_1$-dim row in $U_{\text{expert}}$ |
+| **Not a single linear map** | $\operatorname{RMSNorm} + \operatorname{softmax} + \operatorname{top\text{-}k}$ make the layer **input-conditional piecewise nonlinear** — does not collapse to one matrix |
+| **From-scratch trainable** | No pre-trained dense model needed. Tucker is a *parameterization* restricting the hypothesis class to $\mathcal{M}_r = \{\mathcal{W} : \text{multilinear rank} \le (r_1, r_3, r_2)\}$; the HOSVD error bound transfers via a Lipschitz bridge: $\min_{\mathcal{M}_r}\mathcal{L} \le \mathcal{L}^\star_{\text{dense}} + L\,\varepsilon$ |
 
 → Full mathematical derivation: [`docs/tucker_moe_justification.html`](docs/tucker_moe_justification.html)
 
 ### Parameter Efficiency at a Glance
 
-For `gate_proj` (`d_in=768`, `d_out=4608`, `E=8`):
+For `gate_proj` ($d_{\text{in}}=768,\ d_{\text{out}}=4608,\ E=8$):
 
 | | Dense MoE | Tucker MoE |
 |---|---:|---:|
 | Expert params | 28,311,552 | 5,974,560 |
-| Marginal cost / new expert | 3,538,944 | **4** (= r₁) |
+| Marginal cost / new expert | 3,538,944 | **4** $(= r_1)$ |
 | Compression | — | **78.9%** |
 
 Across the full model:
 
-```
-Actual parameters:        417M
-Dense-equivalent capacity: 2,434M
-Compression:              82.87%
-```
+$$P_{\text{actual}} = 417\text{M}, \qquad P_{\text{dense-eq}} = 2{,}434\text{M}, \qquad 1 - \frac{417}{2434} \approx 82.87\%$$
 
 <p align="center">
   <img src="paper/hybrid-mamba-15min/assets/plots/pareto_frontier.png" width="480" alt="Pareto Frontier: capacity vs parameter cost"/>
