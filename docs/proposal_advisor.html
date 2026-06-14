@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>研究提案 — Tucker-MoE 高效訓練</title>
+<script>
+  window.MathJax = {
+    tex: { inlineMath:[['\\(','\\)'],['$','$']], displayMath:[['\\[','\\]'],['$$','$$']] },
+    svg: { fontCache:'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root{
+    --fg:#1a1a1a;--bg:#fbfbf9;--muted:#6b6b6b;--accent:#1a4b8c;
+    --green:#1a6b3a;--orange:#b4531f;--purple:#6b2b97;--red:#b42b2b;
+    --line:#e3e3df;--code-bg:#f3f3ef;--box-bg:#f7f6f2;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{--fg:#e6e6e6;--bg:#16171a;--muted:#9aa0a6;--accent:#7aa7e6;
+          --green:#4caf7d;--orange:#e0975a;--purple:#b07de0;--red:#e06a6a;
+          --line:#2c2e33;--code-bg:#22242a;--box-bg:#1d1f24;}
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font-family:-apple-system,"Helvetica Neue","PingFang TC","Noto Sans TC",sans-serif;
+       line-height:1.8;font-size:16px;}
+  .wrap{max-width:820px;margin:0 auto;padding:56px 28px 120px;}
+
+  /* Cover */
+  .cover{text-align:center;border:2px solid var(--accent);border-radius:14px;
+         padding:44px 32px 36px;margin-bottom:56px;background:var(--box-bg);}
+  .cover h1{font-size:1.75rem;line-height:1.3;margin:0 0 8px;letter-spacing:-.02em;color:var(--accent);}
+  .cover .sub{font-size:1.05rem;color:var(--muted);margin:0 0 28px;}
+  .cover table{max-width:420px;margin:auto;font-size:.93rem;}
+  .cover td{border:none;padding:4px 10px;}
+  .cover td:first-child{font-weight:600;color:var(--muted);text-align:right;width:80px;}
+
+  h2{font-size:1.3rem;margin:52px 0 14px;padding-top:20px;border-top:2px solid var(--line);
+     color:var(--accent);}
+  h3{font-size:1.05rem;margin:28px 0 8px;color:var(--fg);font-weight:700;}
+  p,li{color:var(--fg);}
+  ul{padding-left:1.4em;}
+  li{margin-bottom:6px;}
+
+  .box{background:var(--box-bg);border:1px solid var(--line);border-radius:10px;
+       padding:14px 20px;margin:18px 0;}
+  .box.accent{border-left:4px solid var(--accent);}
+  .box.green{border-left:4px solid var(--green);}
+  .box.warn{border-left:4px solid var(--orange);}
+  .box.purple{border-left:4px solid var(--purple);}
+  .box.red{border-left:4px solid var(--red);}
+
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.9rem;}
+  th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--code-bg);font-weight:600;}
+  td.c{text-align:center;} td.r{text-align:right;}
+  td.g{color:var(--green);font-weight:600;}
+  td.bad{color:var(--red);}
+
+  .tag{display:inline-block;font-size:.7rem;background:var(--accent);
+       color:#fff;padding:2px 8px;border-radius:99px;margin-left:4px;vertical-align:middle;}
+  .tag.g{background:var(--green);} .tag.o{background:var(--orange);}
+  .muted{color:var(--muted);font-size:.9rem;}
+
+  /* Timeline */
+  .timeline{position:relative;padding-left:32px;margin:16px 0;}
+  .timeline::before{content:'';position:absolute;left:10px;top:0;bottom:0;
+                    width:2px;background:var(--line);}
+  .titem{position:relative;margin-bottom:20px;}
+  .titem::before{content:'';position:absolute;left:-26px;top:7px;
+                 width:12px;height:12px;border-radius:50%;background:var(--accent);}
+  .titem .wk{font-size:.75rem;font-weight:700;letter-spacing:.06em;
+              color:var(--muted);text-transform:uppercase;margin-bottom:2px;}
+  .titem strong{display:block;margin-bottom:2px;}
+
+  /* Resource table highlight */
+  .res-ask{background:#fffbe6;color:#7a5800;font-weight:600;}
+  @media(prefers-color-scheme:dark){.res-ask{background:#2a2200;color:#e8c76a;}}
+
+  .signature{margin-top:60px;border-top:1px solid var(--line);padding-top:28px;
+             font-size:.9rem;color:var(--muted);}
+  .signature strong{color:var(--fg);}
+
+  .page-break{display:block;height:0;page-break-before:always;}
+  @media print{
+    body{font-size:13px;} .wrap{padding:20px 16px 40px;}
+    .cover{padding:24px 20px;} h2{margin-top:28px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ======================== COVER PAGE ======================== -->
+<div class="cover">
+  <div style="font-size:.8rem;letter-spacing:.12em;color:var(--muted);margin-bottom:16px;">
+    國立高雄科技大學 資訊工程系 · 碩士研究計畫提案
+  </div>
+  <h1>Tucker 分解在 Mixture-of-Experts 的<br>從零訓練效率研究</h1>
+  <p class="sub">Tucker-MoE From-Scratch Training: Efficient Expert Scaling<br>with Tensor Decomposition</p>
+  <table>
+    <tr><td>提案人</td><td><strong>賴鴻瑋</strong>（碩一）</td></tr>
+    <tr><td>指導教授</td><td>（您的名字）</td></tr>
+    <tr><td>共同討論</td><td>（學長名字）學長</td></tr>
+    <tr><td>提案日期</td><td>2026 年 6 月</td></tr>
+    <tr><td>目標會議</td><td>NeurIPS 2026 / ICML 2026</td></tr>
+  </table>
+</div>
+
+<!-- ======================== 1. 研究動機 ======================== -->
+<h2>一、研究動機與問題定義</h2>
+
+<h3>1.1 MoE 的 Expert 數量是能力上限，但參數是瓶頸</h3>
+<p>
+Mixture-of-Experts（MoE）透過讓不同 expert 分工處理不同類型的 token，在同等參數量下
+達到比 dense FFN 更高的模型容量（capacity）。
+目前主流大型語言模型（Mixtral-8×7B、GPT-4 等）都採用 MoE 架構。
+</p>
+<p>
+但 MoE 有一個根本問題：<strong>每新增一個 expert，就要多一組 $d_{\text{in}}\times d_{\text{out}}$ 的權重矩陣</strong>。
+以 $d_{\text{in}}=768,\ d_{\text{out}}=3072$ 為例，每加一個 expert 就多 2.4M 參數。
+在邊緣裝置（手機、嵌入式系統）上，$E=8$ 是難以逾越的牆。
+</p>
+
+<div class="box accent">
+<strong>核心問題：</strong>能否讓「多一個 expert」幾乎不增加參數，同時保留 MoE 分工帶來的容量紅利？
+</div>
+
+<h3>1.2 Tucker 分解的機會</h3>
+<p>
+Tucker 分解可以把 MoE 的整個 expert 張量 $\mathcal{W}\in\mathbb{R}^{E\times d_{\text{in}}\times d_{\text{out}}}$
+寫成：
+$$\mathcal{W}_{e,i,j}=\sum_{a=1}^{r_1}\sum_{b=1}^{r_3}\sum_{c=1}^{r_2}
+\mathcal{G}_{a,b,c}\cdot(U_{\text{expert}})_{e,a}\cdot(U_{\text{in}})_{i,b}\cdot(U_{\text{out}})_{c,j}$$
+
+其中 $U_{\text{in}},\mathcal{G},U_{\text{out}}$ 是<strong>所有 expert 共享</strong>的因子，只有 $U_{\text{expert}}\in\mathbb{R}^{E\times r_1}$
+隨 $E$ 增長。設 $r_1=4$，則：
+</p>
+
+<table>
+<tr><th></th><th>Dense MoE</th><th>Tucker MoE（本研究）</th></tr>
+<tr><td>多一個 expert 的參數成本</td>
+    <td class="bad">$d_{\text{in}}\times d_{\text{out}} \approx 2.4\text{M}$</td>
+    <td class="g">$r_1 = 4$</td></tr>
+<tr><td>$E=64$ 時 expert 總參數</td>
+    <td class="bad">~156M（超過模型預算）</td>
+    <td class="g">~256（完全可負擔）</td></tr>
+<tr><td>Expert 間資訊共享</td><td>無</td><td class="g">共享 core $\mathcal{G}$ + 輸入/輸出子空間</td></tr>
+</table>
+
+<h3>1.3 現有方案的不足</h3>
+<ul>
+  <li><strong>LoRA-MoE</strong>：每個 expert 是獨立 adapter $(W_0+A_eB_e)$，$A_e,B_e$ 不共享——邊際成本仍 $O(r\cdot(d_{\text{in}}+d_{\text{out}}))$，解決不了大 $E$ 問題。</li>
+  <li><strong>Tucker-CNN（post-hoc）</strong>：需要先訓練一個 dense 模型，再壓縮——需要兩倍算力，且不能從零開始訓練。</li>
+  <li><strong>本研究的差異</strong>：Tucker MoE 作為<em>假設空間的限制</em>，直接從零訓練，不需要任何預訓 dense 模型。</li>
+</ul>
+
+<!-- ======================== 2. 研究問題 ======================== -->
+<h2>二、研究問題與預期貢獻</h2>
+
+<h3>2.1 三個核心研究問題（RQ）</h3>
+
+<div class="box green">
+<strong>RQ1（精度保證）</strong>：Tucker MoE 從零訓練——沒有 dense 模型當「壓縮對象」——
+理論上為什麼可以收斂到好的解？誤差來自哪裡？能定量估計嗎？
+</div>
+<div class="box green">
+<strong>RQ2（E 的擴展性）</strong>：固定參數預算，Tucker MoE 在 $E\in\{4,8,16,32,64\}$ 的
+品質曲線是否單調下降？Dense MoE 在同預算下做得到嗎？
+</div>
+<div class="box green">
+<strong>RQ3（可訓練性）</strong>：Tucker 的 core $\mathcal{G}$ 對所有 expert 共享，
+反向傳播的梯度 $\partial\mathcal{L}/\partial G^{(e)}$ 要對每個 expert 做外積累加——
+記憶體是 $O(B\cdot E\cdot r_3\cdot r_2)$，$E=64$ 時 OOM。
+怎麼設計高效 backward kernel 解決這個問題？
+</div>
+
+<h3>2.2 預期論文貢獻（C1–C6）</h3>
+<table>
+<tr><th>編號</th><th>貢獻</th><th>對應 RQ</th></tr>
+<tr><td><strong>C1</strong></td><td>Tucker MoE 的 from-scratch 訓練精度保證（Proposition 1 + HOSVD 誤差界橋接）</td><td>RQ1</td></tr>
+<tr><td><strong>C2</strong></td><td>Tucker MoE 的三個梯度推導 + 訓練穩定性設計（正交初始化、RMSNorm、溫度退火、lb_loss/z_loss）</td><td>RQ3</td></tr>
+<tr><td><strong>C3</strong></td><td>FusedLatentMoE Triton kernel：$O(B\cdot E\cdot r_3\cdot r_2)\to O(B\cdot K\cdot r_3\cdot r_2)$，$K=\text{top-}k\ll E$</td><td>RQ3</td></tr>
+<tr><td><strong>C4</strong></td><td>$E$-scaling 實驗：Tucker MoE 在固定預算內隨 $E$ 持續改善，Dense MoE 做不到</td><td>RQ2</td></tr>
+<tr><td><strong>C5</strong></td><td>From-scratch Tucker ≥ post-hoc Tucker（即使 post-hoc 有額外 finetune 步數）</td><td>RQ1</td></tr>
+<tr><td><strong>C6</strong></td><td>有效秩驗證：訓練後的 $\mathcal{W}$ 截斷誤差小 → 從零訓練自然學到低秩結構</td><td>RQ1</td></tr>
+</table>
+
+<!-- ======================== 3. 方法摘要 ======================== -->
+<h2>三、方法摘要（給老師看的核心想法）</h2>
+
+<h3>3.1 直覺</h3>
+<p>
+Dense MoE 可以想像成把 $E$ 個人各自關在房間裡學習，每個人學一套技能。
+Tucker MoE 是讓這 $E$ 個人共享一間「技能庫（core $\mathcal{G}$）」，
+每個人只帶一個 $r_1=4$ 維的「個人識別碼（$U_{\text{expert}}[e,:]$）」進去取不同組合的技能。
+新增一個人，幾乎不用擴充技能庫，只要多發一個識別碼就好。
+</p>
+
+<h3>3.2 精度保證（給老師看的定理）</h3>
+<div class="box accent">
+<strong>Proposition 1（精度保證）。</strong>
+設損失函數 $\mathcal{L}$ 在工作域上為 $L$-Lipschitz，
+$\mathcal{W}^\star_{\text{dense}}$ 為假想的 dense MoE 最優解。
+令截斷誤差 $\varepsilon=\sqrt{\sum_{n=1}^{3}\sum_{i>r_n}(\sigma^{(n)}_i)^2}$（HOSVD 尾巴奇異值），則：
+$$\min_{\mathcal{W}\in\mathcal{M}_r}\mathcal{L}(\mathcal{W})\;\le\;\mathcal{L}(\mathcal{W}^\star_{\text{dense}})+L\,\varepsilon$$
+<span class="muted">注意：$\mathcal{W}^\star_{\text{dense}}$ 只出現在<em>證明</em>中，演算法從不需要計算它。</span>
+</div>
+
+<p>這個命題說明：只要 $\mathcal{W}^\star_{\text{dense}}$ 的 Tucker 截斷誤差 $\varepsilon$ 夠小，
+從零訓練的 Tucker MoE 就能以有限差距逼近最佳 dense MoE——不需要先有 dense 模型。</p>
+
+<h3>3.3 高效 Backward（Triton Kernel）</h3>
+<p>
+Naive autograd 在計算 $\partial\mathcal{L}/\partial G^{(e)}$ 時，要對 batch 中所有樣本做外積累加：
+$$\frac{\partial\mathcal{L}}{\partial G^{(e)}}=\sum_{b}\sum_{k:\,e_k^{(b)}=e}p^{(b)}_{e_k}\,x^{(b)}_{\text{shared}}\,(\delta^{(b)})^\top\;\in\mathbb{R}^{r_3\times r_2}$$
+記憶體複雜度 $O(B\cdot E\cdot r_3\cdot r_2)$，$E=64,B=512$ 時直接 OOM。
+本研究寫一個 Triton kernel，利用 top-$k$ sparsity（只有 $K\ll E$ 個 expert 被選中），
+把複雜度降到 $O(B\cdot K\cdot r_3\cdot r_2)$——<strong>$K=2$ 時節省 $32\times$ 記憶體</strong>。
+</p>
+
+<!-- ======================== 4. 實驗設計 ======================== -->
+<h2>四、實驗設計（給老師看的具體計畫）</h2>
+
+<h3>4.1 實驗模型（最小乾淨設置）</h3>
+<div class="box green">
+<strong>設計原則：去除所有無關變因，讓審稿人只需要相信「Tucker MoE 替換 FFN 有效」。</strong><br>
+不用 Mamba、不用 Apple Silicon 工程、不用 Metal kernel——純粹的 Transformer FFN 替換實驗。
+</div>
+
+<table>
+<tr><th>設定</th><th>值</th><th>說明</th></tr>
+<tr><td>骨架</td><td>6-layer Transformer</td><td>GPT-2 style，可重現</td></tr>
+<tr><td>$d_{\text{model}}$</td><td>512</td><td>小模型，讓 $E$-sweep 跑得起來</td></tr>
+<tr><td>$d_{\text{ff}}$</td><td>2048</td><td>FFN 維度，Tucker 替換這一層</td></tr>
+<tr><td>Tucker 秩</td><td>$(r_1,r_3,r_2)=(4,128,512)$</td><td>$r_1=4$ 是邊際成本的主角</td></tr>
+<tr><td>$E$ 掃描</td><td>$\{4,8,16,32,64\}$</td><td>每個 $E$ 獨立從頭訓練</td></tr>
+<tr><td>資料集</td><td>WikiText-103</td><td>標準 LM benchmark，好比較</td></tr>
+<tr><td>訓練步數</td><td>100K steps</td><td>BatchSize=64, AdamW, cosine decay</td></tr>
+<tr><td>評測</td><td>Val Perplexity</td><td>主要指標；補 few-shot accuracy</td></tr>
+</table>
+
+<h3>4.2 Baseline 列表</h3>
+<table>
+<tr><th>Baseline</th><th>說明</th><th>用來回答什麼</th></tr>
+<tr><td>B1 Dense FFN</td><td>標準 Transformer，無 MoE</td><td>參數相同時，Tucker MoE 的 capacity 優勢</td></tr>
+<tr><td>B2 Dense MoE</td><td>標準 MoE，$E$ 個獨立 expert</td><td>Tucker vs Dense，同 $E$ 同預算</td></tr>
+<tr><td>B3 Independent Low-Rank</td><td>每個 expert 各自 SVD，不共享 core</td><td>共享 core 的意義</td></tr>
+<tr><td>B4 Post-hoc Tucker</td><td>先訓 B2，再 HOSVD 壓縮 + finetune</td><td>from-scratch 是否必要</td></tr>
+<tr><td>B5 LoRA-MoE</td><td>每個 expert 是 LoRA adapter</td><td>Tucker 的邊際成本優勢</td></tr>
+<tr><td>B6 Tucker w/o RMSNorm</td><td>拿掉內部 RMSNorm</td><td>gauge 修正的作用</td></tr>
+</table>
+
+<h3>4.3 核心圖表（Figure / Table 規劃）</h3>
+<ul>
+  <li><strong>Table 1（Main Results）</strong>：同 $E=8$、同參數預算下，Tucker MoE vs 所有 Baseline 的 Val PPL</li>
+  <li><strong>Figure 5（E-Sweep）</strong>：X 軸 = $E$，Y 軸 = Val PPL；Tucker 藍線持續下降，Dense MoE 橘線在 $E>8$ 超出預算退場——<strong>這是論文最有力的圖</strong></li>
+  <li><strong>Table 2（from-scratch vs post-hoc）</strong>：Tucker from-scratch vs B4 post-hoc（有 / 無 finetune）</li>
+  <li><strong>Figure 1–4（Ablation）</strong>：移除 RMSNorm、正交初始化、溫度退火、lb_loss 各自的影響</li>
+  <li><strong>Figure 6（Effective Rank）</strong>：訓練後的 $\mathcal{W}$ 奇異值分佈，驗證 $\varepsilon$ 夠小</li>
+</ul>
+
+<!-- ======================== 5. 資源需求 ======================== -->
+<h2>五、資源需求（向老師申請的部分）</h2>
+
+<div class="box red">
+<strong>這一節是向老師提出明確資源申請。</strong>每一項都附估算說明，讓老師知道我知道成本。
+</div>
+
+<h3>5.1 GPU 需求</h3>
+<table>
+<tr><th>實驗</th><th>需要什麼</th><th>估算時間</th><th>說明</th></tr>
+<tr>
+  <td>$E$-sweep 主實驗<br>（5 個 $E$ × 從頭訓練）</td>
+  <td class="res-ask">A100 40GB × 1 或 RTX 3090 × 2</td>
+  <td class="r">~100 小時</td>
+  <td>每個 $E$ 獨立訓 100K steps；$E=64$ 最重，約 20H/run</td>
+</tr>
+<tr>
+  <td>Baseline B1–B5<br>（5 個 baseline）</td>
+  <td class="res-ask">同上</td>
+  <td class="r">~60 小時</td>
+  <td>B2 Dense MoE 在 $E=64$ 可能超記憶體，需要測試</td>
+</tr>
+<tr>
+  <td>Ablation 實驗<br>（4 個設計選項）</td>
+  <td>RTX 3090 × 1</td>
+  <td class="r">~40 小時</td>
+  <td>每個 ablation 只跑 $E=8$，規模小</td>
+</tr>
+<tr>
+  <td>Triton Kernel 開發與驗證</td>
+  <td>RTX 3090 × 1（有 CUDA 即可）</td>
+  <td class="r">~20 小時</td>
+  <td>Kernel 正確性驗證 + 記憶體 benchmark</td>
+</tr>
+<tr style="background:var(--code-bg);">
+  <td><strong>合計</strong></td>
+  <td class="res-ask"><strong>A100 × 1（最理想）或 RTX 3090 × 2（可接受）</strong></td>
+  <td class="r"><strong>~220 GPU-小時</strong></td>
+  <td>完整跑完大約 2–3 週</td>
+</tr>
+</table>
+
+<div class="box warn">
+<strong>若資源有限的替代方案：</strong>
+可以先用 $d_{\text{model}}=256$ 的更小模型做 pilot（約需 40 GPU-小時），確認 E-sweep 曲線形狀正確，
+再申請完整資源跑 $d_{\text{model}}=512$ 的正式實驗。這樣不浪費資源，也能在拿到大卡之前先有初步結果。
+</div>
+
+<h3>5.2 資料需求</h3>
+<table>
+<tr><th>資料集</th><th>大小</th><th>用途</th><th>取得方式</th></tr>
+<tr>
+  <td>WikiText-103</td>
+  <td>~500MB</td>
+  <td>主要 LM 訓練與評測</td>
+  <td class="g">公開，HuggingFace datasets 直接下載</td>
+</tr>
+<tr>
+  <td>OpenWebText（optional）</td>
+  <td>~38GB</td>
+  <td>更大規模驗證（若時間允許）</td>
+  <td>公開，需要存放空間</td>
+</tr>
+<tr>
+  <td>系上伺服器存放空間</td>
+  <td class="res-ask"><strong>申請 100GB</strong></td>
+  <td>checkpoint 存放（每個 run ~2–5GB）</td>
+  <td>需請老師協助申請</td>
+</tr>
+</table>
+
+<h3>5.3 軟體環境</h3>
+<table>
+<tr><th>工具</th><th>版本</th><th>用途</th></tr>
+<tr><td>Python / PyTorch</td><td>3.11 / 2.3+</td><td>模型訓練</td></tr>
+<tr><td>Triton</td><td>2.3+</td><td>custom backward kernel</td></tr>
+<tr><td>HuggingFace transformers / datasets</td><td>最新</td><td>tokenizer + 資料載入</td></tr>
+<tr><td>Weights &amp; Biases</td><td>免費 tier</td><td>訓練曲線追蹤</td></tr>
+</table>
+<p class="muted">以上軟體全部開源免費，不需額外授權費用。</p>
+
+<!-- ======================== 6. 時間表 ======================== -->
+<h2>六、執行時間表</h2>
+
+<div class="timeline">
+  <div class="titem">
+    <div class="wk">Week 1–2 · 現在已完成</div>
+    <strong>理論推導 + 程式碼基礎建設</strong>
+    Tucker 分解數學、Proposition 1 推導、MLX 推論驗證（Apple Silicon 本地跑通）、
+    FusedLatentMoE Triton kernel 原型（v1 已完成，記憶體正確性驗證中）
+  </div>
+  <div class="titem">
+    <div class="wk">Week 3–4 · 拿到 GPU 後立刻開始</div>
+    <strong>Pilot 實驗 + Baseline 建立</strong>
+    $d_{\text{model}}=256$ pilot，確認 $E$-sweep 曲線方向正確；
+    B1–B5 全部跑通，記錄 wall-clock time 和 peak memory。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 5–6</div>
+    <strong>主實驗 $d_{\text{model}}=512$</strong>
+    Tucker MoE 5 個 $E$ 值、B4 post-hoc Tucker 比較、ablation 4 組；
+    並行跑 Triton kernel 記憶體 benchmark（對比 naive autograd）。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 7</div>
+    <strong>Figure / Table 製作 + Proposition 1 補完整</strong>
+    Figure 5（E-sweep）、Table 1（main）、Table 2（from-scratch vs post-hoc）；
+    有效秩分析（Figure 6）；理論部分寫清楚。
+  </div>
+  <div class="titem">
+    <div class="wk">Week 8</div>
+    <strong>論文初稿 + 內部 review</strong>
+    9 頁初稿，請老師和學長審閱；準備 rebuttal 常見問題的答案。
+  </div>
+</div>
+
+<div class="box accent">
+<strong>最重要的 checkpoint（請老師留意）：</strong>
+Week 4 結束時，我會有 pilot 實驗的初步結果。
+如果 $E$-sweep 曲線形狀不對（Tucker 沒有隨 $E$ 改善），我們可以在這個時間點討論是否調整方向，
+而不是等到 Week 8 才發現問題。
+</div>
+
+<!-- ======================== 7. 為何現在值得做 ======================== -->
+<h2>七、為什麼這個研究值得做</h2>
+
+<h3>7.1 效率前緣論文在頂會的地位</h3>
+<p>
+「數據比架構更重要」只適用於能力前緣的競爭（誰能解更難的問題）。
+但 Tucker MoE 的目標是<strong>效率前緣</strong>——同樣的能力，誰用更少的資源。
+這條賽道在頂會非常活躍：
+</p>
+<ul>
+  <li>Phi-3-mini（Microsoft）：3.8B 參數的小模型在手機上跑，ICLR 2025</li>
+  <li>MobileLLM（Meta）：Sub-billion 語言模型，NeurIPS 2024</li>
+  <li>Gemma 2B（Google）：在 4GB RAM 裝置上推論</li>
+</ul>
+<p>這些論文的論點都是「同等能力、更少資源」，不是「超越 GPT-4」。Tucker MoE 的定位完全相同。</p>
+
+<h3>7.2 Tucker MoE 有一個 dense 做不到的實驗</h3>
+<p>
+<strong>Figure 5（E-sweep）</strong>是這篇論文的殺手：
+固定參數預算，Tucker MoE 可以把 $E$ 開到 64 並持續改善品質；
+Dense MoE 在 $E>8$ 就超出預算，做不到這個實驗。
+這不是「tuning 出來的優勢」，是<strong>結構本質上的不對稱</strong>——審稿人很難反駁。
+</p>
+
+<h3>7.3 碩士論文的完整性</h3>
+<p>
+這個研究有：理論（Proposition 1）、工程（Triton kernel）、實驗（E-sweep + Ablation）三個部分，
+加上與多個 baseline 的嚴謹比較——符合頂會論文的完整性要求，
+也適合作為碩士論文的核心章節（Chapter 3–5）。
+</p>
+
+<h3>7.4 已有基礎，不是從零開始</h3>
+<div class="box green">
+<strong>目前已完成：</strong>
+<ul style="margin:8px 0 0;">
+  <li>Tucker MoE MLX 推論實作（Apple Silicon 跑通，42 tok/s → 87 tok/s）</li>
+  <li>FusedLatentMoE Triton kernel 原型（v1，梯度正確性驗證中）</li>
+  <li>Proposition 1 數學推導完整版（含 HOSVD 誤差界橋接）</li>
+  <li>WikiText-103 資料前處理 pipeline 已建好</li>
+  <li>Baseline B1、B2 訓練腳本已寫好，待 GPU 資源跑正式實驗</li>
+</ul>
+<strong>目前缺少的：GPU 算力 + 伺服器存放空間。</strong>
+</div>
+
+<!-- ======================== 8. 預期成果 ======================== -->
+<h2>八、預期成果與風險管理</h2>
+
+<h3>8.1 預期成果</h3>
+<table>
+<tr><th>項目</th><th>內容</th><th>時間</th></tr>
+<tr><td>頂會論文投稿</td><td>NeurIPS 2026（截止 5 月）或 ICML 2026（截止 1 月）</td><td>Week 8</td></tr>
+<tr><td>開源程式碼</td><td>Tucker MoE 訓練 + Triton kernel，發布於 GitHub</td><td>論文接受後</td></tr>
+<tr><td>碩士論文章節</td><td>Tucker MoE 理論 + 實驗部分，可直接用作碩論 Chapter 3–5</td><td>碩一下學期末</td></tr>
+</table>
+
+<h3>8.2 風險與備案</h3>
+<table>
+<tr><th>風險</th><th>機率</th><th>備案</th></tr>
+<tr>
+  <td>E-sweep 曲線不單調（Tucker 沒有持續改善）</td>
+  <td>低（有理論支撐）</td>
+  <td>調整 $r_1$ 大小；加入更強的 lb_loss；改稿為「Tucker 的 E-scaling 能力受哪些因素限制」</td>
+</tr>
+<tr>
+  <td>From-scratch 比 post-hoc 差</td>
+  <td>中（理論只給弱保證）</td>
+  <td>C5 改為「Tucker from-scratch 達到 post-hoc with finetune 的 XX% 以上」；仍有意義</td>
+</tr>
+<tr>
+  <td>Triton Kernel 在 CUDA 版本有 bug</td>
+  <td>低</td>
+  <td>先用 PyTorch autograd 跑完所有實驗；kernel 作為效率加速的工程貢獻獨立呈現</td>
+</tr>
+<tr>
+  <td>GPU 資源不夠，$E=64$ 跑不完</td>
+  <td>中</td>
+  <td>用 $d_{\text{model}}=256$ 的 pilot 結果先投，正式 $d_{\text{model}}=512$ 作為 supplementary</td>
+</tr>
+</table>
+
+<!-- ======================== 簽名 ======================== -->
+<div class="signature">
+  <p>
+    <strong>提案人：賴鴻瑋</strong>（碩士一年級）<br>
+    國立高雄科技大學 資訊工程系<br>
+    a83a83cjcj88256@gmail.com<br>
+    2026 年 6 月
+  </p>
+  <p>
+    本計畫所有數學推導、訓練腳本、MLX 推論實作均為本人完成；
+    程式碼已存放於 GitHub（<code>s990093/Mamba-TuckerMoE</code>）。
+    如需查看現有程式碼或中間實驗結果，請告知，可當場 demo。
+  </p>
+</div>
+
+</div><!-- .wrap -->
+</body>
+</html>
