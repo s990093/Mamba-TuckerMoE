@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>端側部署完整方案 — Hybrid Mamba-TuckerMoE</title>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['\\(','\\)'],['$','$']], displayMath: [['\\[','\\]'],['$$','$$']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --fg:#1a1a1a; --bg:#fbfbf9; --muted:#6b6b6b; --accent:#2b5797;
+    --green:#1a6b3a; --orange:#b4531f; --line:#e3e3df; --code-bg:#f3f3ef; --box-bg:#f7f6f2;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{ --fg:#e6e6e6; --bg:#16171a; --muted:#9aa0a6; --accent:#7aa7e6;
+           --green:#4caf7d; --orange:#e0975a; --line:#2c2e33; --code-bg:#22242a; --box-bg:#1d1f24; }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font-family:-apple-system,"Helvetica Neue","PingFang TC","Noto Sans TC",sans-serif;
+       line-height:1.75;font-size:17px;}
+  .wrap{max-width:860px;margin:0 auto;padding:56px 28px 120px;}
+  h1{font-size:2rem;line-height:1.25;margin:0 0 6px;letter-spacing:-.02em;}
+  h2{font-size:1.4rem;margin:56px 0 16px;padding-top:18px;border-top:1px solid var(--line);}
+  h3{font-size:1.12rem;margin:32px 0 10px;color:var(--accent);}
+  h4{font-size:1rem;margin:24px 0 8px;color:var(--muted);}
+  .lede{color:var(--muted);font-size:1.02rem;margin:0 0 24px;}
+  a{color:var(--accent);text-decoration:none;} a:hover{text-decoration:underline;}
+  code{background:var(--code-bg);padding:1px 6px;border-radius:5px;
+       font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:.87em;}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
+      padding:14px 18px;overflow-x:auto;font-size:.85em;line-height:1.55;}
+  .box{background:var(--box-bg);border:1px solid var(--line);border-radius:10px;padding:14px 20px;margin:20px 0;}
+  .box.accent{border-left:4px solid var(--accent);}
+  .box.green{border-left:4px solid var(--green);}
+  .box.warn{border-left:4px solid var(--orange);}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:.91rem;}
+  th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--code-bg);font-weight:600;}
+  td.c{text-align:center;} td.r{text-align:right;font-variant-numeric:tabular-nums;}
+  .tag{display:inline-block;font-size:.7rem;letter-spacing:.05em;background:var(--accent);
+       color:#fff;padding:2px 8px;border-radius:99px;vertical-align:middle;margin-left:6px;}
+  .tag.g{background:var(--green);} .tag.o{background:var(--orange);}
+  .muted{color:var(--muted);}
+  .toc a{display:block;padding:2px 0;color:var(--fg);font-size:.93rem;}
+  hr{border:none;border-top:1px solid var(--line);margin:48px 0;}
+  ol li,ul li{margin-bottom:6px;}
+  .phase{display:flex;gap:12px;align-items:flex-start;margin:12px 0;}
+  .phase .num{flex-shrink:0;width:28px;height:28px;border-radius:50%;
+              background:var(--accent);color:#fff;font-size:.82rem;
+              display:flex;align-items:center;justify-content:center;font-weight:700;}
+  .col2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;}
+  @media(max-width:620px){.col2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>端側 / 邊緣 LLM 推論<br>完整部署方案</h1>
+<p class="lede">Hybrid Mamba-TuckerMoE — Apple Silicon · iOS · Android · Edge Linux<br>
+<span class="muted">現況：bf16 模型 1.14 GB，417M 參數，M2 Pro decode 42–87 tok/s。</span></p>
+
+<div class="box toc">
+  <strong>目錄</strong>
+  <a href="#s1">1. 現況盤點與缺口</a>
+  <a href="#s2">2. Tucker 的部署天然優勢</a>
+  <a href="#s3">3. 目標平台矩陣</a>
+  <a href="#s4">4. 各平台轉換 Pipeline</a>
+  <a href="#s5">5. 量化策略</a>
+  <a href="#s6">6. 實驗設計</a>
+  <a href="#s7">7. 執行路線圖</a>
+  <a href="#s8">8. 風險與緩解</a>
+</div>
+
+<!-- =================================================== -->
+<h2 id="s1">1. 現況盤點與缺口</h2>
+
+<h3>已有（可直接用）</h3>
+<table>
+<tr><th>能力</th><th>狀態</th><th>對應檔案</th></tr>
+<tr><td>MLX 推論（Apple Silicon macOS）</td><td class="c">✅ 生產可用</td><td><code>mamba3_mlx/run.py</code></td></tr>
+<tr><td>Selective 8-bit 量化</td><td class="c">✅ +35% tok/s</td><td><code>mlx_model/weights.py</code></td></tr>
+<tr><td>TuckerMoE <code>precompute_G_experts</code></td><td class="c">✅ 載入後免重算</td><td><code>tucker_moe.py:64</code></td></tr>
+<tr><td>Metal SSM scan kernel</td><td class="c">✅ fused, bf16</td><td><code>scan_metal.py</code></td></tr>
+<tr><td>Speculative decode（SJD）</td><td class="c">✅ 1.26–1.68×</td><td><code>speculative/</code></td></tr>
+<tr><td>FastAPI WebSocket server</td><td class="c">✅ port 7860</td><td><code>chat_demo.py</code></td></tr>
+<tr><td><code>.pt → .npz</code> sidecar 轉換</td><td class="c">✅</td><td><code>tools/</code></td></tr>
+</table>
+
+<h3>缺口（需要建的）</h3>
+<table>
+<tr><th>能力</th><th>優先度</th><th>難度</th></tr>
+<tr><td>iOS / iPadOS 部署（CoreML 或直接 Metal）</td><td class="c"><span class="tag">高</span></td><td class="c">高</td></tr>
+<tr><td>int4 / GGUF 轉換（Android / Edge Linux）</td><td class="c"><span class="tag">高</span></td><td class="c">中</td></tr>
+<tr><td>Tucker factor → GGUF/ONNX 序列化</td><td class="c"><span class="tag">高</span></td><td class="c">中</td></tr>
+<tr><td>Android（Qualcomm QNN / ExecuTorch）</td><td class="c"><span class="tag o">中</span></td><td class="c">高</td></tr>
+<tr><td>Edge Linux（Jetson / RPi，llama.cpp fork）</td><td class="c"><span class="tag o">中</span></td><td class="c">中</td></tr>
+<tr><td>電池 / 散熱 benchmark</td><td class="c"><span class="tag o">中</span></td><td class="c">低</td></tr>
+<tr><td>App 封裝（Swift / Kotlin）</td><td class="c"><span class="tag g">低</span></td><td class="c">低</td></tr>
+</table>
+
+<!-- =================================================== -->
+<h2 id="s2">2. Tucker 的部署天然優勢</h2>
+
+<p>Tucker MoE 在端側部署有一個對手沒有的性質，這是整個部署方案的基石：</p>
+
+<div class="box accent">
+<strong>靜態圖友好：形狀在載入時就確定。</strong><br>
+<code>precompute_G_experts()</code> 在權重載入後一次性算出
+\(G = U_{\text{expert}} \otimes \mathcal{G}\)（形狀 \(E \times r_3 \times r_2\) 固定），
+以及 \(G_{\text{flat}}\)（\(r_3 \times E\cdot r_2\)）。
+之後的推論只有固定形狀的矩陣乘法，<strong>沒有動態形狀</strong>——CoreML / ONNX / TFLite 的最大痛點正是動態形狀。
+</div>
+
+<div class="col2">
+<div class="box green">
+<strong>記憶體足跡</strong>
+<ul style="margin:8px 0 0">
+<li>bf16：<strong>1.14 GB</strong></li>
+<li>int8：<strong>~570 MB</strong></li>
+<li>int4：<strong>~285 MB</strong></li>
+</ul>
+int4 可在 iPhone 12（4 GB RAM）上舒適執行。
+</div>
+<div class="box green">
+<strong>共享 core 的快取優勢</strong><br>
+\(U_{\text{in}}, \mathcal{G}, U_{\text{out}}\) 三個大張量在所有 token 間完全不變——
+它們在 decode 時長駐 GPU/ANE cache，
+每 token 只讀 \(U_{\text{expert}}[e]\) 的 \(r_1=4\) 行。
+</div>
+</div>
+
+<h3>和主流競品的 memory-bandwidth 比較</h3>
+<table>
+<tr><th>方案</th><th>每 token 需讀的 expert 權重</th><th>decode 是否 memory-bound</th></tr>
+<tr><td>Dense FFN（7B）</td><td>全部 \(d_{\text{in}}\times d_{\text{out}}\)</td><td class="c">✅（極嚴重）</td></tr>
+<tr><td>Dense MoE（Mixtral-8×7B）</td><td>top-\(k\) 個 expert 全秩權重</td><td class="c">✅（仍嚴重）</td></tr>
+<tr><td><strong>Tucker MoE（本專案）</strong></td><td>只有 \(U_{\text{expert}}[e]\)（\(r_1=4\) 行）+ 預算好的 \(G_{\text{flat}}\)</td><td class="c">✗ <strong>compute-bound</strong></td></tr>
+</table>
+
+<!-- =================================================== -->
+<h2 id="s3">3. 目標平台矩陣</h2>
+
+<table>
+<tr><th>平台</th><th>推論框架</th><th>Tucker 序列化格式</th><th>目標 tok/s</th><th>記憶體預算</th><th>優先度</th></tr>
+<tr>
+  <td><strong>macOS M1–M4</strong></td>
+  <td>MLX（現有）</td>
+  <td>.npz（現有）</td>
+  <td class="r">68–100+</td>
+  <td class="r">≤ 8 GB</td>
+  <td class="c"><span class="tag g">已完成</span></td>
+</tr>
+<tr>
+  <td><strong>iOS / iPadOS</strong><br><small>iPhone 13+, iPad Pro M1+</small></td>
+  <td>CoreML + Metal compute</td>
+  <td>.mlpackage（因子分開）</td>
+  <td class="r">15–30</td>
+  <td class="r">≤ 2 GB</td>
+  <td class="c"><span class="tag">P1</span></td>
+</tr>
+<tr>
+  <td><strong>Android</strong><br><small>Snapdragon 8 Gen 2+</small></td>
+  <td>ExecuTorch 或 ONNX Runtime + QNN</td>
+  <td>.pte 或 .onnx</td>
+  <td class="r">8–20</td>
+  <td class="r">≤ 3 GB</td>
+  <td class="c"><span class="tag o">P2</span></td>
+</tr>
+<tr>
+  <td><strong>Edge Linux</strong><br><small>Jetson Orin, RPi 5</small></td>
+  <td>llama.cpp fork 或 ONNX Runtime</td>
+  <td>GGUF（Tucker 擴展）</td>
+  <td class="r">3–12</td>
+  <td class="r">≤ 8 GB</td>
+  <td class="c"><span class="tag o">P2</span></td>
+</tr>
+<tr>
+  <td><strong>Web / WASM</strong></td>
+  <td>WebGPU（WebLLM / MLC）</td>
+  <td>tvmjs + Tucker op</td>
+  <td class="r">2–8</td>
+  <td class="r">≤ 4 GB</td>
+  <td class="c"><span class="tag g">P3</span></td>
+</tr>
+</table>
+
+<!-- =================================================== -->
+<h2 id="s4">4. 各平台轉換 Pipeline</h2>
+
+<h3>4.1 iOS / iPadOS（P1，最高優先）</h3>
+
+<p>Tucker MoE 的靜態形狀讓 CoreML 轉換比一般 MoE 容易得多——不需要動態 expert dispatch，只有固定的矩陣乘法序列。</p>
+
+<div class="box accent">
+<strong>關鍵洞察：不要直接轉換整個前向，拆成兩段。</strong><br>
+① <code>prefill</code>：用 \(G_{\text{flat}}\) 路徑（一次大矩乘），CoreML 很好轉。<br>
+② <code>decode</code>（B=1）：用 \(G_{\text{experts}}[e]\) 路徑（幾次小矩乘），可直接用 Metal compute shader。
+</div>
+
+<h4>步驟</h4>
+<ol>
+<li><strong>在 MLX 端 export 因子</strong>：從 <code>.npz</code> 取出 Tucker 因子並預先算好 \(G_{\text{flat}}, G_{\text{experts}}\)，存成獨立 <code>.npz</code> 或 <code>.safetensors</code>。</li>
+<li><strong>PyTorch 橋接</strong>：把因子載入 PyTorch（CPU float32），使用 <code>torch.nn.Linear</code> 組合 Tucker 的三段矩乘。</li>
+<li><strong>CoreML 轉換</strong>（<code>coremltools</code>）：
+<pre>import coremltools as ct
+traced = torch.jit.trace(tucker_module, example_input)
+mlmodel = ct.convert(
+    traced,
+    inputs=[ct.TensorType(shape=ct.Shape(shape=(1, ct.RangeDim(1,2048), 768)))],
+    compute_units=ct.ComputeUnit.ALL,   # ANE + GPU + CPU
+    minimum_deployment_target=ct.target.iOS17,
+)</pre>
+</li>
+<li><strong>Metal compute shader（decode）</strong>：SSM scan 已有 Metal kernel，Tucker decode 路徑（幾次矩乘 + gather）用 MPSGraph 或直接 Metal 寫。</li>
+<li><strong>Swift App 封裝</strong>：MLModel + Metal command queue 整合，WebSocket interface 與現有 <code>chat_demo.py</code> API 相容。</li>
+</ol>
+
+<div class="box warn">
+<strong>ANE 限制注意。</strong> Apple Neural Engine 不支援所有 op（如 <code>gather</code>、<code>argpartition</code>）。
+Router top-k 選擇需 fallback 到 CPU/GPU；Tucker 的矩乘本體可跑在 ANE 上。
+建議先量測 <code>MLComputePlan</code> 的 op 路由再優化。
+</div>
+
+<h3>4.2 Android — ExecuTorch（P2）</h3>
+<ol>
+<li><strong>PyTorch Export</strong>：用 <code>torch.export.export()</code> 把 Tucker forward 導出為靜態圖（因子預計算後形狀固定）。</li>
+<li><strong>ExecuTorch 編譯</strong>：
+<pre>from executorch.exir import to_edge
+edge_prog = to_edge(exported_prog)
+exec_prog = edge_prog.to_executorch(
+    ExecutorchBackendConfig(passes=[QuantFusionPass()])
+)
+with open("tucker_moe.pte", "wb") as f:
+    f.write(exec_prog.buffer)</pre>
+</li>
+<li><strong>Qualcomm QNN backend</strong>：<code>to_edge</code> 時加 <code>QnnPartitioner</code>，把矩乘和 softmax 路由到 NPU。</li>
+<li>Kotlin 封裝：使用 ExecuTorch Android SDK。</li>
+</ol>
+
+<h3>4.3 Edge Linux / GGUF（P2）</h3>
+<p>llama.cpp 的 GGUF 格式支援自定義 tensor 名，Tucker 因子直接存進去：</p>
+<pre># 自訂 GGUF 命名規則
+layers.{i}.tucker.U_in        f16  [768, 256]
+layers.{i}.tucker.core        f16  [4, 256, 1024]
+layers.{i}.tucker.U_out       f16  [1024, 4608]
+layers.{i}.tucker.U_expert    f16  [8, 4]
+layers.{i}.tucker.G_flat      f16  [256, 8192]  # precomputed, 選擇性存
+</pre>
+<p>需要 fork llama.cpp 加入 Tucker MoE op（C++ 實作，約 200 行），利用現有 <code>ggml_mul_mat</code> 做矩乘即可。SSM 部分需要新的 ggml op。</p>
+
+<h3>4.4 Web / WebGPU（P3）</h3>
+<p>MLC-LLM / WebLLM 的 TVM relax 可自訂 op。Tucker 的三段矩乘可以表示為 TVM relay 圖，並用 <code>tvm.tir</code> 或 WebGPU compute shader 實作。</p>
+
+<!-- =================================================== -->
+<h2 id="s5">5. 量化策略</h2>
+
+<h3>5.1 各平台量化建議</h3>
+
+<table>
+<tr><th>平台</th><th>推薦精度</th><th>方案</th><th>預期模型大小</th><th>品質損失</th></tr>
+<tr>
+  <td>macOS M1/M2（16 GB）</td>
+  <td>bf16 / int8 混合</td>
+  <td>現有 selective 8-bit（MoE 因子 + proj）</td>
+  <td class="r">~570 MB</td>
+  <td class="c">✅ 幾乎無</td>
+</tr>
+<tr>
+  <td>iOS（≥ iPhone 13，6 GB）</td>
+  <td>int8 全量化</td>
+  <td>CoreML <code>linear_quantize_weights</code></td>
+  <td class="r">~570 MB</td>
+  <td class="c">✅ 可接受</td>
+</tr>
+<tr>
+  <td>iOS（iPhone 12，4 GB）</td>
+  <td>int4 Tucker 因子</td>
+  <td>對 \(\mathcal{G}, U_{\text{in}}, U_{\text{out}}\) 做 int4，\(U_{\text{expert}}\) 保 int8</td>
+  <td class="r">~285 MB</td>
+  <td class="c">⚠️ 需 ablation</td>
+</tr>
+<tr>
+  <td>Android Snapdragon</td>
+  <td>int4 / int8 混合</td>
+  <td>QNN 量化工具，NPU 原生 int8</td>
+  <td class="r">~285–570 MB</td>
+  <td class="c">⚠️ 需 ablation</td>
+</tr>
+<tr>
+  <td>Jetson Orin</td>
+  <td>int8</td>
+  <td>TensorRT 8-bit PTQ</td>
+  <td class="r">~570 MB</td>
+  <td class="c">✅ 可接受</td>
+</tr>
+<tr>
+  <td>RPi 5（8 GB RAM）</td>
+  <td>int4 GGUF（Q4_K_M）</td>
+  <td>llama.cpp 量化</td>
+  <td class="r">~285 MB</td>
+  <td class="c">⚠️ 需 ablation</td>
+</tr>
+</table>
+
+<h3>5.2 Tucker 因子量化的特殊考量</h3>
+<div class="box warn">
+<strong>不要對所有因子一視同仁。</strong> 三個因子的量化敏感度不同：
+</div>
+
+<table>
+<tr><th>因子</th><th>角色</th><th>量化敏感度</th><th>建議</th></tr>
+<tr>
+  <td>\(U_{\text{in}} \in \mathbb{R}^{768\times 256}\)</td>
+  <td>輸入投影（共享）</td>
+  <td>高：每個 token 都過</td>
+  <td>保 int8 或 bf16</td>
+</tr>
+<tr>
+  <td>\(\mathcal{G} \in \mathbb{R}^{4\times 256\times 1024}\)</td>
+  <td>核心張量（共享）</td>
+  <td>中：決定 expert 結構</td>
+  <td>int8，可嘗試 int4</td>
+</tr>
+<tr>
+  <td>\(U_{\text{out}} \in \mathbb{R}^{1024\times 4608}\)</td>
+  <td>輸出投影（共享，最大）</td>
+  <td>中：誤差被最後一層放大</td>
+  <td>int8，可嘗試 int4</td>
+</tr>
+<tr>
+  <td>\(U_{\text{expert}} \in \mathbb{R}^{8\times 4}\)</td>
+  <td>Expert 係數（極小）</td>
+  <td>極高：32 個數決定 expert 選擇</td>
+  <td><strong>保 fp32 或 bf16，絕不量化</strong></td>
+</tr>
+</table>
+
+<p>最佳實踐：\(U_{\text{expert}}\) 保高精度，其餘因子按 int8，\(\mathcal{G}\) 和 \(U_{\text{out}}\) 可試 int4（配 perplexity 檢驗）。</p>
+
+<!-- =================================================== -->
+<h2 id="s6">6. 實驗設計</h2>
+
+<h3>6.1 Experiment A：量化品質 Pareto（必做，可控，macOS 先跑）</h3>
+<p><strong>目的：</strong>找到「壓縮率 vs 品質損失」的最佳配置，為所有平台的量化決策定根據。</p>
+
+<table>
+<tr><th>Config</th><th>\(U_{\text{in}}\)</th><th>\(\mathcal{G}\)</th><th>\(U_{\text{out}}\)</th><th>\(U_{\text{expert}}\)</th><th>測量</th></tr>
+<tr><td>A0（baseline）</td><td>bf16</td><td>bf16</td><td>bf16</td><td>bf16</td><td>perplexity, CoT acc, tok/s, mem</td></tr>
+<tr><td>A1</td><td>int8</td><td>int8</td><td>int8</td><td>bf16</td><td>↑</td></tr>
+<tr><td>A2</td><td>int8</td><td>int4</td><td>int8</td><td>bf16</td><td>↑</td></tr>
+<tr><td>A3</td><td>int8</td><td>int4</td><td>int4</td><td>bf16</td><td>↑</td></tr>
+<tr><td>A4</td><td>int4</td><td>int4</td><td>int4</td><td>bf16</td><td>↑</td></tr>
+<tr><td>A5（控制）</td><td>bf16</td><td>bf16</td><td>bf16</td><td>int8</td><td>↑（證明 \(U_{\text{expert}}\) 不能量化）</td></tr>
+</table>
+
+<p><strong>指標：</strong></p>
+<ul>
+<li>Perplexity（validation set，7 categories of CoT dataset）</li>
+<li>CoT 正確率（emotion / self_awareness / math_drill 各取 50 題）</li>
+<li>tok/s、peak memory（<code>make mlx-bench</code>）</li>
+<li>畫 Pareto 前緣：y = perplexity gap vs A0，x = 模型大小</li>
+</ul>
+
+<h3>6.2 Experiment B：跨平台延遲 Benchmark</h3>
+<p><strong>目的：</strong>建立各平台的基準數字（論文 Table 1 的核心內容）。</p>
+
+<table>
+<tr><th>平台</th><th>量化</th><th>測量指標</th><th>工具</th></tr>
+<tr><td>macOS M2 Pro 16GB</td><td>bf16, int8</td><td>prefill tok/s, decode tok/s, latency p50/p99</td><td><code>make mlx-bench</code></td></tr>
+<tr><td>macOS M1 8GB</td><td>int8, int4</td><td>↑</td><td>同上</td></tr>
+<tr><td>iPad Pro M2</td><td>int8（CoreML）</td><td>decode tok/s, first-token latency</td><td>XCTest + Metal Profiler</td></tr>
+<tr><td>iPhone 15 Pro</td><td>int8（CoreML）</td><td>↑</td><td>↑</td></tr>
+<tr><td>Android Snapdragon 8 Gen 2</td><td>int4（QNN）</td><td>decode tok/s</td><td>ExecuTorch benchmark app</td></tr>
+<tr><td>Jetson Orin NX 16GB</td><td>int8（TRT）</td><td>decode tok/s, watt/tok</td><td>TensorRT benchmark</td></tr>
+</table>
+
+<p><strong>固定變數：</strong> prompt = 128 tokens，decode = 256 tokens，batch = 1，溫度 = 0.0（greedy，可重現）。</p>
+
+<h3>6.3 Experiment C：Tucker 特性驗證（學術必做）</h3>
+
+<p>這些實驗回答審稿人對 Tucker 設計的質疑（對應 <a href="tucker_moe_justification.html">tucker_moe_justification.html</a> §8）：</p>
+
+<table>
+<tr><th>實驗</th><th>測什麼</th><th>用來回答什麼</th></tr>
+<tr>
+  <td>C1：rank ablation</td>
+  <td>掃 \(r_1\in\{2,4,8\}\), \(r_3\in\{128,256,512\}\), \(r_2\in\{512,1024,2048\}\)</td>
+  <td>現有設定是否欠擬合？Pareto 最佳點在哪？</td>
+</tr>
+<tr>
+  <td>C2：有效秩</td>
+  <td>對 \(G^{(e)}\) 做 SVD，畫奇異值譜 \(\sigma_i(G^{(e)})\)</td>
+  <td>Tucker 容量有沒有被充分使用（非欠擬合）</td>
+</tr>
+<tr>
+  <td>C3：專家分化</td>
+  <td>統計 router 對 7 個 CoT 類別的負載分布</td>
+  <td>LB-loss 有沒有真正讓專家分工，非退化</td>
+</tr>
+<tr>
+  <td>C4：from-scratch vs 小規模 dense</td>
+  <td>在 d_model=256 訓同規模 dense MoE 和 Tucker（可負擔），比 val loss</td>
+  <td>from-scratch Tucker ≥ 等參數 dense（§6.2 主張）</td>
+</tr>
+</table>
+
+<h3>6.4 Experiment D：電池 / 散熱（產品必做）</h3>
+<table>
+<tr><th>指標</th><th>工具</th><th>目標值</th></tr>
+<tr><td>每次推論耗電量（mAh）</td><td>iOS Energy Log / powermetrics</td><td>&lt; 30 mAh / 256 tok</td></tr>
+<tr><td>連續推論 10 分鐘後溫度</td><td>thermalmonitor / iOS thermal state</td><td>不超過 nominal thermal state</td></tr>
+<tr><td>watt per token</td><td>powermetrics（macOS）</td><td>&lt; 0.5 W/tok（M2）</td></tr>
+</table>
+
+<!-- =================================================== -->
+<h2 id="s7">7. 執行路線圖</h2>
+
+<div class="phase">
+  <div class="num">1</div>
+  <div>
+    <strong>Phase 1（1–2 週）：量化實驗 A，定 iOS 目標精度</strong><br>
+    跑 Experiment A（macOS）→ 確認 int8 config → 用該 config 做 CoreML 轉換的技術 spike。
+    產出：量化 Pareto 圖 + 推薦配置。
+  </div>
+</div>
+<div class="phase">
+  <div class="num">2</div>
+  <div>
+    <strong>Phase 2（2–4 週）：iOS CoreML 原型</strong><br>
+    Tucker 因子 export → coremltools 轉換 prefill 路徑 → Metal shader 實作 decode 路徑 →
+    在 iPhone 測 first-token latency 和 decode tok/s。
+    產出：可跑 256 tok decode 的 iOS demo。
+  </div>
+</div>
+<div class="phase">
+  <div class="num">3</div>
+  <div>
+    <strong>Phase 3（2–3 週）：Tucker 特性驗證（Experiment C）</strong><br>
+    rank ablation + 有效秩 + 專家分化 + 小規模 dense 對照。
+    這是論文 §ablation 的核心，可與 Phase 2 並行。
+  </div>
+</div>
+<div class="phase">
+  <div class="num">4</div>
+  <div>
+    <strong>Phase 4（3–4 週）：Android ExecuTorch 原型</strong><br>
+    torch.export → ExecuTorch .pte → Snapdragon QNN backend → benchmark。
+  </div>
+</div>
+<div class="phase">
+  <div class="num">5</div>
+  <div>
+    <strong>Phase 5（2 週）：電池 / 散熱 + 跨平台 benchmark table</strong><br>
+    Experiment B + D → 整理成論文 Table 1。
+  </div>
+</div>
+<div class="phase">
+  <div class="num">6</div>
+  <div>
+    <strong>Phase 6（視資源）：GGUF + Edge Linux</strong><br>
+    llama.cpp fork，Tucker op 實作，Jetson Orin benchmark。
+  </div>
+</div>
+
+<!-- =================================================== -->
+<h2 id="s8">8. 風險與緩解</h2>
+
+<table>
+<tr><th>風險</th><th>說明</th><th>緩解</th></tr>
+<tr>
+  <td>CoreML ANE 不支援 top-k / gather</td>
+  <td>Router 的 topk 選擇無法跑在 ANE</td>
+  <td>Router 切到 CPU（計算量極小），Tucker 矩乘仍在 ANE；用 <code>MLComputePlan</code> 量測影響</td>
+</tr>
+<tr>
+  <td>SSM 狀態更新難以靜態化</td>
+  <td>Mamba 的 state carry 在 CoreML 是 recurrent state，需明確管理</td>
+  <td>用 CoreML <code>StateType</code>（iOS 18 新增），或 stateful buffer 手動管理</td>
+</tr>
+<tr>
+  <td>int4 Tucker 品質損失過大</td>
+  <td>特別是 \(\mathcal{G}\) 和 \(U_{\text{out}}\)</td>
+  <td>回退到 int8；或用 Activation-aware Quantization（AWQ）對重要通道補精度</td>
+</tr>
+<tr>
+  <td>Speculative decode 在 B=1 靜態圖上難以實現</td>
+  <td>SJD 需要可變長 batch verify</td>
+  <td>iOS 版先不做 speculative；Android 版用 ExecuTorch 的 dynamic shape 路徑</td>
+</tr>
+<tr>
+  <td>GGUF Tucker 擴展需要 fork 維護</td>
+  <td>上游 llama.cpp 不會原生支援 Tucker</td>
+  <td>先以 ONNX 為主；GGUF 是長期方向，等社群接受後 PR</td>
+</tr>
+</table>
+
+<hr>
+<p class="muted">相關文件：
+<a href="tucker_moe_justification.html">Tucker MoE 理論（§8 ablation）</a> ·
+<a href="../CLAUDE.md">CLAUDE.md（Makefile / 推論型別）</a> ·
+<a href="../mamba3_mlx/mlx_model/tucker_moe.py"><code>tucker_moe.py</code>（precompute_G_experts）</a>
+</p>
+
+</div>
+</body>
+</html>
