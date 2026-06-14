@@ -86,15 +86,77 @@
 
 <div class="box toc">
   <strong>目錄</strong>
+  <a href="#s0">0. 「數據比架構更重要」——這個論文還有意義嗎？</a>
   <a href="#s1">1. 為什麼要聚焦，現在的問題在哪</a>
-  <a href="#s2">2. 論文定位與核心主張（C1–C5）</a>
-  <a href="#s3">3. 論文架構（章節 × 內容 × 頁數）</a>
-  <a href="#s4">4. 方法細節（論文第 3–5 節的核心數學）</a>
-  <a href="#s5">5. 實驗設計（全套 Baselines + Ablations）</a>
-  <a href="#s6">6. Related Work（如何定位、如何區分）</a>
-  <a href="#s7">7. 執行時間表（8 週）</a>
-  <a href="#s8">8. 投稿目標與準備清單</a>
+  <a href="#s2">2. 論文定位與核心主張（C1–C6）</a>
+  <a href="#s3">3. Introduction 故事線（重構後）</a>
+  <a href="#s4">4. 論文架構（章節 × 內容 × 頁數）</a>
+  <a href="#s5">5. 方法細節（論文第 3–5 節的核心數學）</a>
+  <a href="#s6">6. 實驗設計（全套 Baselines + Ablations）</a>
+  <a href="#s7">7. Related Work（如何定位、如何區分）</a>
+  <a href="#s8">8. 執行時間表（8 週）</a>
+  <a href="#s9">9. 投稿目標與準備清單</a>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="s0">0. 「數據比架構更重要」——這個論文還有意義嗎？</h2>
+
+<div class="box warn">
+<strong>最重要的問題先問清楚。</strong>
+目前大模型（GPT-4、Claude、Gemini）的進步主要靠數據品質 + 算力 + RLHF。
+Rich Sutton 的 Bitter Lesson 也說「通用方法 + 規模 > 手工設計的特徵」。
+Tucker MoE 是一個架構設計——它在「數據主導」的時代還有意義嗎？
+</div>
+
+<h3>答案：你搞錯了競爭對象</h3>
+<p>「數據比架構更重要」只適用於<strong>能力前緣（capability frontier）</strong>——誰能回答更難的問題這條賽道。但 Tucker MoE <strong>從來不在那條賽道上競爭</strong>。這裡有兩條完全不同的賽道：</p>
+
+<table>
+<tr><th></th><th>能力前緣</th><th>效率前緣 ← Tucker MoE 在這</th></tr>
+<tr><td><strong>問題</strong></td><td>誰能解更難的任務</td><td>同樣能力，誰用更少資源</td></tr>
+<tr><td><strong>贏家</strong></td><td>數據 + 算力 + RLHF</td><td>架構設計 + 量化 + 壓縮</td></tr>
+<tr><td><strong>代表論文</strong></td><td>GPT-4、Claude、Gemini</td><td>Phi-3、Gemma 2B、MobileLLM、DistilBERT</td></tr>
+<tr><td><strong>審稿標準</strong></td><td>SOTA benchmark</td><td>quality-per-parameter、memory、latency</td></tr>
+<tr><td><strong>Tucker MoE</strong></td><td class="c">✗ 不競爭</td><td class="c"><strong>✅ 這裡</strong></td></tr>
+</table>
+
+<p>你的目標用戶<strong>不是 Claude 的用戶</strong>——他們用得起 Claude。你的目標是手機、邊緣裝置、沒有 GPU 的人，他們根本用不到那些大模型。效率前緣的論文在頂會非常活躍，Phi 系列、Gemma、EfficientNet 這些都是「同等能力、更少資源」的論文，而且都進了頂會。</p>
+
+<h3>但原本的論文有一個更深的問題：Claim 太弱</h3>
+<div class="box warn">
+<strong>「等參數下不輸 dense」= 弱 claim。</strong>
+審稿人會說：「那我用更少的 dense 參數 + 更多數據也能到同樣品質，你的 Tucker 贏在哪？」
+</div>
+
+<p>需要一個 <strong>dense 做不到的 claim</strong>。Tucker 天然有一個：</p>
+
+<div class="box purple">
+<strong>Tucker 的真正殺手鐧：邊際專家成本 = $r_1 = 4$</strong>
+
+$$\frac{\partial P_{\text{Tucker}}}{\partial E} = r_1 = 4
+\qquad\text{vs}\qquad
+\frac{\partial P_{\text{dense MoE}}}{\partial E} = d_{\text{in}}\cdot d_{\text{out}} = 3{,}538{,}944$$
+
+這意味著你可以用 $E=64$ 甚至 $E=128$ 個 expert，幾乎不增加參數——而 dense MoE 在 $E=64$ 時參數量爆炸、根本訓不起來。<br><br>
+<strong>Expert 越多，routing 分工越細，模型表達能力越強。</strong>
+這是純 dense 模型在相同參數量下絕對做不到的事。
+</div>
+
+<h3>有力的 Claim 應該是這樣</h3>
+<div class="box green">
+<strong>重構後的論文一句話：</strong><br>
+Tucker MoE 讓你在固定記憶體 / 參數預算下，把 expert 數開到 dense MoE 根本負擔不起的規模（$E=32$、$64$、$128$），並且品質隨 $E$ 持續提升——這是 dense 架構天生做不到的 capacity scaling 方式。
+</div>
+
+<p>這個 claim 有防禦力的原因：</p>
+<ol>
+  <li>「用更多數據」解決不了它——這是<strong>參數效率</strong>問題，不是訓練量問題。</li>
+  <li>Dense MoE 在大 $E$ 時 OOM——這是事實，不是比較優勢的主觀判斷。</li>
+  <li>Tucker MoE 的品質隨 $E$ 上升——這是可以用實驗直接量的。</li>
+</ol>
+
+<h3>Backup 角度：就算品質平手，FusedLatentMoE 也是獨立貢獻</h3>
+<p>FusedLatentMoE 的 Triton backward kernel 解決了一個真實工程問題：Tucker MoE 在 naive autograd 下 $dG^{(e)}$ 的外積累加需要 $O(B\cdot E\cdot r_3\cdot r_2)$ 記憶體，在 $E=64$ 時根本跑不動。有了 kernel，才讓大 $E$ 訓練成為可能。這是一個<strong>系統層面的貢獻</strong>，可以獨立投 <strong>MLSys</strong>，審稿人不會問「為什麼不用更多數據」。</p>
 
 <!-- ============================================================ -->
 <h2 id="s1">1. 為什麼要聚焦，現在的問題在哪</h2>
@@ -117,41 +179,88 @@ Mamba-3（新 SSM 離散化）+ Tucker-MoE（新 expert 分解）+ Apple Silicon
 <h2 id="s2">2. 論文定位與核心主張</h2>
 
 <div class="box purple">
-<strong>論文一句話</strong>：我們提出把 MoE 的 expert 權重張量 $\mathcal{W}\in\mathbb{R}^{E\times d_{\text{in}}\times d_{\text{out}}}$ 直接參數化為 Tucker 形式、從零訓練，並設計高效的 Triton backward kernel——在等參數預算下達到與 dense MoE 同等品質，且邊際專家成本僅為 $r_1$。
+<strong>論文一句話（重構後）：</strong>Tucker MoE 把 MoE expert 張量參數化為 Tucker 分解、從零訓練，使邊際專家成本降至 $r_1=4$——讓 $E=64$ 甚至 $E=128$ 個 expert 在 dense MoE 根本負擔不起的參數預算下成為可能，且品質隨 $E$ 持續提升；並以 FusedLatentMoE Triton kernel 使大 $E$ 訓練在記憶體上可行。
 </div>
 
-<h3>五條核心主張（C1–C5，各自可被證偽）</h3>
+<h3>六條核心主張（C1–C6，各自可被證偽）</h3>
 
 <div class="contrib">
   <span class="key">C1</span>
   <span><strong>理論：Tucker 參數化是 MoE expert 張量的完備低秩假設空間。</strong>
-  在 multilinear rank $(r_1,r_3,r_2)$ 約束下，任何 $\mathcal{W}\in\mathcal{M}_r$ 都能被因子精確表示，且訓練直接最小化任務損失（不是重建誤差），透過 Lipschitz 橋接保留 HOSVD 的精度上界。</span>
+  在 multilinear rank $(r_1,r_3,r_2)$ 約束下，任何 $\mathcal{W}\in\mathcal{M}_r$ 都能被因子精確表示，訓練直接最小化任務損失，透過 Lipschitz 橋接保留 HOSVD 的精度上界。</span>
 
   <span class="key">C2</span>
-  <span><strong>方法：三因子 Tucker 分解的 MoE 前向，並設計穩定的 from-scratch 訓練食譜。</strong>
-  包含：正交初始化 $U_{\text{in}},U_{\text{out}}$、中間 RMSNorm、router 溫度退火、load-balance / z-loss。</span>
+  <span><strong>方法：三因子 Tucker 分解前向 + 穩定 from-scratch 訓練食譜。</strong>
+  正交初始化 $U_{\text{in}},U_{\text{out}}$、中間 RMSNorm、router 溫度退火 $T:2.0\to0.5$、load-balance / z-loss。</span>
 
   <span class="key">C3</span>
-  <span><strong>工程：FusedLatentMoE——Tucker MoE 的高效 Triton 反向傳播 kernel。</strong>
-  手寫 $\partial\mathcal{L}/\partial G^{(e)}$ 的外積累加（避免 naive autograd 的 $O(B\cdot E\cdot r_3\cdot r_2)$ 中間記憶體）；提供完整複雜度分析。</span>
+  <span><strong>工程：FusedLatentMoE — Triton backward kernel，使大 $E$ 訓練在記憶體上可行。</strong>
+  手寫 $\partial\mathcal{L}/\partial G^{(e)}$ 的外積累加；naive autograd 在 $E=64$ 時需 $O(B\cdot E\cdot r_3\cdot r_2)$ 記憶體（OOM），本 kernel 降到 $O(B\cdot K\cdot r_3\cdot r_2)$，$K\ll E$。</span>
 
   <span class="key">C4</span>
-  <span><strong>實驗：等參數預算下，Tucker MoE 不輸 dense MoE，且 from-scratch ≥ post-hoc 截斷。</strong></span>
+  <span><strong>核心實驗：固定參數預算，Tucker MoE 的品質隨 $E$ 持續提升；dense MoE 在同預算下 $E$ 大了就 OOM 或品質飽和。</strong>
+  這是 dense 架構天生做不到的。（新增 Figure 5：$E$ vs perplexity 曲線）</span>
 
   <span class="key">C5</span>
-  <span><strong>實驗：共享 core 的貢獻可被隔離。</strong>
-  對比「每 expert 獨立低秩（無共享 core）」vs「Tucker 共享 core」，證明共享帶來額外收益。</span>
+  <span><strong>實驗：from-scratch ≥ post-hoc，共享 core 比獨立低秩更好。</strong></span>
+
+  <span class="key">C6</span>
+  <span><strong>實驗：有效秩驗證 Proposition 1 的前提成立。</strong>
+  學到的 $G^{(e)}$ 奇異值衰減夠快，即 $\varepsilon$ 在實際中足夠小。</span>
 </div>
 
 <h3>明確不主張</h3>
 <ul>
-  <li>不主張在所有任務上優於 dense（只主張「等參數預算下接近」）。</li>
-  <li>不主張有 a priori 訓練成功保證（是條件式上界，需事後用有效秩驗證前提）。</li>
-  <li>不主張 Tucker 是唯一的低秩 MoE 方案（是其中一種，Related Work 如實列出競品）。</li>
+  <li>不主張在能力前緣超越大型 dense 模型（不同賽道）。</li>
+  <li>不主張 a priori 訓練成功保證（條件式上界，需 C6 事後驗證）。</li>
+  <li>不主張 Tucker 是唯一的低秩 MoE 方案（Related Work 如實列出）。</li>
 </ul>
 
 <!-- ============================================================ -->
-<h2 id="s3">3. 論文架構（9頁 + References，NeurIPS / ICML 格式）</h2>
+<h2 id="s3">3. Introduction 故事線（重構後）</h2>
+
+<p>Introduction 的每一段必須推進一個邏輯步驟，最後收斂到「只有 Tucker MoE 能做這件事」。</p>
+
+<div class="section-card">
+  <div class="num">段落 1 · 問題</div>
+  <div class="title">大 $E$ 的 MoE 一直是高不可攀的奢侈品</div>
+  MoE 的 capacity 來自 expert 數 $E$——routing 越細、分工越精，表達能力越強。但 dense MoE 的參數量是 $O(E\cdot d_{\text{in}}\cdot d_{\text{out}})$：$E=8$ 已是常見上限，$E=64$ 在邊緣設備上根本不可能。<br>
+  <span class="muted">→ 建立問題：大 $E$ 有用，但付不起。</span>
+</div>
+
+<div class="section-card">
+  <div class="num">段落 2 · 現有方案的缺陷</div>
+  <div class="title">Low-rank expert 已有人試過，但都沒解決根本問題</div>
+  LoRA-MoE 讓每個 expert 是低秩 adapter（$W_e=W_0+A_eB_e$），但 $A_e,B_e$ 仍各自獨立——多一個 expert 仍要多一組 $A,B$，邊際成本 $O(r\cdot(d_{\text{in}}+d_{\text{out}}))$，解決不了大 $E$ 的問題。Tucker-CNN 用 Tucker 壓縮卷積，但需要已有的 dense 權重（post-hoc），且沒有處理 MoE 的 expert 軸。
+  <span class="muted">→ 建立 gap：現有方案的邊際成本仍隨 $E$ 成長，或需要 pre-trained dense。</span>
+</div>
+
+<div class="section-card">
+  <div class="num">段落 3 · 我們的 insight</div>
+  <div class="title">把 expert 軸也做低秩：邊際成本降到 $r_1$</div>
+  把 MoE 的整個 expert 張量 $\mathcal{W}\in\mathbb{R}^{E\times d_{\text{in}}\times d_{\text{out}}}$ 做三模 Tucker 分解：expert 軸的秩設為 $r_1$，輸入/輸出軸共享。多一個 expert 只需多 $r_1$ 個參數。$r_1=4$ 時，$E=128$ 幾乎免費。<br>
+  <span class="muted">→ 呈現 insight：把 expert 軸也壓掉，才是真正的解法。</span>
+</div>
+
+<div class="section-card">
+  <div class="num">段落 4 · 兩個技術問題 + 我們的解法</div>
+  <div class="title">從零訓練可以嗎？大 $E$ 的 backward 記憶體炸了怎麼辦？</div>
+  問題 ①：Tucker 通常是 post-hoc 壓縮（需要 dense target）；從零訓練有精度保證嗎？
+  → Proposition 1：透過 Lipschitz 橋接，HOSVD 誤差界轉移成 from-scratch 的精度上界。<br>
+  問題 ②：$E=64$ 時，naive autograd 的 $dG^{(e)}$ 外積累加需 $O(B\cdot E\cdot r_3\cdot r_2)$ 記憶體，直接 OOM。
+  → FusedLatentMoE Triton kernel，降到 $O(B\cdot K\cdot r_3\cdot r_2)$，$K=\text{top-}k\ll E$。<br>
+  <span class="muted">→ 技術貢獻登場，各自對應一個真實障礙。</span>
+</div>
+
+<div class="section-card">
+  <div class="num">段落 5 · 結果預告</div>
+  <div class="title">實驗：Tucker MoE 品質隨 $E$ 持續提升，dense MoE 在同預算下做不到</div>
+  固定參數預算，Tucker MoE 在 $E=\{8,16,32,64\}$ 上 perplexity 持續下降；dense MoE 在 $E>16$ 就超出預算或品質飽和。from-scratch Tucker ≥ post-hoc Tucker。
+  <span class="muted">→ 結果令人信服，且是 dense 天生做不到的。</span>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s4">4. 論文架構（9頁 + References，NeurIPS / ICML 格式）</h2>
 
 <div class="section-card">
   <div class="num">§1 · 1 頁</div>
@@ -227,9 +336,9 @@ Mamba-3（新 SSM 離散化）+ Tucker-MoE（新 expert 分解）+ Apple Silicon
 </div>
 
 <!-- ============================================================ -->
-<h2 id="s4">4. 方法細節（論文 §3–5 的核心數學）</h2>
+<h2 id="s5">5. 方法細節（論文 §3–5 的核心數學）</h2>
 
-<h3>4.1 Tucker 前向（§3 的核心）</h3>
+<h3>5.1 Tucker 前向（§3 的核心）</h3>
 
 $$\mathcal{W}_{e,i,j}=\sum_{a,b,c}\mathcal{G}_{a,b,c}(U_{\text{expert}})_{e,a}(U_{\text{in}})_{i,b}(U_{\text{out}})_{c,j}$$
 
@@ -241,7 +350,7 @@ $$f(x)=U_{\text{out}}^\top\!\left[\sum_{k=1}^{K}p_{e_k}(x)\cdot G^{(e_k(x))\top}
 
 三處非線性使得 $f$ 不可塌縮為任意固定矩陣的線性映射。
 
-<h3>4.2 Proposition 1（§4 的核心）</h3>
+<h3>5.2 Proposition 1（§4 的核心）</h3>
 
 <div class="box accent">
 <strong>Proposition 1（精度保證）。</strong>
@@ -261,7 +370,7 @@ HOSVD 誤差界代入即得。$\square$</p>
 
 <p class="muted">注意：$\varepsilon$ 在訓練前不可知；用 §5.2 的有效秩實驗事後驗證它夠小。這是誠實的論文寫法——條件式保證 + 實驗驗證前提。</p>
 
-<h3>4.3 三個梯度（§5 的核心）</h3>
+<h3>5.3 三個梯度（§5 的核心）</h3>
 
 $$\frac{\partial\mathcal{L}}{\partial x_{\text{shared}}}=\sum_k p_{e_k}\,G^{(e_k)}\delta,\qquad
 \frac{\partial\mathcal{L}}{\partial p_{e_k}}=\langle\delta,(G^{(e_k)})^\top x_{\text{shared}}\rangle$$
@@ -274,7 +383,7 @@ $$\frac{\partial\mathcal{L}}{\partial G^{(e)}}
 $$\frac{\partial\mathcal{L}}{\partial\mathcal{G}_a}=\sum_e(U_{\text{expert}})_{e,a}\frac{\partial\mathcal{L}}{\partial G^{(e)}},\quad
 \frac{\partial\mathcal{L}}{\partial(U_{\text{expert}})_{e,a}}=\langle\mathcal{G}_a,\tfrac{\partial\mathcal{L}}{\partial G^{(e)}}\rangle$$
 
-<h3>4.4 訓練食譜（§4.4 的內容）</h3>
+<h3>5.4 訓練食譜（§4.4 的內容）</h3>
 <table>
 <tr><th>設計</th><th>作用</th><th>若拿掉會怎樣</th></tr>
 <tr><td>$U_{\text{in}},U_{\text{out}}$ 正交初始化</td><td>保持因子連乘的等距性，防梯度爆炸/消失</td><td>訓練前幾千步不穩定</td></tr>
@@ -285,9 +394,9 @@ $$\frac{\partial\mathcal{L}}{\partial\mathcal{G}_a}=\sum_e(U_{\text{expert}})_{e
 </table>
 
 <!-- ============================================================ -->
-<h2 id="s5">5. 實驗設計</h2>
+<h2 id="s6">6. 實驗設計</h2>
 
-<h3>5.1 實驗模型（乾淨、可重現）</h3>
+<h3>6.1 實驗模型（乾淨、可重現）</h3>
 
 <div class="box green">
 <strong>設計原則：最小化無關變因。</strong> 拿 GPT-2 style Transformer，只把 FFN 那一塊換成 TuckerMoE。
@@ -308,7 +417,7 @@ TuckerMoE 替換 d_ff 投影：
 訓練：100K steps, batch 64, AdamW lr=3e-4, cosine decay
 評測：perplexity（val），CoT-style few-shot accuracy（optional）</pre>
 
-<h3>5.2 Baselines（6 個，缺一都會被問）</h3>
+<h3>6.2 Baselines（6 個，缺一都會被問）</h3>
 
 <table>
 <tr><th>名稱</th><th>描述</th><th>用來回答什麼</th></tr>
@@ -344,7 +453,7 @@ TuckerMoE 替換 d_ff 投影：
 </tr>
 </table>
 
-<h3>5.3 主結果表（Table 1）</h3>
+<h3>6.3 主結果表（Table 1）</h3>
 <table>
 <tr>
   <th>方法</th><th class="r">參數</th><th class="r">Expert 參數</th>
@@ -360,7 +469,7 @@ TuckerMoE 替換 d_ff 投影：
 </table>
 <p class="muted">先填空格結構，實驗跑完填入數字。每個 config 跑 3 個 seed，報 mean ± std。</p>
 
-<h3>5.4 Tucker 特性 Ablation（Table 2 / Figure 1–4）</h3>
+<h3>6.4 Tucker 特性 Ablation（Table 2 / Figure 1–4）</h3>
 
 <div class="col2">
 <div class="section-card">
@@ -387,7 +496,7 @@ TuckerMoE 替換 d_ff 投影：
 </div>
 </div>
 
-<h3>5.5 Table 2：from-scratch vs post-hoc</h3>
+<h3>6.5 Table 2：from-scratch vs post-hoc</h3>
 <table>
 <tr><th>方法</th><th>需要預訓 dense？</th><th class="r">微調 Steps</th><th class="r">Val PPL</th></tr>
 <tr><td>Tucker MoE from-scratch（ours）</td><td class="c">✗</td><td class="r">0</td><td class="r">?</td></tr>
@@ -396,8 +505,36 @@ TuckerMoE 替換 d_ff 投影：
 </table>
 <p>預期：from-scratch PPL ≤ post-hoc（with finetune），遠低於 post-hoc（no finetune）——驗證 Proposition 1 §4.3。</p>
 
+<h3>6.6 Figure 5：Expert 數量 $E$ Sweep（核心亮點圖）</h3>
+
+<div class="box green">
+<strong>設計動機（C4）。</strong>
+Tucker MoE 的殺手級訴求是：固定參數預算，$E$ 越大品質越好，而 Dense MoE 在同預算下做不到。這個圖是「Dense MoE 天生做不到這件事」的直接視覺證明。
+</div>
+
+<table>
+<tr><th>$E$</th><th>Tucker MoE<br>Parameters</th><th>Dense MoE<br>Parameters</th><th>Tucker Val PPL</th><th>Dense Val PPL</th></tr>
+<tr><td>4</td><td>≈ baseline</td><td>≈ baseline</td><td>?</td><td>?</td></tr>
+<tr><td>8</td><td>baseline + 16</td><td>baseline × 1.75</td><td>?</td><td>?</td></tr>
+<tr><td>16</td><td>baseline + 48</td><td>baseline × 3.5</td><td>?</td><td><span style="color:#e55">超預算</span></td></tr>
+<tr><td>32</td><td>baseline + 112</td><td>baseline × 7</td><td>?</td><td><span style="color:#e55">超預算</span></td></tr>
+<tr><td>64</td><td>baseline + 240</td><td>baseline × 14</td><td>?</td><td><span style="color:#e55">根本不可能</span></td></tr>
+</table>
+
+<p><strong>說明：</strong> 固定 Tucker MoE 的 $U_{\text{in}},\mathcal{G},U_{\text{out}}$ 參數量為基準（baseline），每新增一個 expert 僅加 $r_1=4$ 個數。Dense MoE 每新增一個 expert 加 $d_{\text{in}}\times d_{\text{out}}$ 個數——$E=16$ 時已 3.5× 超出預算。</p>
+
+<div class="box accent">
+<strong>預期圖形（Figure 5）：</strong>
+X 軸 = Expert 數量 $E$，Y 軸 = Val PPL。
+Tucker MoE（藍線）隨 $E$ 單調下降，$E=64$ 仍在預算內。
+Dense MoE（橘線）在 $E=8$ 後因超預算退出或品質不再提升。
+結論：Tucker MoE 是唯一能在固定預算內享受「大 $E$ 紅利」的方法。
+</div>
+
+<p><em>實驗協議：</em> 每個 $E$ 獨立從頭訓練，100K steps，同一份 WikiText-103 val set 評測。不 finetune，不搜超參——確保比較公平，審稿人難質疑。</p>
+
 <!-- ============================================================ -->
-<h2 id="s6">6. Related Work（如何定位）</h2>
+<h2 id="s7">7. Related Work（如何定位）</h2>
 
 <table>
 <tr><th>方法</th><th>Expert 結構</th><th>需要 pre-trained dense？</th><th>Tucker 共享 core？</th><th>custom backward？</th></tr>
@@ -418,7 +555,7 @@ TuckerMoE 替換 d_ff 投影：
 </div>
 
 <!-- ============================================================ -->
-<h2 id="s7">7. 執行時間表（8 週）</h2>
+<h2 id="s8">8. 執行時間表（8 週）</h2>
 
 <div class="timeline">
   <div class="titem done">
@@ -462,7 +599,7 @@ TuckerMoE 替換 d_ff 投影：
 </div>
 
 <!-- ============================================================ -->
-<h2 id="s8">8. 投稿目標與準備清單</h2>
+<h2 id="s9">9. 投稿目標與準備清單</h2>
 
 <h3>目標會議（依難度排）</h3>
 <table>
