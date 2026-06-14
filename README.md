@@ -1,122 +1,209 @@
-# Hybrid Mamba-TuckerMoE for On-Device LLM Inference
+<div align="center">
 
-> **Joint Tucker Decomposition MoE · Multi-Strategy Speculative Decoding · Resource-Constrained Devices**
->
-> Hung-Wei Lai · Hsin-An Lan · Chun-Ming Hsu · Yu-Han Lu
->
-> Department of Computer Science and Information Engineering, National Kaohsiung University of Science and Technology, Kaohsiung, Taiwan
+<img src="assets/tuckericon.png" alt="Hybrid Mamba-TuckerMoE" width="160"/>
 
-![Method Pipeline](paper/hybrid-mamba-15min/assets/method_flowchart.png)
+# Hybrid Mamba-TuckerMoE
 
-## Overview
+**On-Device LLM Inference via Tucker-Decomposed Mixture of Experts**
 
-This repository contains the training code, inference implementation, and interactive 3D paper assets for **Hybrid Mamba-TuckerMoE**.
+[![Paper](https://img.shields.io/badge/Paper-ICLR%202026-blue?style=flat-square)](paper/hybrid-mamba-15min/report.md)
+[![Docs](https://img.shields.io/badge/Docs-Tucker%20MoE%20Theory-purple?style=flat-square)](docs/tucker_moe_justification.html)
+[![Platform](https://img.shields.io/badge/Platform-Apple%20Silicon-black?style=flat-square&logo=apple)](https://developer.apple.com/metal/)
+[![Framework](https://img.shields.io/badge/Framework-MLX%20%7C%20PyTorch%20%7C%20Triton-orange?style=flat-square)](https://github.com/ml-explore/mlx)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-### Key Innovations:
+Hung-Wei Lai · Hsin-An Lan · Chun-Ming Hsu · Yu-Han Lu
 
-1. **Mamba-3 (Trapezoidal Discretization)**: Replaces standard Euler methods with a higher-order trapezoidal integration scheme and MIMO projections, pushing sequence lengths up to 32K tokens efficiently.
-2. **Hybrid Mamba-TuckerMoE**: Combines Mamba-3 selective SSMs with Grouped-Query Attention (GQA) and joint Tucker-decomposed experts. This achieves a **2.4B dense-equivalent capacity** with only **417M parameters** (82.87% compression).
-3. **On-the-fly Inference Pipeline**: Eliminates memory bandwidth bottlenecks by processing low-rank latent experts without full weight reconstruction, achieving compute-bound throughput on Apple Silicon.
+*Department of Computer Science and Information Engineering,*
+*National Kaohsiung University of Science and Technology, Taiwan*
 
-## 📂 Repository Structure
+</div>
 
-```text
-├── mamba3_mlx/                      # ⚡ MLX inference stack (Apple Silicon)
-│   ├── inference/                   #   │   Core engine: generator, sampler, token bans
-│   ├── mlx_model/                   #   │   Model architecture v1 (hybrid, mamba, tucker)
-│   ├── mlx_model_v2/                #   │   Model architecture v2 (updated scan_metal)
-│   ├── mv/                          #   │   CoT middleware (FSM, format enforcement)
-│   ├── speculative/                 #   │   Speculative decode (Jacobi, ngram, warmup)
-│   ├── ui/                          #   │   Chat frontend (HTML/CSS/JS)
-│   ├── tools/                       #   │   Utilities (sidecar converter)
-│   ├── utils/                       #   │   Config, system prompts
-│   ├── run.py                       #   │   Entry point
-│   ├── chat_demo.py                 #   │   FastAPI WebSocket server (port 7860)
-│   ├── Makefile                     #   │   Development shortcuts
-│   └── API.md                       #   │   API reference
-│
-├── pre-train/                       # 🏋️ Training scripts, logs, notebooks
-│   ├── train.py                     #   │   Single-file training (PyTorch + Triton)
-│   ├── kmoe_train.py                #   │   kMoE training variant
-│   ├── sft_cot_bundle/              #   │   SFT dataset pipeline
-│   └── cot_dataset/                 #   │   Symlink → ../cot_dataset
-│
-├── cot_dataset/                     # 📚 SFT dataset & tokenizer
-│   ├── tokenizer.json               #   │   Vocab 32,007 (frozen)
-│   ├── metal/                       #   │   Custom Metal shaders + benchmark scripts
-│   ├── GUIDE.md                     #   │   Dataset format guide
-│   └── SFT_FORMAT.md               #   │   SFT spec
-│
-├── checkpoints/                     # 💾 Model weights (v1/v2/v3, .npz sidecars)
-│   └── 4_loss_func/                 #   │   latest_sft_cot_model.*.npz
-│
-├── paper/
-│   └── hybrid-mamba-15min/          # 📄 Technical report + 3D interactive assets
-│
-├── docs/                            # 📖 Supplementary docs
-├── assets/                          # 🖼️ Presentation visuals
-├── AGENTS.md                        # 🤖 Agent workflow guidance
-└── Makefile                         # 🛠️ Root-level benchmarks
+---
+
+## What is This?
+
+This repository contains the training code, MLX inference implementation, Metal kernels, and interactive paper assets for **Hybrid Mamba-TuckerMoE** — a hybrid SSM + MoE architecture designed for efficient, compute-bound inference on memory-constrained devices (Apple Silicon, edge hardware).
+
+The single biggest idea: **Tucker tensor decomposition applied to the expert weight tensor of a Mixture-of-Experts layer**, trained from scratch — not as a post-hoc compression of a pre-existing dense model.
+
+---
+
+## Core Innovation: Tucker-Decomposed MoE
+
+> Most MoE scaling work pays a full `dim_in × dim_out` cost per expert added.
+> Tucker MoE makes the **marginal cost of one new expert = r₁ = 4 parameters**.
+
+### The Problem with Dense MoE
+
+A standard MoE stacks `E` independent weight matrices:
+
+```
+W ∈ ℝ^(E × d_in × d_out)     # all expert weights
 ```
 
----
+Adding one expert costs `d_in × d_out = 3.5M` parameters. At scale, this is prohibitive.
 
-## 🖥 TuckerMoE 3D Interactive Simulator
+### Tucker Decomposition: One Shared Core, Tiny Per-Expert Coefficients
 
-As part of the ICLR 2026 paper submission, we provide an interactive 3D web-based presentation simulator.
-It visually demonstrates:
+Tucker MoE factorizes the **entire expert weight tensor** across all three axes simultaneously:
 
-- **Tucker Matrix Decomposition** compressing the state space from $134\text{MB}$ to $8.4\text{MB}$.
-- **On-the-fly Inference Pipeline**, comparing native block latency against our specialized micro-tensor flow.
+```
+W[e, i, j] = Σ_{a,b,c}  G[a,b,c] · U_expert[e,a] · U_in[i,b] · U_out[c,j]
+              └── core ──┘  └─ expert axis ─┘  └─ input axis ─┘ └─ output axis ─┘
 
----
+where:
+  U_expert  ∈ ℝ^(E  × r₁)    r₁ = 4      ← only part that grows with E
+  U_in      ∈ ℝ^(d_in × r₃)  r₃ = 256    ← shared across all experts
+  core      ∈ ℝ^(r₁ × r₃ × r₂)           ← shared across all experts
+  U_out     ∈ ℝ^(r₂ × d_out) r₂ = 1024   ← shared across all experts
+```
 
-## 📊 Performance & Efficiency Benchmarks
+**Adding one expert costs only `r₁ = 4` new parameters** instead of 3.5M.
 
-Hybrid Mamba-TuckerMoE is optimized for **Apple Silicon (Unified Memory Architecture)**, delivering high throughput and low memory footprint.
+### Why This Works — Five Key Properties
 
-### Key Results (M2 Pro 16GB):
+| Property | What it means |
+|---|---|
+| **Completeness** | Tucker is an *exact* re-expression of any tensor at full rank — zero information loss before truncation |
+| **Controlled truncation** | Truncation error bounded by `Σ σᵢ²` of dropped singular values (HOSVD error bound, tensor analogue of Eckart–Young) |
+| **Cross-expert sharing** | `U_in`, `core`, `U_out` shared across all experts — experts differ *only* via their `r₁`-dim coefficient row in `U_expert` |
+| **Not a single linear map** | RMSNorm + softmax gating + discrete top-k selection make the full layer **input-conditional piecewise nonlinear** — it does not collapse to one matrix |
+| **From-scratch trainable** | No pre-trained dense model required. Tucker here is a *parameterization* (restrict hypothesis class to multilinear rank ≤ (r₁, r₃, r₂)), not a post-hoc compression step — the classical error bound still provides a precision guarantee via a Lipschitz bridge |
 
-- **Throughput**: **~3,800 tok/s** (Prefill) | **68 tok/s** (8-bit Quantized Decode).
-- **Compression**: **82.87%** parameter reduction (417M actual vs 2.4B dense-equivalent).
-- **Memory Efficiency**: **14.1 MiB** KV+State memory @512 steps (80% less than pure Transformers).
-- **Compute-Bound**: Fused Metal kernels move MoE dispatch from memory-bound to compute-bound states.
+→ Full mathematical derivation: [`docs/tucker_moe_justification.html`](docs/tucker_moe_justification.html)
 
-| Metric               | Hybrid (bf16) | Hybrid (8-bit) | Saving vs Transformer |
-| :------------------- | :-----------: | :------------: | :-------------------: |
-| **Decode Speed**     |   42 tok/s    |    68 tok/s    |           -           |
-| **KV Memory (@512)** |   22.3 MiB    |    14.1 MiB    |       **~80%**        |
+### Parameter Efficiency at a Glance
 
-### Benchmark Visualization
+For `gate_proj` (`d_in=768`, `d_out=4608`, `E=8`):
+
+| | Dense MoE | Tucker MoE |
+|---|---:|---:|
+| Expert params | 28,311,552 | 5,974,560 |
+| Marginal cost / new expert | 3,538,944 | **4** (= r₁) |
+| Compression | — | **78.9%** |
+
+Across the full model:
+
+```
+Actual parameters:        417M
+Dense-equivalent capacity: 2,434M
+Compression:              82.87%
+```
 
 <p align="center">
-  <img src="paper/hybrid-mamba-15min/assets/plots/mlx_inference_benchmark.png" width="800" alt="MLX Inference Benchmark">
-  <br><i>Figure 1: Inference throughput and memory growth analysis on Apple Silicon.</i>
+  <img src="paper/hybrid-mamba-15min/assets/plots/pareto_frontier.png" width="480" alt="Pareto Frontier: capacity vs parameter cost"/>
+  <br><i>Tucker MoE sits on the Pareto frontier of capacity vs. parameter cost.</i>
 </p>
-
-<p align="center">
-  <img src="paper/hybrid-mamba-15min/assets/plots/pareto_frontier.png" width="400" alt="Pareto Frontier">
-  <img src="paper/hybrid-mamba-15min/assets/plots/bench_decode_compile_comparison.png" width="400" alt="Compile Uplift">
-  <br><i>Figure 2: (Left) Pareto Frontier of capacity vs cost; (Right) Graph compilation speedup (+36.8%).</i>
-</p>
-
-> [!TIP]
-> For a detailed technical breakdown, see the full report: [Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid SSMs](paper/hybrid-mamba-15min/report.md).
 
 ---
 
-## 🧠 Mamba-3 Architecture Details
+## Architecture Overview
 
-Mamba-3 is an advanced iteration of the Selective State Space Model architecture.
+```
+Input Tokens
+     │
+     ▼
+ Embedding (d_model = 768)
+     │
+     ▼
+ ┌─────────────────────────────────────────────┐  ×15 macro-layers
+ │  Mamba-3 Block × 4   ──┐                   │
+ │                         ├─ TuckerMoE gating │
+ │  Transformer Block × 1 ─┘                  │
+ └─────────────────────────────────────────────┘
+     │
+     ▼
+ RMSNorm → LM Head (tied weights)
+```
 
-- **Trapezoidal Discretization**: Second-order approximation for more accurate continuous-to-discrete mapping.
-- **MIMO Projections**: Rank-based expansion (12% latency for 4x capacity).
-- **Complex-Valued Dynamics**: RoPE-based simulation of complex SSMs in a real-valued framework.
-- **Vision Support**: Integrated Vision Mamba with Snake Scan and bidirectional processing.
+<p align="center">
+  <img src="paper/hybrid-mamba-15min/assets/method_flowchart.png" width="760" alt="Architecture Pipeline"/>
+</p>
 
-## 🚀 Quick Start
+### Components
 
-### Inference on Apple Silicon (MLX)
+| Component | File | Description |
+|---|---|---|
+| `Mamba3Block` | [`mlx_model/mamba_block.py`](mamba3_mlx/mlx_model/mamba_block.py) | Trapezoidal SSM + MIMO projections + TuckerMoE gating |
+| `TransformerBlock` | [`mlx_model/transformer_block.py`](mamba3_mlx/mlx_model/transformer_block.py) | GQA attention + TuckerMoE FFN |
+| `TuckerMoE` | [`mlx_model/tucker_moe.py`](mamba3_mlx/mlx_model/tucker_moe.py) | 8 experts, top-2; precomputes G = U_expert ⊗ core once at load time |
+| `chunk_scan` | [`mlx_model/scan_metal.py`](mamba3_mlx/mlx_model/scan_metal.py) | Fused Metal SSM scan; O(Lc) intra-chunk, GPU dispatch inter-chunk |
+| `TritonTuckerMoE` | [`pre-train/.../model.py`](pre-train/sft_cot_bundle/scripts/model.py) | Training version with full Triton backward (FusedLatentMoE) |
+
+### Mamba-3 Highlights
+
+- **Trapezoidal Discretization** — second-order continuous-to-discrete mapping (vs. first-order Euler in Mamba-2); supports sequences up to 32K tokens
+- **MIMO Projections** — rank-based state expansion, 12% latency overhead for 4× effective capacity
+- **Complex-Valued Dynamics** — RoPE-based simulation of complex SSM poles in a real-valued framework
+
+---
+
+## Performance (M2 Pro 16GB)
+
+<p align="center">
+  <img src="paper/hybrid-mamba-15min/assets/plots/mlx_inference_benchmark.png" width="760" alt="Inference Benchmark"/>
+</p>
+
+| Metric | Value |
+|---|---|
+| Prefill throughput | **~3,800 tok/s** |
+| Decode (bf16) | **42 tok/s** |
+| Decode (8-bit selective quant) | **68–87 tok/s** |
+| KV + State memory @ 512 steps | **14.1 MiB** (~80% less than pure Transformer) |
+| Compile speedup (decode) | **+36.8%** via `mx.compile` |
+
+<p align="center">
+  <img src="paper/hybrid-mamba-15min/assets/plots/bench_decode_compile_comparison.png" width="440" alt="Compile Speedup"/>
+  <img src="paper/hybrid-mamba-15min/assets/plots/roofline_tuckermoe_analysis.png" width="340" alt="Roofline Analysis"/>
+  <br><i>Left: graph compilation speedup. Right: TuckerMoE roofline — MoE dispatch is compute-bound, not memory-bound.</i>
+</p>
+
+### Why Compute-Bound Matters
+
+Standard dense MoE at decode time must stream `E × d_in × d_out` weights per token — pure memory-bandwidth pressure. Tucker MoE's shared `U_in / core / U_out` live resident in L2/GPU cache; only the tiny `U_expert[e]` rows are expert-specific. Fused Metal kernels exploit this to **move MoE dispatch from memory-bound to compute-bound** on Apple Silicon's unified memory architecture.
+
+---
+
+## Speculative Decoding
+
+The speculative decode system (`mamba3_mlx/speculative/`) accelerates autoregressive sampling without touching the model weights.
+
+```
+Standard AR:   1 tok / forward  →  25 ms/tok
+SJD K=8:       ARL ≈ 3.93       →  92/3.93 = 23 ms/tok  →  1.53× speedup
+```
+
+**Draft sources (training-free):**
+
+| Source | Principle | ARL contribution |
+|---|---|---|
+| `SuffixRetriever` | Longest-suffix match on past output (Prompt Lookup) | Long exact phrases |
+| `NGramCache` (runtime) | LRU dict: N−1 context → most-likely next | Local repetition |
+| `CoT NGram` (pre-baked) | Offline scan of 10,217 training JSONs, phase-aware | **Highest hit rate** |
+
+| Prompt | K | ARL | tps | Speedup |
+|---|---|---|---|---|
+| self_awareness | 8 | 3.93 | 57.8 | **1.53×** |
+| math_drill | 8 | 3.43 | 61.1 | **1.68×** |
+| daily_conversation | 8 | 2.93 | 49.4 | **1.26×** |
+
+---
+
+## Quick Start
+
+### Requirements
+
+```bash
+git clone https://github.com/s990093/Mamba3-XR.git
+cd Mamba3-XR
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Weights (`.npz`, bf16) go in `checkpoints/` — see `AGENTS.md` for `.pt → .npz` sidecar conversion.
+
+### Inference (Apple Silicon)
 
 ```bash
 # Self-awareness demo
@@ -126,7 +213,7 @@ make -C mamba3_mlx
 make -C mamba3_mlx emotion PROMPT="I feel stuck"
 
 # Deep reasoning with compiled decode
-make -C mamba3_mlx deep PROMPT="..." MAX_TOK=512 COMPILE=1
+make -C mamba3_mlx deep PROMPT="Explain attention mechanisms" MAX_TOK=512 COMPILE=1
 
 # WebSocket chat server (port :7860)
 make -C mamba3_mlx chat
@@ -135,128 +222,81 @@ make -C mamba3_mlx chat
 python mamba3_mlx/run.py
 ```
 
+### Speculative Decoding
+
+```bash
+# Bake CoT n-gram cache (6 seconds, no model needed)
+python mamba3_mlx/speculative/bake_cot_caches.py
+
+make -C mamba3_mlx sjd-self     # self_awareness
+make -C mamba3_mlx sjd-math     # math drill
+make -C mamba3_mlx sjd-daily    # conversation
+```
+
 ### Training (PyTorch + Triton)
 
 ```bash
-python pre-train/train.py        # Single-file, all hyperparams at bottom
+python pre-train/train.py        # pre-train / SFT unified entry
 python pre-train/kmoe_train.py   # kMoE variant
 ```
 
-### Setup
+### Benchmarking
 
 ```bash
-git clone https://github.com/s990093/Mamba3-XR.git
-cd Mamba3-XR
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Weights (`.npz`, bf16) go in `checkpoints/` — see `AGENTS.md` for sidecar conversion.
-
----
-
-## ⚡ MLX Inference Design
-
-The inference stack (`mamba3_mlx/`) is purpose-built for Apple Silicon's Unified Memory Architecture (UMA).
-
-### Key Principles
-
-- **No device transfers** — CPU and GPU share the same physical memory; no `.to('cuda')` / `.cpu()` copies.
-- **Lazy evaluation** — MLX builds a computation graph and defers execution until `mx.eval()`, enabling graph-level fusion.
-- **Compiled decode** — `mx.compile(model)` traces and JIT-compiles the decode step after a warmup pass, delivering ~37% decode speedup.
-
-### Architecture
-
-| Component | File | Role |
-|-----------|------|------|
-| `Mamba3LanguageModel` | `mlx_model/hybrid_model.py` | Embed → 30 sub-layers (4 Mamba + 1 Transformer per macro layer) → norm → head |
-| `Mamba3Block` | `mlx_model/mamba_block.py` | Mamba-3 SSM with trapezoidal discretization, MIMO projections, TuckerMoE gating |
-| `TransformerBlock` | `mlx_model/transformer_block.py` | GQA attention + TuckerMoE FFN |
-| `TuckerMoE` | `mlx_model/tucker_moe.py` | 8 experts, top-2 router; precomputes G = U_expert ⊗ core once to skip Tucker einsum at decode time |
-| `chunk_scan` | `mlx_model/scan_metal.py` | Metal-kernel SSM scan (intra-chunk O(Lc), inter-chunk GPU dispatch); transparent fallback to pure MLX |
-
-### Token Bans (`inference/token_bans.py`)
-
-A hardcoded blocklist of 50+ token IDs that should never be sampled — including `<|reserved|>` placeholders, broken Unicode fragments, and other garbage tokens from the 32,007 vocab. Applied post-softmax by zeroing their logits before sampling.
-
-### CoT Middleware (`mv/`)
-
-Two components enforce and guide the Chain-of-Thought output format:
-
-- **`cot_middleware.py`** — Phase-aware seeding: injects `<think>\n` at start, then during decoding forces `Step N:` openings and decides when to emit `</think>\n<final>\n` and `</final>`.
-- **`cot_format_fsm.py`** — A deterministic finite-state machine that validates each output token against the SFT format spec, blocking invalid transitions token-by-token.
-
----
-
-## 🚄 Speculative Decoding
-
-The speculative decoding system (`mamba3_mlx/speculative/`) accelerates autoregressive sampling **without modifying the model or degrading output quality**.
-
-### How It Works
-
-Instead of generating one token per forward pass (25 ms each), Jacobi decoding **guesses** K−1 future tokens, verifies all K in a single batch forward (92 ms), and accepts correct guesses. The speedup depends on how many consecutive guesses are accepted — the **Average Run Length (ARL)**.
-
-```
-AR:    1 tok/forward  →  25 ms/tok
-SJD:   K=8, ARL=3.93  →  92/3.93 = 23 ms/tok  →  1.53× speedup
-```
-
-### Draft Sources (Training-free)
-
-| Source | File | Principle | ARL Impact |
-|--------|------|-----------|------------|
-| `SuffixRetriever` | `drafts.py` | Longest-suffix match against a sliding window of past output (Prompt Lookup Decoding) | Long fragments |
-| `NGramCache` (runtime) | `ngram_cache.py` | LRU dictionary tracking MRU next-token given N−1 context | Local patterns |
-| `CoT NGram` (pre-baked) | `cot_cache.py` | Offline scan of 10,217 training JSONs → phase-aware (think/final) ngram dictionary | **Highest hit rate** |
-| `Carry Fallback` | — | Repeat last token when all else fails | Baseline |
-
-### Cache Baking
-
-```bash
-# CoT cache (6 seconds, no model needed)
-python mamba3_mlx/speculative/bake_cot_caches.py
-
-# Runtime cache (6 minutes, runs model to warm up retriever)
-python mamba3_mlx/speculative/bake_cache.py
-```
-
-### Results (M2 Pro, bf16)
-
-| Prompt | Config | K | ARL | tps | Speedup |
-|--------|--------|---|-----|-----|---------|
-| self_awareness | SJD ng+rt+cot | 8 | 3.93 | 57.8 | **1.53×** |
-| math_drill | SJD ng+rt | 8 | 3.43 | 61.1 | **1.68×** |
-| daily_conversation | SJD ng+rt+cot | 8 | 2.93 | 49.4 | **1.26×** |
-
-The bottleneck is draft hit rate. ARL is currently capped at ~4 due to ngram's 3-token context horizon. Adding a SuffixRetriever to the CoT cache (enabling long-phrase retrieval from training data) is projected to push ARL to 6–8 and speedup to **2.0–2.5×**.
-
-### Run Speculative Decoding
-
-```bash
-# SJD with CoT cache (best for self_awareness)
-make -C mamba3_mlx sjd-self
-
-# SJD for math drill
-make -C mamba3_mlx sjd-math
-
-# SJD for daily conversation
-make -C mamba3_mlx sjd-daily
-
-# Full benchmark sweep
-make -C mamba3_mlx cot-verify
+make mlx-bench                                    # full prefill + decode benchmark
+make mlx-bench-quick                              # SEQ_LEN=128, DECODE_TOK=512
+make mlx-bench CHECKPOINT=weights/model.pt SEQ_LEN=1024
+make mlx-profile PROFILE_DECODE_STEPS=32         # per-layer latency
 ```
 
 ---
 
-## 📎 Citation
+## Repository Structure
 
-If you use Hybrid Mamba-TuckerMoE in your research, please cite:
+```
+├── mamba3_mlx/               # MLX inference stack (Apple Silicon)
+│   ├── mlx_model/            #   Model architecture (hybrid, mamba, tucker, scan)
+│   ├── mlx_model_v2/         #   v2 with updated scan_metal
+│   ├── inference/            #   Generator, sampler, token bans
+│   ├── speculative/          #   Speculative decode (Jacobi, ngram, CoT cache)
+│   ├── mv/                   #   CoT middleware + FSM format enforcement
+│   ├── ui/                   #   Chat frontend (HTML/CSS/JS)
+│   └── chat_demo.py          #   FastAPI WebSocket server (:7860)
+│
+├── pre-train/                # Training (PyTorch + Triton)
+│   ├── train.py              #   Unified pre-train + SFT entry
+│   └── sft_cot_bundle/       #   Dataset pipeline + model.py (TritonTuckerMoE)
+│
+├── cot_dataset/              # SFT dataset, tokenizer (vocab 32,007)
+├── checkpoints/              # Model weights (.pt / .npz sidecars)
+├── metal/                    # Custom Metal shaders (SSM scan, Mamba mixer)
+├── paper/hybrid-mamba-15min/ # Technical report + 3D interactive assets
+├── docs/                     # Supplementary docs
+│   └── tucker_moe_justification.html   # Tucker theory (math + LaTeX)
+└── assets/                   # Project visuals
+```
+
+---
+
+## Documentation
+
+| Doc | Contents |
+|---|---|
+| [`docs/tucker_moe_justification.html`](docs/tucker_moe_justification.html) | Full Tucker MoE theory: dense MoE → Tucker derivation, HOSVD error bounds, from-scratch validity proof, backward pass math, ablation plan, research directions |
+| [`paper/hybrid-mamba-15min/report.md`](paper/hybrid-mamba-15min/report.md) | Technical report: *Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid SSMs* |
+| [`CLAUDE.md`](CLAUDE.md) | Codebase guide: inference types, Makefile variables, Metal kernel workflow |
+| [`AGENTS.md`](AGENTS.md) | Agent workflow, checkpoint conversion, dataset format |
+| [`cot_dataset/SFT_FORMAT.md`](cot_dataset/SFT_FORMAT.md) | ChatML + loss mask spec |
+
+---
+
+## Citation
 
 ```bibtex
 @article{lai2026hybrid,
-  title={Hybrid Mamba-TuckerMoE for On-Device LLM Inference},
-  author={Lai, Hung-Wei and Lan, Hsin-An and Hsu, Chun-Ming and Lu, Yu-Han},
-  journal={Technical Report},
-  year={2026}
+  title   = {Hybrid Mamba-TuckerMoE for On-Device LLM Inference},
+  author  = {Lai, Hung-Wei and Lan, Hsin-An and Hsu, Chun-Ming and Lu, Yu-Han},
+  journal = {Technical Report, ICLR 2026},
+  year    = {2026}
 }
 ```
