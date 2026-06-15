@@ -17,6 +17,7 @@ datasets==4.8.5              # CoT dataset loading + HF export pipeline
 # ── Backend API ───────────────────────────────────────────────────────────────
 fastapi==0.136.1             # REST API server (inference/backend/)
 uvicorn==0.46.0              # ASGI runner for FastAPI
+websockets==16.0             # uvicorn WS backend + chat_smoke_test client
 pydantic==2.13.4             # Request/response schema validation
 httpx==0.28.1                # Async HTTP client (health checks, tests)
 jinja2==3.1.6                # Template rendering (prompt formatting)
