@@ -1,4 +1,26 @@
-torch
-einops
-numpy
-pytest
+# ── Core MLX Inference Stack ─────────────────────────────────────────────────
+mlx==0.31.1                  # Apple Silicon unified-memory inference engine
+numpy==1.26.4                # Tensor utilities & checkpoint I/O
+
+# ── PyTorch (checkpoint loading / pre-training) ───────────────────────────────
+torch==2.11.0                # .pt checkpoint load + pre-train/train.py
+safetensors==0.7.0           # Hugging Face weight serialisation
+scipy==1.17.1                # Numerical utilities (scan tests, roofline)
+
+# ── Tokeniser & Model Hub ─────────────────────────────────────────────────────
+transformers==5.5.3          # HF model configs + tokeniser auto-class
+tokenizers==0.22.2           # Fast Rust tokeniser backend
+sentencepiece==0.2.1         # BPE / unigram fallback tokeniser
+huggingface_hub==1.10.1      # Model/dataset download & cache management
+datasets==4.8.5              # CoT dataset loading + HF export pipeline
+
+# ── Backend API ───────────────────────────────────────────────────────────────
+fastapi==0.136.1             # REST API server (inference/backend/)
+uvicorn==0.46.0              # ASGI runner for FastAPI
+pydantic==2.13.4             # Request/response schema validation
+httpx==0.28.1                # Async HTTP client (health checks, tests)
+jinja2==3.1.6                # Template rendering (prompt formatting)
+
+# ── CLI & Streaming UI ────────────────────────────────────────────────────────
+rich==14.3.3                 # Terminal Rich streaming display (stream_mlx.py)
+tqdm==4.67.3                 # Progress bars (training + export)
