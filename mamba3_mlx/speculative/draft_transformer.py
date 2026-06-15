@@ -304,3 +304,114 @@ class DraftGuesser:
             arr = mx.array([real_tokens], dtype=mx.int32)
             _, self.kv = self.model(arr, past_key_values=self.kv)
         mx.eval(*[t for kv in self.kv for t in kv])
+
+
+# ── Compiled static-KV draft guesser (low-overhead path) ─────────────────────
+
+class CompiledDraftGuesser:
+    """Fast draft guesser: whole single-step forward compiled over a *static*
+    KV buffer, with free partial-accept rollback.
+
+    Techniques layered on top of :class:`DraftGuesser`:
+
+    * **Whole-step ``mx.compile``** — the entire 6-layer step is one compiled
+      program (vs. eager per-op dispatch), the dominant lever on Apple Silicon
+      where decode is GPU-kernel-launch bound.
+    * **Static KV via ``mx.slice_update``** — a fixed ``(1, n_kv, S, hd)``
+      buffer written at ``write_pos``; no per-step ``concatenate`` realloc and
+      the graph shape never changes so the compile cache always hits.
+    * **Free commit** — accepted draft tokens are already the correct tokens at
+      their KV slots, so rollback is just ``write_pos = ckpt + m`` (no re-feed
+      forward — saves a whole batched draft pass per round).
+    * **RoPE rows passed as inputs** — ``cos``/``sin`` for the current absolute
+      position are sliced eagerly and fed in, so the compiled graph needs no
+      dynamic table indexing.
+    * **Deferred eval** — the ``n`` chained steps build one lazy graph and sync
+      once per round instead of ``n`` times.
+    """
+
+    def __init__(self, model: DraftTransformer, *, max_seq: int = 1024):
+        self.model = model
+        self.cfg = model.cfg
+        self.hd = model.cfg.head_dim
+        self.S = max_seq
+        rope = model.layers[0].attn.rope
+        self._cos = rope._cos          # (max_seq_rope, hd)
+        self._sin = rope._sin
+        self.kv: Optional[list[mx.array]] = None   # flat [k0,v0,k1,v1,...]
+        self.wp = 0
+        self._ckpt = 0
+        self._step = mx.compile(self._step_impl)
+
+    def reset(self) -> None:
+        self.kv = None
+        self.wp = 0
+        self._ckpt = 0
+
+    def _step_impl(self, token, cos_row, sin_row, write_pos, kvs):
+        m = self.model
+        nh, nkv, hd = self.cfg.n_heads, self.cfg.n_kv_heads, self.hd
+        h = hd // 2
+        x = m.embed(token)                                   # (1,1,d)
+        S = kvs[0].shape[2]
+        allow = mx.arange(S)[None, :] <= write_pos[0]
+        mask = mx.where(allow, mx.array(0.0, dtype=x.dtype),
+                        mx.array(-mx.inf, dtype=x.dtype)).reshape(1, 1, 1, S)
+        new = list(kvs)
+        for li, layer in enumerate(m.layers):
+            nx = layer.norm1(x)
+            q = layer.attn.q(nx).reshape(1, 1, nh, hd).transpose(0, 2, 1, 3)
+            k = layer.attn.k(nx).reshape(1, 1, nkv, hd).transpose(0, 2, 1, 3)
+            v = layer.attn.v(nx).reshape(1, 1, nkv, hd).transpose(0, 2, 1, 3)
+            q = q * cos_row + mx.concatenate([-q[..., h:], q[..., :h]], axis=-1) * sin_row
+            k = k * cos_row + mx.concatenate([-k[..., h:], k[..., :h]], axis=-1) * sin_row
+            kc = mx.slice_update(new[2 * li], k, write_pos, axes=(2,))
+            vc = mx.slice_update(new[2 * li + 1], v, write_pos, axes=(2,))
+            attn = mx.fast.scaled_dot_product_attention(
+                q, kc, vc, scale=layer.attn.scale, mask=mask)
+            attn = attn.transpose(0, 2, 1, 3).reshape(1, 1, -1)
+            x = x + layer.attn.o(attn)
+            x = x + layer.ffn(layer.norm2(x))
+            new[2 * li], new[2 * li + 1] = kc, vc
+        logits = m.embed.as_linear(m.norm(x))                # (1,1,V)
+        return mx.argmax(logits[0, -1]).astype(mx.int32), new
+
+    def _rope_row(self, pos: int):
+        cos = self._cos[pos:pos + 1].reshape(1, 1, 1, self.hd)
+        sin = self._sin[pos:pos + 1].reshape(1, 1, 1, self.hd)
+        return cos.astype(self.model.embed.weight.dtype), sin.astype(self.model.embed.weight.dtype)
+
+    def prefill(self, ids: list[int]) -> int:
+        """Eager full prefill, then scatter KV into the static buffer."""
+        arr = mx.array([ids], dtype=mx.int32)
+        logits, kv = self.model(arr, past_key_values=None)
+        L = len(ids)
+        pad = self.S - L
+        flat: list[mx.array] = []
+        for (k, v) in kv:
+            kb = mx.pad(k, ((0, 0), (0, 0), (0, pad), (0, 0)))
+            vb = mx.pad(v, ((0, 0), (0, 0), (0, pad), (0, 0)))
+            flat += [kb, vb]
+        self.kv = flat
+        self.wp = L
+        mx.eval(logits, *self.kv)
+        return int(mx.argmax(logits[0, -1]).item())
+
+    def draft(self, prev_token: int, n: int) -> list[int]:
+        self._ckpt = self.wp
+        tok_arr = mx.array([[prev_token]], dtype=mx.int32)
+        outs: list[mx.array] = []
+        for _ in range(n):
+            cos_row, sin_row = self._rope_row(self.wp)
+            wp_arr = mx.array([self.wp], dtype=mx.int32)
+            out_tok, self.kv = self._step(tok_arr, cos_row, sin_row, wp_arr, self.kv)
+            outs.append(out_tok)
+            tok_arr = out_tok.reshape(1, 1)
+            self.wp += 1
+        mx.eval(*outs, *self.kv)             # one sync for the whole chain
+        return [int(t.item()) for t in outs]
+
+    def commit(self, m_accepted: int) -> None:
+        """Free rollback: keep the first ``m`` written KV slots (already the
+        correct tokens), drop the rejected tail by rewinding ``write_pos``."""
+        self.wp = self._ckpt + m_accepted

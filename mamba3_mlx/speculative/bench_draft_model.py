@@ -161,7 +161,7 @@ def main():
     p.add_argument("--model_path",
                    default=str(REPO_ROOT / "checkpoints" / "v6" / "latest_sft_cot_model.npz"))
     p.add_argument("--draft_path",
-                   default=str(REPO_ROOT / "checkpoints" / "draft_model" / "draft_tf_s10000.pt"))
+                   default=str(REPO_ROOT / "checkpoints" / "draft_model" / "draft_distill_s107000.pt"))
     p.add_argument("--tokenizer_path",
                    default=str(REPO_ROOT / "cot_dataset" / "tokenizer.json"))
     p.add_argument("--prompt", default="Who are you?")
@@ -179,6 +179,16 @@ def main():
                    help="Skip the n-gram Jacobi comparison rows.")
     p.add_argument("--no-eos-stop", action="store_true",
                    help="Ignore EOS so all paths run the full max_tokens.")
+    p.add_argument("--static-spec", action="store_true",
+                   help="Also run StaticSpecDecoder (compiled draft + quantized "
+                        "single-graph verify) — the optimized path.")
+    p.add_argument("--quant-moe", type=int, default=8,
+                   help="static-spec: 8-bit quant on TuckerMoE U-factors (0=off).")
+    p.add_argument("--quant-head", type=int, default=8,
+                   help="static-spec: 8-bit quant on the LM head (0=off).")
+    p.add_argument("--eager-ar", action="store_true",
+                   help="Use the slow eager AR loop as baseline instead of the "
+                        "production `make self-s` StaticDecoder (default).")
     args = p.parse_args()
 
     dtype = DTYPE_MAP[args.dtype]
@@ -216,13 +226,36 @@ def main():
           f"max_tokens={args.max_tokens} stop={sorted(stop_set) or 'none'}",
           file=sys.stderr)
 
-    # ── Reference AR greedy ──────────────────────────────────────────────────
-    t0 = time.perf_counter()
-    ref = greedy_autoregressive(model, ids, args.max_tokens, stop_set)
-    t_ref = time.perf_counter() - t0
-    ar_tps = len(ref) / max(t_ref, 1e-6)
-    print(f"\n[AR greedy]  {len(ref):4d} tok  {ar_tps:6.1f} tok/s  (reference)\n",
-          file=sys.stderr)
+    # ── AR baseline = production `make self-s` (StaticDecoder metal_fuse+q8) ──
+    # This is the REAL AR speed (~95-99 tok/s), not the ~2x-slower eager loop.
+    # Speedups are measured against THIS unless --eager-ar is given.
+    self_s_tps = None
+    if not args.eager_ar:
+        from mamba3_mlx.mlx_model.static_decode import StaticDecoder
+        model.precompute()
+        sd = StaticDecoder(model, metal_fuse=True, quant_moe_bits=8,
+                           quant_proj_bits=8, quant_head_bits=8)
+        sd.generate(ids, GenerationConfig(max_tokens=16, temperature=0.0))  # warm
+        sr = sd.generate(ids, GenerationConfig(max_tokens=args.max_tokens,
+                                               temperature=0.0),
+                         stop_token_ids=sorted(stop_set))
+        ref = sr.tokens
+        ar_tps = self_s_tps = sr.decode_tps
+        print(f"\n[AR baseline = make self-s] {len(ref):4d} tok  {ar_tps:6.1f} tok/s  "
+              f"(StaticDecoder metal_fuse+q8 — the real target)\n", file=sys.stderr)
+    else:
+        t0 = time.perf_counter()
+        ref = greedy_autoregressive(model, ids, args.max_tokens, stop_set)
+        ar_tps = len(ref) / max(time.perf_counter() - t0, 1e-6)
+        print(f"\n[AR baseline = eager]  {len(ref):4d} tok  {ar_tps:6.1f} tok/s  "
+              f"(slow eager loop, drifts with thermal)\n", file=sys.stderr)
+
+    # ── StaticSpecDecoder (optimized: compiled draft + quantized verify) ─────
+    sspec = None
+    if args.static_spec:
+        from mamba3_mlx.speculative.static_spec import StaticSpecDecoder
+        sspec = StaticSpecDecoder(model, draft, quant_moe_bits=args.quant_moe,
+                                  quant_head_bits=args.quant_head)
 
     gen_cfg = GenerationConfig(max_tokens=args.max_tokens)
     hdr = (f"{'method':<16} {'K':>3} {'ARL':>5} {'accept%':>8} "
@@ -256,6 +289,20 @@ def main():
                   f"{100*jaccept:>7.1f}% {jr.decode_tps:>7.1f} "
                   f"{jspeed:>7.2f}x {jpref:>4d}/{len(ref):<4d} {len(jr.tokens):>4d}",
                   file=sys.stderr)
+
+        # ── StaticSpecDecoder (optimized path) ───────────────────────────────
+        if sspec is not None:
+            sspec.generate(ids, 16, K=K)   # warm compile
+            sr = sspec.generate(ids, args.max_tokens, K=K,
+                                stop_token_ids=sorted(stop_set))
+            spref = _longest_prefix(ref, sr.tokens)
+            base = self_s_tps if self_s_tps else ar_tps
+            sspeed = sr.decode_tps / max(base, 1e-6)
+            tag = "vs self-s" if self_s_tps else "vs AR"
+            print(f"{'static-spec(q8)':<16} {K:>3d} {sr.arl:>5.2f} "
+                  f"{'—':>8} {sr.decode_tps:>7.1f} "
+                  f"{sspeed:>7.2f}x {spref:>4d}/{len(ref):<4d} {len(sr.tokens):>4d}"
+                  f"  [{tag}]", file=sys.stderr)
         print("", file=sys.stderr)
 
 

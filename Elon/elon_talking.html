@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ELON.EXE — TALKING SIMULATOR v1.337</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #04040e;
+        --bg2: #090918;
+        --panel: #0c0c22;
+        --cyan: #00e5ff;
+        --cyan2: #00b8d9;
+        --amber: #ffb300;
+        --green: #00e676;
+        --red: #ff1744;
+        --dim: #1a2a3a;
+        --dimmer: #0d1a27;
+        --text: #c8d8c0;
+        --subtext: #5a7a6a;
+        --px: "Press Start 2P", monospace;
+        --vt: "VT323", monospace;
+      }
+
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: var(--bg);
+        overflow: hidden;
+      }
+
+      /* ── CRT EFFECTS ── */
+      body::before {
+        /* scanlines */
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 3px,
+          rgba(0, 0, 0, 0.22) 3px,
+          rgba(0, 0, 0, 0.22) 4px
+        );
+      }
+      body::after {
+        /* vignette */
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 199;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse 85% 85% at 50% 50%,
+          transparent 55%,
+          rgba(0, 0, 0, 0.8) 100%
+        );
+      }
+
+      /* ── STAR / GRID BG ── */
+      .bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(circle, rgba(0, 229, 255, 0.06) 1px, transparent 1px),
+          radial-gradient(circle, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+        background-size:
+          32px 32px,
+          16px 16px;
+        background-position:
+          0 0,
+          8px 8px;
+        animation: bgScroll 40s linear infinite;
+      }
+      @keyframes bgScroll {
+        to {
+          background-position:
+            0 32px,
+            8px 40px;
+        }
+      }
+
+      /* ── WRAPPER ── */
+      .wrap {
+        position: relative;
+        z-index: 10;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ── CARD ── */
+      .card {
+        width: 520px;
+        display: flex;
+        flex-direction: column;
+        filter: drop-shadow(0 0 24px rgba(0, 229, 255, 0.18));
+      }
+
+      /* ── HEADER STATUS BAR ── */
+      .hbar {
+        background: var(--panel);
+        border: 3px solid var(--cyan);
+        border-bottom: none;
+        padding: 7px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: var(--px);
+        font-size: 7px;
+        image-rendering: pixelated;
+      }
+      .hbar-title {
+        color: var(--cyan);
+        text-shadow: 0 0 12px var(--cyan);
+        letter-spacing: 2px;
+      }
+      .hbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .hp-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--amber);
+        font-size: 6px;
+      }
+      .hp-bar {
+        width: 72px;
+        height: 7px;
+        border: 2px solid var(--amber);
+        background: #111;
+        position: relative;
+        overflow: hidden;
+      }
+      .hp-fill {
+        position: absolute;
+        inset: 0;
+        width: 73%;
+        background: linear-gradient(90deg, #c85000, var(--amber));
+        animation: hpPulse 3s ease-in-out infinite;
+      }
+      @keyframes hpPulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      .live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red);
+        animation: liveBlink 0.9s step-end infinite;
+      }
+      @keyframes liveBlink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* ── PORTRAIT SECTION ── */
+      .portrait-section {
+        background: var(--panel);
+        border-left: 3px solid var(--cyan);
+        border-right: 3px solid var(--cyan);
+        padding: 18px 18px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* The fixed-size display box — all frames centered inside */
+      .portrait-box {
+        width: 340px;
+        height: 272px;
+        position: relative;
+        background: #020210;
+        /* double pixel border */
+        border: 3px solid var(--dim);
+        outline: 3px solid var(--dimmer);
+        box-shadow:
+          0 0 0 6px var(--bg2),
+          0 0 0 9px var(--cyan2),
+          0 0 40px rgba(0, 229, 255, 0.2),
+          inset 0 0 40px rgba(0, 229, 255, 0.06);
+      }
+
+      /* corner pip decorations */
+      .portrait-box::before,
+      .portrait-box::after {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        border-color: var(--cyan);
+        border-style: solid;
+        box-shadow: 0 0 8px var(--cyan);
+        z-index: 5;
+      }
+      .portrait-box::before {
+        top: -3px;
+        left: -3px;
+        border-width: 3px 0 0 3px;
+      }
+      .portrait-box::after {
+        bottom: -3px;
+        right: -3px;
+        border-width: 0 3px 3px 0;
+      }
+      /* two more corners via pseudo on inner div */
+      .portrait-inner {
+        position: absolute;
+        inset: 0;
+      }
+      .portrait-inner::before,
+      .portrait-inner::after {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        border-color: var(--cyan);
+        border-style: solid;
+        box-shadow: 0 0 8px var(--cyan);
+        z-index: 5;
+      }
+      .portrait-inner::before {
+        top: -3px;
+        right: -3px;
+        border-width: 3px 3px 0 0;
+      }
+      .portrait-inner::after {
+        bottom: -3px;
+        left: -3px;
+        border-width: 0 0 3px 3px;
+      }
+
+      /* each frame image */
+      .frame-img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center center;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        display: none;
+      }
+      .frame-img.active {
+        display: block;
+      }
+
+      /* scanline shimmer inside portrait */
+      .portrait-scanlines {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 1px,
+          rgba(0, 0, 0, 0.12) 1px,
+          rgba(0, 0, 0, 0.12) 2px
+        );
+      }
+
+      /* noise overlay */
+      .portrait-noise {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        pointer-events: none;
+        opacity: 0.03;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      /* glitch keyframes */
+      @keyframes glitch {
+        0% {
+          clip-path: none;
+          transform: translate(0, 0);
+        }
+        20% {
+          clip-path: polygon(0 8%, 100% 8%, 100% 24%, 0 24%);
+          transform: translate(-4px, 0);
+        }
+        40% {
+          clip-path: polygon(0 55%, 100% 55%, 100% 70%, 0 70%);
+          transform: translate(3px, 0);
+          filter: hue-rotate(90deg);
+        }
+        60% {
+          clip-path: none;
+          transform: translate(0, 0);
+          filter: none;
+        }
+        80% {
+          clip-path: polygon(0 80%, 100% 80%, 100% 90%, 0 90%);
+          transform: translate(-2px, 0);
+        }
+        100% {
+          clip-path: none;
+          transform: translate(0, 0);
+        }
+      }
+      .portrait-box.glitching {
+        animation: glitch 0.25s steps(1) forwards;
+      }
+
+      /* status row under portrait */
+      .status-row {
+        display: flex;
+        gap: 18px;
+        margin-top: 10px;
+        font-family: var(--px);
+        font-size: 6px;
+        color: var(--subtext);
+      }
+      .status-val {
+        color: var(--green);
+      }
+
+      /* ── WAVE BAR SECTION ── */
+      .wave-section {
+        background: var(--panel);
+        border-left: 3px solid var(--cyan);
+        border-right: 3px solid var(--cyan);
+        padding: 10px 20px 6px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 2px;
+        height: 56px;
+      }
+      .wbar {
+        width: 9px;
+        border-radius: 1px 1px 0 0;
+        animation: waveAnim var(--dur) ease-in-out infinite alternate;
+        animation-delay: var(--delay);
+        min-height: 3px;
+      }
+      @keyframes waveAnim {
+        from {
+          height: var(--lo);
+        }
+        to {
+          height: var(--hi);
+        }
+      }
+
+      /* ── DIALOGUE SECTION ── */
+      .dialogue {
+        background: var(--panel);
+        border: 3px solid var(--cyan);
+        border-top: 2px solid var(--dim);
+        padding: 12px 16px 14px;
+        position: relative;
+      }
+      .dialogue-speaker {
+        font-family: var(--px);
+        font-size: 7px;
+        color: var(--amber);
+        text-shadow: 0 0 8px var(--amber);
+        margin-bottom: 8px;
+        letter-spacing: 1px;
+      }
+      .dialogue-body {
+        font-family: var(--vt);
+        font-size: 22px;
+        line-height: 1.45;
+        color: var(--text);
+        min-height: 66px;
+        word-break: break-word;
+      }
+      .cursor-block {
+        display: inline-block;
+        width: 10px;
+        height: 18px;
+        background: var(--text);
+        vertical-align: bottom;
+        margin-left: 2px;
+        animation: cursorBlink 0.65s step-end infinite;
+      }
+      @keyframes cursorBlink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* ── FOOTER ── */
+      .footer {
+        background: var(--bg2);
+        border: 3px solid var(--cyan);
+        border-top: 2px solid var(--dim);
+        padding: 6px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--px);
+        font-size: 6px;
+      }
+      .footer-left {
+        color: var(--subtext);
+      }
+      .footer-mid {
+        color: var(--amber);
+        letter-spacing: 1px;
+      }
+      .footer-right {
+        color: var(--cyan);
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg"></div>
+
+    <div class="wrap">
+      <div class="card">
+        <!-- ── HEADER ── -->
+        <div class="hbar">
+          <div class="hbar-title">◄ ELON.EXE ►</div>
+          <div class="hbar-right">
+            <div class="hp-wrap">
+              <span>DOGE</span>
+              <div class="hp-bar"><div class="hp-fill"></div></div>
+              <span>∞</span>
+            </div>
+            <div class="live-dot"></div>
+          </div>
+        </div>
+
+        <!-- ── PORTRAIT ── -->
+        <div class="portrait-section">
+          <div class="portrait-box" id="portrait">
+            <div class="portrait-inner">
+              <div class="portrait-scanlines"></div>
+              <div class="portrait-noise"></div>
+              <!-- frames 0-15 → 1.png – 16.png (all 313×313, cropped from raw.png) -->
+              <img src="1.png" class="frame-img active" alt="" />
+              <img src="2.png" class="frame-img" alt="" />
+              <img src="3.png" class="frame-img" alt="" />
+              <img src="4.png" class="frame-img" alt="" />
+              <img src="5.png" class="frame-img" alt="" />
+              <img src="6.png" class="frame-img" alt="" />
+              <img src="7.png" class="frame-img" alt="" />
+              <img src="8.png" class="frame-img" alt="" />
+              <img src="9.png" class="frame-img" alt="" />
+              <img src="10.png" class="frame-img" alt="" />
+              <img src="11.png" class="frame-img" alt="" />
+              <img src="12.png" class="frame-img" alt="" />
+              <img src="13.png" class="frame-img" alt="" />
+              <img src="14.png" class="frame-img" alt="" />
+              <img src="15.png" class="frame-img" alt="" />
+              <img src="16.png" class="frame-img" alt="" />
+            </div>
+          </div>
+
+          <div class="status-row">
+            <span>FRAME&nbsp;<span class="status-val" id="fnum">01</span></span>
+            <span>MODE&nbsp;<span class="status-val">RANT</span></span>
+            <span>FPS&nbsp;<span class="status-val">08</span></span>
+            <span>REC&nbsp;<span class="status-val">JRE#2054</span></span>
+          </div>
+        </div>
+
+        <!-- ── WAVE ── -->
+        <div class="wave-section" id="waveSect"></div>
+
+        <!-- ── DIALOGUE ── -->
+        <div class="dialogue">
+          <div class="dialogue-speaker">▶ ELON MUSK</div>
+          <div class="dialogue-body">
+            <span id="typeTarget"></span><span class="cursor-block"></span>
+          </div>
+        </div>
+
+        <!-- ── FOOTER ── -->
+        <div class="footer">
+          <span class="footer-left">SRC: JRE_PODCAST.EXE v2054</span>
+          <span class="footer-mid">[A] NEXT &nbsp; [B] SKIP</span>
+          <span class="footer-right" id="timer">00:00</span>
+        </div>
+      </div>
+      <!-- .card -->
+    </div>
+    <!-- .wrap -->
+
+    <script>
+      /* ────────────────────────────────────────────
+   FRAME ANIMATION
+   Sequence designed to feel like natural speech:
+   - mostly talk frames (1-5), mouth cycling open/mid/wide
+   - index 0 (1.png) used as "inhale / pause" beat
+──────────────────────────────────────────── */
+      (function () {
+        const IMGS = Array.from(document.querySelectorAll(".frame-img"));
+        const FNUMS = [
+          "01",
+          "02",
+          "03",
+          "04",
+          "05",
+          "06",
+          "07",
+          "08",
+          "09",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15",
+          "16",
+        ];
+        const fnumEl = document.getElementById("fnum");
+        const box = document.getElementById("portrait");
+
+        // Talk sequence across all 16 frames (0-indexed).
+        // Designed to feel like natural mouth movement:
+        // adjacent frames transition smoothly; varied rhythm avoids mechanical loops.
+        const SEQ = [
+          0, 1, 2, 1, 3, 2, 0, 4, 5, 4, 6, 5, 7, 6, 5, 4, 8, 9, 8, 10, 9, 8, 11,
+          10, 9, 12, 11, 10, 13, 12, 11, 13, 14, 13, 15, 14, 15, 14, 13, 12, 11,
+          10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 2, 4, 6, 8, 10, 12, 14, 13, 11, 9,
+          7, 5,
+        ];
+        let si = 0;
+
+        function showFrame(idx) {
+          IMGS.forEach((img) => img.classList.remove("active"));
+          IMGS[idx].classList.add("active");
+          fnumEl.textContent = FNUMS[idx];
+        }
+
+        setInterval(() => {
+          si = (si + 1) % SEQ.length;
+          showFrame(SEQ[si]);
+
+          // rare glitch ~4% chance
+          if (Math.random() < 0.04) {
+            box.classList.remove("glitching");
+            void box.offsetWidth; // reflow
+            box.classList.add("glitching");
+            setTimeout(() => box.classList.remove("glitching"), 300);
+          }
+        }, 125); // 8 fps
+      })();
+
+      /* ────────────────────────────────────────────
+   SOUND WAVE BARS
+──────────────────────────────────────────── */
+      (function () {
+        const sect = document.getElementById("waveSect");
+        const COUNT = 36;
+        const COLORS = [
+          "#00e5ff",
+          "#00e5ff",
+          "#00b8d9",
+          "#00ff9f",
+          "#00e5ff",
+          "#00cfff",
+        ];
+        for (let i = 0; i < COUNT; i++) {
+          const b = document.createElement("div");
+          b.className = "wbar";
+          const lo = (3 + Math.random() * 7).toFixed(1) + "px";
+          const hi = (18 + Math.random() * 34).toFixed(1) + "px";
+          const dur = (0.25 + Math.random() * 0.55).toFixed(3) + "s";
+          const del = (Math.random() * 0.45).toFixed(3) + "s";
+          const col = COLORS[Math.floor(Math.random() * COLORS.length)];
+          b.style.cssText =
+            `--lo:${lo};--hi:${hi};--dur:${dur};--delay:${del};` +
+            `background:${col};box-shadow:0 0 5px ${col};`;
+          sect.appendChild(b);
+        }
+
+        // Randomise bar targets every 1.8s to simulate audio dynamics
+        setInterval(() => {
+          document.querySelectorAll(".wbar").forEach((b) => {
+            const lo = (2 + Math.random() * 8).toFixed(1) + "px";
+            const hi = (14 + Math.random() * 38).toFixed(1) + "px";
+            b.style.setProperty("--lo", lo);
+            b.style.setProperty("--hi", hi);
+          });
+        }, 1800);
+      })();
+
+      /* ────────────────────────────────────────────
+   TYPEWRITER QUOTES
+──────────────────────────────────────────── */
+      (function () {
+        const QUOTES = [
+          "We're going to Mars. And then beyond. The multiplanetary species destiny is inevitable.",
+          "AI is probably the most transformative technology in human history — it's not entirely clear it's going to be good.",
+          "Physics is the law. Everything else is a recommendation.",
+          "I only invest in things I believe will literally change the world. Or memes. Mostly memes.",
+          "When something is important enough, you do it even if the odds are not in your favor.",
+          "Work like hell. 80 to 100 hour weeks, every week. That's the only way to move faster than everyone else.",
+          "Dogecoin to the moon. Literally. On a Starship. With a Shiba Inu.",
+          "The first step is to establish that something is possible. Then probability will occur.",
+          "Some people don't like change, but you need to embrace change if the alternative is disaster.",
+          "I think it's possible for ordinary people to choose to be extraordinary.",
+        ];
+
+        const el = document.getElementById("typeTarget");
+        let qi = 0;
+        let ci = 0;
+        let erasing = false;
+
+        function tick() {
+          const q = QUOTES[qi];
+          if (!erasing) {
+            el.textContent = q.slice(0, ++ci);
+            if (ci >= q.length) {
+              erasing = true;
+              setTimeout(tick, 3800);
+              return;
+            }
+            setTimeout(tick, 35 + Math.random() * 28);
+          } else {
+            el.textContent = q.slice(0, --ci);
+            if (ci <= 0) {
+              erasing = false;
+              qi = (qi + 1) % QUOTES.length;
+              setTimeout(tick, 350);
+              return;
+            }
+            setTimeout(tick, 14 + Math.random() * 10);
+          }
+        }
+
+        tick();
+      })();
+
+      /* ────────────────────────────────────────────
+   TIMER
+──────────────────────────────────────────── */
+      (function () {
+        const el = document.getElementById("timer");
+        let s = 0;
+        setInterval(() => {
+          s++;
+          el.textContent =
+            String(Math.floor(s / 60)).padStart(2, "0") +
+            ":" +
+            String(s % 60).padStart(2, "0");
+        }, 1000);
+      })();
+    </script>
+  </body>
+</html>

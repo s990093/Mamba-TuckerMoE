@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprite Crop Editor — 16 Frames</title>
+    <style>
+      :root {
+        --bg: #111318;
+        --bg2: #1a1d24;
+        --panel: #1e2230;
+        --border: #2d3348;
+        --accent: #00e5ff;
+        --amber: #ffb300;
+        --green: #00e676;
+        --red: #ff4757;
+        --text: #c8cdd8;
+        --sub: #5a6480;
+        --white: #e8eaf0;
+      }
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "SF Mono", "Fira Code", monospace;
+        font-size: 13px;
+      }
+
+      /* ── LAYOUT ── */
+      .app {
+        display: grid;
+        grid-template-rows: 48px 1fr 36px;
+        height: 100vh;
+      }
+
+      /* ── TOPBAR ── */
+      .topbar {
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+      }
+      .topbar-title {
+        color: var(--accent);
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-right: 8px;
+      }
+      .topbar-sep {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+        margin: 0 4px;
+      }
+
+      .btn {
+        height: 28px;
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.15s;
+      }
+      .btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #000;
+        font-weight: 700;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: #00b8d9;
+      }
+      .btn.danger {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .btn.danger:hover {
+        background: var(--red);
+        color: #fff;
+      }
+
+      .input-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .input-group label {
+        color: var(--sub);
+        font-size: 11px;
+      }
+      .spin {
+        width: 56px;
+        height: 26px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        color: var(--white);
+        text-align: center;
+        font-size: 12px;
+        font-family: inherit;
+        outline: none;
+      }
+      .spin:focus {
+        border-color: var(--accent);
+      }
+
+      /* ── WORKSPACE ── */
+      .workspace {
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        overflow: hidden;
+      }
+
+      /* ── CANVAS AREA ── */
+      .canvas-wrap {
+        position: relative;
+        overflow: hidden;
+        background: #090a0e;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #mainCanvas {
+        cursor: crosshair;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .drop-hint {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: var(--sub);
+        pointer-events: none;
+        font-size: 15px;
+      }
+      .drop-hint.hidden {
+        display: none;
+      }
+      .drop-icon {
+        font-size: 48px;
+        opacity: 0.4;
+      }
+
+      /* drag-over highlight */
+      .canvas-wrap.drag-over {
+        outline: 2px dashed var(--accent);
+        outline-offset: -2px;
+      }
+
+      /* ── SIDEBAR ── */
+      .sidebar {
+        background: var(--panel);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .sidebar-section {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .sidebar-section h3 {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--sub);
+        margin-bottom: 10px;
+      }
+
+      /* Grid controls grid layout */
+      .ctrl-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .ctrl-row {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .ctrl-row label {
+        font-size: 10px;
+        color: var(--sub);
+      }
+      .ctrl-input {
+        height: 28px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        color: var(--white);
+        text-align: center;
+        font-size: 12px;
+        font-family: inherit;
+        outline: none;
+        width: 100%;
+      }
+      .ctrl-input:focus {
+        border-color: var(--accent);
+      }
+
+      /* Range slider */
+      .ctrl-slider {
+        width: 100%;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
+      /* Thumb preview grid */
+      .thumb-grid {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        align-content: start;
+      }
+      .thumb-cell {
+        aspect-ratio: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+        transition: border-color 0.12s;
+      }
+      .thumb-cell:hover {
+        border-color: var(--accent);
+      }
+      .thumb-cell.selected {
+        border-color: var(--amber) !important;
+      }
+      .thumb-cell canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .thumb-label {
+        position: absolute;
+        bottom: 2px;
+        right: 3px;
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.55);
+        text-shadow: 0 1px 2px #000;
+        line-height: 1;
+      }
+
+      /* Export area */
+      .export-area {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border-top: 1px solid var(--border);
+      }
+      .progress-bar {
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--green);
+        width: 0%;
+        transition: width 0.1s;
+        border-radius: 2px;
+      }
+      .export-status {
+        font-size: 11px;
+        color: var(--sub);
+      }
+
+      /* ── STATUSBAR ── */
+      .statusbar {
+        background: var(--bg2);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        font-size: 11px;
+        color: var(--sub);
+      }
+      .status-chip {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ── TOP BAR ── -->
+      <div class="topbar">
+        <span class="topbar-title">CROP EDITOR</span>
+        <div class="topbar-sep"></div>
+        <button
+          class="btn"
+          id="loadBtn"
+          onclick="document.getElementById('fileIn').click()"
+        >
+          📂 Load Image
+        </button>
+        <input
+          type="file"
+          id="fileIn"
+          accept="image/*"
+          hidden
+          onchange="loadFile(this)"
+        />
+        <div class="topbar-sep"></div>
+        <div class="input-group">
+          <label>Cols</label>
+          <input
+            class="spin"
+            type="number"
+            id="tCols"
+            value="4"
+            min="1"
+            max="16"
+            oninput="syncFromInputs()"
+          />
+        </div>
+        <div class="input-group">
+          <label>Rows</label>
+          <input
+            class="spin"
+            type="number"
+            id="tRows"
+            value="4"
+            min="1"
+            max="16"
+            oninput="syncFromInputs()"
+          />
+        </div>
+        <div class="topbar-sep"></div>
+        <button class="btn" id="resetBtn" onclick="autoFit()">
+          ⟳ Auto-Fit
+        </button>
+        <div style="flex: 1"></div>
+        <button
+          class="btn primary"
+          id="exportBtn"
+          onclick="exportAll()"
+          disabled
+        >
+          ⬇ Export All (1–16)
+        </button>
+      </div>
+
+      <!-- ── WORKSPACE ── -->
+      <div class="workspace">
+        <!-- Canvas -->
+        <div
+          class="canvas-wrap"
+          id="canvasWrap"
+          ondragover="
+            ((e = event),
+              e.preventDefault(),
+              e.currentTarget.classList.add('drag-over'))
+          "
+          ondragleave="event.currentTarget.classList.remove('drag-over')"
+          ondrop="dropFile(event)"
+        >
+          <div class="drop-hint" id="dropHint">
+            <div class="drop-icon">🖼</div>
+            <div>拖拉圖片或點 Load Image</div>
+            <div style="font-size: 11px; opacity: 0.5">
+              支援 PNG / JPG / WebP
+            </div>
+          </div>
+          <canvas id="mainCanvas" width="900" height="680"></canvas>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+          <!-- Grid Fine-Tune Controls -->
+          <div class="sidebar-section">
+            <h3>Grid Settings</h3>
+            <div class="ctrl-grid">
+              <div class="ctrl-row">
+                <label>Offset X</label>
+                <input
+                  class="ctrl-input"
+                  type="number"
+                  id="cOffX"
+                  value="0"
+                  oninput="syncFromInputs()"
+                />
+              </div>
+              <div class="ctrl-row">
+                <label>Offset Y</label>
+                <input
+                  class="ctrl-input"
+                  type="number"
+                  id="cOffY"
+                  value="0"
+                  oninput="syncFromInputs()"
+                />
+              </div>
+              <div class="ctrl-row">
+                <label>Cell W</label>
+                <input
+                  class="ctrl-input"
+                  type="number"
+                  id="cCellW"
+                  value="313"
+                  oninput="syncFromInputs()"
+                />
+              </div>
+              <div class="ctrl-row">
+                <label>Cell H</label>
+                <input
+                  class="ctrl-input"
+                  type="number"
+                  id="cCellH"
+                  value="313"
+                  oninput="syncFromInputs()"
+                />
+              </div>
+              <div class="ctrl-row">
+                <label>Gap X</label>
+                <input
+                  class="ctrl-input"
+                  type="number"
+                  id="cGapX"
+                  value="0"
+                  oninput="syncFromInputs()"
+                />
+              </div>
+              <div class="ctrl-row">
+                <label>Gap Y</label>
+                <input
+                  class="ctrl-input"
+                  type="number"
+                  id="cGapY"
+                  value="0"
+                  oninput="syncFromInputs()"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Display Options -->
+          <div class="sidebar-section">
+            <h3>Overlay</h3>
+            <div style="display: flex; flex-direction: column; gap: 7px">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                "
+              >
+                <input type="checkbox" id="chkDiag" checked onchange="draw()" />
+                <span style="font-size: 11px">對角輔助線 (TL→BR)</span>
+              </label>
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                "
+              >
+                <input type="checkbox" id="chkNum" checked onchange="draw()" />
+                <span style="font-size: 11px">顯示編號</span>
+              </label>
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="chkCenter"
+                  checked
+                  onchange="draw()"
+                />
+                <span style="font-size: 11px">十字中心線</span>
+              </label>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 2px;
+                "
+              >
+                <span style="font-size: 10px; color: var(--sub)">Opacity</span>
+                <input
+                  type="range"
+                  class="ctrl-slider"
+                  id="overlayOpacity"
+                  min="20"
+                  max="100"
+                  value="75"
+                  oninput="draw()"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Thumb preview -->
+          <div class="thumb-grid" id="thumbGrid"></div>
+
+          <!-- Export -->
+          <div class="export-area">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="export-status" id="exportStatus">載入圖片後可匯出</div>
+            <button
+              class="btn primary"
+              id="exportBtn2"
+              onclick="exportAll()"
+              disabled
+            >
+              ⬇ Export All (1–16)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STATUS BAR ── -->
+      <div class="statusbar">
+        <span>圖片: <span class="status-chip" id="sImgName">—</span></span>
+        <span>尺寸: <span class="status-chip" id="sImgSize">—</span></span>
+        <span
+          >格子: <span class="status-chip" id="sGrid">4 × 4 = 16</span></span
+        >
+        <span>Hover: <span class="status-chip" id="sHover">—</span></span>
+        <span style="margin-left: auto">滑鼠拖拉格線 · 右側輸入精調</span>
+      </div>
+    </div>
+    <!-- .app -->
+
+    <script>
+      /* ─────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────── */
+      const S = {
+        img: null,
+        cols: 4,
+        rows: 4,
+        offX: 0,
+        offY: 0,
+        cellW: 313,
+        cellH: 313,
+        gapX: 0,
+        gapY: 0,
+        // canvas view
+        scale: 1,
+        imgX: 0,
+        imgY: 0,
+        // drag
+        drag: null, // { kind, startMx, startMy, startVal }
+        hovCell: -1,
+        selCell: -1,
+      };
+
+      const canvas = document.getElementById("mainCanvas");
+      const ctx = canvas.getContext("2d");
+
+      /* ─────────────────────────────────────────────────────────
+   LOAD / DROP
+───────────────────────────────────────────────────────── */
+      function loadFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        readImageFile(file);
+      }
+      function dropFile(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove("drag-over");
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) readImageFile(file);
+      }
+      function readImageFile(file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            S.img = img;
+            document.getElementById("dropHint").classList.add("hidden");
+            document.getElementById("sImgName").textContent = file.name;
+            document.getElementById("sImgSize").textContent =
+              `${img.width} × ${img.height}`;
+            document.getElementById("exportBtn").disabled = false;
+            document.getElementById("exportBtn2").disabled = false;
+            autoFit();
+            buildThumbs();
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   AUTO-FIT: divide image evenly into cols×rows
+───────────────────────────────────────────────────────── */
+      function autoFit() {
+        if (!S.img) return;
+        S.cols = +document.getElementById("tCols").value || 4;
+        S.rows = +document.getElementById("tRows").value || 4;
+        S.offX = 0;
+        S.offY = 0;
+        S.gapX = 0;
+        S.gapY = 0;
+        S.cellW = Math.floor(S.img.width / S.cols);
+        S.cellH = Math.floor(S.img.height / S.rows);
+        syncToInputs();
+        draw();
+        buildThumbs();
+        updateGridStatus();
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   SYNC INPUTS ↔ STATE
+───────────────────────────────────────────────────────── */
+      function syncToInputs() {
+        document.getElementById("tCols").value = S.cols;
+        document.getElementById("tRows").value = S.rows;
+        document.getElementById("cOffX").value = S.offX;
+        document.getElementById("cOffY").value = S.offY;
+        document.getElementById("cCellW").value = S.cellW;
+        document.getElementById("cCellH").value = S.cellH;
+        document.getElementById("cGapX").value = S.gapX;
+        document.getElementById("cGapY").value = S.gapY;
+      }
+      function syncFromInputs() {
+        S.cols = Math.max(1, +document.getElementById("tCols").value || 4);
+        S.rows = Math.max(1, +document.getElementById("tRows").value || 4);
+        S.offX = +document.getElementById("cOffX").value || 0;
+        S.offY = +document.getElementById("cOffY").value || 0;
+        S.cellW = Math.max(1, +document.getElementById("cCellW").value || 1);
+        S.cellH = Math.max(1, +document.getElementById("cCellH").value || 1);
+        S.gapX = +document.getElementById("cGapX").value || 0;
+        S.gapY = +document.getElementById("cGapY").value || 0;
+        draw();
+        buildThumbs();
+        updateGridStatus();
+      }
+      function updateGridStatus() {
+        document.getElementById("sGrid").textContent =
+          `${S.cols} × ${S.rows} = ${S.cols * S.rows}`;
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   CELL COORDINATE HELPERS (in original image pixels)
+───────────────────────────────────────────────────────── */
+      function cellRect(idx) {
+        const col = idx % S.cols;
+        const row = Math.floor(idx / S.cols);
+        return {
+          x: S.offX + col * (S.cellW + S.gapX),
+          y: S.offY + row * (S.cellH + S.gapY),
+          w: S.cellW,
+          h: S.cellH,
+        };
+      }
+      // Convert original image pixel → canvas display pixel
+      function toCanvas(px, py) {
+        return { x: S.imgX + px * S.scale, y: S.imgY + py * S.scale };
+      }
+      // Convert canvas pixel → original image pixel
+      function toImage(cx, cy) {
+        return { x: (cx - S.imgX) / S.scale, y: (cy - S.imgY) / S.scale };
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   DRAW
+───────────────────────────────────────────────────────── */
+      function draw() {
+        const w = canvas.width,
+          h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!S.img) return;
+
+        // Fit image into canvas
+        const sc = Math.min(w / S.img.width, h / S.img.height) * 0.96;
+        S.scale = sc;
+        S.imgX = (w - S.img.width * sc) / 2;
+        S.imgY = (h - S.img.height * sc) / 2;
+        ctx.drawImage(
+          S.img,
+          S.imgX,
+          S.imgY,
+          S.img.width * sc,
+          S.img.height * sc,
+        );
+
+        const total = S.cols * S.rows;
+        const opacity = +document.getElementById("overlayOpacity").value / 100;
+        const showDiag = document.getElementById("chkDiag").checked;
+        const showNum = document.getElementById("chkNum").checked;
+        const showCenter = document.getElementById("chkCenter").checked;
+
+        for (let i = 0; i < total; i++) {
+          const r = cellRect(i);
+          const tl = toCanvas(r.x, r.y);
+          const br = toCanvas(r.x + r.w, r.y + r.h);
+          const cw = br.x - tl.x,
+            ch = br.y - tl.y;
+          const cx = tl.x + cw / 2,
+            cy = tl.y + ch / 2;
+
+          const isHov = i === S.hovCell;
+          const isSel = i === S.selCell;
+          const alpha = opacity;
+
+          /* dark overlay outside if hovered */
+          if (isHov || isSel) {
+            ctx.fillStyle = `rgba(0,0,0,${alpha * 0.55})`;
+            // top / bottom / left / right outside strips
+            // (just a bright outline instead for simplicity)
+          }
+
+          /* cell border */
+          ctx.strokeStyle = isSel
+            ? `rgba(255,179,0,${alpha})`
+            : isHov
+              ? `rgba(255,255,255,${alpha})`
+              : `rgba(0,229,255,${alpha * 0.65})`;
+          ctx.lineWidth = isSel || isHov ? 2 : 1;
+          ctx.setLineDash([]);
+          ctx.strokeRect(tl.x + 0.5, tl.y + 0.5, cw - 1, ch - 1);
+
+          /* diagonal guide: TL → BR */
+          if (showDiag) {
+            ctx.beginPath();
+            ctx.moveTo(tl.x, tl.y);
+            ctx.lineTo(br.x, br.y);
+            ctx.strokeStyle = `rgba(0,229,255,${alpha * 0.4})`;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          /* center crosshair */
+          if (showCenter) {
+            ctx.beginPath();
+            ctx.moveTo(cx, tl.y);
+            ctx.lineTo(cx, br.y);
+            ctx.moveTo(tl.x, cy);
+            ctx.lineTo(br.x, cy);
+            ctx.strokeStyle = `rgba(0,229,255,${alpha * 0.22})`;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          /* corner dots */
+          [tl, { x: br.x, y: tl.y }, { x: tl.x, y: br.y }, br].forEach((pt) => {
+            ctx.fillStyle = `rgba(0,229,255,${alpha * 0.8})`;
+            ctx.fillRect(pt.x - 3, pt.y - 3, 6, 6);
+          });
+
+          /* number label */
+          if (showNum) {
+            const label = String(i + 1);
+            const fs = Math.max(10, Math.min(20, cw * 0.14));
+            ctx.font = `bold ${fs}px 'SF Mono', monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            // shadow
+            ctx.fillStyle = "rgba(0,0,0,.7)";
+            ctx.fillText(label, cx + 1, cy + 1);
+            ctx.fillStyle =
+              isHov || isSel
+                ? isSel
+                  ? "#ffb300"
+                  : "#ffffff"
+                : `rgba(0,229,255,${alpha})`;
+            ctx.fillText(label, cx, cy);
+          }
+        }
+
+        /* drag handle: top-left corner of whole grid */
+        if (S.img) {
+          const gTL = toCanvas(S.offX, S.offY);
+          ctx.fillStyle = "#ffb300";
+          ctx.fillRect(gTL.x - 5, gTL.y - 5, 10, 10);
+
+          /* bottom-right of last cell */
+          const last = cellRect(total - 1);
+          const gBR = toCanvas(last.x + last.w, last.y + last.h);
+          ctx.fillStyle = "#00e676";
+          ctx.fillRect(gBR.x - 5, gBR.y - 5, 10, 10);
+        }
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   MOUSE EVENTS ON CANVAS
+───────────────────────────────────────────────────────── */
+      canvas.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+        if (S.drag) {
+          const dx = (mx - S.drag.mx) / S.scale;
+          const dy = (my - S.drag.my) / S.scale;
+          if (S.drag.kind === "tl") {
+            S.offX = Math.round(S.drag.v0x + dx);
+            S.offY = Math.round(S.drag.v0y + dy);
+          } else if (S.drag.kind === "br") {
+            const newTotalW = S.drag.v0tw + dx;
+            const newTotalH = S.drag.v0th + dy;
+            S.cellW = Math.max(1, Math.round(newTotalW / S.cols));
+            S.cellH = Math.max(1, Math.round(newTotalH / S.rows));
+          } else if (S.drag.kind === "move") {
+            S.offX = Math.round(S.drag.v0x + dx);
+            S.offY = Math.round(S.drag.v0y + dy);
+          }
+          syncToInputs();
+          draw();
+          buildThumbs();
+          return;
+        }
+
+        // Hover: find which cell the mouse is over
+        const ip = toImage(mx, my);
+        const total = S.cols * S.rows;
+        let found = -1;
+        for (let i = 0; i < total; i++) {
+          const r = cellRect(i);
+          if (
+            ip.x >= r.x &&
+            ip.x < r.x + r.w &&
+            ip.y >= r.y &&
+            ip.y < r.y + r.h
+          ) {
+            found = i;
+            break;
+          }
+        }
+        if (found !== S.hovCell) {
+          S.hovCell = found;
+          document.getElementById("sHover").textContent =
+            found >= 0 ? `Cell ${found + 1}` : "—";
+          draw();
+        }
+
+        // Change cursor near handles
+        const gTL = toCanvas(S.offX, S.offY);
+        const last = cellRect(total - 1);
+        const gBR = toCanvas(last.x + last.w, last.y + last.h);
+        const near = (a, b) => Math.abs(a - b) < 8;
+
+        if (near(mx, gTL.x) && near(my, gTL.y))
+          canvas.style.cursor = "nwse-resize";
+        else if (near(mx, gBR.x) && near(my, gBR.y))
+          canvas.style.cursor = "nwse-resize";
+        else if (found >= 0) canvas.style.cursor = "move";
+        else canvas.style.cursor = "crosshair";
+      });
+
+      canvas.addEventListener("mousedown", (e) => {
+        if (!S.img) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+        const total = S.cols * S.rows;
+        const last = cellRect(total - 1);
+        const gTL = toCanvas(S.offX, S.offY);
+        const gBR = toCanvas(last.x + last.w, last.y + last.h);
+        const near = (a, b) => Math.abs(a - b) < 8;
+
+        if (near(mx, gTL.x) && near(my, gTL.y)) {
+          S.drag = { kind: "tl", mx, my, v0x: S.offX, v0y: S.offY };
+        } else if (near(mx, gBR.x) && near(my, gBR.y)) {
+          S.drag = {
+            kind: "br",
+            mx,
+            my,
+            v0tw: S.cols * (S.cellW + S.gapX) - S.gapX,
+            v0th: S.rows * (S.cellH + S.gapY) - S.gapY,
+          };
+        } else if (S.hovCell >= 0) {
+          S.drag = { kind: "move", mx, my, v0x: S.offX, v0y: S.offY };
+          S.selCell = S.hovCell;
+          highlightThumb(S.selCell);
+          draw();
+        }
+        e.preventDefault();
+      });
+
+      canvas.addEventListener("mouseup", () => {
+        S.drag = null;
+      });
+      canvas.addEventListener("mouseleave", () => {
+        S.drag = null;
+        S.hovCell = -1;
+        draw();
+      });
+
+      /* ─────────────────────────────────────────────────────────
+   THUMBNAILS
+───────────────────────────────────────────────────────── */
+      function buildThumbs() {
+        if (!S.img) return;
+        const grid = document.getElementById("thumbGrid");
+        const total = S.cols * S.rows;
+        grid.innerHTML = "";
+        for (let i = 0; i < total; i++) {
+          const cell = document.createElement("div");
+          cell.className = "thumb-cell";
+          cell.dataset.idx = i;
+          cell.onclick = () => {
+            S.selCell = i;
+            highlightThumb(i);
+            draw();
+          };
+
+          const tc = document.createElement("canvas");
+          const r = cellRect(i);
+          tc.width = r.w;
+          tc.height = r.h;
+          const tctx = tc.getContext("2d");
+          tctx.drawImage(S.img, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+          cell.appendChild(tc);
+
+          const lbl = document.createElement("span");
+          lbl.className = "thumb-label";
+          lbl.textContent = i + 1;
+          cell.appendChild(lbl);
+
+          grid.appendChild(cell);
+        }
+      }
+
+      function highlightThumb(idx) {
+        document.querySelectorAll(".thumb-cell").forEach((c, i) => {
+          c.classList.toggle("selected", i === idx);
+        });
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   EXPORT ALL
+───────────────────────────────────────────────────────── */
+      async function exportAll() {
+        if (!S.img) return;
+        const total = S.cols * S.rows;
+        const fillEl = document.getElementById("progressFill");
+        const statusEl = document.getElementById("exportStatus");
+
+        for (let i = 0; i < total; i++) {
+          const r = cellRect(i);
+          const oc = document.createElement("canvas");
+          oc.width = r.w;
+          oc.height = r.h;
+          oc.getContext("2d").drawImage(
+            S.img,
+            r.x,
+            r.y,
+            r.w,
+            r.h,
+            0,
+            0,
+            r.w,
+            r.h,
+          );
+
+          const dataURL = oc.toDataURL("image/png");
+          const a = document.createElement("a");
+          a.href = dataURL;
+          a.download = `${i + 1}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          fillEl.style.width = `${((i + 1) / total) * 100}%`;
+          statusEl.textContent = `匯出中… ${i + 1} / ${total}`;
+          await new Promise((r) => setTimeout(r, 120)); // let browser breathe
+        }
+
+        statusEl.textContent = `✓ 完成！匯出 ${total} 張 (1.png – ${total}.png)`;
+        setTimeout(() => {
+          fillEl.style.width = "0%";
+        }, 3000);
+      }
+
+      /* ─────────────────────────────────────────────────────────
+   RESIZE CANVAS ON WINDOW RESIZE
+───────────────────────────────────────────────────────── */
+      function resizeCanvas() {
+        const wrap = document.getElementById("canvasWrap");
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+        draw();
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      /* ─────────────────────────────────────────────────────────
+   KEYBOARD NUDGE (arrow keys ±1px)
+───────────────────────────────────────────────────────── */
+      document.addEventListener("keydown", (e) => {
+        if (!S.img) return;
+        if (
+          ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)
+        ) {
+          e.preventDefault();
+          const d = e.shiftKey ? 5 : 1;
+          if (e.key === "ArrowLeft") S.offX -= d;
+          if (e.key === "ArrowRight") S.offX += d;
+          if (e.key === "ArrowUp") S.offY -= d;
+          if (e.key === "ArrowDown") S.offY += d;
+          syncToInputs();
+          draw();
+          buildThumbs();
+        }
+        if (e.key === "e" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          exportAll();
+        }
+      });
+
+      /* initial draw */
+      draw();
+    </script>
+  </body>
+</html>
