@@ -906,17 +906,37 @@ function _petEmailPost(obj) {
   try { window.webkit.messageHandlers.petemail.postMessage(obj); } catch (_) { }
 }
 
-// Reset TTS state at the start of every turn. WebKit/WKWebView sometimes drops
-// an utterance's onend, leaving _ttsSpeaking stuck true so the *next* turn can
-// never speak ("說話後就當掉"). Clearing here guarantees a clean start.
+// Reset only the JS-side TTS state at the start of a turn. Deliberately do NOT
+// call synth.cancel() here: on macOS WebKit, cancel() can leave speechSynthesis
+// paused so the *next* speak() comes out silent — doing it every turn was
+// breaking speech. A stuck _ttsSpeaking is recovered by the per-utterance
+// watchdog (see ttsNext) instead. Also keep the resume pump running.
 function ttsReset() {
-  try { synth.cancel(); } catch (_) { }
   _ttsSpeaking = false;
   _ttsQueue = [];
   _ttsBuf = '';
   _ttsActiveUtts = [];
   clearTimeout(_ttsWatch);
-  clearInterval(_synthResumeT);
+}
+
+// Split a long sentence into clauses at commas so each clause gets its own
+// prosody (more inflection within a sentence). Short sentences stay whole to
+// avoid choppiness.
+function _clauses(sentence) {
+  if (sentence.length < 60) return [sentence];
+  const parts = sentence.split(/(?<=[,，])\s+/);
+  const out = [];
+  let buf = '';
+  for (const p of parts) {
+    buf += (buf ? ' ' : '') + p;
+    if (buf.length >= 24) { out.push(buf); buf = ''; }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+function _enqueueSpeech(sentence) {
+  _clauses(sentence).forEach(c => { if (c.trim()) _ttsQueue.push(c.trim()); });
+  ttsNext();
 }
 
 function ttsAccum(chunk) {
@@ -926,13 +946,39 @@ function ttsAccum(chunk) {
   while ((m = CFG.ttsBreak.exec(_ttsBuf)) !== null) {
     const sentence = _ttsBuf.slice(0, m.index + 1).trim();
     _ttsBuf = _ttsBuf.slice(m.index + 1);
-    if (sentence) { _ttsQueue.push(sentence); ttsNext(); }
+    if (sentence) _enqueueSpeech(sentence);
   }
 }
 function ttsFlush() {
   const rem = _ttsBuf.trim(); _ttsBuf = '';
-  if (rem) { _ttsQueue.push(rem); ttsNext(); }
+  if (rem) _enqueueSpeech(rem);
 }
+// Per-sentence prosody so speech has inflection instead of a flat monotone.
+// Builds on the user's rate/pitch and shifts them by punctuation (question /
+// exclamation / trailing-off), emphasis, sentence length, mood, plus a little
+// natural jitter.
+function _expressiveProsody(text) {
+  let rate = SETTINGS.rate, pitch = SETTINGS.pitch;
+  const t = (text || '').trim();
+  const last = t.slice(-1);
+  if (last === '?') { pitch += 0.18; rate -= 0.03; }                 // rising question
+  else if (last === '!') { pitch += 0.13; rate += 0.07; }            // excited
+  else if (t.endsWith('…') || t.endsWith('...')) { pitch -= 0.05; rate -= 0.12; } // trailing off
+  else if (last === ',' || last === ';' || last === ':') { rate += 0.03; } // mid-thought, carry on
+  if (/\b[A-Z]{3,}\b/.test(t) || /\*\*/.test(t)) pitch += 0.07;      // emphasis
+  if (t.length > 90) rate += 0.05; else if (t.length < 18) rate -= 0.03; // pacing by length
+  // Mood: happy → brighter & a touch faster; low → lower & slower.
+  pitch += (_petMood - 0.5) * 0.22;
+  rate += (_petMood - 0.5) * 0.12;
+  // Gentle per-sentence jitter so it never sounds robotic.
+  pitch += (Math.random() - 0.5) * 0.09;
+  rate += (Math.random() - 0.5) * 0.05;
+  return {
+    rate: Math.max(0.6, Math.min(1.6, rate)),
+    pitch: Math.max(0.5, Math.min(2.0, pitch)),
+  };
+}
+
 function ttsNext() {
   if (_ttsSpeaking || _ttsQueue.length === 0) return;
   const text = _ttsQueue.shift();
@@ -941,12 +987,13 @@ function ttsNext() {
   _ttsActiveUtts.push(utt); // keep a reference so it isn't GC'd before onend
   utt.lang = 'en-US';
 
+  const pros = _expressiveProsody(text);
   if (_char === 'tars') {
-    utt.rate = Math.max(0.70, SETTINGS.rate * 0.88);
-    utt.pitch = Math.max(0.65, SETTINGS.pitch * 0.70);
+    utt.rate = Math.max(0.62, pros.rate * 0.88);   // TARS: slower, deeper, but still varies
+    utt.pitch = Math.max(0.5, pros.pitch * 0.70);
   } else {
-    utt.rate = SETTINGS.rate;
-    utt.pitch = SETTINGS.pitch;
+    utt.rate = pros.rate;
+    utt.pitch = pros.pitch;
   }
 
   const voices = synth.getVoices();
