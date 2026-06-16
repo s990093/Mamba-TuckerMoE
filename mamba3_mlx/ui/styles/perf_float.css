@@ -276,6 +276,16 @@
   height: 22px;
 }
 
+/* ── CLI-peak comparison line (under sparkline) ─────────────── */
+.pf-cli-peak {
+  padding-left: 0;
+  margin-top: 2px;
+  text-align: center;
+  font-size: 10.5px;
+  color: rgba(204, 120, 92, 0.78);  /* echoes pf-val-live (#cc785c) */
+  letter-spacing: 0.03em;
+}
+
 /* ── Cache section ───────────────────────────────────────────── */
 .pf-cache-hdr {
   display: flex;

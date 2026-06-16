@@ -42,6 +42,27 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Iterator
 
+# ── Tier-1 perf: faster JSON encoder + libuv event loop ───────────────────────
+# orjson is ~3-4x faster than stdlib json.dumps and emits bytes directly
+# (no UTF-8 round-trip). uvloop replaces asyncio's selector loop with one
+# backed by libuv, cutting per-await scheduling overhead.  Both fall back
+# gracefully if the package is not installed.
+try:
+    import orjson  # type: ignore
+    def _ws_dumps(obj: Any) -> str:
+        return orjson.dumps(obj).decode("utf-8")
+except Exception:
+    orjson = None  # type: ignore[assignment]
+    def _ws_dumps(obj: Any) -> str:
+        return json.dumps(obj, separators=(",", ":"))
+
+try:
+    import uvloop  # type: ignore
+    _UVLOOP_AVAILABLE = True
+except Exception:
+    uvloop = None  # type: ignore[assignment]
+    _UVLOOP_AVAILABLE = False
+
 _INF_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.abspath(os.path.join(_INF_DIR, ".."))
 # Ensure `from mamba3_mlx.*` works when launched directly.
@@ -839,6 +860,10 @@ def _stream_generate(
     stop_after = False
     _raw_prev_text = ""   # cumulative decoded string for raw_sampling delta tracking
 
+    # ── Optional per-section timing (set MAMBA_PROFILE_LOOP=1 to enable) ──
+    _prof = os.environ.get("MAMBA_PROFILE_LOOP", "") in ("1", "true", "yes")
+    _t_logits = _t_sample = _t_text = _t_route = _t_fwd = 0.0
+
     # When no_eos_stop is on, after the splitter enters "done" we keep decoding
     # tokens but bypass the splitter — text streams through `_nes_decode_and_yield`.
     _nes_bypass = False
@@ -865,6 +890,7 @@ def _stream_generate(
 
     # ── Decode loop ─────────────────────────────────────────────────────────
     for _step in range(max_tokens):
+        if _prof: _ts0 = time.perf_counter()
         # 1) Logit transform: middleware + script-level mode-specific bans.
         #    raw_sampling=True: skip ALL logit engineering so the path matches run.py
         #    (used for self_awareness where seed=27 is tuned against run.py's path).
@@ -888,18 +914,41 @@ def _stream_generate(
         if not _raw and _direct_head_ban is not None and not reasoning and mw.mode == "head":
             row = row + _direct_head_ban.astype(row.dtype)
         z = row.astype(mx.float32)
+        if _prof: _ts1 = time.perf_counter(); _t_logits += _ts1 - _ts0
         tok_arr, key = _compiled_sampler(z, _ring_idx, _ring_valid, key)
         # Advance the penalty ring (stays on GPU, no sync) — the window the
         # NEXT step sees, matching the eager `generated[-recent_window:]`.
         _ring_idx = mx.concatenate([_ring_idx[1:], tok_arr.reshape(1)])
         _ring_valid = mx.concatenate([_ring_valid[1:], _ring_one])
-        mx.eval(tok_arr)
+        # NOTE: no explicit ``mx.eval(tok_arr)`` — ``.item()`` below already
+        # forces a CPU sync.  The redundant eval added ~50 µs/tok of
+        # scheduling overhead.
         tid = int(tok_arr.item())
         generated.append(tid)
         all_tids.append(tid)
         n_out += 1
         if ttft_ms is None:
             ttft_ms = (time.perf_counter() - t_dec) * 1000
+        if _prof: _ts2 = time.perf_counter(); _t_sample += _ts2 - _ts1
+
+        # ── Kick off the NEXT forward immediately (async) so the GPU runs
+        #    in parallel with the Python-side text decode / FSM / WS push
+        #    below.  ``_sess.step`` calls ``mx.async_eval`` internally; we
+        #    deliberately do NOT call ``mx.eval(last_logits)`` afterwards —
+        #    the next iteration's ``_compiled_sampler`` will materialise it
+        #    lazily.  This is the difference between ~70 tok/s (serial
+        #    GPU→Python→GPU) and ~85 tok/s (overlapped).
+        #    Costs one wasted forward on the stop iteration (≈11 ms/turn),
+        #    negligible vs the ~1 ms/tok overlap saving across the run.
+        if _sess is not None:
+            last_logits = _sess.step(tid)        # async-kicked compiled dispatch
+            pos += 1
+        else:
+            x = mx.array([[tid]], dtype=mx.int32)
+            logits_d, states = _model(x, states=states)
+            last_logits = logits_d[0, -1]
+            pos += 1
+        if _prof: _ts_fwd = time.perf_counter(); _t_fwd += _ts_fwd - _ts2
 
         # 2a) Compute display text — raw uses cumulative decode for correct spacing;
         #     non-raw uses single-token decode (middleware handles its own tracking).
@@ -933,6 +982,7 @@ def _stream_generate(
                 _cprint(_raw_text, style="yellow")
             else:
                 _cprint(_raw_text, style="green")
+        if _prof: _ts3 = time.perf_counter(); _t_text += _ts3 - _ts_fwd
 
         # 2b) Token routing — raw yields the cumulative delta directly.
         if _raw:
@@ -979,18 +1029,7 @@ def _stream_generate(
         if not no_eos_stop and mw.should_break(tid):
             stop_after = True
             break
-
-        # 4) Advance model by one token.
-        if _sess is not None:
-            last_logits = _sess.step(tid)        # one compiled dispatch
-            pos += 1
-            mx.eval(last_logits)
-        else:
-            x = mx.array([[tid]], dtype=mx.int32)
-            logits_d, states = _model(x, states=states)
-            last_logits = logits_d[0, -1]
-            pos += 1
-            mx.eval(last_logits, *_iter_state_arrays(states))
+        if _prof: _t_route += time.perf_counter() - _ts3
 
         # 5) Multi-stage <final> injection — fires at most once per turn.
         # raw_sampling: model generates <final> naturally (SFT), no injection needed.
@@ -1014,6 +1053,17 @@ def _stream_generate(
         yield evt
     elapsed = time.perf_counter() - t_dec
     streaming_tps = round(n_out / max(elapsed, 1e-9), 1)
+
+    if _prof and n_out > 0:
+        _total_us = (_t_logits + _t_sample + _t_text + _t_route + _t_fwd) * 1e6 / n_out
+        print(f"\n[prof] per-token µs (n={n_out}): "
+              f"logits={_t_logits*1e6/n_out:.0f} "
+              f"sample={_t_sample*1e6/n_out:.0f} "
+              f"text={_t_text*1e6/n_out:.0f} "
+              f"route={_t_route*1e6/n_out:.0f} "
+              f"fwd={_t_fwd*1e6/n_out:.0f} "
+              f"sum={_total_us:.0f} | wall={elapsed/n_out*1e6:.0f} "
+              f"({streaming_tps} tok/s)", flush=True)
 
     # ── bench_tps: use pre-measured cached value (measured at server startup) ──
     # _static_bench_tps is set once after StaticDecoder compiles using
@@ -1360,6 +1410,11 @@ async def status():
     return JSONResponse({
         "ready": _model_ready,
         "load_timings": _load_timings,
+        # Pure-compute decode TPS measured at startup with the StaticDecoder
+        # (metal_fuse + q8 + norm_fold + in-graph sampler), 5 warmup rounds +
+        # 1 timed round.  This is the same path ``make self-s`` runs, so the
+        # frontend can show backend tok/s as a percentage of this CLI peak.
+        "cli_peak_tps": _static_bench_tps,
         "config": {
             "d_model": _config.d_model if _config else 0,
             "num_layers": _config.num_layers if _config else 0,
@@ -1905,9 +1960,55 @@ async def websocket_chat(ws: WebSocket):
                 history_snapshot = list(conversation)
                 abort_event = threading.Event()
 
+                # ── Non-blocking event pipeline (worker thread → drainer task) ──
+                # The MLX worker thread MUST NOT wait on the event loop to flush
+                # each token's WS frame — that round-trip costs ~1–2 ms/tok and
+                # serialises decode behind JSON encode + socket write.
+                # Worker only schedules events onto an asyncio.Queue (call_soon_
+                # threadsafe is ~tens of µs); a dedicated drainer coroutine in
+                # the loop thread does ws.send_json in order.
+                out_queue: asyncio.Queue = asyncio.Queue()
+
                 def _send_now(ev: dict):
-                    fut = asyncio.run_coroutine_threadsafe(ws.send_json(ev), loop)
-                    fut.result()
+                    # Called from the worker thread. Fire-and-forget.
+                    loop.call_soon_threadsafe(out_queue.put_nowait, ev)
+
+                async def _drainer():
+                    # Opportunistic frame merge: when several events were
+                    # queued while we were sending the previous frame, bundle
+                    # them into a single "batch" envelope so we pay the WS
+                    # write/syscall cost once instead of N times.  Single-event
+                    # bursts still ship as the original event shape (no
+                    # protocol change for the common case).
+                    while True:
+                        ev = await out_queue.get()
+                        if ev is None:
+                            return
+                        batch = [ev]
+                        sentinel = False
+                        # Drain anything already sitting in the queue without
+                        # yielding back to the loop.
+                        while True:
+                            try:
+                                e2 = out_queue.get_nowait()
+                            except asyncio.QueueEmpty:
+                                break
+                            if e2 is None:
+                                sentinel = True
+                                break
+                            batch.append(e2)
+                        try:
+                            if len(batch) == 1:
+                                await ws.send_text(_ws_dumps(batch[0]))
+                            else:
+                                await ws.send_text(_ws_dumps(
+                                    {"type": "batch", "events": batch}
+                                ))
+                        except Exception:
+                            # WS closed mid-stream — drop remaining events.
+                            return
+                        if sentinel:
+                            return
 
                 def run_gen() -> str:
                     global _static_bench_tps
@@ -1927,9 +2028,21 @@ async def websocket_chat(ws: WebSocket):
                             _send_now({"type": "error", "message": str(exc)})
                         except Exception:
                             pass
-                    # Fresh benchmark after streaming (bench_mode only, e.g. /speed-race).
-                    # GPU is already in steady state — 1 warmup + 1 timed gives a clean number.
-                    if getattr(args_for_call, "bench_mode", False) and _static_decoder is not None:
+                    # Fresh benchmark after streaming. Two triggers:
+                    #   (a) bench_mode (explicit /speed-race) — always re-runs.
+                    #   (b) lazy first-touch — fires once per server lifetime when
+                    #       _static_bench_tps is None, so /api/status.cli_peak_tps
+                    #       gets populated and the perf-float panel can show
+                    #       "X% of CLI peak" from the second user message onward.
+                    # Skip lazy trigger for self_awareness mode: the cold-boot
+                    # seed=26 → "I am Mamba" guarantee depends on a clean Metal
+                    # bf16 state, and even a tiny post-stream bench shifts logits.
+                    # Subsequent self_awareness turns aren't seed-critical, so the
+                    # bench can fire after a non-self_awareness generation.
+                    _is_self = (effective_key == "self_awareness")
+                    _explicit = bool(getattr(args_for_call, "bench_mode", False))
+                    _lazy = (_static_bench_tps is None) and (not _is_self)
+                    if _static_decoder is not None and (_explicit or _lazy):
                         try:
                             from mamba3_mlx.utils.config import GenerationConfig as _GC2
                             _fresh_gc = _GC2(
@@ -1942,7 +2055,8 @@ async def websocket_chat(ws: WebSocket):
                                                                   stop_token_ids=())
                             _static_bench_tps = round(_fresh_br.decode_tps, 1)
                             _send_now({"type": "bench", "bench_tps": _static_bench_tps})
-                            print(f"\n[bench] fresh post-race: {_static_bench_tps} tok/s",
+                            _label = "post-race" if _explicit else "lazy post-gen"
+                            print(f"\n[bench] fresh {_label}: {_static_bench_tps} tok/s",
                                   flush=True)
                         except Exception as _be:
                             print(f"\n[bench] WARN: fresh bench failed: {_be}", flush=True)
@@ -1971,9 +2085,15 @@ async def websocket_chat(ws: WebSocket):
 
                 isGenerating_flag = [True]
                 abort_listener_task = asyncio.create_task(_abort_listener())
+                drainer_task = asyncio.create_task(_drainer())
 
                 async with _infer_lock:
                     assistant_text = await loop.run_in_executor(None, run_gen)
+
+                # Signal the drainer to flush any tail events then exit.
+                out_queue.put_nowait(None)
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await asyncio.wait_for(drainer_task, timeout=10.0)
 
                 isGenerating_flag[0] = False
                 abort_listener_task.cancel()
@@ -2115,7 +2235,13 @@ def main():
         _pt_thread.start()
 
     import uvicorn
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    # Prefer uvloop when available — measurable on hot WS streaming path.
+    loop_kw = {"loop": "uvloop"} if _UVLOOP_AVAILABLE else {}
+    if _UVLOOP_AVAILABLE:
+        print("[chat_demo] uvloop enabled (libuv event loop)")
+    if orjson is not None:
+        print("[chat_demo] orjson enabled (fast JSON encoder for WS frames)")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning", **loop_kw)
 
 
 if __name__ == "__main__":

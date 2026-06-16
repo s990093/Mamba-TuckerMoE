@@ -322,8 +322,12 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && modeMenu && !modeMenu.hidden) closeModeMenu();
-  if ((e.key === "p" || e.key === "P") && !e.metaKey && !e.ctrlKey &&
-      !["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName)) {
+  if (
+    (e.key === "p" || e.key === "P") &&
+    !e.metaKey &&
+    !e.ctrlKey &&
+    !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
+  ) {
     e.preventDefault();
     window.PF?.toggle();
   }
@@ -444,13 +448,13 @@ let turnCount = 0;
 let currentMsg = null;
 let typingDots = null;
 let streamText = "";
-let lastReasoningText = "";  // accumulated reasoning for delta decode
-let thinkOpen = false;        // <think> shown but </think> not yet
-let _turnCat = "";            // category key captured at send time (stable for the whole turn)
-let lastPromptTokens = 0;     // prompt token count from meta event (for prefill tok/s)
-let cotThinkStartTime = 0;    // wall-clock when first think token arrives
-let lastThinkMs = 0;          // elapsed ms for think phase (set when </think> detected)
-let cotThinkDone = false;     // avoid re-recording think time
+let lastReasoningText = ""; // accumulated reasoning for delta decode
+let thinkOpen = false; // <think> shown but </think> not yet
+let _turnCat = ""; // category key captured at send time (stable for the whole turn)
+let lastPromptTokens = 0; // prompt token count from meta event (for prefill tok/s)
+let cotThinkStartTime = 0; // wall-clock when first think token arrives
+let lastThinkMs = 0; // elapsed ms for think phase (set when </think> detected)
+let cotThinkDone = false; // avoid re-recording think time
 /** @type {string|null} */
 let pendingExampleId = null;
 
@@ -510,8 +514,11 @@ let categorySystemPrompts = {};
 
 /** Return the active system prompt text (category-specific or global fallback). */
 function currentSysPrompt() {
-  const k = sysCatSelect && sysCatSelect.value ? String(sysCatSelect.value).trim() : "";
-  return (k && categorySystemPrompts[k]) ? String(categorySystemPrompts[k]) : globalSystemMarkdown;
+  const k =
+    sysCatSelect && sysCatSelect.value ? String(sysCatSelect.value).trim() : "";
+  return k && categorySystemPrompts[k]
+    ? String(categorySystemPrompts[k])
+    : globalSystemMarkdown;
 }
 
 /** @see cot_dataset/GUIDE.md — structured assistant output (tables, headings, lists, email blocks). */
@@ -686,8 +693,8 @@ function renderGuideMarkdown(text) {
       }
       out.push(
         "<ul>" +
-        items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
-        "</ul>"
+          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+          "</ul>"
       );
       continue;
     }
@@ -700,8 +707,8 @@ function renderGuideMarkdown(text) {
       }
       out.push(
         "<ol>" +
-        items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
-        "</ol>"
+          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+          "</ol>"
       );
       continue;
     }
@@ -769,15 +776,16 @@ function morphChildren(parent, newKids) {
  *  Handles streaming partial state: think content visible before </think> arrives. */
 function parseCot(raw) {
   const r = raw || "";
-  const thinkOpenIdx  = r.indexOf("<think>");
+  const thinkOpenIdx = r.indexOf("<think>");
   const thinkCloseIdx = r.indexOf("</think>");
-  const finalOpenIdx  = r.indexOf("<final>");
+  const finalOpenIdx = r.indexOf("<final>");
   const finalCloseIdx = r.indexOf("</final>");
-  const hasThinkOpen  = thinkOpenIdx  !== -1;
+  const hasThinkOpen = thinkOpenIdx !== -1;
   const hasThinkClose = thinkCloseIdx !== -1;
-  const hasFinalOpen  = finalOpenIdx  !== -1;
+  const hasFinalOpen = finalOpenIdx !== -1;
   const hasFinalClose = finalCloseIdx !== -1;
-  if (!hasThinkOpen && !hasThinkClose && !hasFinalOpen) return { hasCoT: false };
+  if (!hasThinkOpen && !hasThinkClose && !hasFinalOpen)
+    return { hasCoT: false };
 
   let thinkContent = "";
   if (hasThinkClose) {
@@ -798,8 +806,12 @@ function parseCot(raw) {
   }
 
   return {
-    hasCoT: true, thinkContent, finalContent,
-    hasThinkClose, hasFinalOpen, hasFinalClose,
+    hasCoT: true,
+    thinkContent,
+    finalContent,
+    hasThinkClose,
+    hasFinalOpen,
+    hasFinalClose,
     complete: hasThinkClose && (hasFinalClose || !hasFinalOpen),
   };
 }
@@ -871,7 +883,9 @@ function renderCotBody(raw, finalized) {
 
   // Final answer — flows naturally below think block
   if (cot.finalContent) {
-    html += `<div class="cot-final-body">${renderMd(cot.finalContent.trim())}</div>`;
+    html += `<div class="cot-final-body">${renderMd(
+      cot.finalContent.trim()
+    )}</div>`;
   }
 
   // Raw text dropdown — only when complete + finalized
@@ -949,8 +963,10 @@ function finalizeAssistantBody(bodyEl, raw) {
 // Render full email text through markdown, then wrap [placeholder] spans
 function _emailCardHtml(text) {
   const rendered = renderMd(text || "");
-  return rendered.replace(/\[([^\]<]+)\]/g,
-    '<span class="email-ph" data-ph="[$1]">[$1]</span>');
+  return rendered.replace(
+    /\[([^\]<]+)\]/g,
+    '<span class="email-ph" data-ph="[$1]">[$1]</span>'
+  );
 }
 
 function _buildChatEmailCard(fullText) {
@@ -976,34 +992,36 @@ function _buildChatEmailCard(fullText) {
 }
 
 function _wireChatEmailCard(cardEl) {
-  const editBtn  = cardEl.querySelector(".cec-edit-btn");
-  const editLbl  = cardEl.querySelector(".cec-edit-lbl");
-  const copyBtn  = cardEl.querySelector(".cec-copy-btn");
+  const editBtn = cardEl.querySelector(".cec-edit-btn");
+  const editLbl = cardEl.querySelector(".cec-edit-lbl");
+  const copyBtn = cardEl.querySelector(".cec-copy-btn");
   const sendBtn2 = cardEl.querySelector(".cec-send-btn");
-  const bodyEl2  = cardEl.querySelector(".cec-body");
+  const bodyEl2 = cardEl.querySelector(".cec-body");
   let editing = false;
 
-  function getPlain() { return (bodyEl2.innerText || bodyEl2.textContent || "").trim(); }
+  function getPlain() {
+    return (bodyEl2.innerText || bodyEl2.textContent || "").trim();
+  }
 
   function setEditMode(on) {
     editing = on;
     const phs = cardEl.querySelectorAll(".email-ph");
     if (on) {
       bodyEl2.setAttribute("contenteditable", "true");
-      phs.forEach(p => p.setAttribute("contenteditable", "true"));
+      phs.forEach((p) => p.setAttribute("contenteditable", "true"));
       editBtn.classList.add("cec-editing");
       editLbl.textContent = "Done";
       bodyEl2.focus();
     } else {
       bodyEl2.removeAttribute("contenteditable");
-      phs.forEach(p => p.removeAttribute("contenteditable"));
+      phs.forEach((p) => p.removeAttribute("contenteditable"));
       editBtn.classList.remove("cec-editing");
       editLbl.textContent = "Edit";
     }
   }
 
   // Click placeholder (edit mode) → select-all for instant replacement
-  cardEl.addEventListener("mousedown", e => {
+  cardEl.addEventListener("mousedown", (e) => {
     const ph = e.target.closest(".email-ph");
     if (!ph || !editing) return;
     if (document.activeElement === ph) return;
@@ -1016,24 +1034,31 @@ function _wireChatEmailCard(cardEl) {
     sel.addRange(range);
   });
 
-  cardEl.addEventListener("keydown", e => {
+  cardEl.addEventListener("keydown", (e) => {
     const ph = e.target.closest(".email-ph");
     if (!ph) return;
-    if (e.key === "Enter") { e.preventDefault(); ph.blur(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      ph.blur();
+    }
   });
 
-  cardEl.addEventListener("paste", e => {
+  cardEl.addEventListener("paste", (e) => {
     if (!e.target.closest(".email-ph")) return;
     e.preventDefault();
     const plain = e.clipboardData.getData("text/plain").replace(/\n/g, " ");
     document.execCommand("insertText", false, plain);
   });
 
-  cardEl.addEventListener("blur", e => {
-    const ph = e.target.closest(".email-ph");
-    if (!ph) return;
-    if (!ph.textContent.trim()) ph.textContent = ph.dataset.ph || "[…]";
-  }, true);
+  cardEl.addEventListener(
+    "blur",
+    (e) => {
+      const ph = e.target.closest(".email-ph");
+      if (!ph) return;
+      if (!ph.textContent.trim()) ph.textContent = ph.dataset.ph || "[…]";
+    },
+    true
+  );
 
   editBtn.addEventListener("click", () => setEditMode(!editing));
 
@@ -1042,16 +1067,20 @@ function _wireChatEmailCard(cardEl) {
       await navigator.clipboard.writeText(getPlain());
       copyBtn.classList.add("cec-copied");
       setTimeout(() => copyBtn.classList.remove("cec-copied"), 1800);
-    } catch { }
+    } catch {}
   });
 
   sendBtn2.addEventListener("click", () => {
     const body = getPlain();
     // Try to extract Subject line from the plain text
     const lines = body.split("\n");
-    const subjLine = lines.find(l => /^subject\s*:/i.test(l.trim()));
-    const subj = subjLine ? subjLine.replace(/^subject\s*:\s*/i, "").trim() : "";
-    const url = `https://mail.google.com/mail/u/0/?tf=cm&to=&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+    const subjLine = lines.find((l) => /^subject\s*:/i.test(l.trim()));
+    const subj = subjLine
+      ? subjLine.replace(/^subject\s*:\s*/i, "").trim()
+      : "";
+    const url = `https://mail.google.com/mail/u/0/?tf=cm&to=&su=${encodeURIComponent(
+      subj
+    )}&body=${encodeURIComponent(body)}`;
     window.open(url, "_blank", "noopener");
   });
 }
@@ -1062,7 +1091,10 @@ function injectEmailCard(bodyEl, streamText) {
   // Strip structural tags if no CoT parsed (fallback for raw stream without <think>)
   const finalText = cot.hasCoT
     ? (cot.finalContent || "").trim()
-    : (streamText || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/<\/?final>/g, "").trim();
+    : (streamText || "")
+        .replace(/<think>[\s\S]*?<\/think>/g, "")
+        .replace(/<\/?final>/g, "")
+        .trim();
   if (!finalText) return;
 
   const wrapper = document.createElement("div");
@@ -1159,8 +1191,8 @@ function renderStyleAndTools(constraints, tools) {
     if (c.default_voice) pills.push(c.default_voice);
     stylePanel.innerHTML = pills.length
       ? pills
-        .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
-        .join("")
+          .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
+          .join("")
       : '<span class="style-pill muted">no constraints declared</span>';
   }
   const toolList = document.getElementById("tool-registry");
@@ -1247,11 +1279,17 @@ async function loadDemoConfig() {
       sysCatSelect && sysCatSelect.value ? sysCatSelect.value : null
     );
     // Proactively show KV cost of the initial system prompt before any message.
-    window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: false });
+    window.PF?.reset(null, {
+      sys: currentSysPrompt(),
+      user: "",
+      history: [],
+      reasoning: false,
+    });
     renderStyleAndTools(j.style_constraints, j.tool_registry);
     renderSidebarCategories(j.categories);
     // Apply mode config for the initially selected category (falls back to CLI defaults).
-    const initialKey = sysCatSelect && sysCatSelect.value ? sysCatSelect.value : "";
+    const initialKey =
+      sysCatSelect && sysCatSelect.value ? sysCatSelect.value : "";
     if (initialKey && samplingModeConfigs[initialKey]) {
       applyModeConfig(initialKey);
     } else {
@@ -1378,14 +1416,16 @@ function applyMaxTokensCap(cap) {
 }
 
 // ── Token count preview card ──────────────────────────────────────
-const _tccCard  = document.getElementById("tok-count-card");
-const _tccUser  = document.getElementById("tcc-user");
+const _tccCard = document.getElementById("tok-count-card");
+const _tccUser = document.getElementById("tcc-user");
 const _tccTotal = document.getElementById("tcc-total");
-const _tccKv    = document.getElementById("tcc-kv");
+const _tccKv = document.getElementById("tcc-kv");
 
 // KV bytes per token (must match perf_float.js constants)
-const _KV_PER_TOK = 6 * 2 * 4 * 64 * 2;  // 6144 bytes
-function _kvMib(n) { return ((_KV_PER_TOK * n) / 1048576).toFixed(2) + " MiB"; }
+const _KV_PER_TOK = 6 * 2 * 4 * 64 * 2; // 6144 bytes
+function _kvMib(n) {
+  return ((_KV_PER_TOK * n) / 1048576).toFixed(2) + " MiB";
+}
 
 let _pfInputTimer = null;
 let _tccAbort = null;
@@ -1396,7 +1436,10 @@ function _hideTokCard() {
 
 function _fetchInputTokCount(userText) {
   if (_tccAbort) _tccAbort.abort();
-  if (!userText) { _hideTokCard(); return; }
+  if (!userText) {
+    _hideTokCard();
+    return;
+  }
   _tccAbort = new AbortController();
   fetch("/api/token_count", {
     method: "POST",
@@ -1412,11 +1455,11 @@ function _fetchInputTokCount(userText) {
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       if (!d || !_tccCard) return;
-      const ut = d.user_tokens  ?? 0;
+      const ut = d.user_tokens ?? 0;
       const tt = d.total_tokens ?? 0;
-      if (_tccUser)  _tccUser.textContent  = `${ut} tok`;
+      if (_tccUser) _tccUser.textContent = `${ut} tok`;
       if (_tccTotal) _tccTotal.textContent = `${tt} tok`;
-      if (_tccKv)    _tccKv.textContent    = _kvMib(tt);
+      if (_tccKv) _tccKv.textContent = _kvMib(tt);
       // Re-trigger enter animation by replacing element in place
       _tccCard.hidden = false;
     })
@@ -1427,7 +1470,9 @@ input.oninput = () => {
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 200) + "px";
   const txt = input.value.trim();
-  if (!txt) { _hideTokCard(); }
+  if (!txt) {
+    _hideTokCard();
+  }
   clearTimeout(_pfInputTimer);
   _pfInputTimer = setTimeout(() => {
     if (isGenerating) return;
@@ -1578,8 +1623,8 @@ function addToolRow(call, systemResult, phase) {
     : "";
   const injHtml = systemResult
     ? `<div class="tool-line tool-line-result"><div class="tool-sublabel">Injected back into the conversation</div>${renderControlBlock(
-      systemResult
-    )}</div>`
+        systemResult
+      )}</div>`
     : "";
   card.innerHTML =
     '<div class="tool-inner">' +
@@ -1639,14 +1684,19 @@ function addInjectBadge(obj, data) {
   const badge = document.createElement("div");
   badge.className = "mw-inject-badge";
   const what = String(data.what || "<final>")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
   const n = data.n_out != null ? "t=" + data.n_out : "";
-  const ms = data.inject_ms != null ? Number(data.inject_ms).toFixed(1) + "ms" : "";
+  const ms =
+    data.inject_ms != null ? Number(data.inject_ms).toFixed(1) + "ms" : "";
   const meta = [n, ms].filter(Boolean).join(" · ");
   badge.innerHTML =
     '<span class="mw-icon">⚡</span>' +
     '<span class="mw-label">mv injected</span>' +
-    "<code>" + what + "</code>" +
+    "<code>" +
+    what +
+    "</code>" +
     (meta ? '<span class="mw-meta">' + meta + "</span>" : "");
   obj.content.insertBefore(badge, obj.body);
   nudgeScroll();
@@ -1655,38 +1705,41 @@ function addInjectBadge(obj, data) {
 function addMetrics(obj, data) {
   const m = document.createElement("div");
   m.className = "msg-perf-bar";
-  const prefillMs  = Number(data.prefill_ms) || 0;
-  const totalMs    = Number(data.total_ms) || 0;
-  const decodeMs   = Math.max(0, totalMs - prefillMs);
-  const decodeTps  = Number(data.tok_s) || 0;
-  const totalTok   = Number(data.total_tokens) || 0;
-  const ttftMs     = Number(data.ttft_ms) || 0;
-  const ptok       = lastPromptTokens || 0;
-  const prefillTps = ptok > 0 && prefillMs > 0
-    ? (ptok / (prefillMs / 1000)).toFixed(0)
-    : null;
+  const prefillMs = Number(data.prefill_ms) || 0;
+  const totalMs = Number(data.total_ms) || 0;
+  const decodeMs = Math.max(0, totalMs - prefillMs);
+  const decodeTps = Number(data.tok_s) || 0;
+  const totalTok = Number(data.total_tokens) || 0;
+  const ttftMs = Number(data.ttft_ms) || 0;
+  const ptok = lastPromptTokens || 0;
+  const prefillTps =
+    ptok > 0 && prefillMs > 0 ? (ptok / (prefillMs / 1000)).toFixed(0) : null;
 
   const parts = [];
   if (prefillTps) {
     parts.push(
       `<span class="mpb-section">` +
-      `<span class="mpb-lbl">Prefill</span>` +
-      `<span class="mpb-nums">${prefillTps} tok/s · ${ptok} tok · ${prefillMs.toFixed(0)}ms</span>` +
-      `</span>`
+        `<span class="mpb-lbl">Prefill</span>` +
+        `<span class="mpb-nums">${prefillTps} tok/s · ${ptok} tok · ${prefillMs.toFixed(
+          0
+        )}ms</span>` +
+        `</span>`
     );
   }
   parts.push(
     `<span class="mpb-section">` +
-    `<span class="mpb-lbl">Decode</span>` +
-    `<span class="mpb-nums">${decodeTps.toFixed(1)} tok/s · ${totalTok} tok · ${decodeMs.toFixed(0)}ms</span>` +
-    `</span>`
+      `<span class="mpb-lbl">Decode</span>` +
+      `<span class="mpb-nums">${decodeTps.toFixed(
+        1
+      )} tok/s · ${totalTok} tok · ${decodeMs.toFixed(0)}ms</span>` +
+      `</span>`
   );
   if (ttftMs > 0) {
     parts.push(
       `<span class="mpb-section">` +
-      `<span class="mpb-lbl">TTFT</span>` +
-      `<span class="mpb-nums">${ttftMs.toFixed(0)}ms</span>` +
-      `</span>`
+        `<span class="mpb-lbl">TTFT</span>` +
+        `<span class="mpb-nums">${ttftMs.toFixed(0)}ms</span>` +
+        `</span>`
     );
   }
   m.innerHTML = parts.join('<span class="mpb-dot">·</span>');
@@ -1708,6 +1761,13 @@ function ensureReasoningBlock() {
 }
 
 function handleMsg(m) {
+  // Server may opportunistically merge bursts of streaming events into a
+  // single WS frame to reduce write/syscall overhead during decode.  Unwrap
+  // and dispatch each inner event as if it had arrived on its own.
+  if (m && m.type === "batch" && Array.isArray(m.events)) {
+    for (const ev of m.events) handleMsg(ev);
+    return;
+  }
   if (m.type === "connected" || m.type === "pong") return;
   if (m.type === "cleared") {
     turnCount = 0;
@@ -1740,7 +1800,10 @@ function handleMsg(m) {
       thinkOpen = true;
       streamText += "<think>\n";
       if (currentMsg) {
-        if (typingDots) { typingDots.remove(); typingDots = null; }
+        if (typingDots) {
+          typingDots.remove();
+          typingDots = null;
+        }
         currentMsg.body.classList.remove("markdown-streaming");
         currentMsg.body.classList.add("streaming");
         streamRenderInto(currentMsg.body, streamText);
@@ -1761,7 +1824,10 @@ function handleMsg(m) {
     }
     streamText += "<final>\n";
     if (currentMsg) {
-      if (typingDots) { typingDots.remove(); typingDots = null; }
+      if (typingDots) {
+        typingDots.remove();
+        typingDots = null;
+      }
       currentMsg.body.classList.remove("markdown-streaming");
       currentMsg.body.classList.add("streaming");
       streamRenderInto(currentMsg.body, streamText);
@@ -1776,7 +1842,12 @@ function handleMsg(m) {
   if (m.type === "intro_start") {
     inIntro = true;
     // Play-system-prompt has no meta event; trigger proactive token count now.
-    window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: false });
+    window.PF?.reset(null, {
+      sys: currentSysPrompt(),
+      user: "",
+      history: [],
+      reasoning: false,
+    });
     nudgeScroll();
     if (currentMsg) {
       if (typingDots) {
@@ -1807,8 +1878,13 @@ function handleMsg(m) {
     currentMsg = addRow("assistant", "");
     currentMsg.body.classList.add("streaming", "markdown-streaming");
     typingDots = addDots(currentMsg);
-    streamText = ""; lastReasoningText = ""; thinkOpen = false; lastPromptTokens = 0;
-    cotThinkStartTime = 0; lastThinkMs = 0; cotThinkDone = false;
+    streamText = "";
+    lastReasoningText = "";
+    thinkOpen = false;
+    lastPromptTokens = 0;
+    cotThinkStartTime = 0;
+    lastThinkMs = 0;
+    cotThinkDone = false;
     inIntro = false;
     nudgeScroll();
     return;
@@ -1844,7 +1920,8 @@ function handleMsg(m) {
     }
     // Track think-phase wall-clock time
     if (!cotThinkDone) {
-      if (!cotThinkStartTime && (m.text || "").trim()) cotThinkStartTime = Date.now();
+      if (!cotThinkStartTime && (m.text || "").trim())
+        cotThinkStartTime = Date.now();
       const willHaveClose = (streamText + m.text).includes("</think>");
       if (cotThinkStartTime && willHaveClose) {
         lastThinkMs = Date.now() - cotThinkStartTime;
@@ -1899,8 +1976,13 @@ function handleMsg(m) {
     if (mtr) mtr.textContent = turnCount;
     currentMsg = null;
     typingDots = null;
-    streamText = ""; lastReasoningText = ""; thinkOpen = false; lastPromptTokens = 0;
-    cotThinkStartTime = 0; lastThinkMs = 0; cotThinkDone = false;
+    streamText = "";
+    lastReasoningText = "";
+    thinkOpen = false;
+    lastPromptTokens = 0;
+    cotThinkStartTime = 0;
+    lastThinkMs = 0;
+    cotThinkDone = false;
     _turnCat = "";
     inIntro = false;
     isGenerating = false;
@@ -1921,7 +2003,9 @@ function playSystemPrompt() {
   if (sysCard && sysCard.open) sysCard.open = false;
   currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
-  streamText = ""; lastReasoningText = ""; thinkOpen = false;
+  streamText = "";
+  lastReasoningText = "";
+  thinkOpen = false;
   inIntro = false;
   ws.send(JSON.stringify({ action: "play_system_prompt", category_key: key }));
 }
@@ -1934,7 +2018,12 @@ btnPlaySys?.addEventListener("click", (e) => {
 
 sysCatSelect?.addEventListener("change", () => {
   applySysCardForCategory(sysCatSelect.value);
-  window.PF?.reset(null, { sys: currentSysPrompt(), user: '', history: [], reasoning: isReasoningOn() });
+  window.PF?.reset(null, {
+    sys: currentSysPrompt(),
+    user: "",
+    history: [],
+    reasoning: isReasoningOn(),
+  });
   // Apply mode-specific sampling defaults when category switches.
   applyModeConfig(sysCatSelect.value);
 });
@@ -1953,8 +2042,10 @@ function doSend() {
   addRow("user", t);
   currentMsg = addRow("assistant", "");
   typingDots = addDots(currentMsg);
-  streamText = ""; lastReasoningText = ""; thinkOpen = false;
-  _turnCat = (sysCatSelect && sysCatSelect.value) ? sysCatSelect.value : "";
+  streamText = "";
+  lastReasoningText = "";
+  thinkOpen = false;
+  _turnCat = sysCatSelect && sysCatSelect.value ? sysCatSelect.value : "";
   inIntro = false;
   forceFollow();
   const payload = {
