@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>MambaPet</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.mamba3.desktoppet</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <!-- Embedded into the binary via -sectcreate so macOS TCC will actually
+       prompt for these permissions even though this is not a .app bundle. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Mamba desktop pet uses the microphone so you can talk to it.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Mamba desktop pet uses speech recognition to understand what you say.</string>
+  <!-- Agent app: no Dock icon. -->
+  <key>LSUIElement</key>
+  <true/>
+</dict>
+</plist>

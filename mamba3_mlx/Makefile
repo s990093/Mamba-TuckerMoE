@@ -288,6 +288,10 @@ PROFILER_PORT ?= 8765
 profiler:
 	cd $(REPO) && $(PYTHON) -m mamba3_mlx.profiler.server --port $(PROFILER_PORT)
 
+## pet: launch the transparent desktop pet (connects to `make chat` on :$CHAT_PORT)
+pet:
+	PORT=$(CHAT_PORT) PYTHON=$(PYTHON) $(ROOT)/ui/desktop_pet/run.sh $(PET_EXTRA)
+
 ## profiler-kill: terminate profiler bound to $PROFILER_PORT
 profiler-kill:
 	@pid="$$(lsof -ti tcp:$(PROFILER_PORT) 2>/dev/null)"; \

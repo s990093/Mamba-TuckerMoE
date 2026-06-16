@@ -23,6 +23,59 @@
     />
     <link rel="stylesheet" href="/static/styles/eyes.css" />
     <link rel="stylesheet" href="/static/styles/perf_float.css" />
+    <!-- Desktop-pet mode: ?pet=1 strips background so only the mascot shows.
+         Added to <html> immediately to avoid a white/dark flash before paint. -->
+    <script>
+      (function () {
+        if (!new URLSearchParams(location.search).has("pet")) return;
+        document.documentElement.classList.add("pet");
+
+        // Continuous eye-to-cursor gaze, driven by the native wrapper.
+        // nx, ny are normalised direction (-1..1) from the eyes to the cursor;
+        // the wrapper polls the global desktop cursor and calls this each frame.
+        var MAX = 7.0; // px of iris drift at full deflection (more visible)
+        window.petLookAt = function (nx, ny) {
+          var s = document.documentElement.style;
+          s.setProperty("--gaze-x", (nx * MAX).toFixed(2) + "px");
+          s.setProperty("--gaze-y", (ny * MAX).toFixed(2) + "px");
+        };
+
+        // "Being picked up" feedback — the wrapper calls this on drag start/end.
+        window.petDragging = function (on) {
+          document.body.classList.toggle("dragging", !!on);
+        };
+
+        document.addEventListener("DOMContentLoaded", function () {
+          document.body.classList.add("pet");
+          // Disable the built-in random gaze so it doesn't fight cursor tracking.
+          var mt = document.getElementById("set-mousetrack");
+          if (mt && mt.checked) {
+            mt.checked = false;
+            mt.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+
+          // Stable chat path: type to the pet (voice STT is unreliable in
+          // WKWebView). Enter sends via the exposed sendPrompt(); the reply is
+          // spoken (TTS) and shown in the subtitle bubble.
+          var bar = document.createElement("div");
+          bar.id = "pet-chat-bar";
+          var inp = document.createElement("input");
+          inp.id = "pet-chat-input";
+          inp.type = "text";
+          inp.placeholder = "Say something… (Enter)";
+          inp.autocomplete = "off";
+          bar.appendChild(inp);
+          document.body.appendChild(bar);
+          inp.addEventListener("keydown", function (e) {
+            e.stopPropagation(); // don't trigger pet shortcuts while typing
+            if (e.key === "Enter" && inp.value.trim() && window.sendPrompt) {
+              window.sendPrompt(inp.value.trim());
+              inp.value = "";
+            }
+          });
+        });
+      })();
+    </script>
   </head>
   <body>
     <div class="scene" id="scene">

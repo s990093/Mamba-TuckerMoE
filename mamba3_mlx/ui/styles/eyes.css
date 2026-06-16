@@ -3081,3 +3081,140 @@ body {
   border-bottom: 1px solid rgba(235, 165, 78, 0.75);
   border-radius: 3px 3px 0 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Desktop-pet mode (?pet=1)
+   Transparent background, character + speech only. Everything that
+   is window chrome (hints, controls, hud, status, connection dot)
+   is hidden so the mascot floats directly on the macOS desktop.
+   ═══════════════════════════════════════════════════════════════ */
+html.pet,
+html.pet body,
+body.pet,
+body.pet .scene {
+  background: transparent !important;
+}
+
+body.pet .scene::before,
+body.pet .scene::after {
+  background: transparent !important;
+}
+
+/* Hide ambient chrome, but KEEP .top-controls (gear / persona / character
+   buttons) and #settings-panel so settings stay visible & usable on the pet. */
+body.pet .bg-glow,
+body.pet .status-area,
+body.pet #tars-hud,
+body.pet .email-card,
+body.pet .hint-area,
+body.pet .shortcuts-overlay,
+body.pet .ws-dot {
+  display: none !important;
+}
+
+/* The mascot + interactive controls need clicks even though .scene is
+   pointer-events:none for desktop click-through. */
+body.pet .top-controls,
+body.pet #settings-panel,
+body.pet #sys-menu {
+  pointer-events: auto;
+}
+
+/* Let mouse clicks fall through empty areas to whatever is behind the
+   pet window; the mascot itself re-enables pointer events below. */
+body.pet .scene {
+  pointer-events: none;
+}
+body.pet .eyes-stage,
+body.pet .subtitle,
+body.pet .tars-ch-final {
+  pointer-events: auto;
+}
+
+/* Show the chain-of-thought reasoning while the pet thinks (it fades when the
+   final answer starts). TTS still speaks <final> only — the panel is visual. */
+body.pet #cot-stream {
+  pointer-events: auto;
+}
+
+/* Final answer bubble sits above the chat input, like a VTuber overlay.
+   Gets a translucent dark backdrop so the text stays readable over any
+   desktop wallpaper. */
+body.pet .subtitle,
+body.pet .tars-ch-final {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  max-width: 90vw;
+  text-align: center;
+  padding: 9px 16px;
+  border-radius: 14px;
+  background: rgba(14, 11, 9, 0.74);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: rgba(245, 238, 230, 0.97);
+}
+/* Hide the empty bubble until there is text to show */
+body.pet .subtitle:empty,
+body.pet .tars-ch-final:empty {
+  display: none;
+}
+
+/* Continuous eye-to-cursor tracking — the native wrapper sets --gaze-x/y via
+   window.petLookAt(). Scoped to the idle eye group, which is what shows while
+   the pet sits on the desktop. */
+body.pet .m-eyes-idle {
+  transform: translate(var(--gaze-x, 0px), var(--gaze-y, 0px));
+  transition: transform 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Text chat bar (injected in pet mode) */
+body.pet #pet-chat-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(86vw, 320px);
+  z-index: 50;
+  pointer-events: auto;
+}
+body.pet #pet-chat-input {
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 112, 80, 0.4);
+  background: rgba(20, 16, 13, 0.72);
+  color: rgba(236, 227, 216, 0.92);
+  font-family: var(--font-body);
+  font-size: 15px;
+  outline: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+body.pet #pet-chat-input::placeholder {
+  color: rgba(236, 227, 216, 0.4);
+}
+
+/* "Being picked up" feedback while dragging — grab cursor + a lively wobble so
+   the pet clearly reacts to being carried around. */
+body.pet.dragging,
+body.pet.dragging .eyes-stage {
+  cursor: grabbing;
+}
+@keyframes petWobble {
+  0%   { transform: scale(1.1) rotate(-7deg); }
+  25%  { transform: scale(1.1) rotate(6deg); }
+  50%  { transform: scale(1.1) rotate(-5deg); }
+  75%  { transform: scale(1.1) rotate(4deg); }
+  100% { transform: scale(1.1) rotate(-7deg); }
+}
+body.pet.dragging .eyes-stage {
+  animation: petWobble 0.42s ease-in-out infinite;
+  filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.42));
+  transform-origin: 50% 78%; /* pivot near the body, swings from the bottom */
+}
+body.pet .eyes-stage {
+  transition: transform 0.18s var(--ease-eye);
+}

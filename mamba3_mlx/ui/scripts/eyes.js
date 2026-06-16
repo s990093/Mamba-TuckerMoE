@@ -1206,6 +1206,8 @@ function sendPrompt(text) {
   }
   _doSend(text);
 }
+// Exposed so the desktop-pet text bar (and native wrapper) can send a turn.
+window.sendPrompt = sendPrompt;
 
 function _doSend(text) {
   setState('processing');

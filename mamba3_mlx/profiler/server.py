@@ -61,7 +61,14 @@ if _UI_DIR.is_dir():
 
 @app.get("/")
 async def index() -> HTMLResponse:
-    html = (_UI_DIR / "profiler.html").read_text(encoding="utf-8")
+    html = (_UI_DIR / "templates" / "profiler.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
+
+
+@app.get("/eyes")
+async def eyes() -> HTMLResponse:
+    """Mascot page. Append ?pet=1 for transparent desktop-pet mode."""
+    html = (_UI_DIR / "templates" / "eyes.html").read_text(encoding="utf-8")
     return HTMLResponse(html)
 
 

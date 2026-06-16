@@ -1,0 +1,374 @@
+// DesktopPet.swift — macOS transparent always-on-top wrapper for the Mamba mascot.
+//
+// Wraps the existing eyes page (served by the profiler FastAPI server) in a
+// borderless, transparent, floating WKWebView so the SVG mascot sits directly
+// on the desktop like a VTuber overlay — no window, no background.
+//
+// Build & run (see run.sh) — needs `make chat` running first (serves :7860).
+// Info.plist is embedded so macOS prompts for microphone access:
+//   swiftc DesktopPet.swift -o pet -framework Cocoa -framework WebKit \
+//     -framework AVFoundation \
+//     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker Info.plist
+//   ./pet                       # loads http://127.0.0.1:7860/eyes?pet=1
+//
+// Controls:
+//   drag anywhere    move the pet (a plain click still reaches the page)
+//   menu bar 🐍 icon  Track cursor · Switch character · Click-through · Reload · Quit
+//   the mascot's eyes follow the desktop cursor in real time
+//
+import Cocoa
+import WebKit
+import AVFoundation
+
+// MARK: - Borderless window with threshold-based free dragging
+//
+// A WKWebView covers the whole window, so we can't rely on
+// isMovableByWindowBackground. Instead we watch the mouse at the window level:
+// a press that moves past a small threshold becomes a window drag; a press that
+// is released in place stays a normal click and reaches the web page.
+
+final class PetWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+
+    var onDragChange: ((Bool) -> Void)?
+
+    private var downMouse: NSPoint?
+    private var downOrigin: NSPoint?
+    private var dragging = false
+
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown:
+            downMouse = NSEvent.mouseLocation
+            downOrigin = frame.origin
+            dragging = false
+            // Take focus so the page can monitor keys (e.g. hold-Space to talk)
+            // only once you've clicked into the pet window.
+            if !isKeyWindow {
+                NSApp.activate(ignoringOtherApps: true)
+                makeKeyAndOrderFront(nil)
+            }
+            super.sendEvent(event)
+        case .leftMouseDragged:
+            guard let dm = downMouse, let orig = downOrigin else {
+                super.sendEvent(event); return
+            }
+            let cur = NSEvent.mouseLocation
+            let dx = cur.x - dm.x, dy = cur.y - dm.y
+            if !dragging && (dx * dx + dy * dy) > 9 {     // ~3px slop
+                dragging = true
+                onDragChange?(true)                       // "picked up" feedback
+            }
+            if dragging {
+                setFrameOrigin(NSPoint(x: orig.x + dx, y: orig.y + dy))
+                return // consume: don't forward drags into the page
+            }
+            super.sendEvent(event)
+        case .leftMouseUp:
+            let wasDragging = dragging
+            downMouse = nil; downOrigin = nil; dragging = false
+            if wasDragging { onDragChange?(false); return } // swallow the up
+            super.sendEvent(event)
+        default:
+            super.sendEvent(event)
+        }
+    }
+}
+
+// MARK: - App
+
+// Timestamped stdout logging so the `make pet` terminal shows what's happening.
+func plog(_ s: String) {
+    let t = ISO8601DateFormatter().string(from: Date())
+    print("[pet \(t.suffix(13).prefix(8))] \(s)")
+    fflush(stdout)
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    var window: PetWindow!
+    var webView: WKWebView!
+    var statusItem: NSStatusItem!
+    var gazeTimer: Timer?
+
+    var trackingEnabled = true
+    var clickThrough = false
+    var currentChar = "eyes"
+
+    let url: URL
+    let size: NSSize
+
+    init(url: URL, size: NSSize) {
+        self.url = url
+        self.size = size
+    }
+
+    func applicationDidFinishLaunching(_ note: Notification) {
+        requestMicrophone() // trigger the TCC prompt up front, before the page asks
+
+        let cfg = WKWebViewConfiguration()
+        // Bridge the page's console.log/warn/error (and uncaught errors) to the
+        // terminal so chat / WebSocket activity is visible for debugging.
+        let ucc = WKUserContentController()
+        ucc.add(self, name: "petlog")
+        let bridge = """
+        (function () {
+          function send(level, args) {
+            try {
+              window.webkit.messageHandlers.petlog.postMessage(
+                level + ": " + Array.from(args).map(function (a) {
+                  try { return typeof a === "object" ? JSON.stringify(a) : String(a); }
+                  catch (e) { return String(a); }
+                }).join(" "));
+            } catch (e) {}
+          }
+          ["log", "warn", "error", "info"].forEach(function (k) {
+            var orig = console[k] ? console[k].bind(console) : function () {};
+            console[k] = function () { send(k, arguments); orig.apply(console, arguments); };
+          });
+          window.addEventListener("error", function (e) { send("error", [e.message]); });
+          window.addEventListener("unhandledrejection", function (e) { send("error", ["promise: " + e.reason]); });
+        })();
+        """
+        ucc.addUserScript(WKUserScript(source: bridge, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+        cfg.userContentController = ucc
+
+        plog("launch → \(url.absoluteString)  size \(Int(size.width))x\(Int(size.height))")
+        webView = WKWebView(frame: NSRect(origin: .zero, size: size), configuration: cfg)
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        webView.autoresizingMask = [.width, .height] // follow window on zoom
+        webView.setValue(false, forKey: "drawsBackground") // private but stable
+        if #available(macOS 12.0, *) { webView.underPageBackgroundColor = .clear }
+        webView.load(URLRequest(url: url))
+
+        window = PetWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        window.ignoresMouseEvents = false
+        window.contentView = webView
+        window.onDragChange = { [weak self] on in
+            plog(on ? "drag start" : "drag end")
+            self?.webView.evaluateJavaScript(
+                "window.petDragging&&window.petDragging(\(on))", completionHandler: nil)
+        }
+
+        positionBottomRight()
+        window.makeKeyAndOrderFront(nil)
+
+        setupStatusItem()
+        startGazeTracking()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // Ask for microphone access at startup. Needs NSMicrophoneUsageDescription
+    // in the embedded Info.plist (see run.sh -sectcreate) or macOS denies it
+    // silently and the page's getUserMedia / mic level never starts.
+    func requestMicrophone() {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            plog("mic: already authorized")
+        case .notDetermined:
+            plog("mic: requesting permission…")
+            AVCaptureDevice.requestAccess(for: .audio) { ok in
+                plog("mic: permission \(ok ? "granted ✓" : "DENIED")")
+            }
+        case .denied, .restricted:
+            plog("mic: DENIED — enable in System Settings ▸ Privacy ▸ Microphone")
+        @unknown default:
+            break
+        }
+    }
+
+    func positionBottomRight() {
+        guard let screen = NSScreen.main else { return }
+        let vf = screen.visibleFrame
+        let margin: CGFloat = 24
+        window.setFrameOrigin(NSPoint(x: vf.maxX - size.width - margin,
+                                      y: vf.minY + margin))
+    }
+
+    // MARK: Eye-to-cursor tracking
+    //
+    // Poll the global desktop cursor (~30fps) and feed a normalised direction to
+    // the page. No accessibility permission needed — NSEvent.mouseLocation is a
+    // plain class property.
+
+    func startGazeTracking() {
+        gazeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            self?.updateGaze()
+        }
+    }
+
+    func updateGaze() {
+        guard trackingEnabled, webView != nil else { return }
+        let mouse = NSEvent.mouseLocation                 // screen coords, y up
+        let f = window.frame
+        let eyeX = f.midX
+        let eyeY = f.minY + f.height * 0.62               // eyes sit in upper area
+        let radius = 190.0                                // smaller → eyes deflect sooner / more
+        var nx = Double(mouse.x - eyeX) / radius
+        var ny = Double(mouse.y - eyeY) / radius
+        nx = max(-1, min(1, nx))
+        ny = max(-1, min(1, ny))
+        let cssY = -ny                                    // CSS y is top-down
+        webView.evaluateJavaScript(
+            "window.petLookAt&&window.petLookAt(\(nx),\(cssY))", completionHandler: nil)
+    }
+
+    // MARK: Menu bar (no Dock icon — this is settings + how you quit)
+
+    func setupStatusItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.button?.title = "🐍"
+        let menu = NSMenu()
+
+        let track = item("Track cursor", #selector(toggleTracking)); track.state = .on
+        menu.addItem(track)
+        menu.addItem(item("Switch character", #selector(switchCharacter), key: "x"))
+        menu.addItem(item("Switch persona (system prompt)", #selector(switchPersona), key: "c"))
+        menu.addItem(.separator())
+        menu.addItem(item("Bigger", #selector(bigger), key: "="))
+        menu.addItem(item("Smaller", #selector(smaller), key: "-"))
+        let ct = item("Click-through", #selector(toggleClickThrough)); ct.state = .off
+        menu.addItem(ct)
+        menu.addItem(item("Reset settings", #selector(resetSettings)))
+        menu.addItem(.separator())
+        menu.addItem(item("Reload", #selector(reload), key: "r"))
+        menu.addItem(NSMenuItem(title: "Quit Pet",
+                                action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        statusItem.menu = menu
+    }
+
+    private func item(_ title: String, _ sel: Selector, key: String = "") -> NSMenuItem {
+        let it = NSMenuItem(title: title, action: sel, keyEquivalent: key)
+        it.target = self
+        return it
+    }
+
+    @objc func toggleTracking(_ sender: NSMenuItem) {
+        trackingEnabled.toggle()
+        sender.state = trackingEnabled ? .on : .off
+        plog("track cursor → \(trackingEnabled ? "on" : "off")")
+        if !trackingEnabled {
+            webView.evaluateJavaScript("window.petLookAt&&window.petLookAt(0,0)")
+        }
+    }
+
+    @objc func toggleClickThrough(_ sender: NSMenuItem) {
+        clickThrough.toggle()
+        window.ignoresMouseEvents = clickThrough
+        sender.state = clickThrough ? .on : .off
+        plog("click-through → \(clickThrough ? "on" : "off")")
+    }
+
+    // Drive the page's own (hidden) character switch + reset buttons by clicking
+    // them — the page functions are module-scoped, but the DOM controls aren't.
+    @objc func switchCharacter() {
+        currentChar = (currentChar == "eyes") ? "tars" : "eyes"
+        plog("switch character → \(currentChar)")
+        webView.evaluateJavaScript(
+            "var b=document.querySelector('[data-char=\"\(currentChar)\"]');b&&b.click();")
+    }
+
+    // Cycle the model's system prompt / category — the page binds this to 'c'.
+    @objc func switchPersona() {
+        plog("switch persona (key c)")
+        webView.evaluateJavaScript(
+            "document.dispatchEvent(new KeyboardEvent('keydown',{key:'c',bubbles:true}));")
+    }
+
+    @objc func resetSettings() {
+        plog("reset settings")
+        webView.evaluateJavaScript("var b=document.getElementById('set-reset');b&&b.click();")
+    }
+
+    @objc func bigger() { zoom(1.15) }
+    @objc func smaller() { zoom(1.0 / 1.15) }
+
+    private var pageZoom: CGFloat = 1.0
+
+    // Enlarge the *whole pet*: grow the window AND scale the page content (the
+    // character is fixed-size, so resizing the window alone left it the same).
+    private func zoom(_ k: CGFloat) {
+        pageZoom = min(2.6, max(0.6, pageZoom * k))
+        var f = window.frame
+        let cx = f.midX, cy = f.midY
+        let w = min(900, max(220, f.width * k))
+        let h = min(1100, max(260, f.height * k))
+        f.size = NSSize(width: w, height: h)
+        f.origin = NSPoint(x: cx - w / 2, y: cy - h / 2)
+        window.setFrame(f, display: true, animate: true)
+        webView.evaluateJavaScript("document.documentElement.style.zoom='\(pageZoom)';")
+        plog("zoom → window \(Int(w))x\(Int(h)) · content @\(String(format: "%.2f", pageZoom))×")
+    }
+
+    @objc func reload() { plog("reload"); webView.reload() }
+
+    // MARK: Page console / errors → terminal
+
+    func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "petlog" { plog("[page] \(message.body)") }
+    }
+
+    // Grant in-page mic capture so voice features can work (TTS always works;
+    // note that webkitSpeechRecognition itself is unreliable inside WKWebView).
+    @available(macOS 12.0, *)
+    func webView(_ webView: WKWebView,
+                 requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                 initiatedByFrame frame: WKFrameInfo,
+                 type: WKMediaCaptureType,
+                 decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+        decisionHandler(.grant)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        plog("page loaded ✓ \(webView.url?.absoluteString ?? "")")
+        webView.evaluateJavaScript(
+            "document.documentElement.style.background='transparent';" +
+            "document.body.style.background='transparent';")
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        plog("page load FAILED: \(error.localizedDescription)")
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        plog("page load FAILED (provisional): \(error.localizedDescription)")
+    }
+}
+
+// MARK: - Args
+
+func parseArgs() -> (URL, NSSize) {
+    var urlStr = "http://127.0.0.1:7860/eyes?pet=1" // chat_demo (make chat) — real model /ws
+    var w: CGFloat = 360, h: CGFloat = 440
+    var it = CommandLine.arguments.dropFirst().makeIterator()
+    while let a = it.next() {
+        switch a {
+        case "--url": if let v = it.next() { urlStr = v }
+        case "--width": if let v = it.next(), let n = Double(v) { w = CGFloat(n) }
+        case "--height": if let v = it.next(), let n = Double(v) { h = CGFloat(n) }
+        default: break
+        }
+    }
+    guard let url = URL(string: urlStr) else {
+        FileHandle.standardError.write(Data("Invalid --url\n".utf8)); exit(1)
+    }
+    return (url, NSSize(width: w, height: h))
+}
+
+let (petURL, petSize) = parseArgs()
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory) // no Dock icon, no app menu
+let delegate = AppDelegate(url: petURL, size: petSize)
+app.delegate = delegate
+app.run()
