@@ -50,7 +50,7 @@ ui/desktop_pet/run.sh --width 360 --height 440
 
 | 鈕 | 功能 |
 | --- | --- |
-| ⚙ 齒輪 | 開設定面板（語音 rate / pitch、maxTokens、mouseTrack…） |
+| ⚙ 齒輪 | 開設定面板（最上方 **Pet size −/＋ 放大縮小整隻寵物**、語音 rate / pitch、maxTokens、mouseTrack…） |
 | persona 鈕（顯示目前 category，如 `daily`） | 點開選單切換 **system prompt** |
 | 角色鈕 | 切換 `eyes` ↔ `tars` |
 | 底部文字框 | 打字 Enter 送給模型，回覆會用 TTS 唸出來＋字幕泡泡 |
@@ -90,6 +90,16 @@ ui/desktop_pet/run.sh --width 360 --height 440
 - **麥克風權限**：Swift 已自動 grant 頁面麥克風請求，但 `swiftc` 直接編的裸執行檔沒有 `Info.plist` 的 `NSMicrophoneUsageDescription`，系統層 TCC 仍可能擋。真要做語音輸入，需打包成 `.app` + Info.plist，或接原生 `SFSpeechRecognizer` 餵字給 `sendPrompt`。
 
 ---
+
+## Email 特化功能
+
+切到 **email persona**（persona 鈕循環到 `email_summary`）後請它寫/整理信，寵物會把結果渲染成一張 **email 草稿卡**（主旨＋內文）而非一般字幕，並可：
+
+- **Edit**：直接編輯內文，`[佔位符]` 會highlight成可填欄位
+- **Copy**：複製整封信到剪貼簿
+- **Send**：開啟 Gmail 撰寫頁——在桌面寵物上會用**系統預設瀏覽器**開（WKWebView 不能自開新視窗，已由原生端導向）
+
+卡片尺寸/位置已針對寵物小視窗適配；草稿卡出現時字幕自動讓位。
 
 ## 視窗特性（為什麼能「貼在桌面」）
 

@@ -111,6 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         // terminal so chat / WebSocket activity is visible for debugging.
         let ucc = WKUserContentController()
         ucc.add(self, name: "petlog")
+        ucc.add(self, name: "petzoom") // settings-panel "Pet size" buttons
         let bridge = """
         (function () {
           function send(level, args) {
@@ -316,7 +317,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // MARK: Page console / errors → terminal
 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "petlog" { plog("[page] \(message.body)") }
+        switch message.name {
+        case "petlog":
+            plog("[page] \(message.body)")
+        case "petzoom":
+            let dir = (message.body as? String) ?? ""
+            plog("pet size button → \(dir)")
+            zoom(dir == "in" ? 1.15 : 1.0 / 1.15)
+        default:
+            break
+        }
     }
 
     // Grant in-page mic capture so voice features can work (TTS always works;
@@ -328,6 +338,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                  type: WKMediaCaptureType,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) {
         decisionHandler(.grant)
+    }
+
+    // The email "Send" button does window.open(gmail compose). WKWebView drops
+    // new windows by default, so open the URL in the user's real browser.
+    func webView(_ webView: WKWebView,
+                 createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction,
+                 windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url {
+            plog("open in browser → \(url.absoluteString)")
+            NSWorkspace.shared.open(url)
+        }
+        return nil
+    }
+
+    // Keep the pet on its own page: any external (non-localhost) link the page
+    // tries to navigate to opens in the default browser instead.
+    func webView(_ webView: WKWebView,
+                 decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if navigationAction.navigationType == .linkActivated,
+           let url = navigationAction.request.url,
+           let host = url.host, host != "127.0.0.1", host != "localhost" {
+            plog("external link → browser: \(url.absoluteString)")
+            NSWorkspace.shared.open(url)
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

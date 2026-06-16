@@ -865,7 +865,16 @@ function synthResumePump() {
   _synthResumeT = setInterval(() => { if (synth.speaking) synth.resume(); }, 12_000);
 }
 
+// Desktop-pet email mode: when the draft is an email (email_summary persona,
+// or the output is detected to start with "Subject:"), show it as a silent
+// popup card instead of speaking it aloud.
+function _petEmailMode() {
+  return document.body.classList.contains('pet') &&
+    (_activeCat === 'email_summary' || /^\s*subject\s*:/i.test(_emailFinalBuf || ''));
+}
+
 function ttsAccum(chunk) {
+  if (_petEmailMode()) return; // email draft → popup card, no speech
   _ttsBuf += chunk;
   let m;
   while ((m = CFG.ttsBreak.exec(_ttsBuf)) !== null) {

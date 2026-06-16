@@ -73,6 +73,27 @@
               inp.value = "";
             }
           });
+
+          // "Pet size" control inside the settings (gear) panel — asks the
+          // native wrapper to grow/shrink the whole pet (window + page zoom).
+          var panel = document.getElementById("settings-panel");
+          if (panel) {
+            var row = document.createElement("div");
+            row.className = "pet-size-row";
+            row.innerHTML =
+              '<span class="pet-size-lbl">Pet size</span>' +
+              '<button type="button" class="pet-size-btn" data-z="out" title="Smaller">−</button>' +
+              '<button type="button" class="pet-size-btn" data-z="in" title="Bigger">+</button>';
+            panel.insertBefore(row, panel.firstChild);
+            row.querySelectorAll(".pet-size-btn").forEach(function (b) {
+              b.addEventListener("click", function (e) {
+                e.stopPropagation();
+                try {
+                  window.webkit.messageHandlers.petzoom.postMessage(b.dataset.z);
+                } catch (_) {}
+              });
+            });
+          }
         });
       })();
     </script>

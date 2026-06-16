@@ -3105,7 +3105,6 @@ body.pet .scene::after {
 body.pet .bg-glow,
 body.pet .status-area,
 body.pet #tars-hud,
-body.pet .email-card,
 body.pet .hint-area,
 body.pet .shortcuts-overlay,
 body.pet .ws-dot {
@@ -3195,6 +3194,66 @@ body.pet #pet-chat-input {
 }
 body.pet #pet-chat-input::placeholder {
   color: rgba(236, 227, 216, 0.4);
+}
+
+/* "Pet size" control injected at the top of the settings panel */
+body.pet .pet-size-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+body.pet .pet-size-lbl {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(236, 227, 216, 0.7);
+}
+body.pet .pet-size-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(200, 112, 80, 0.4);
+  background: rgba(40, 30, 24, 0.6);
+  color: rgba(245, 238, 230, 0.95);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+body.pet .pet-size-btn:hover {
+  background: rgba(200, 112, 80, 0.28);
+}
+
+/* Email-summary special feature — the formatted draft card (subject/body +
+   Edit/Copy/Send) adapted to the small pet window. The card already carries
+   its own translucent backdrop; here we just fit it and clear the chat bar.
+   "Send" opens Gmail compose in the real browser (handled natively). */
+body.pet .email-card {
+  width: min(92vw, 360px);
+  max-height: 78vh;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -46%); /* centered modal popup */
+  z-index: 60;
+}
+body.pet .email-card.visible {
+  transform: translate(-50%, -50%);
+}
+/* Dim backdrop behind the popup → modal feel (clicks fall through). */
+body.pet .scene:has(.email-card.visible)::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 55;
+  pointer-events: none;
+}
+/* While the draft card is up, drop the live subtitle so they don't stack
+   (order-independent — subtitle sits before the card in the DOM). */
+body.pet .scene:has(.email-card.visible) .subtitle,
+body.pet .scene:has(.email-card.visible) #cot-stream {
+  display: none !important;
 }
 
 /* "Being picked up" feedback while dragging — grab cursor + a lively wobble so
