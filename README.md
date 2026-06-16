@@ -14,8 +14,8 @@
 
 Hung-Wei Lai · Hsin-An Lan · Chun-Ming Hsu · Yu-Han Lu
 
-*Department of Computer Science and Information Engineering,*
-*National Kaohsiung University of Science and Technology, Taiwan*
+_Department of Computer Science and Information Engineering,_
+_National Kaohsiung University of Science and Technology, Taiwan_
 
 </div>
 
@@ -50,12 +50,12 @@ $$\boxed{\mathcal{W}_{e,i,j} = \sum_{a=1}^{r_1}\sum_{b=1}^{r_3}\sum_{c=1}^{r_2} 
 
 In compact Tucker notation: $\mathcal{W} = \mathcal{G} \times_1 U_{\text{expert}} \times_2 U_{\text{in}} \times_3 U_{\text{out}}^\top$
 
-| Factor | Shape | Value | Grows with $E$? |
-|---|---|---|:---:|
-| $U_{\text{expert}}$ | $E \times r_1$ | $r_1 = 4$ | ✅ only this one |
-| $U_{\text{in}}$ | $d_{\text{in}} \times r_3$ | $r_3 = 256$ | ✗ shared |
-| $\mathcal{G}$ (core) | $r_1 \times r_3 \times r_2$ | — | ✗ shared |
-| $U_{\text{out}}$ | $r_2 \times d_{\text{out}}$ | $r_2 = 1024$ | ✗ shared |
+| Factor               | Shape                       | Value        | Grows with $E$?  |
+| -------------------- | --------------------------- | ------------ | :--------------: |
+| $U_{\text{expert}}$  | $E \times r_1$              | $r_1 = 4$    | ✅ only this one |
+| $U_{\text{in}}$      | $d_{\text{in}} \times r_3$  | $r_3 = 256$  |     ✗ shared     |
+| $\mathcal{G}$ (core) | $r_1 \times r_3 \times r_2$ | —            |     ✗ shared     |
+| $U_{\text{out}}$     | $r_2 \times d_{\text{out}}$ | $r_2 = 1024$ |     ✗ shared     |
 
 **Adding one expert costs only $r_1 = 4$ new parameters** instead of 3.5M:
 
@@ -63,13 +63,13 @@ $$\frac{\partial P_{\text{dense}}}{\partial E} = d_{\text{in}} \cdot d_{\text{ou
 
 ### Why This Works — Five Key Properties
 
-| Property | What it means |
-|---|---|
-| **Completeness** | Tucker at full rank is an *exact* re-expression — zero loss before truncation (any tensor has a HOSVD) |
-| **Controlled truncation** | Error bounded by $\sum_n \sum_{i > r_n} \sigma_i^{(n)2}$ of dropped singular values — tensor analogue of Eckart–Young |
-| **Cross-expert sharing** | $U_{\text{in}},\ \mathcal{G},\ U_{\text{out}}$ shared; experts differ *only* via their $r_1$-dim row in $U_{\text{expert}}$ |
-| **Not a single linear map** | $\text{RMSNorm} + \text{softmax} + \text{top-}k$ make the layer **input-conditional piecewise nonlinear** — does not collapse to one matrix |
-| **From-scratch trainable** | No pre-trained dense model needed. Tucker is a *parameterization* restricting the hypothesis class to $\mathcal{M}_r = \{\mathcal{W} : \text{multilinear rank} \le (r_1, r_3, r_2)\}$; the HOSVD error bound transfers via a Lipschitz bridge: $\min_{\mathcal{M}_r}\mathcal{L} \le \mathcal{L}^\star_{\text{dense}} + L\,\varepsilon$ |
+| Property                    | What it means                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Completeness**            | Tucker at full rank is an _exact_ re-expression — zero loss before truncation (any tensor has a HOSVD)                                                                                                                                                                                                                                 |
+| **Controlled truncation**   | Error bounded by $\sum_n \sum_{i > r_n} \sigma_i^{(n)2}$ of dropped singular values — tensor analogue of Eckart–Young                                                                                                                                                                                                                  |
+| **Cross-expert sharing**    | $U_{\text{in}},\ \mathcal{G},\ U_{\text{out}}$ shared; experts differ _only_ via their $r_1$-dim row in $U_{\text{expert}}$                                                                                                                                                                                                            |
+| **Not a single linear map** | $\text{RMSNorm} + \text{softmax} + \text{top-}k$ make the layer **input-conditional piecewise nonlinear** — does not collapse to one matrix                                                                                                                                                                                            |
+| **From-scratch trainable**  | No pre-trained dense model needed. Tucker is a _parameterization_ restricting the hypothesis class to $\mathcal{M}_r = \{\mathcal{W} : \text{multilinear rank} \le (r_1, r_3, r_2)\}$; the HOSVD error bound transfers via a Lipschitz bridge: $\min_{\mathcal{M}_r}\mathcal{L} \le \mathcal{L}^\star_{\text{dense}} + L\,\varepsilon$ |
 
 → Full mathematical derivation: [`docs/tucker_moe_justification.html`](docs/tucker_moe_justification.html)
 
@@ -77,11 +77,11 @@ $$\frac{\partial P_{\text{dense}}}{\partial E} = d_{\text{in}} \cdot d_{\text{ou
 
 For `gate_proj` ($d_{\text{in}}=768,\ d_{\text{out}}=4608,\ E=8$):
 
-| | Dense MoE | Tucker MoE |
-|---|---:|---:|
-| Expert params | 28,311,552 | 5,974,560 |
-| Marginal cost / new expert | 3,538,944 | **4** $(= r_1)$ |
-| Compression | — | **78.9%** |
+|                            |  Dense MoE |      Tucker MoE |
+| -------------------------- | ---------: | --------------: |
+| Expert params              | 28,311,552 |       5,974,560 |
+| Marginal cost / new expert |  3,538,944 | **4** $(= r_1)$ |
+| Compression                |          — |       **78.9%** |
 
 Across the full model:
 
@@ -96,36 +96,19 @@ $$P_{\text{actual}} = 417\text{M}, \qquad P_{\text{dense-eq}} = 2{,}434\text{M},
 
 ## Architecture Overview
 
-```
-Input Tokens
-     │
-     ▼
- Embedding (d_model = 768)
-     │
-     ▼
- ┌─────────────────────────────────────────────┐  ×15 macro-layers
- │  Mamba-3 Block × 4   ──┐                   │
- │                         ├─ TuckerMoE gating │
- │  Transformer Block × 1 ─┘                  │
- └─────────────────────────────────────────────┘
-     │
-     ▼
- RMSNorm → LM Head (tied weights)
-```
-
 <p align="center">
   <img src="paper/hybrid-mamba-15min/assets/method_flowchart.png" width="760" alt="Architecture Pipeline"/>
 </p>
 
 ### Components
 
-| Component | File | Description |
-|---|---|---|
-| `Mamba3Block` | [`mlx_model/mamba_block.py`](mamba3_mlx/mlx_model/mamba_block.py) | Trapezoidal SSM + MIMO projections + TuckerMoE gating |
-| `TransformerBlock` | [`mlx_model/transformer_block.py`](mamba3_mlx/mlx_model/transformer_block.py) | GQA attention + TuckerMoE FFN |
-| `TuckerMoE` | [`mlx_model/tucker_moe.py`](mamba3_mlx/mlx_model/tucker_moe.py) | 8 experts, top-2; precomputes G = U_expert ⊗ core once at load time |
-| `chunk_scan` | [`mlx_model/scan_metal.py`](mamba3_mlx/mlx_model/scan_metal.py) | Fused Metal SSM scan; O(Lc) intra-chunk, GPU dispatch inter-chunk |
-| `TritonTuckerMoE` | [`pre-train/.../model.py`](pre-train/sft_cot_bundle/scripts/model.py) | Training version with full Triton backward (FusedLatentMoE) |
+| Component          | File                                                                          | Description                                                         |
+| ------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `Mamba3Block`      | [`mlx_model/mamba_block.py`](mamba3_mlx/mlx_model/mamba_block.py)             | Trapezoidal SSM + MIMO projections + TuckerMoE gating               |
+| `TransformerBlock` | [`mlx_model/transformer_block.py`](mamba3_mlx/mlx_model/transformer_block.py) | GQA attention + TuckerMoE FFN                                       |
+| `TuckerMoE`        | [`mlx_model/tucker_moe.py`](mamba3_mlx/mlx_model/tucker_moe.py)               | 8 experts, top-2; precomputes G = U_expert ⊗ core once at load time |
+| `chunk_scan`       | [`mlx_model/scan_metal.py`](mamba3_mlx/mlx_model/scan_metal.py)               | Fused Metal SSM scan; O(Lc) intra-chunk, GPU dispatch inter-chunk   |
+| `TritonTuckerMoE`  | [`pre-train/.../model.py`](pre-train/sft_cot_bundle/scripts/model.py)         | Training version with full Triton backward (FusedLatentMoE)         |
 
 ### Mamba-3 Highlights
 
@@ -141,13 +124,13 @@ Input Tokens
   <img src="paper/hybrid-mamba-15min/assets/plots/mlx_inference_benchmark.png" width="760" alt="Inference Benchmark"/>
 </p>
 
-| Metric | Value |
-|---|---|
-| Prefill throughput | **~3,800 tok/s** |
-| Decode (bf16) | **42 tok/s** |
-| Decode (8-bit selective quant) | **68–87 tok/s** |
-| KV + State memory @ 512 steps | **14.1 MiB** (~80% less than pure Transformer) |
-| Compile speedup (decode) | **+36.8%** via `mx.compile` |
+| Metric                         | Value                                          |
+| ------------------------------ | ---------------------------------------------- |
+| Prefill throughput             | **~3,800 tok/s**                               |
+| Decode (bf16)                  | **42 tok/s**                                   |
+| Decode (8-bit selective quant) | **68–87 tok/s**                                |
+| KV + State memory @ 512 steps  | **14.1 MiB** (~80% less than pure Transformer) |
+| Compile speedup (decode)       | **+36.8%** via `mx.compile`                    |
 
 <p align="center">
   <img src="paper/hybrid-mamba-15min/assets/plots/bench_decode_compile_comparison.png" width="440" alt="Compile Speedup"/>
@@ -172,17 +155,17 @@ SJD K=8:       ARL ≈ 3.93       →  92/3.93 = 23 ms/tok  →  1.53× speedup
 
 **Draft sources (training-free):**
 
-| Source | Principle | ARL contribution |
-|---|---|---|
-| `SuffixRetriever` | Longest-suffix match on past output (Prompt Lookup) | Long exact phrases |
-| `NGramCache` (runtime) | LRU dict: N−1 context → most-likely next | Local repetition |
-| `CoT NGram` (pre-baked) | Offline scan of 10,217 training JSONs, phase-aware | **Highest hit rate** |
+| Source                  | Principle                                           | ARL contribution     |
+| ----------------------- | --------------------------------------------------- | -------------------- |
+| `SuffixRetriever`       | Longest-suffix match on past output (Prompt Lookup) | Long exact phrases   |
+| `NGramCache` (runtime)  | LRU dict: N−1 context → most-likely next            | Local repetition     |
+| `CoT NGram` (pre-baked) | Offline scan of 10,217 training JSONs, phase-aware  | **Highest hit rate** |
 
-| Prompt | K | ARL | tps | Speedup |
-|---|---|---|---|---|
-| self_awareness | 8 | 3.93 | 57.8 | **1.53×** |
-| math_drill | 8 | 3.43 | 61.1 | **1.68×** |
-| daily_conversation | 8 | 2.93 | 49.4 | **1.26×** |
+| Prompt             | K   | ARL  | tps  | Speedup   |
+| ------------------ | --- | ---- | ---- | --------- |
+| self_awareness     | 8   | 3.93 | 57.8 | **1.53×** |
+| math_drill         | 8   | 3.43 | 61.1 | **1.68×** |
+| daily_conversation | 8   | 2.93 | 49.4 | **1.26×** |
 
 ---
 
@@ -276,13 +259,13 @@ make mlx-profile PROFILE_DECODE_STEPS=32         # per-layer latency
 
 ## Documentation
 
-| Doc | Contents |
-|---|---|
+| Doc                                                                        | Contents                                                                                                                                                       |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`docs/tucker_moe_justification.html`](docs/tucker_moe_justification.html) | Full Tucker MoE theory: dense MoE → Tucker derivation, HOSVD error bounds, from-scratch validity proof, backward pass math, ablation plan, research directions |
-| [`paper/hybrid-mamba-15min/report.md`](paper/hybrid-mamba-15min/report.md) | Technical report: *Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid SSMs* |
-| [`CLAUDE.md`](CLAUDE.md) | Codebase guide: inference types, Makefile variables, Metal kernel workflow |
-| [`AGENTS.md`](AGENTS.md) | Agent workflow, checkpoint conversion, dataset format |
-| [`cot_dataset/SFT_FORMAT.md`](cot_dataset/SFT_FORMAT.md) | ChatML + loss mask spec |
+| [`paper/hybrid-mamba-15min/report.md`](paper/hybrid-mamba-15min/report.md) | Technical report: _Breaking the Memory Wall: Compute-Bound TuckerMoE for Hybrid SSMs_                                                                          |
+| [`CLAUDE.md`](CLAUDE.md)                                                   | Codebase guide: inference types, Makefile variables, Metal kernel workflow                                                                                     |
+| [`AGENTS.md`](AGENTS.md)                                                   | Agent workflow, checkpoint conversion, dataset format                                                                                                          |
+| [`cot_dataset/SFT_FORMAT.md`](cot_dataset/SFT_FORMAT.md)                   | ChatML + loss mask spec                                                                                                                                        |
 
 ---
 

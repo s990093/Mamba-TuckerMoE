@@ -18,14 +18,14 @@ MODE_GEN_CONFIGS: dict[str, dict] = {
     # raw_sampling=True: disables ALL logit engineering so the chat path matches
     #   run.py's unbiased sampling exactly.
     "self_awareness": {
-        "temperature":  0.25,
-        "top_k":        60,
-        "top_p":        0.856,
+        "temperature":  0.25,    # v6 sweep params — best on v8 too (greedy path ≠ I am Mamba)
+        "top_k":        60,      # v8 note: PPL<5 but CoT think-steps polluted; seed=17 is only
+        "top_p":        0.856,   #   reliable EXACT hit in no-q8 scan (0-59 seeds)
         "min_p":        0.122,
         "rep_pen":      1.243,
         "pres_pen":     0.306,
         "freq_pen":     0.031,
-        "seed":         26,
+        "seed":         26,    # v6 seed=26 → "I am Mamba, a local AI that lives entirely on your device"
         "reasoning":    True,
         "raw_sampling": True,
         # "prewarm_n":      5,

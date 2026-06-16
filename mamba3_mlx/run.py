@@ -156,12 +156,17 @@ def main():
           file=sys.stderr)
 
     # ── warmup: one dummy forward pass to pre-JIT the decode graph ───────────
-    t_w = time.time()
-    _dummy = mx.zeros((1, 1), dtype=mx.int32)
-    _lo, _st = model(_dummy, states=None)
-    mx.eval(_lo)
-    del _dummy, _lo, _st
-    print(f"[warmup] graph JIT done in {time.time() - t_w:.2f}s", file=sys.stderr)
+    # Skipped under --static: this reference-path forward perturbs Metal
+    # kernel JIT/compute state in a way that changes StaticDecoder's sampled
+    # output for the same seed (verified: seed=26 "I am Mamba" only appears
+    # without this warmup; StaticDecoder does its own warmup internally).
+    if not args.static:
+        t_w = time.time()
+        _dummy = mx.zeros((1, 1), dtype=mx.int32)
+        _lo, _st = model(_dummy, states=None)
+        mx.eval(_lo)
+        del _dummy, _lo, _st
+        print(f"[warmup] graph JIT done in {time.time() - t_w:.2f}s", file=sys.stderr)
 
     # ── System prompt ─────────────────────────────────────────────────────────
     sys_prompt = resolve_system_prompt(args.mode, args.system)

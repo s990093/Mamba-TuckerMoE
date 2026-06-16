@@ -7,8 +7,10 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v7/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v8/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
+# v6 = best for self_awareness (20% hit rate seed=26, vs v8 needs seed=17 only)
+SELF_CKPT  ?= $(REPO)/checkpoints/v6/latest_sft_cot_model.npz
 
 # ── Auto-select fastest checkpoint ────────────────────────────────────────────
 # Strips .npz / .pt to derive the MLX-native sidecar name.
@@ -23,6 +25,10 @@ PROMPT    ?= Who are you?
 # PROMPT    ?= Write a email
 MODE      ?= self_awareness
 MAX_TOK   ?= 1024      # 保持：符合 v2 SFT 規範的預算
+# self-s 專用：MAX_TOK=512 → KV buffer S=768，seed=26 "I am Mamba" 穩定。
+# ⚠️ MAX_TOK>=768 會改變 StaticDecoder KV buffer 大小 → bf16 數值路徑改變 →
+#    同 seed 採樣到不同 token（輸出變差）。tune 也用 512 才能重現。
+SELF_MAX_TOK ?= 512
 STREAM    ?= 1
 NO_THINK  ?= 0
 
@@ -109,11 +115,11 @@ _REQUIRE_PROMPT = @test -n "$(PROMPT)" || \
 # Print selected checkpoint path once at parse time (visible for every target).
 $(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $(CHECKPOINT)  (sidecar not found — will convert on first run)))
 
-.PHONY: run run-s self self-s emotion email movie daily syscall deep default debug help \
+.PHONY: run run-s self self-s emotion email email-s movie daily syscall deep default debug help \
         cot-demo cot-verify chat chat-mock chat-smoke chat-kill kill \
         profiler profiler-kill \
-        convert-sidecar tune-self \
-        sjd sjd-self sjd-math sjd-daily sjd-emotion sjd-email \
+        convert-sidecar tune-self tune-self-quality tune-self-s \
+        sjd sjd-self sjd-math sjd-daily sjd-emotion sjd-email tune-self-s \
         sjd-movie sjd-deep sjd-syscall \
         sjds sjds-self sjds-math sjds-daily sjds-emotion sjds-email \
         sjds-movie sjds-deep sjds-syscall \
@@ -149,6 +155,45 @@ tune-self:
 	  --verbose-top 5 \
 	  --output $(ROOT)/tune_self_v4_results.json
 
+## tune-self-quality: no-q8 self-only sweep — EXACT same path as `make self-s`
+##   so tuned seeds reproduce. Single-stream (batch breaks reproducibility),
+##   v6 checkpoint, max_tokens=512, repeat_last_n=256, metal_fuse, no-q8.
+##   Override: make tune-self-quality TRIALS=300 SELF_CKPT=checkpoints/v8/...
+tune-self-quality:
+	$(PYTHON) $(ROOT)/tune_self.py \
+	  --model-path "$(_FAST_SELF)" \
+	  --static --metal-fuse \
+	  --tune-mode self \
+	  --multi-prompt \
+	  --batch-size 1 \
+	  --max-tokens 512 \
+	  --trials $(or $(TRIALS),200) \
+	  --top-n 10 \
+	  --verbose-top 5 \
+	  --exact-only \
+	  --clear-cache-every 20 \
+	  --output $(ROOT)/tune_self_quality_results.json
+
+## tune-self-s: StaticDecoder fast path — sweep self_awareness + email, B=2 samples/config
+##   Uses metal_fuse + q8 (same path as self-s / run-s).
+##   TRIALS=120 → ~6-8 min on M2 Pro.  B=4 → more signal, more memory.
+##   Override: make tune-self-s TRIALS=200 TUNE_BATCH=4 TUNE_MODE=email
+TUNE_BATCH ?= 2
+TUNE_MODE  ?= both
+tune-self-s:
+	$(PYTHON) $(ROOT)/tune_self.py \
+	  --model-path "$(_FAST_CKPT)" \
+	  --static --metal-fuse \
+	  --quant-moe 8 --quant-proj 8 --quant-head 8 \
+	  --tune-mode $(TUNE_MODE) \
+	  --batch-size $(TUNE_BATCH) \
+	  --patch-makefile \
+	  --trials $(or $(TRIALS),120) \
+	  --top-n 10 \
+	  --verbose-top 3 \
+	  --clear-cache-every 20 \
+	  --output $(ROOT)/tune_self_static_results.json
+
 ## convert-sidecar: one-time export of PyTorch-style .npz → MLX-native sidecar
 ## (run once; subsequent loads use mmap instant-path automatically)
 convert-sidecar:
@@ -168,11 +213,24 @@ run-s:
 self:
 	$(RUN) $(_BASE) --mode self_awareness
 
-## self-s: self-awareness via StaticDecoder fastest path (~129-144 tok/s)
-##   make self-s     # always metal_fuse + q8, no extra flags needed
+## self-s: self-awareness via StaticDecoder, v6 checkpoint, NO q8 (~98 tok/s)
+##   v6 = best for "I am Mamba" (20% hit rate seed=26, T=0.25, K=60)
+##   Override checkpoint: make self-s SELF_CKPT=checkpoints/v8/...
+_SELF_STEM   := $(patsubst %.pt,%,$(patsubst %.npz,%,$(SELF_CKPT)))
+_SELF_SIDECAR:= $(_SELF_STEM).mlx_bf16.npz
+_FAST_SELF   := $(if $(wildcard $(_SELF_SIDECAR)),$(_SELF_SIDECAR),$(SELF_CKPT))
 self-s:
-	$(RUN) $(_BASE) --mode self_awareness --static \
-	  --metal-fuse --quant-moe 8 --quant-proj 8 --quant-head 8
+	$(RUN) --model_path     "$(_FAST_SELF)" \
+	       --tokenizer_path "$(TOKENIZER)" \
+	       --prompt         "$(PROMPT)" \
+	       --mode           self_awareness \
+	       --repeat_last_n  $(REPEAT_LAST_N) \
+	       --max_tokens     $(SELF_MAX_TOK) \
+	       $(_TEMP_FLAG) $(_SEED_FLAG) $(_TOPK_FLAG) $(_TOPP_FLAG) \
+	       $(_MINP_FLAG) $(_RPEN_FLAG) $(_PPEN_FLAG) $(_FPEN_FLAG) \
+	       $(_STREAM_FLAG) $(_THINK_FLAG) $(_NOEOS_FLAG) $(_SPEC_FLAG) \
+	       $(_COMPILE_FLAG) $(_STOPSTR_FLAG) \
+	       --static --metal-fuse
 
 ## emotion: emotion support
 emotion:
@@ -181,6 +239,11 @@ emotion:
 ## email: summarise & email
 email:
 	$(RUN) $(_BASE) --mode summarize_email
+
+## email-s: email via StaticDecoder fastest path (metal_fuse + q8)
+email-s:
+	$(RUN) $(_BASE) --mode summarize_email --static \
+	  --metal-fuse --quant-moe 8 --quant-proj 8 --quant-head 8
 
 ## movie: movie intro / film analysis
 movie:

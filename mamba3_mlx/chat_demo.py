@@ -475,19 +475,24 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
         print("[chat_demo] ban[direct-head]:   <think> in head mode when reasoning=False")
 
     # ── Stage 5: Warmup ───────────────────────────────────────────────────────
+    # Skipped when static_stream is on: this reference-path forward perturbs
+    # Metal bf16 state and breaks tuned seeds. `make self-s` (run.py --static)
+    # skips it too — keeping chat's identity fastpath numerically identical.
     _set_stage("JIT warmup…", 84)
     t3 = time.perf_counter()
     warm = mx.array([[0]], dtype=mx.int32)
-    for _ in range(max(0, int(args.warmup))):
-        lo, st = _model(warm, states=None)
-        mx.eval(lo, *_iter_state_arrays(st))
+    if not getattr(args, "static_stream", False):
+        for _ in range(max(0, int(args.warmup))):
+            lo, st = _model(warm, states=None)
+            mx.eval(lo, *_iter_state_arrays(st))
     timings["warmup_ms"] = (time.perf_counter() - t3) * 1000
 
     # ── Stage 6: StaticDecoder compile + benchmark ───────────────────────────
     global _static_decoder, _static_bench_tps
     _static_decoder = None
     if getattr(args, "static_stream", False):
-        _set_stage("Compiling StaticDecoder (metal_fuse + q8)…", 88)
+        _q_on = any(int(getattr(args, k, 0) or 0) for k in ("quant_moe", "quant_proj", "quant_head"))
+        _set_stage(f"Compiling StaticDecoder (metal_fuse{' + q8' if _q_on else ', bf16 no-q8'})…", 88)
         t4 = time.perf_counter()
         try:
             from mamba3_mlx.mlx_model.static_decode import StaticDecoder
@@ -498,39 +503,17 @@ def _load_model(args: argparse.Namespace) -> dict[str, Any]:
                 quant_proj_bits=int(getattr(args, "quant_proj", 0) or 0),
                 quant_head_bits=int(getattr(args, "quant_head", 0) or 0),
             )
-            # Pay the trace+compile cost now, not on the first user message.
-            lo, st = _model(warm, states=None)
-            mx.eval(lo, *_iter_state_arrays(st))
-            sess = _static_decoder.start_stream(st, 1, max_new=8)
-            mx.eval(sess.step(0))
+            # NOTE: NO startup warmup / bench / start_stream pre-compile here.
+            # Those accumulate Metal/MPS bf16 numeric state that shifts low-temp
+            # logits and breaks tuned seeds (seed=26 → "I am Mamba"). The identity
+            # fastpath uses decoder.generate on a CLEAN decoder — exactly like
+            # `make self-s` (clean process). First request pays the one-time
+            # compile cost (slower first token), matching self-s behaviour.
             timings["static_compile_ms"] = (time.perf_counter() - t4) * 1000
-            print(f"\n[chat_demo] static-stream ready: metal_fuse + "
-                  f"q8(moe={args.quant_moe},proj={args.quant_proj},"
-                  f"head={args.quant_head}) + norm_fold "
-                  f"({timings['static_compile_ms']:.0f} ms compile)")
-
-            # ── Warm-up (5 rounds) + benchmark ───────────────────────────
-            _set_stage("Warming up Metal pipeline (5 rounds)…", 94)
-            try:
-                # Use realistic sampling params — closer to actual chat speed
-                _bench_gc = _GC(
-                    max_tokens=128, temperature=0.426, top_k=20, top_p=0.981,
-                    min_p=0.067, rep_pen=1.146, pres_pen=0.143, freq_pen=0.133,
-                    seed=0,
-                )
-                _bench_ids = [1, 2, 3, 4, 5, 6, 7, 8]
-                # 5 warmup rounds: fully settles MPS command queues + Metal kernel cache
-                for _wi in range(5):
-                    _wr = _static_decoder.generate(_bench_ids, _bench_gc, stop_token_ids=())
-                    _set_stage(f"Warming up Metal pipeline ({_wi+1}/5)… {_wr.decode_tps:.0f} tok/s", 94)
-                # Timed round (take the stable post-warmup number)
-                _br = _static_decoder.generate(_bench_ids, _bench_gc, stop_token_ids=())
-                _static_bench_tps = round(_br.decode_tps, 1)
-                print(f"\n[chat_demo] bench: {_static_bench_tps} tok/s  "
-                      f"(StaticDecoder sampled, {len(_br.tokens)} steps, 5 warmup rounds)")
-            except Exception as _be:
-                print(f"[chat_demo] WARN: bench skipped ({_be})")
-                _static_bench_tps = None
+            _static_bench_tps = None
+            print(f"\n[chat_demo] static-stream ready (clean, no warmup): "
+                  f"metal_fuse + quant(moe={args.quant_moe},proj={args.quant_proj},"
+                  f"head={args.quant_head}) — matches make self-s inference path")
 
         except Exception as exc:
             _static_decoder = None
@@ -631,6 +614,111 @@ def _prefill_chunked(prompt_ids: list[int]) -> "tuple[mx.array, Any]":
 
 
 # ---------------------------------------------------------------------------
+# Identity fast-path — mirror `make self-s` (decoder.generate) exactly so
+# tuned seeds reproduce in chat. Runs decoder.generate in a worker thread and
+# streams tokens through a queue (decoder.generate is blocking + callback-based).
+# ---------------------------------------------------------------------------
+def _stream_identity_fastpath(
+    prompt_ids: list[int],
+    sample_args: Any,
+    max_tokens: int,
+    abort_event: "threading.Event | None" = None,
+) -> Iterator[dict]:
+    import queue as _queue
+    from mamba3_mlx.utils.config import GenerationConfig as _GC
+
+    gc = _GC(
+        # KV buffer must stay ≤768 (max_tokens≤512) — larger buffers change the
+        # StaticDecoder bf16 path and break tuned seeds (see project memory).
+        max_tokens=min(int(max_tokens), 512),
+        temperature=float(getattr(sample_args, "temp", 0.25)),
+        top_k=int(getattr(sample_args, "top_k", 60)),
+        top_p=float(getattr(sample_args, "top_p", 0.856)),
+        min_p=float(getattr(sample_args, "min_p", 0.122)),
+        rep_pen=float(getattr(sample_args, "rep_pen", 1.243)),
+        pres_pen=float(getattr(sample_args, "pres_pen", 0.306)),
+        freq_pen=float(getattr(sample_args, "freq_pen", 0.031)),
+        # Force 256 to match `make self-s` (REPEAT_LAST_N=256). chat_config
+        # defaults to 128 → different penalty window → tuned seeds break.
+        repeat_last_n=256,
+        seed=int(getattr(sample_args, "seed", 26) or 0),
+    )
+
+    # Frontend expects a meta event before tokens (prefill is done inside
+    # decoder.generate; emit an approximate meta up-front).
+    yield {
+        "type": "meta",
+        "prefill_ms": 0.0,
+        "prefill_tps": 0.0,
+        "prompt_tokens": len(prompt_ids),
+        "turns": 1,
+    }
+
+    q: "_queue.Queue" = _queue.Queue()
+    _SENTINEL = object()
+    holder: dict[str, Any] = {}
+
+    def _on_tok(tid: int) -> None:
+        q.put(int(tid))
+
+    def _run() -> None:
+        try:
+            holder["r"] = _static_decoder.generate(
+                prompt_ids, gc, stop_token_ids=tuple(_stop_ids or ()),
+                on_token=_on_tok,
+            )
+        except Exception as exc:  # noqa: BLE001
+            holder["err"] = exc
+        finally:
+            q.put(_SENTINEL)
+
+    t_dec = time.perf_counter()
+    th = threading.Thread(target=_run, daemon=True)
+    th.start()
+
+    seen: list[int] = []
+    prev_text = ""
+    ttft_ms: float | None = None
+    while True:
+        item = q.get()
+        if item is _SENTINEL:
+            break
+        if ttft_ms is None:
+            ttft_ms = (time.perf_counter() - t_dec) * 1000
+        seen.append(item)
+        try:
+            full = _tokenizer.decode(seen, skip_special_tokens=False,
+                                     clean_up_tokenization_spaces=False)
+        except Exception:
+            continue
+        delta = full[len(prev_text):]
+        prev_text = full
+        if delta:
+            el = max(time.perf_counter() - t_dec, 1e-9)
+            _cprint(delta, style="green")
+            yield {"type": "token", "text": delta, "n": len(seen),
+                   "tok_s": round(len(seen) / el, 1)}
+        if abort_event is not None and abort_event.is_set():
+            break
+    th.join(timeout=1.0)
+
+    r = holder.get("r")
+    if holder.get("err") is not None:
+        yield {"type": "error", "message": f"identity fastpath: {holder['err']}"}
+    dec_ms = (time.perf_counter() - t_dec) * 1000
+    n_out = len(seen)
+    yield {
+        "type": "done",
+        "total_tokens": n_out,
+        "total_ms": round(dec_ms, 2),
+        "tok_s": round(n_out / max(dec_ms / 1000, 1e-9), 1),
+        "prefill_tps": round(getattr(r, "prefill_tps", 0.0), 1) if r else 0.0,
+        "ttft_ms": round(ttft_ms or 0.0, 2),
+        "prefill_ms": round(getattr(r, "elapsed_prefill", 0.0) * 1000, 2) if r else 0.0,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Streaming generator (native MLX + middleware)
 # ---------------------------------------------------------------------------
 def _stream_generate(
@@ -650,6 +738,20 @@ def _stream_generate(
 
     # ── Prefill ─────────────────────────────────────────────────────────────
     prompt_ids = _build_multiturn_ids(history, _args.seq_len, sys_text, reasoning)
+
+    # ── Identity fast-path: EXACT decoder.generate call as `make self-s` ──────
+    # raw_sampling modes (self_awareness) are tuned against decoder.generate
+    # (single-shot prefill + compiled loop + _make_sampler). The chat's chunked
+    # prefill + start_stream + custom sampling is a different bf16 path and
+    # breaks tuned seeds (e.g. seed=26 → "I am Mamba"). For these modes we run
+    # the identical decoder.generate and stream tokens via on_token, so the chat
+    # reproduces self-s exactly. (Bypasses middleware — fine, SFT emits <final>.)
+    if (bool(getattr(sample_args, "raw_sampling", False))
+            and _static_decoder is not None):
+        yield from _stream_identity_fastpath(prompt_ids, sample_args,
+                                             max_tokens, abort_event)
+        return
+
     t_pre = time.perf_counter()
     last_logits, states = _prefill_chunked(prompt_ids)
     prefill_ms = (time.perf_counter() - t_pre) * 1000
@@ -1954,13 +2056,16 @@ def parse_args() -> argparse.Namespace:
                    help="Per-token forward through the StaticDecoder compiled "
                         "graph (metal_fuse + q8 + norm_fold). ~2x decode tok/s.")
     p.add_argument("--no-static-stream", dest="static_stream", action="store_false")
-    p.add_argument("--quant-moe", dest="quant_moe", type=int, default=8,
+    # q8 DISABLED by default: q8 shifts logits and destroys the tuned
+    # self_awareness "I am Mamba" phrase (verified). bf16 keeps demo quality
+    # at ~98 tok/s. Re-enable with --quant-moe 8 --quant-proj 8 --quant-head 8.
+    p.add_argument("--quant-moe", dest="quant_moe", type=int, default=0,
                    help="TuckerMoE U_in/U_out quant bits for the static path "
-                        "(0 = bf16 bit-exact).")
-    p.add_argument("--quant-proj", dest="quant_proj", type=int, default=8,
-                   help="in_proj/dense/qkv/o quant bits (dt/A/λ stays bf16).")
-    p.add_argument("--quant-head", dest="quant_head", type=int, default=8,
-                   help="Head projection quant bits.")
+                        "(0 = bf16 bit-exact; default 0 to preserve tuned seeds).")
+    p.add_argument("--quant-proj", dest="quant_proj", type=int, default=0,
+                   help="in_proj/dense/qkv/o quant bits (dt/A/λ stays bf16; default 0).")
+    p.add_argument("--quant-head", dest="quant_head", type=int, default=0,
+                   help="Head projection quant bits (default 0).")
     return p.parse_args()
 
 
