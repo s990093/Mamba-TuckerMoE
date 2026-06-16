@@ -366,6 +366,12 @@ function _rawTokenRoute(text) {
     const prevMode = _rawMode;
     _rawMode = nextMode;
     console.log('[raw]', tag, '->', nextMode);
+    if (nextMode === 'done' && prevMode !== 'final') {
+      // Model closed </final> without ever emitting <final> answer tokens →
+      // everything stayed in <think>, so there is nothing to speak.
+      console.error('[raw] reached </final> with no <final> answer — nothing was spoken ' +
+        '(model output format issue, e.g. v8 self_awareness CoT pollution)');
+    }
     if (nextMode === 'final' && _state !== 'speaking') {
       setState('speaking'); setStatus('Speaking…'); _tokenCount = 0;
       setTimeout(cotFade, 600);
@@ -379,7 +385,10 @@ function _rawTokenRoute(text) {
   } else if (_rawMode === 'final') {
     _tokenCount += text.length;
     ttsAccum(text);
-    if (_activeCat === 'email_summary') _emailFinalBuf += text;
+    if (_activeCat === 'email_summary') {
+      _emailFinalBuf += text;
+      if (_petEmailMode()) _petEmailPost({ type: 'token', text: text });
+    }
   }
 }
 
@@ -399,7 +408,9 @@ function handleWS(msg) {
     case 'meta':
       cotClear();
       hideEmailCard();
+      ttsReset(); // clear any stuck TTS from the previous turn before a new one
       _emailFinalBuf = '';
+      if (_petEmailStart()) _petEmailPost({ type: 'start' }); // open native email window
       setState('thinking');
       setStatus('Thinking…');
       // <think> is in the prompt, not generated — stream starts with CoT directly.
@@ -433,7 +444,10 @@ function handleWS(msg) {
         }
         _tokenCount += (msg.text || '').length;
         ttsAccum(msg.text || '');
-        if (_activeCat === 'email_summary') _emailFinalBuf += (msg.text || '');
+        if (_activeCat === 'email_summary') {
+          _emailFinalBuf += (msg.text || '');
+          if (_petEmailMode()) _petEmailPost({ type: 'token', text: msg.text || '' });
+        }
       } else {
         // Raw-sampling path: parse <think> CoT </think> <final> answer </final>
         _rawTokenRoute(msg.text || '');
@@ -685,7 +699,12 @@ function doneClose() {
   stopTarsFinal();
   setStatus('');
   if (_activeCat === 'email_summary' && _emailFinalBuf.trim()) {
-    showEmailCard(_emailFinalBuf.trim());
+    if (_petEmailMode()) {
+      // Native window already streamed it live — just signal completion.
+      _petEmailPost({ type: 'done', full: _emailFinalBuf.trim() });
+    } else {
+      showEmailCard(_emailFinalBuf.trim());
+    }
   }
   if (_tokenCount > 200) {
     _tokenCount = 0;
@@ -846,9 +865,12 @@ $ecSend.addEventListener('click', () => {
 let _sleepT = null;
 function resetSleepTimer() {
   clearTimeout(_sleepT);
+  // Mood-driven: a low-energy pet nods off sooner, a happy one stays up longer.
+  const t = (typeof IS_PET !== 'undefined' && IS_PET)
+    ? CFG.sleepTimeout * (0.5 + _petMood) : CFG.sleepTimeout;
   _sleepT = setTimeout(() => {
     if (!pttActive) { ttsCancel(); setState('sleep'); setStatus(''); }
-  }, CFG.sleepTimeout);
+  }, t);
 }
 function wakeUp() {
   if (_state === 'sleep') { clearTimeout(_reconTimer); connectWS(); setState('idle'); setStatus(''); }
@@ -857,6 +879,8 @@ function wakeUp() {
 
 // ── TTS (sentence-level queue) ────────────────────────────────────────────────
 let _ttsBuf = '', _ttsQueue = [], _ttsSpeaking = false;
+let _ttsActiveUtts = [];   // retain utterances so WebKit doesn't GC them mid-speech
+let _ttsWatch = null;      // watchdog if onend/onerror never fires
 let _synthResumeT = null;
 const synth = window.speechSynthesis;
 
@@ -871,6 +895,28 @@ function synthResumePump() {
 function _petEmailMode() {
   return document.body.classList.contains('pet') &&
     (_activeCat === 'email_summary' || /^\s*subject\s*:/i.test(_emailFinalBuf || ''));
+}
+// True at turn start (before any token), based purely on the active persona.
+function _petEmailStart() {
+  return document.body.classList.contains('pet') && _activeCat === 'email_summary';
+}
+// Stream email tokens to the native wrapper, which shows them live in a
+// separate macOS window (typewriter), instead of one in-page card at the end.
+function _petEmailPost(obj) {
+  try { window.webkit.messageHandlers.petemail.postMessage(obj); } catch (_) { }
+}
+
+// Reset TTS state at the start of every turn. WebKit/WKWebView sometimes drops
+// an utterance's onend, leaving _ttsSpeaking stuck true so the *next* turn can
+// never speak ("說話後就當掉"). Clearing here guarantees a clean start.
+function ttsReset() {
+  try { synth.cancel(); } catch (_) { }
+  _ttsSpeaking = false;
+  _ttsQueue = [];
+  _ttsBuf = '';
+  _ttsActiveUtts = [];
+  clearTimeout(_ttsWatch);
+  clearInterval(_synthResumeT);
 }
 
 function ttsAccum(chunk) {
@@ -892,6 +938,7 @@ function ttsNext() {
   const text = _ttsQueue.shift();
   _ttsSpeaking = true;
   const utt = new SpeechSynthesisUtterance(text);
+  _ttsActiveUtts.push(utt); // keep a reference so it isn't GC'd before onend
   utt.lang = 'en-US';
 
   if (_char === 'tars') {
@@ -935,8 +982,19 @@ function ttsNext() {
     pulseMouth();
     if (typeof ev.charIndex === 'number') highlightSubtitleWord(ev.charIndex);
   };
-  utt.onend = () => { hideSubtitle(); _ttsSpeaking = false; ttsNext(); };
-  utt.onerror = () => { hideSubtitle(); _ttsSpeaking = false; ttsNext(); };
+  const _doneOne = () => {
+    clearTimeout(_ttsWatch);
+    _ttsActiveUtts = _ttsActiveUtts.filter(u => u !== utt);
+    hideSubtitle(); _ttsSpeaking = false; ttsNext();
+  };
+  utt.onend = _doneOne;
+  utt.onerror = _doneOne;
+  // Watchdog: if WebKit drops onend/onerror, unstick so the next sentence/turn
+  // can still speak instead of freezing on _ttsSpeaking=true.
+  clearTimeout(_ttsWatch);
+  _ttsWatch = setTimeout(() => {
+    if (_ttsSpeaking) { console.warn('[tts] watchdog fired — onend never came'); _doneOne(); }
+  }, Math.max(6000, text.length * 220));
 
   synth.speak(utt);
   synthResumePump();
@@ -1553,6 +1611,99 @@ function toggleDebugPanel() {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+// ── Desktop-pet: direct interactions + ambient life (pet mode only) ───────────
+// Layer B/C of the character design. petReact() plays a transient expression
+// (CSS picks the eye variant + body animation via .react-<name>), then reverts.
+// Add a new interaction = bind a trigger here + one CSS .react-<name> rule.
+const IS_PET = document.body.classList.contains('pet');
+const REACTIONS = ['happy', 'love', 'perk', 'yawn', 'stretch', 'tilt', 'dizzy'];
+let _reactT = null;
+
+// Layer D — mood: 0 (tired/grumpy) .. 1 (delighted). Interactions raise it,
+// time pulls it back to neutral; it biases idle behaviour & how often the pet
+// fidgets. Kept intentionally simple so it's easy to expand later.
+let _petMood = 0.5;
+function petBumpMood(d) { _petMood = Math.max(0, Math.min(1, _petMood + d)); }
+if (IS_PET) setInterval(() => { _petMood += (0.5 - _petMood) * 0.05; }, 5000);
+
+function petReact(name, ms) {
+  // Don't fight an active conversational turn (Layer A wins).
+  if (!IS_PET || _state === 'thinking' || _state === 'speaking') return;
+  REACTIONS.forEach(r => $scene.classList.remove('react-' + r));
+  void $scene.offsetWidth;                 // restart animation if same react repeats
+  $scene.classList.add('react-' + name);
+  clearTimeout(_reactT);
+  _reactT = setTimeout(() => $scene.classList.remove('react-' + name), ms || 1300);
+}
+window.petReact = petReact; // cursor-proximity hook (eyes.html) calls this
+
+// Ambient idle behaviours, weighted by mood (Layer C × D).
+function _ambientPick() {
+  if (_petMood > 0.7) {            // delighted → playful
+    return [() => doWink(), () => petReact('happy', 900), () => petReact('tilt', 1200)];
+  } else if (_petMood < 0.3) {     // low energy → sleepy
+    return [() => petReact('yawn', 1700), () => petReact('stretch', 1500)];
+  }
+  return [() => doWink(), () => petReact('yawn', 1600),
+          () => petReact('stretch', 1400), () => petReact('tilt', 1200)];
+}
+let _ambientT = null;
+function scheduleAmbient() {
+  clearTimeout(_ambientT);
+  const base = _petMood > 0.7 ? 10000 : 16000; // happier pets fidget more
+  _ambientT = setTimeout(() => {
+    if (_state === 'idle') { const p = _ambientPick(); p[Math.floor(Math.random() * p.length)](); }
+    scheduleAmbient();
+  }, rand(base, base + 12000));
+}
+
+// Petting: rapid taps escalate happy → love, and over-stimulate → dizzy.
+let _petTaps = 0, _petTapT = null, _pressFired = false;
+function petTap() {
+  if (_pressFired) { _pressFired = false; return; } // ignore the click after a long-press
+  petBumpMood(0.1);
+  _petTaps++;
+  clearTimeout(_petTapT);
+  _petTapT = setTimeout(() => { _petTaps = 0; }, 1200);
+  if (_petTaps >= 5) { _petTaps = 0; petBumpMood(-0.2); petReact('dizzy', 1500); }
+  else if (_petTaps >= 3) { petReact('love', 1400); }
+  else { petReact('happy'); }
+}
+
+let _pressT = null;
+function initPetInteractions() {
+  if (!IS_PET) return;
+  const stage = document.getElementById('eyes-stage');
+  if (!stage) return;
+  // Time-of-day mood: sleepy late at night, chipper in the morning.
+  const hr = new Date().getHours();
+  if (hr < 6 || hr >= 23) _petMood = 0.32;
+  else if (hr >= 6 && hr < 10) _petMood = 0.62;
+  stage.style.cursor = 'pointer';
+  stage.addEventListener('click', petTap);
+  stage.addEventListener('mouseenter', () => petReact('perk', 800));
+  // Long-press → affectionate "love".
+  stage.addEventListener('mousedown', () => {
+    clearTimeout(_pressT);
+    _pressFired = false;
+    _pressT = setTimeout(() => { _pressFired = true; petBumpMood(0.18); petReact('love', 1600); }, 650);
+  });
+  stage.addEventListener('mouseup', () => clearTimeout(_pressT));
+  stage.addEventListener('mouseleave', () => clearTimeout(_pressT));
+
+  // Hourly greeting — a little hello when the clock ticks over (if idle).
+  let _greetHour = new Date().getHours();
+  setInterval(() => {
+    const h = new Date().getHours();
+    if (h !== _greetHour) {
+      _greetHour = h;
+      if (_state === 'idle') { petBumpMood(0.12); doWink(); petReact('happy', 1300); }
+    }
+  }, 60000);
+
+  scheduleAmbient();
+}
+
 function init() {
   initRec();
   setState('idle');
@@ -1560,6 +1711,7 @@ function init() {
   connectWS();
   scheduleBlink();
   resetSleepTimer();
+  initPetInteractions();
   loadCategories();
   applySettingsToUI();
   document.querySelectorAll('.char-btn-opt').forEach(btn => {

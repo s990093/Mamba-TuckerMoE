@@ -23,15 +23,19 @@ if ! curl -sf "http://127.0.0.1:${PORT}/eyes" -o /dev/null; then
 fi
 echo "[pet] chat server up on :${PORT} — connecting"
 
-# 2. Build the Swift wrapper if the binary is stale. The Info.plist is embedded
-#    into the binary (-sectcreate __TEXT __info_plist) so macOS TCC will prompt
-#    for microphone access even though this is a plain executable, not a .app.
+# 2. Build the Swift wrapper if the binary is stale. The target is split across
+#    several .swift files (compiled together). The Info.plist is embedded into
+#    the binary (-sectcreate __TEXT __info_plist) so macOS TCC will prompt for
+#    microphone access even though this is a plain executable, not a .app.
 BIN="$HERE/pet"
-SRC="$HERE/DesktopPet.swift"
 PLIST="$HERE/Info.plist"
-if [ ! -x "$BIN" ] || [ "$SRC" -nt "$BIN" ] || [ "$PLIST" -nt "$BIN" ]; then
-  echo "[pet] compiling DesktopPet.swift ..."
-  swiftc "$SRC" -o "$BIN" \
+# Rebuild if any source (.swift or the plist) is newer than the binary.
+stale=0
+[ -x "$BIN" ] || stale=1
+for f in "$HERE"/*.swift "$PLIST"; do [ "$f" -nt "$BIN" ] && stale=1; done
+if [ "$stale" = 1 ]; then
+  echo "[pet] compiling $(ls "$HERE"/*.swift | wc -l | tr -d ' ') swift files ..."
+  swiftc "$HERE"/*.swift -o "$BIN" \
     -framework Cocoa -framework WebKit -framework AVFoundation \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$PLIST"
 fi

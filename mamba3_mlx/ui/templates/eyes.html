@@ -34,10 +34,15 @@
         // nx, ny are normalised direction (-1..1) from the eyes to the cursor;
         // the wrapper polls the global desktop cursor and calls this each frame.
         var MAX = 7.0; // px of iris drift at full deflection (more visible)
+        var _wasFar = true;
         window.petLookAt = function (nx, ny) {
           var s = document.documentElement.style;
           s.setProperty("--gaze-x", (nx * MAX).toFixed(2) + "px");
           s.setProperty("--gaze-y", (ny * MAX).toFixed(2) + "px");
+          // "Notices you" when the desktop cursor first comes close to the pet.
+          var near = Math.sqrt(nx * nx + ny * ny) < 0.3;
+          if (near && _wasFar) { try { window.petReact && window.petReact("perk", 700); } catch (_) {} }
+          _wasFar = !near;
         };
 
         // "Being picked up" feedback — the wrapper calls this on drag start/end.
@@ -92,6 +97,17 @@
                   window.webkit.messageHandlers.petzoom.postMessage(b.dataset.z);
                 } catch (_) {}
               });
+            });
+
+            // Quit button at the bottom of the settings panel.
+            var quit = document.createElement("button");
+            quit.type = "button";
+            quit.id = "pet-quit-btn";
+            quit.textContent = "Quit pet";
+            panel.appendChild(quit);
+            quit.addEventListener("click", function (e) {
+              e.stopPropagation();
+              try { window.webkit.messageHandlers.petquit.postMessage("quit"); } catch (_) {}
             });
           }
         });

@@ -3224,6 +3224,21 @@ body.pet .pet-size-btn {
 body.pet .pet-size-btn:hover {
   background: rgba(200, 112, 80, 0.28);
 }
+body.pet #pet-quit-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(220, 90, 70, 0.45);
+  background: rgba(150, 50, 40, 0.22);
+  color: rgba(245, 220, 215, 0.95);
+  font-size: 13px;
+  cursor: pointer;
+}
+body.pet #pet-quit-btn:hover {
+  background: rgba(190, 60, 48, 0.38);
+}
 
 /* Email-summary special feature — the formatted draft card (subject/body +
    Edit/Copy/Send) adapted to the small pet window. The card already carries
@@ -3277,3 +3292,67 @@ body.pet.dragging .eyes-stage {
 body.pet .eyes-stage {
   transition: transform 0.18s var(--ease-eye);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Desktop-pet reactions (Layer B/C) — transient expressions played
+   by petReact(). .react-<name> is added to .scene for a moment; here
+   it overrides the eye variant and animates the mascot body.
+   Add a new reaction = add one block below + bind a trigger in eyes.js.
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes petHop {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(-12px); }
+  70% { transform: translateY(0); }
+}
+@keyframes petBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-15px) scale(1.06); }
+  55% { transform: translateY(0) scale(1); }
+  78% { transform: translateY(-7px) scale(1.03); }
+}
+@keyframes petPerk {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes petTilt {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+@keyframes petStretch {
+  0%, 100% { transform: scaleY(1); }
+  45% { transform: scaleY(1.13) translateY(-4px); }
+}
+
+/* During any reaction, hide the state-driven eye variant and show the
+   reaction's own (scoped to .scene so unrelated classes can't match). */
+body.pet .scene[class*="react-"] .m-eyes { display: none !important; }
+body.pet .react-happy .m-eyes-happy,
+body.pet .react-love .m-eyes-happy,
+body.pet .react-perk .m-eyes-wide,
+body.pet .react-yawn .m-eyes-squint,
+body.pet .react-stretch .m-eyes-squint,
+body.pet .react-tilt .m-eyes-idle { display: block !important; }
+
+body.pet .react-happy .eyes-stage { animation: petHop 0.5s var(--ease-eye); }
+body.pet .react-love .eyes-stage {
+  animation: petBounce 0.75s var(--ease-eye);
+  filter: drop-shadow(0 0 13px rgba(232, 120, 140, 0.55));
+}
+body.pet .react-perk .eyes-stage { animation: petPerk 0.5s var(--ease-eye); }
+body.pet .react-tilt .eyes-stage { animation: petTilt 1s ease-in-out; }
+body.pet .react-stretch .eyes-stage { animation: petStretch 1.3s ease-in-out; }
+body.pet .react-yawn .eyes-stage { animation: petStretch 1.5s ease-in-out; }
+
+/* dizzy — over-petted / shaken: X eyes + a woozy spin-wobble */
+@keyframes petDizzy {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(-12deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(6deg); }
+  100% { transform: rotate(0); }
+}
+body.pet .react-dizzy .m-eyes-x { display: block !important; }
+body.pet .react-dizzy .eyes-stage { animation: petDizzy 0.7s ease-in-out 2; }

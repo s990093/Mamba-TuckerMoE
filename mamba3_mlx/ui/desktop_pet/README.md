@@ -91,15 +91,51 @@ ui/desktop_pet/run.sh --width 360 --height 440
 
 ---
 
-## Email 特化功能
+## Email 特化功能（原生視窗 + 逐字串流）
 
-切到 **email persona**（persona 鈕循環到 `email_summary`）後請它寫/整理信，寵物會把結果渲染成一張 **email 草稿卡**（主旨＋內文）而非一般字幕，並可：
+切到 **email persona**（persona 鈕循環到 `email_summary`，或輸出被偵測為 `Subject:`）後請它寫/整理信：
 
-- **Edit**：直接編輯內文，`[佔位符]` 會highlight成可填欄位
-- **Copy**：複製整封信到剪貼簿
-- **Send**：開啟 Gmail 撰寫頁——在桌面寵物上會用**系統預設瀏覽器**開（WKWebView 不能自開新視窗，已由原生端導向）
+- 寵物**不會把信唸出來**（email 模式靜音）。
+- Swift 會**跳出一個獨立的原生視窗**「Mamba · Email Draft」，內容**逐字串流生成**（typewriter，不是結尾一次塞滿）。
+- 視窗底部有 **Copy**（複製整封信）與 **Open in Mail**（用系統預設瀏覽器開 Gmail 撰寫頁，WKWebView 不能自開新視窗，由原生端導向）。
 
-卡片尺寸/位置已針對寵物小視窗適配；草稿卡出現時字幕自動讓位。
+運作：頁面把 email 的每個 token 透過 `window.webkit.messageHandlers.petemail` 送給 Swift（`start` / `token` / `done`），原生 `EmailWindow` 即時 append。終端會印 `email window: start / done`。
+
+## 角色狀態與互動設計（4 層）
+
+```
+Layer A 對話狀態 (eyes.js 狀態機)  idle/listening/thinking/speaking/error…  ← chat WS 驅動，權威
+Layer B 互動反應 (petReact)        react-happy/love/perk/yawn/stretch/tilt   ← 點/雙擊/hover/游標靠近，短暫後回 idle
+Layer C 閒置生命 (scheduleAmbient) blink/gaze + yawn/stretch/tilt/wink        ← idle 時隨機排程
+Layer D 情緒/精力 (未來)            mood 變數 bias 表情與閒置行為              ← 互動累積、隨時間衰減
+```
+
+**目前已實作的互動**（pet 模式）：
+
+| 觸發 | 反應 |
+| --- | --- |
+| 點一下寵物 | `happy`（笑眼 + 跳一下），心情 +0.1 |
+| 連點（摸摸）3 下 | `love`（彈跳 + 粉紅光暈） |
+| 連點 5 下（過度刺激） | `dizzy`（X 眼旋轉），心情 −0.2 |
+| 長按寵物 | `love`（被疼愛） |
+| 滑鼠移上去 / 桌面游標靠近 | `perk`（睜大眼「注意到你」） |
+| **拖著左右甩動** | `dizzy`（X 眼旋轉，Swift 偵測甩動方向反轉） |
+| 閒置時 | 依**心情**隨機：開心→wink/happy/tilt、低落→yawn/stretch |
+| 整點 | 打招呼（眨眼 + happy，心情↑） |
+| 拖曳 | wobble（被拿起） |
+| 閒置太久 | sleep（**心情低→更快睡**，0.5×–1.5× 倍率） |
+
+**情緒（Layer D）**：`_petMood` 0–1，互動會提高、隨時間回到中性（每 5s 拉回 0.5）。心情高→動作更頻繁更俏皮；心情低→想睡的動作。心情也決定閒置 fidget 的頻率。
+**時間情境**：深夜（23–6 點）開機 → 心情偏低、較想睡；早晨（6–10 點）→ 心情較高、較有精神。
+
+### 怎麼新增一個狀態/互動（3 步）
+
+1. **eyes.js**：在 `REACTIONS` 加名字，並在 `initPetInteractions()` 綁觸發（或在別處呼叫 `petReact('名字')`）。
+2. **eyes.css**：加一條 `body.pet .react-名字 .m-eyes-變體 { display:block !important }`（選一個眼睛變體）＋ `body.pet .react-名字 .eyes-stage { animation: … }`（身體動畫）。
+3. 完成——`petReact('名字')` 就會播放該表情並自動回 idle。
+
+> 可用的眼睛變體：`idle / blink / wink-l / wink-r / wide / up / left / right / dot / happy / squint / x / sleep`。
+> `petReact` 不會打斷 `thinking`/`speaking`（Layer A 優先）。
 
 ## 視窗特性（為什麼能「貼在桌面」）
 

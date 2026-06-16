@@ -4,10 +4,14 @@
 // borderless, transparent, floating WKWebView so the SVG mascot sits directly
 // on the desktop like a VTuber overlay — no window, no background.
 //
+// The target is split across files (compiled together as one module):
+//   DesktopPet.swift   — AppDelegate, menu, gaze, zoom, message handlers, main
+//   PetWindow.swift    — borderless transparent free-drag window
+//   EmailWindow.swift  — native streaming email-draft window (markdown card)
+//
 // Build & run (see run.sh) — needs `make chat` running first (serves :7860).
 // Info.plist is embedded so macOS prompts for microphone access:
-//   swiftc DesktopPet.swift -o pet -framework Cocoa -framework WebKit \
-//     -framework AVFoundation \
+//   swiftc *.swift -o pet -framework Cocoa -framework WebKit -framework AVFoundation \
 //     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker Info.plist
 //   ./pet                       # loads http://127.0.0.1:7860/eyes?pet=1
 //
@@ -19,62 +23,6 @@
 import Cocoa
 import WebKit
 import AVFoundation
-
-// MARK: - Borderless window with threshold-based free dragging
-//
-// A WKWebView covers the whole window, so we can't rely on
-// isMovableByWindowBackground. Instead we watch the mouse at the window level:
-// a press that moves past a small threshold becomes a window drag; a press that
-// is released in place stays a normal click and reaches the web page.
-
-final class PetWindow: NSWindow {
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
-
-    var onDragChange: ((Bool) -> Void)?
-
-    private var downMouse: NSPoint?
-    private var downOrigin: NSPoint?
-    private var dragging = false
-
-    override func sendEvent(_ event: NSEvent) {
-        switch event.type {
-        case .leftMouseDown:
-            downMouse = NSEvent.mouseLocation
-            downOrigin = frame.origin
-            dragging = false
-            // Take focus so the page can monitor keys (e.g. hold-Space to talk)
-            // only once you've clicked into the pet window.
-            if !isKeyWindow {
-                NSApp.activate(ignoringOtherApps: true)
-                makeKeyAndOrderFront(nil)
-            }
-            super.sendEvent(event)
-        case .leftMouseDragged:
-            guard let dm = downMouse, let orig = downOrigin else {
-                super.sendEvent(event); return
-            }
-            let cur = NSEvent.mouseLocation
-            let dx = cur.x - dm.x, dy = cur.y - dm.y
-            if !dragging && (dx * dx + dy * dy) > 9 {     // ~3px slop
-                dragging = true
-                onDragChange?(true)                       // "picked up" feedback
-            }
-            if dragging {
-                setFrameOrigin(NSPoint(x: orig.x + dx, y: orig.y + dy))
-                return // consume: don't forward drags into the page
-            }
-            super.sendEvent(event)
-        case .leftMouseUp:
-            let wasDragging = dragging
-            downMouse = nil; downOrigin = nil; dragging = false
-            if wasDragging { onDragChange?(false); return } // swallow the up
-            super.sendEvent(event)
-        default:
-            super.sendEvent(event)
-        }
-    }
-}
 
 // MARK: - App
 
@@ -94,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var trackingEnabled = true
     var clickThrough = false
     var currentChar = "eyes"
+    var emailWindow: EmailWindow?
 
     let url: URL
     let size: NSSize
@@ -107,11 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         requestMicrophone() // trigger the TCC prompt up front, before the page asks
 
         let cfg = WKWebViewConfiguration()
+        
         // Bridge the page's console.log/warn/error (and uncaught errors) to the
         // terminal so chat / WebSocket activity is visible for debugging.
         let ucc = WKUserContentController()
         ucc.add(self, name: "petlog")
-        ucc.add(self, name: "petzoom") // settings-panel "Pet size" buttons
+        ucc.add(self, name: "petzoom")  // settings-panel "Pet size" buttons
+        ucc.add(self, name: "petquit")  // settings-panel "Quit pet" button
+        ucc.add(self, name: "petemail") // stream email draft to a native window
         let bridge = """
         (function () {
           function send(level, args) {
@@ -127,8 +79,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             var orig = console[k] ? console[k].bind(console) : function () {};
             console[k] = function () { send(k, arguments); orig.apply(console, arguments); };
           });
-          window.addEventListener("error", function (e) { send("error", [e.message]); });
-          window.addEventListener("unhandledrejection", function (e) { send("error", ["promise: " + e.reason]); });
+          window.addEventListener("error", function (e) {
+            var loc = (e.filename || "") + ":" + (e.lineno || 0) + ":" + (e.colno || 0);
+            var stack = (e.error && e.error.stack) ? "\n" + e.error.stack : "";
+            send("error", [(e.message || "uncaught error") + " @ " + loc + stack]);
+          });
+          window.addEventListener("unhandledrejection", function (e) {
+            var r = e.reason;
+            send("error", ["unhandled promise: " + ((r && r.stack) ? r.stack : r)]);
+          });
         })();
         """
         ucc.addUserScript(WKUserScript(source: bridge, injectionTime: .atDocumentStart, forMainFrameOnly: false))
@@ -160,6 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             plog(on ? "drag start" : "drag end")
             self?.webView.evaluateJavaScript(
                 "window.petDragging&&window.petDragging(\(on))", completionHandler: nil)
+        }
+        window.onShake = { [weak self] in
+            plog("shake → dizzy")
+            self?.webView.evaluateJavaScript(
+                "window.petReact&&window.petReact('dizzy',1500)", completionHandler: nil)
         }
 
         positionBottomRight()
@@ -319,11 +283,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
         switch message.name {
         case "petlog":
-            plog("[page] \(message.body)")
+            let s = "\(message.body)"
+            // Make page errors/warnings stand out from the token-log stream.
+            if s.hasPrefix("error") || s.hasPrefix("warn") {
+                plog("‼️  [page] \(s)")
+            } else {
+                plog("[page] \(s)")
+            }
         case "petzoom":
             let dir = (message.body as? String) ?? ""
             plog("pet size button → \(dir)")
             zoom(dir == "in" ? 1.15 : 1.0 / 1.15)
+        case "petquit":
+            plog("quit (settings button)")
+            NSApp.terminate(nil)
+        case "petemail":
+            guard let d = message.body as? [String: Any],
+                  let type = d["type"] as? String else { break }
+            if emailWindow == nil { emailWindow = EmailWindow() }
+            switch type {
+            case "start": plog("email window: start"); emailWindow?.begin()
+            case "token": emailWindow?.append(d["text"] as? String ?? "")
+            case "done":  plog("email window: done");  emailWindow?.finish(d["full"] as? String ?? "")
+            default: break
+            }
         default:
             break
         }
@@ -384,30 +367,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         plog("page load FAILED (provisional): \(error.localizedDescription)")
     }
 }
-
-// MARK: - Args
-
-func parseArgs() -> (URL, NSSize) {
-    var urlStr = "http://127.0.0.1:7860/eyes?pet=1" // chat_demo (make chat) — real model /ws
-    var w: CGFloat = 360, h: CGFloat = 440
-    var it = CommandLine.arguments.dropFirst().makeIterator()
-    while let a = it.next() {
-        switch a {
-        case "--url": if let v = it.next() { urlStr = v }
-        case "--width": if let v = it.next(), let n = Double(v) { w = CGFloat(n) }
-        case "--height": if let v = it.next(), let n = Double(v) { h = CGFloat(n) }
-        default: break
-        }
-    }
-    guard let url = URL(string: urlStr) else {
-        FileHandle.standardError.write(Data("Invalid --url\n".utf8)); exit(1)
-    }
-    return (url, NSSize(width: w, height: h))
-}
-
-let (petURL, petSize) = parseArgs()
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory) // no Dock icon, no app menu
-let delegate = AppDelegate(url: petURL, size: petSize)
-app.delegate = delegate
-app.run()
