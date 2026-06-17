@@ -50,12 +50,13 @@ PROMPTS = {
     "deep_dive":          "Briefly explain how Mamba state-space models work.",
 }
 
-# Match e.g. "[prof] per-token µs (n=120): logits=21 sample=5310 text=205 route=164 fwd=7510 sum=13210 | wall=13520 (74.0 tok/s)"
+# Match e.g. "[prof] per-token µs (n=120): logits=21 sample=5310 text_dec=58 text_cli=140 route=164 fwd=7510 sum=13210 | wall=13520 (74.0 tok/s)"
 PROF_RE = re.compile(
     r"\[prof\] per-token .*?\(n=(?P<n>\d+)\)"
     r":\s*logits=(?P<logits>\d+)"
     r"\s+sample=(?P<sample>\d+)"
-    r"\s+text=(?P<text>\d+)"
+    r"\s+text_dec=(?P<text_dec>\d+)"
+    r"\s+text_cli=(?P<text_cli>\d+)"
     r"\s+route=(?P<route>\d+)"
     r"\s+fwd=(?P<fwd>\d+)"
     r"\s+sum=(?P<sum>\d+)"
@@ -162,23 +163,25 @@ def main() -> int:
                   file=sys.stderr)
         for (mode, rnum), m in zip(order, matches):
             row = {
-                "mode":       mode,
-                "round":      rnum,
-                "n_tokens":   int(m["n"]),
-                "logits_us":  int(m["logits"]),
-                "sample_us":  int(m["sample"]),
-                "text_us":    int(m["text"]),
-                "route_us":   int(m["route"]),
-                "fwd_us":     int(m["fwd"]),
-                "sum_us":     int(m["sum"]),
-                "wall_us":    int(m["wall"]),
+                "mode":         mode,
+                "round":        rnum,
+                "n_tokens":     int(m["n"]),
+                "logits_us":    int(m["logits"]),
+                "sample_us":    int(m["sample"]),
+                "text_dec_us":  int(m["text_dec"]),
+                "text_cli_us":  int(m["text_cli"]),
+                "route_us":     int(m["route"]),
+                "fwd_us":       int(m["fwd"]),
+                "sum_us":       int(m["sum"]),
+                "wall_us":      int(m["wall"]),
                 "tps":        float(m["tps"]),
             }
             rows.append(row)
             print(f"  [{mode}] r{rnum}  "
                   f"wall={row['wall_us']}µs/tok  "
                   f"fwd={row['fwd_us']}  sample={row['sample_us']}  "
-                  f"text={row['text_us']}  route={row['route_us']}  "
+                  f"tdec={row['text_dec_us']}  tcli={row['text_cli_us']}  "
+                  f"route={row['route_us']}  "
                   f"({row['tps']:.1f} tok/s, n={row['n_tokens']})")
 
     finally:
@@ -206,8 +209,8 @@ def main() -> int:
 
     aggregated = []
     for mode, rs in by_mode.items():
-        keys = ("logits_us", "sample_us", "text_us", "route_us",
-                "fwd_us", "sum_us", "wall_us", "tps")
+        keys = ("logits_us", "sample_us", "text_dec_us", "text_cli_us",
+                "route_us", "fwd_us", "sum_us", "wall_us", "tps")
         agg = {"mode": mode, "rounds": len(rs)}
         for k in keys:
             vals = [r[k] for r in rs]
@@ -226,14 +229,15 @@ def main() -> int:
                     "`MAMBA_PROFILE_LOOP=1`.  Each row averages "
                     f"{args.rounds} rounds of a representative prompt.\n")
     md_lines.append("Columns map to the chat_demo decode loop sections:")
-    md_lines.append("- **fwd**   — `StaticDecoder.step` GPU dispatch (Mamba + Tucker MoE + Tx)")
-    md_lines.append("- **sample**— compiled rep/freq/temp/top-k/p sampler + `mx.eval(.item())`")
-    md_lines.append("- **logits**— `mw.transform_logits(...)` (CoT FSM ban masks + close_bias)")
-    md_lines.append("- **text**  — tokenizer decode, special-token rendering, FSM event yield")
-    md_lines.append("- **route** — `mw.route(tid, ...)` (CoT phase tracking + injection check)")
-    md_lines.append("- **wall**  — measured per-token wall time (= 1 / tps × 10⁶)\n")
-    md_lines.append("| Mode | wall (µs) | fwd | sample | logits | text | route | sum | tok/s |")
-    md_lines.append("|------|-----------|-----|--------|--------|------|-------|-----|-------|")
+    md_lines.append("- **fwd**      — `StaticDecoder.step` GPU dispatch (Mamba + Tucker MoE + Tx)")
+    md_lines.append("- **sample**   — compiled rep/freq/temp/top-k/p sampler + `mx.eval(.item())`")
+    md_lines.append("- **logits**   — `mw.transform_logits(...)` (CoT FSM ban masks + close_bias)")
+    md_lines.append("- **text_dec** — `_tokenizer.decode(...)` (BPE Python decode)")
+    md_lines.append("- **text_cli** — Rich `_cprint` styled console emission")
+    md_lines.append("- **route**    — FSM `mw.step(tid, ...)` + yield events + stop checks")
+    md_lines.append("- **wall**     — measured per-token wall time (= 1 / tps × 10⁶)\n")
+    md_lines.append("| Mode | wall (µs) | fwd | sample | logits | text_dec | text_cli | route | sum | tok/s |")
+    md_lines.append("|------|-----------|-----|--------|--------|----------|----------|-------|-----|-------|")
     for r in aggregated:
         md_lines.append(
             f"| `{r['mode']}` "
@@ -241,7 +245,8 @@ def main() -> int:
             f"| {r['fwd_us']:.0f} "
             f"| {r['sample_us']:.0f} "
             f"| {r['logits_us']:.0f} "
-            f"| {r['text_us']:.0f} "
+            f"| {r['text_dec_us']:.0f} "
+            f"| {r['text_cli_us']:.0f} "
             f"| {r['route_us']:.0f} "
             f"| {r['sum_us']:.0f} "
             f"| {r['tps']:.1f} |"
@@ -249,7 +254,9 @@ def main() -> int:
     md_lines.append("")
     md_lines.append("### What this tells us")
     md_lines.append("- **`fwd` + `sample` ≈ 95 % of `wall`** — the GPU and sampling kernel are the dominant cost; everything we add for streaming is in the remaining ~5 %.")
-    md_lines.append("- **`text` (~200 µs) and `route` (~150 µs)** are the streaming-only overhead vs the CLI; together that's ~2.5 % of per-token wall, matching the ~83 % efficiency observed end-to-end.")
+    md_lines.append("- **`text_dec` vs `text_cli`** — splits the previous "
+                    "`text` row into BPE decode (Python-side) and Rich console "
+                    "print, so we can see which is the streaming overhead.")
     md_lines.append("- The `sample` figure is GPU-bound (it includes `mx.eval(.item())` synchronisation), not Python compute, which is why the compiled sampler is already near-optimal.\n")
     md.write_text("\n".join(md_lines), encoding="utf-8")
     print(f"\nwrote {md.relative_to(REPO_ROOT)}")
@@ -258,7 +265,8 @@ def main() -> int:
     with csv_path.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=[
             "mode", "rounds", "wall_us", "fwd_us", "sample_us",
-            "logits_us", "text_us", "route_us", "sum_us", "tps",
+            "logits_us", "text_dec_us", "text_cli_us", "route_us",
+            "sum_us", "tps",
         ])
         w.writeheader()
         for r in aggregated:

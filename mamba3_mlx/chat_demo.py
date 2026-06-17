@@ -249,6 +249,13 @@ def _cprint(text: str, style: str = "", end: str = "") -> None:
         print(text, end=end, flush=True)
 
 
+# Per-token console streaming — default OFF so the WS-only deployment doesn't
+# pay ~165 µs/tok for Rich styled prints (measured on M2 Pro, ~1 % of wall).
+# `--stream-console` re-enables it for terminal-only debugging / make self-s.
+# Headers, system prompts, and turn summaries (= not per-token) always print.
+_STREAM_CONSOLE = False
+
+
 # Inference lock — MLX Metal is single-stream.
 _infer_lock = asyncio.Lock()
 
@@ -716,7 +723,8 @@ def _stream_identity_fastpath(
         prev_text = full
         if delta:
             el = max(time.perf_counter() - t_dec, 1e-9)
-            _cprint(delta, style="green")
+            if _STREAM_CONSOLE:
+                _cprint(delta, style="green")
             yield {"type": "token", "text": delta, "n": len(seen),
                    "tok_s": round(len(seen) / el, 1)}
         if abort_event is not None and abort_event.is_set():
@@ -861,8 +869,13 @@ def _stream_generate(
     _raw_prev_text = ""   # cumulative decoded string for raw_sampling delta tracking
 
     # ── Optional per-section timing (set MAMBA_PROFILE_LOOP=1 to enable) ──
+    #    text   stage is split into:
+    #      text_dec — _tokenizer.decode([tid]) (or all_tids in raw_sampling)
+    #      text_cli — Rich `_cprint` styled console emission
+    #    route stage covers FSM `mw.step` + yield events + stop checks.
     _prof = os.environ.get("MAMBA_PROFILE_LOOP", "") in ("1", "true", "yes")
-    _t_logits = _t_sample = _t_text = _t_route = _t_fwd = 0.0
+    _t_logits = _t_sample = _t_route = _t_fwd = 0.0
+    _t_text_dec = _t_text_cli = 0.0
 
     # When no_eos_stop is on, after the splitter enters "done" we keep decoding
     # tokens but bypass the splitter — text streams through `_nes_decode_and_yield`.
@@ -969,12 +982,15 @@ def _stream_generate(
                                               clean_up_tokenization_spaces=False)
             except Exception:
                 _raw_text = ""
+        if _prof: _ts_dec = time.perf_counter(); _t_text_dec += _ts_dec - _ts_fwd
 
         # Live console: stream decoded token coloured by FSM mode.
         #   think/head  → dim grey  (reasoning in progress)
         #   final/done  → green     (answer tokens)
         #   between     → yellow    (transition zone)
-        if _raw_text:
+        # Gated on _STREAM_CONSOLE — default off in WS deployments to save
+        # ~165 µs/tok of Rich rendering (measured M2 Pro).
+        if _raw_text and _STREAM_CONSOLE:
             _mode_now = mw.mode
             if _mode_now in ("head", "think"):
                 _cprint(_raw_text, style="dim")
@@ -982,7 +998,7 @@ def _stream_generate(
                 _cprint(_raw_text, style="yellow")
             else:
                 _cprint(_raw_text, style="green")
-        if _prof: _ts3 = time.perf_counter(); _t_text += _ts3 - _ts_fwd
+        if _prof: _ts3 = time.perf_counter(); _t_text_cli += _ts3 - _ts_dec
 
         # 2b) Token routing — raw yields the cumulative delta directly.
         if _raw:
@@ -1041,7 +1057,8 @@ def _stream_generate(
                 last_logits = inj_row
                 prefill_ms += inj_ms
                 mx.eval(last_logits)
-                _cprint(" [mw:inject<final>] ", style="bold magenta")
+                if _STREAM_CONSOLE:
+                    _cprint(" [mw:inject<final>] ", style="bold magenta")
                 yield {
                     "type": "mw_inject",
                     "what": "<final>",
@@ -1055,11 +1072,13 @@ def _stream_generate(
     streaming_tps = round(n_out / max(elapsed, 1e-9), 1)
 
     if _prof and n_out > 0:
-        _total_us = (_t_logits + _t_sample + _t_text + _t_route + _t_fwd) * 1e6 / n_out
+        _total_us = (_t_logits + _t_sample + _t_text_dec + _t_text_cli
+                     + _t_route + _t_fwd) * 1e6 / n_out
         print(f"\n[prof] per-token µs (n={n_out}): "
               f"logits={_t_logits*1e6/n_out:.0f} "
               f"sample={_t_sample*1e6/n_out:.0f} "
-              f"text={_t_text*1e6/n_out:.0f} "
+              f"text_dec={_t_text_dec*1e6/n_out:.0f} "
+              f"text_cli={_t_text_cli*1e6/n_out:.0f} "
               f"route={_t_route*1e6/n_out:.0f} "
               f"fwd={_t_fwd*1e6/n_out:.0f} "
               f"sum={_total_us:.0f} | wall={elapsed/n_out*1e6:.0f} "
@@ -2186,12 +2205,20 @@ def parse_args() -> argparse.Namespace:
                    help="in_proj/dense/qkv/o quant bits (dt/A/λ stays bf16; default 0).")
     p.add_argument("--quant-head", dest="quant_head", type=int, default=0,
                    help="Head projection quant bits (default 0).")
+    p.add_argument("--stream-console", dest="stream_console", action="store_true",
+                   default=False,
+                   help="Stream coloured per-token output to the terminal as "
+                        "the model decodes. Default OFF (saves ~165 µs/tok of "
+                        "Rich rendering on M2 Pro). Re-enable for terminal-only "
+                        "debugging.")
     return p.parse_args()
 
 
 def main():
     args = parse_args()
     global _load_timings, _model_ready, _config, _vocab_size, _args, _MOCK_MODE
+    global _STREAM_CONSOLE
+    _STREAM_CONSOLE = bool(getattr(args, "stream_console", False))
 
     print(f"\n{'='*60}")
     print("  Mamba3-XR Chat Demo (WebSocket, mamba3_mlx native)")
