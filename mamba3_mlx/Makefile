@@ -7,7 +7,7 @@ REPO    := $(ROOT)/..
 PYTHON  ?= $(if $(wildcard $(REPO)/.venv/bin/python3),$(REPO)/.venv/bin/python3,python3)
 RUN     := $(PYTHON) $(ROOT)/run.py
 
-CHECKPOINT ?= $(REPO)/checkpoints/v8/latest_sft_cot_model.npz
+CHECKPOINT ?= $(REPO)/checkpoints/v6/latest_sft_cot_model.npz
 TOKENIZER  ?= $(REPO)/cot_dataset/tokenizer.json
 # v6 = best for self_awareness (20% hit rate seed=26, vs v8 needs seed=17 only)
 SELF_CKPT  ?= $(REPO)/checkpoints/v6/latest_sft_cot_model.npz

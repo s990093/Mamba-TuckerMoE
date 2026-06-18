@@ -1,16 +1,16 @@
 'use strict';
 /* ── Speed Race v3 · PyTorch vs MLX + Performance Matrix ───────────── */
 
-const PROMPT    = 'Who are you?';
-const PT_WS_URL  = `ws://${location.host}/ws/pytorch`;
+const PROMPT = 'Who are you?';
+const PT_WS_URL = `ws://${location.host}/ws/pytorch`;
 const MLX_WS_URL = `ws://${location.host}/ws`;
 
 // ── DOM helpers ────────────────────────────────────────────────────────
-const $  = id => document.getElementById(id);
-const $btn    = $('race-btn');
+const $ = id => document.getElementById(id);
+const $btn = $('race-btn');
 const $banner = $('speedup-banner');
 const $matrix = $('perf-matrix');
-const $phase  = $('phase-label');
+const $phase = $('phase-label');
 
 // ── State ──────────────────────────────────────────────────────────────
 let _running = false;
@@ -21,7 +21,7 @@ let _mlxBenchTps = null;
 fetch('/api/bench-tps', { signal: AbortSignal.timeout(2500) })
   .then(r => r.json())
   .then(d => { _mlxBenchTps = d.mlx_bench_tps ?? null; })
-  .catch(() => {});
+  .catch(() => { });
 
 // ── Status probe ───────────────────────────────────────────────────────
 function _probePT() {
@@ -32,7 +32,7 @@ function _probePT() {
       if (s.ready) {
         dot.className = 'status-dot ready';
         const info = s.info ?? {};
-        txt.textContent = `PyTorch backend ready · ${info.device ?? 'mps'} · ${(info.dtype ?? '').replace('torch.','')}`;
+        txt.textContent = `PyTorch backend ready · ${info.device ?? 'mps'} · ${(info.dtype ?? '').replace('torch.', '')}`;
       } else {
         dot.className = 'status-dot';
         txt.textContent = 'PyTorch loading weights in background…';
@@ -45,6 +45,8 @@ function _probePT() {
       if (txt) txt.textContent = 'PyTorch unavailable — start server: make -C mamba3_mlx chat';
     });
 }
+
+
 _probePT();
 
 // ── Column helpers ─────────────────────────────────────────────────────
@@ -92,13 +94,13 @@ function appendThink(id, text) {
 function doneThink(id, ms) {
   const b = $(`think-${id}`); if (b) b.classList.add('done');
   const l = $(`think-lbl-${id}`);
-  if (l) l.textContent = `Thought for ${(ms/1000).toFixed(1)}s`;
+  if (l) l.textContent = `Thought for ${(ms / 1000).toFixed(1)}s`;
   const t = $(`think-time-${id}`);
   if (t) t.textContent = `${Math.round(ms)}ms`;
 }
 
 // Think collapse toggles
-['pt','mlx'].forEach(id => {
+['pt', 'mlx'].forEach(id => {
   const btn = $(`think-toggle-${id}`), blk = $(`think-${id}`);
   if (btn && blk) btn.addEventListener('click', () => blk.classList.toggle('collapsed'));
 });
@@ -114,7 +116,7 @@ function setPhase(txt, cls = '') {
 function animateCounter(el, targetVal, suffix = '×', duration = 800) {
   if (!el) return;
   const start = performance.now();
-  const from  = 0;
+  const from = 0;
   function tick(now) {
     const t = Math.min((now - start) / duration, 1);
     const ease = 1 - Math.pow(1 - t, 3);
@@ -128,29 +130,29 @@ function animateCounter(el, targetVal, suffix = '×', duration = 800) {
 // ── Matrix population ──────────────────────────────────────────────────
 function populateMatrix(ptData, mlxData) {
   // Decode tok/s
-  const pTps = ptData.tokS  ?? 0;
+  const pTps = ptData.tokS ?? 0;
   const mTps = mlxData.tokS ?? 0;
-  $('mx-decode-pt').textContent  = pTps  ? `${pTps.toFixed(1)} tok/s`  : '—';
-  $('mx-decode-mlx').textContent = mTps  ? `${mTps.toFixed(1)} tok/s`  : '—';
+  $('mx-decode-pt').textContent = pTps ? `${pTps.toFixed(1)} tok/s` : '—';
+  $('mx-decode-mlx').textContent = mTps ? `${mTps.toFixed(1)} tok/s` : '—';
   markWinner('mx-decode', pTps, mTps, true);
 
   // Prefill
-  const pPre = ptData.prefillTps  ?? 0;
+  const pPre = ptData.prefillTps ?? 0;
   const mPre = mlxData.prefillTps ?? 0;
-  $('mx-prefill-pt').textContent  = pPre ? `${Math.round(pPre)} tok/s`  : '—';
-  $('mx-prefill-mlx').textContent = mPre ? `${Math.round(mPre)} tok/s`  : '—';
+  $('mx-prefill-pt').textContent = pPre ? `${Math.round(pPre)} tok/s` : '—';
+  $('mx-prefill-mlx').textContent = mPre ? `${Math.round(mPre)} tok/s` : '—';
   markWinner('mx-prefill', pPre, mPre, true);
 
   // TTFT (lower is better)
-  const pTtft = ptData.ttft  ?? 0;
+  const pTtft = ptData.ttft ?? 0;
   const mTtft = mlxData.ttft ?? 0;
-  $('mx-ttft-pt').textContent  = pTtft ? `${Math.round(pTtft)}ms`  : '—';
-  $('mx-ttft-mlx').textContent = mTtft ? `${Math.round(mTtft)}ms`  : '—';
-  markWinner('mx-ttft', mTtft > 0 ? 1/mTtft : 0, pTtft > 0 ? 1/pTtft : 0, true);
+  $('mx-ttft-pt').textContent = pTtft ? `${Math.round(pTtft)}ms` : '—';
+  $('mx-ttft-mlx').textContent = mTtft ? `${Math.round(mTtft)}ms` : '—';
+  markWinner('mx-ttft', mTtft > 0 ? 1 / mTtft : 0, pTtft > 0 ? 1 / pTtft : 0, true);
 }
 
 function markWinner(prefix, ptScore, mlxScore, higherBetter = true) {
-  const ptEl  = $(`${prefix}-pt`);
+  const ptEl = $(`${prefix}-pt`);
   const mlxEl = $(`${prefix}-mlx`);
   if (!ptEl || !mlxEl) return;
   if (ptScore <= 0 && mlxScore <= 0) return;
@@ -164,17 +166,17 @@ function markWinner(prefix, ptScore, mlxScore, higherBetter = true) {
 
 // ── Show results ───────────────────────────────────────────────────────
 function showResults() {
-  const pt  = _results.pt;
+  const pt = _results.pt;
   const mlx = _results.mlx;
   if (!pt || !mlx) return;
 
-  const ptTps  = pt.tokS  ?? 0;
+  const ptTps = pt.tokS ?? 0;
   const mlxTps = mlx.tokS ?? 0;
-  const ratio  = mlxTps > 0 && ptTps > 0 ? mlxTps / ptTps : 0;
+  const ratio = mlxTps > 0 && ptTps > 0 ? mlxTps / ptTps : 0;
 
   // Banner
   $('banner-mlx-tps').textContent = mlxTps ? `${mlxTps.toFixed(1)} tok/s` : '—';
-  $('banner-pt-tps').textContent  = ptTps  ? `${ptTps.toFixed(1)} tok/s`  : '—';
+  $('banner-pt-tps').textContent = ptTps ? `${ptTps.toFixed(1)} tok/s` : '—';
   animateCounter($('speedup-num'), ratio, '×');
   $banner.hidden = false;
 
@@ -182,10 +184,10 @@ function showResults() {
   if (ratio > 1) {
     $('col-mlx').classList.add('winner');
     $('crown-mlx').textContent = '👑';
-    $('crown-pt').textContent  = '';
+    $('crown-pt').textContent = '';
   } else {
     $('col-pt').classList.add('winner');
-    $('crown-pt').textContent  = '👑';
+    $('crown-pt').textContent = '👑';
     $('crown-mlx').textContent = '';
   }
 
@@ -197,9 +199,9 @@ function showResults() {
 // ── Core WS runner (Promise-based) ────────────────────────────────────
 function runEngine(id, wsUrl, payload) {
   return new Promise(resolve => {
-    const t0       = Date.now();
+    const t0 = Date.now();
     let thinkStart = null, firstTokMs = null;
-    let tokCount   = 0;
+    let tokCount = 0;
     let prefillTps = 0;
 
     let rawMode = 'think';
@@ -258,17 +260,17 @@ function runEngine(id, wsUrl, payload) {
             setBar(id, m.tok_s, 160);
           }
         } else if (m.type === 'done') {
-          const ttft    = firstTokMs ?? (Date.now() - t0);
-          const total   = m.total_tokens ?? tokCount;
+          const ttft = firstTokMs ?? (Date.now() - t0);
+          const total = m.total_tokens ?? tokCount;
           // Prefer bench_tps (for MLX) or per-step tok_s (for PT)
           const rawBench = (id === 'mlx' && _mlxBenchTps) ? _mlxBenchTps
-                         : (m.bench_tps ?? null);
-          const dispTps  = parseFloat(rawBench ?? m.tok_s ?? 0);
-          const prefill  = m.prefill_tps ?? prefillTps;
+            : (m.bench_tps ?? null);
+          const dispTps = parseFloat(rawBench ?? m.tok_s ?? 0);
+          const prefill = m.prefill_tps ?? prefillTps;
 
-          setLive(id, 'ttft',    `${Math.round(ttft)}ms`);
-          setLive(id, 'toks',    dispTps.toFixed(1));
-          setLive(id, 'total',   total);
+          setLive(id, 'ttft', `${Math.round(ttft)}ms`);
+          setLive(id, 'toks', dispTps.toFixed(1));
+          setLive(id, 'total', total);
           setLive(id, 'prefill', prefill ? `${Math.round(prefill)}` : '—');
           setBar(id, dispTps, 160);
           doneResp(id);
@@ -302,7 +304,7 @@ function runEngine(id, wsUrl, payload) {
             }
           }
         }
-      } catch {}
+      } catch { }
     };
 
     ws.onerror = () => {
@@ -318,15 +320,15 @@ function runEngine(id, wsUrl, payload) {
 function resetAll() {
   ['pt', 'mlx'].forEach(id => {
     badge(id, '', 'READY');
-    const blk  = $(`think-${id}`);
-    if (blk) { blk.hidden = true; blk.classList.remove('done','collapsed'); }
+    const blk = $(`think-${id}`);
+    if (blk) { blk.hidden = true; blk.classList.remove('done', 'collapsed'); }
     $(`think-body-${id}`)?.removeAttribute('textContent');
     if ($(`think-body-${id}`)) $(`think-body-${id}`).textContent = '';
     if ($(`think-lbl-${id}`)) $(`think-lbl-${id}`).textContent = 'Thinking…';
     if ($(`think-time-${id}`)) $(`think-time-${id}`).textContent = '';
     const resp = $(`resp-${id}`);
     if (resp) resp.innerHTML = '<span class="resp-idle">Waiting to start…</span>';
-    ['ttft','toks','total','prefill'].forEach(k => setLive(id, k, '—'));
+    ['ttft', 'toks', 'total', 'prefill'].forEach(k => setLive(id, k, '—'));
     setBar(id, 0, 160);
     const col = $(`col-${id}`);
     if (col) col.className = 'lane';
@@ -347,7 +349,7 @@ async function runRace() {
   _running = true;
   resetAll();
 
-  $btn.disabled  = true;
+  $btn.disabled = true;
   $btn.className = 'race-btn racing';
   $btn.innerHTML = `<span class="btn-spin">●</span> Running…`;
 
@@ -377,8 +379,8 @@ async function runRace() {
   setPhase('Race complete ✓', 'phase-done');
   showResults();
 
-  _running       = false;
-  $btn.disabled  = false;
+  _running = false;
+  $btn.disabled = false;
   $btn.className = 'race-btn';
   $btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg> Race Again`;
 }

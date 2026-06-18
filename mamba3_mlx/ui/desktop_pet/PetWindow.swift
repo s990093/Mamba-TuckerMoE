@@ -3,6 +3,10 @@
 
 import Cocoa
 
+// File drag-and-drop is handled in the page (HTML5 dragover/drop) and bridged
+// to native via the "petfile" message handler — WKWebView's internal views eat
+// AppKit drag-destination overrides, so the in-page path is the reliable one.
+
 // MARK: - Borderless window with threshold-based free dragging
 //
 // A WKWebView covers the whole window, so we can't rely on

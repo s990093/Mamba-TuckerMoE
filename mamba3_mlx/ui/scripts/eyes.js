@@ -394,6 +394,14 @@ function _rawTokenRoute(text) {
 
 // ── WS event handler ──────────────────────────────────────────────────────────
 function handleWS(msg) {
+  // The chat_demo drainer bundles bursts of events into a single 'batch'
+  // envelope for throughput; unwrap so each inner event flows through the
+  // normal switch (otherwise </think>/<final> mode transitions can land
+  // inside a batch and silently never fire, breaking TTS).
+  if (msg && msg.type === 'batch' && Array.isArray(msg.events)) {
+    for (const inner of msg.events) handleWS(inner);
+    return;
+  }
   // DEBUG: log first 5 events per turn
   if (!window._dbgN) window._dbgN = 0;
   if (msg.type === 'meta') window._dbgN = 0;
@@ -410,6 +418,7 @@ function handleWS(msg) {
       hideEmailCard();
       ttsReset(); // clear any stuck TTS from the previous turn before a new one
       _emailFinalBuf = '';
+      if (_readingActive) petReadingStats(msg); // show prefill speed (the demo metric)
       if (_petEmailStart()) _petEmailPost({ type: 'start' }); // open native email window
       setState('thinking');
       setStatus('Thinking…');
@@ -481,6 +490,9 @@ let _tokenCount = 0;
 function setState(s) {
   if (!STATES.includes(s)) return;
   _state = s;
+  // Reading overlay only spans prefill→thinking; the answer (or any terminal
+  // state) ends it. Keep it during processing/thinking only.
+  if (s !== 'processing' && s !== 'thinking') petStopReading();
   STATES.forEach(x => $scene.classList.remove('state-' + x));
   $scene.classList.add('state-' + s);
   $scene.classList.remove('blinking', 'wink-l', 'wink-r', 'gaze-left', 'gaze-right', 'mouth-open');
@@ -1322,6 +1334,104 @@ function sendPrompt(text) {
 }
 // Exposed so the desktop-pet text bar (and native wrapper) can send a turn.
 window.sendPrompt = sendPrompt;
+
+// Drag-a-file-onto-the-pet → read & summarize. The native wrapper reads the
+// dropped file's text and calls this; we switch to Summarize&Email mode (which
+// streams into the native draft window) and ask for a structured summary.
+// ── "Reading a document" overlay ──────────────────────────────────────────
+// A context layer that sits on top of the conversational state machine: while
+// the pet reads a dropped file (prefill → thinking) it holds a page and scans.
+// Explicit start/stop lifecycle; petStopReading() is called from setState the
+// moment the answer (or any terminal state) begins, so it never lingers.
+let _readingActive = false;
+function petStartReading() { _readingActive = true; document.body.classList.add('reading'); }
+function petStopReading() {
+  if (!_readingActive) return;
+  _readingActive = false;
+  document.body.classList.remove('reading');
+}
+// Exposed so the native wrapper can show "reading" immediately on drop (while
+// it extracts the file off the main thread) and clear it if extraction fails.
+window.petReadingOn = petStartReading;
+window.petReadingOff = petStopReading;
+
+// Demo metric: once prefill is done (meta), show how fast the file was ingested
+// in the reading caption — "read N tokens · X tok/s". Uses server prefill_tps
+// when available, else the client-measured ingest latency.
+function petReadingStats(msg) {
+  const cap = document.querySelector('#pet-reading .pr-cap');
+  if (!cap) return;
+  const toks = (msg && msg.prompt_tokens) || 0;
+  let tps = (msg && msg.prefill_tps) || 0;
+  if (!tps && window._petReadT0 && toks) {
+    const secs = (performance.now() - window._petReadT0) / 1000;
+    if (secs > 0) tps = toks / secs;
+  }
+  if (toks) {
+    cap.textContent = 'read ' + toks.toLocaleString() + ' tokens'
+      + (tps ? ' · ' + Math.round(tps).toLocaleString() + ' tok/s' : '');
+  }
+}
+
+// Defensive feedback (防呆): on any dropped-file problem, stop reading, look
+// confused, and show a short toast so the user knows what happened.
+window.petFileError = function (msg) {
+  petStopReading();
+  document.body.classList.remove('file-over');
+  if (typeof petReact === 'function') petReact('dizzy', 1300);
+  var t = document.getElementById('pet-toast');
+  if (t) {
+    t.textContent = msg || "I couldn't read that";
+    t.classList.add('show');
+    clearTimeout(window._petToastT);
+    window._petToastT = setTimeout(function () { t.classList.remove('show'); }, 2800);
+  }
+};
+
+window.petSummarize = function (name, text) {
+  if (!text || !text.trim()) { window.petFileError && window.petFileError("that file was empty"); return; }
+  // 防呆: don't start a new file while a turn is already in flight.
+  if (_state === 'processing' || _state === 'thinking' || _state === 'speaking') {
+    window.petFileError && window.petFileError("I'm still busy — one sec");
+    return;
+  }
+  document.body.classList.remove('file-over');
+  if (typeof petReact === 'function') petReact('love', 900); // "caught it!"
+  window._petReadT0 = performance.now();      // for the prefill-speed demo metric
+  petStartReading();                          // read through prefill/thinking
+  _activeCat = 'email_summary';
+  CFG.defaultCategory = 'email_summary';
+  applyModeConfig('email_summary');
+  if (typeof updateSysLabel === 'function') updateSysLabel();
+  const clipped = text.length > 3500 ? text.slice(0, 3500) + '\n…[truncated]' : text;
+  // Cap generation to 512 for the file-summary turn ONLY (save/restore so it
+  // never persists or alters other turns' tuned hyperparameters). Summaries
+  // don't need 2048 tokens, and this keeps prompt+gen inside the ctx window.
+  const _savedMax = SETTINGS.maxTokens;
+  SETTINGS.maxTokens = Math.min(SETTINGS.maxTokens, 512);
+  sendPrompt('Summarize this file "' + (name || 'document') + '" — conclusion first, '
+    + 'then key points and any action items:\n\n' + clipped);
+  SETTINGS.maxTokens = _savedMax;
+};
+
+// Exposed so the native pet status-bar menu can fire a verified sidebar prompt:
+// applies the right category + seed override, then sends one chat turn.
+// Tolerates being called before loadCategories() finished — applyModeConfig
+// is a no-op if mode_configs hasn't streamed in yet.
+window.petSendDemo = function (catKey, seed, prompt) {
+  if (typeof prompt !== 'string' || !prompt.trim()) return false;
+  if (catKey) {
+    _activeCat = catKey;
+    CFG.defaultCategory = catKey;
+    try { applyModeConfig(catKey); } catch (_) {}
+    try { updateSysLabel(); } catch (_) {}
+  }
+  if (seed !== null && seed !== undefined && Number.isFinite(Number(seed))) {
+    _samplingState = { ..._samplingState, seed: Number(seed) };
+  }
+  sendPrompt(prompt);
+  return true;
+};
 
 function _doSend(text) {
   setState('processing');

@@ -23,6 +23,7 @@
 import Cocoa
 import WebKit
 import AVFoundation
+import PDFKit
 
 // MARK: - App
 
@@ -31,6 +32,12 @@ func plog(_ s: String) {
     let t = ISO8601DateFormatter().string(from: Date())
     print("[pet \(t.suffix(13).prefix(8))] \(s)")
     fflush(stdout)
+}
+
+// Encode a Swift string as a safe JS string literal for evaluateJavaScript.
+func jsLit(_ s: String) -> String {
+    let data = (try? JSONSerialization.data(withJSONObject: s, options: [.fragmentsAllowed])) ?? Data("\"\"".utf8)
+    return String(data: data, encoding: .utf8) ?? "\"\""
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
@@ -43,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var clickThrough = false
     var currentChar = "eyes"
     var emailWindow: EmailWindow?
+    var perfWindow: PerfWindow?          // single reused window, like EmailWindow
 
     let url: URL
     let size: NSSize
@@ -64,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         ucc.add(self, name: "petzoom")  // settings-panel "Pet size" buttons
         ucc.add(self, name: "petquit")  // settings-panel "Quit pet" button
         ucc.add(self, name: "petemail") // stream email draft to a native window
+        ucc.add(self, name: "petfile")  // dropped file bytes → read & summarize
         let bridge = """
         (function () {
           function send(level, args) {
@@ -191,6 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     // MARK: Menu bar (no Dock icon — this is settings + how you quit)
 
+    // Holds the verified demo-prompt submenu (rebuilt after /api/demo-config fetch).
+    var demoMenuItem: NSMenuItem?
+
     func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "🐍"
@@ -201,16 +213,156 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         menu.addItem(item("Switch character", #selector(switchCharacter), key: "x"))
         menu.addItem(item("Switch persona (system prompt)", #selector(switchPersona), key: "c"))
         menu.addItem(.separator())
+
+        // Demo prompts submenu (verified self_awareness + email_summary).
+        // Populated asynchronously from /api/demo-config after the menu is built.
+        let demoTop = NSMenuItem(title: "Demo prompts", action: nil, keyEquivalent: "")
+        let placeholder = NSMenu()
+        placeholder.addItem(NSMenuItem(title: "Loading…", action: nil, keyEquivalent: ""))
+        demoTop.submenu = placeholder
+        menu.addItem(demoTop)
+        demoMenuItem = demoTop
+        menu.addItem(.separator())
+
         menu.addItem(item("Bigger", #selector(bigger), key: "="))
         menu.addItem(item("Smaller", #selector(smaller), key: "-"))
         let ct = item("Click-through", #selector(toggleClickThrough)); ct.state = .off
         menu.addItem(ct)
         menu.addItem(item("Reset settings", #selector(resetSettings)))
+        menu.addItem(item("Perf matrix", #selector(togglePerf), key: "p"))
         menu.addItem(.separator())
+        menu.addItem(item("Refresh demo prompts", #selector(refreshDemoPrompts)))
+        menu.addItem(item("Test TTS (say 'Mamba ready')", #selector(testTTS)))
         menu.addItem(item("Reload", #selector(reload), key: "r"))
         menu.addItem(NSMenuItem(title: "Quit Pet",
                                 action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+
+        // Fire fetch — non-blocking; populates demoMenuItem when /api/demo-config
+        // (served by `make chat`) responds.
+        fetchAndBuildDemoMenu()
+    }
+
+    // MARK: Demo-prompt menu (fetched live from chat_demo /api/demo-config)
+
+    @objc func refreshDemoPrompts() {
+        plog("refresh demo prompts")
+        fetchAndBuildDemoMenu()
+    }
+
+    /// Diagnostic helper: speak a fixed phrase via the page's SpeechSynthesis.
+    /// Kept as a menu item because it's a quick check that the WebKit audio
+    /// path is alive (separate from the chat WS pipeline).
+    @objc func testTTS() {
+        plog("TTS test → say 'Mamba ready'")
+        let js = """
+        (function(){
+          try {
+            var u = new SpeechSynthesisUtterance('Mamba ready');
+            u.rate = 1.0; u.pitch = 1.0;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+            return true;
+          } catch(e) { return false; }
+        })()
+        """
+        webView.evaluateJavaScript(js, completionHandler: { res, err in
+            if let err = err { plog("TTS test JS error: \(err.localizedDescription)") }
+            else if let b = res as? Bool { plog("TTS test → \(b ? "queued" : "failed")") }
+        })
+    }
+
+    /// Fetch /api/demo-config from the running chat_demo server, then rebuild
+    /// the "Demo prompts" submenu so each item carries its (category, seed,
+    /// prompt) triple and can fire via `window.petSendDemo`.
+    private func fetchAndBuildDemoMenu() {
+        // The same host the WKWebView already loaded — strip path, hit /api/demo-config.
+        guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+        comps.path = "/api/demo-config"
+        comps.query = nil
+        guard let endpoint = comps.url else { return }
+        plog("fetch demo-config → \(endpoint.absoluteString)")
+        let task = URLSession.shared.dataTask(with: endpoint) { [weak self] data, _, err in
+            guard let self = self else { return }
+            if let err = err {
+                plog("demo-config fetch failed: \(err.localizedDescription)")
+                return
+            }
+            guard let data = data,
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cats = obj["categories"] as? [[String: Any]]
+            else {
+                plog("demo-config: malformed JSON")
+                return
+            }
+            DispatchQueue.main.async { self.populateDemoMenu(from: cats) }
+        }
+        task.resume()
+    }
+
+    private func populateDemoMenu(from categories: [[String: Any]]) {
+        guard let top = demoMenuItem else { return }
+        let sub = NSMenu()
+        var total = 0
+        for cat in categories {
+            guard let catKey = cat["key"] as? String,
+                  let examples = cat["examples"] as? [[String: Any]],
+                  !examples.isEmpty
+            else { continue }
+            let catTitle = (cat["title"] as? String) ?? catKey
+            let header = NSMenuItem(title: "\(catTitle) (\(examples.count))",
+                                    action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            sub.addItem(header)
+            for ex in examples {
+                guard let user = ex["user"] as? String, !user.isEmpty else { continue }
+                let sampling = (ex["sampling"] as? [String: Any]) ?? [:]
+                let seed = (sampling["seed"] as? Int) ?? -1
+                let label = user.count > 70 ? String(user.prefix(70)) + "…" : user
+                let it = NSMenuItem(title: "  \(label)",
+                                    action: #selector(demoPromptClicked(_:)),
+                                    keyEquivalent: "")
+                it.target = self
+                // Pack the triple via a dictionary on representedObject.
+                it.representedObject = [
+                    "catKey": catKey,
+                    "seed":   seed,
+                    "prompt": user,
+                ] as NSDictionary
+                it.toolTip = "seed=\(seed) · \(catKey)"
+                sub.addItem(it)
+                total += 1
+            }
+            sub.addItem(.separator())
+        }
+        if total == 0 {
+            sub.addItem(NSMenuItem(title: "(no demo prompts found)", action: nil, keyEquivalent: ""))
+        }
+        top.submenu = sub
+        plog("demo-config loaded → \(total) prompts across \(categories.count) categories")
+    }
+
+    @objc func demoPromptClicked(_ sender: NSMenuItem) {
+        guard let info = sender.representedObject as? NSDictionary,
+              let catKey = info["catKey"] as? String,
+              let prompt = info["prompt"] as? String
+        else { return }
+        let seed = info["seed"] as? Int ?? -1
+        // JS-escape via JSON encoding — survives quotes, newlines, unicode.
+        func jsString(_ s: String) -> String {
+            let data = (try? JSONSerialization.data(withJSONObject: [s], options: []))
+                ?? Data("[\"\"]".utf8)
+            let raw  = String(data: data, encoding: .utf8) ?? "[\"\"]"
+            // raw is "[\"...\"]"; strip outer brackets.
+            return String(raw.dropFirst().dropLast())
+        }
+        let js = "window.petSendDemo && window.petSendDemo(\(jsString(catKey)),\(seed),\(jsString(prompt)))"
+        plog("demo-send cat=\(catKey) seed=\(seed) prompt=\"\(prompt.prefix(60))…\"")
+        webView.evaluateJavaScript(js, completionHandler: { _, err in
+            if let err = err {
+                plog("petSendDemo JS error: \(err.localizedDescription)")
+            }
+        })
     }
 
     private func item(_ title: String, _ sel: Selector, key: String = "") -> NSMenuItem {
@@ -278,6 +430,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     @objc func reload() { plog("reload"); webView.reload() }
 
+    // A file was dropped on the page → it sends {name, ext, b64}. The base64
+    // decode + PDFKit text extraction are HEAVY for large files and this handler
+    // runs on the main thread, so do that work on a background queue (otherwise
+    // the whole pet UI freezes). Show "reading" immediately for feedback.
+    func handlePetFile(_ d: [String: Any]) {
+        let name = (d["name"] as? String) ?? "document"
+        let ext = ((d["ext"] as? String) ?? "").lowercased()
+        guard let b64 = d["b64"] as? String else { plog("dropped file: bad payload"); return }
+
+        plog("file dropped: \(name) — extracting (\(b64.count) b64 chars) …")
+        webView.evaluateJavaScript("window.petReadingOn&&window.petReadingOn()") // instant feedback
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            var text: String?
+            if let data = Data(base64Encoded: b64) {
+                if ext == "pdf" {
+                    text = PDFDocument(data: data)?.string     // PDFKit (slow on big PDFs)
+                } else {
+                    text = String(data: data, encoding: .utf8)
+                }
+            }
+            let body = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            // Clip BEFORE handing to the model. 3500 chars ≈ ≤1500 tokens even for
+            // dense code (~2.3 ch/tok), staying well under the 2048 ctx limit with
+            // room for generation; also bounds prefill memory/latency.
+            let clipped = body.count > 3500 ? String(body.prefix(3500)) : body
+
+            DispatchQueue.main.async {
+                if clipped.isEmpty {
+                    plog("could not extract text from: \(name) (.\(ext))")
+                    let reason = (ext == "pdf")
+                        ? "no text in that PDF (scanned image?)"
+                        : "couldn't read that file as text"
+                    self.webView.evaluateJavaScript(
+                        "window.petFileError&&window.petFileError(\(jsLit(reason)))")
+                    return
+                }
+                plog("file → summarize: \(name) (\(body.count) chars → \(clipped.count))")
+                self.webView.evaluateJavaScript(
+                    "window.petSummarize&&window.petSummarize(\(jsLit(name)),\(jsLit(clipped)))")
+            }
+        }
+    }
+
+    // Native perf-matrix window (profiler dashboard :8765) — single reused
+    // window, handled like the email window.
+    @objc func togglePerf() {
+        if perfWindow == nil {
+            let host = url.host ?? "127.0.0.1"
+            perfWindow = PerfWindow(url: URL(string: "http://\(host):8765/") ?? url)
+        }
+        plog("toggle perf matrix")
+        perfWindow?.toggle()
+    }
+
     // MARK: Page console / errors → terminal
 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -297,6 +505,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         case "petquit":
             plog("quit (settings button)")
             NSApp.terminate(nil)
+        case "petfile":
+            if let d = message.body as? [String: Any] { handlePetFile(d) }
         case "petemail":
             guard let d = message.body as? [String: Any],
                   let type = d["type"] as? String else { break }
