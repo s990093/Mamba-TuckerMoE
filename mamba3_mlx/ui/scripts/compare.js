@@ -18,15 +18,15 @@ const WS_URL = `ws://${location.host}/ws`;
 
 const MOCK_OPENAI = {
   net_delay_ms: 420,    // API round-trip before first byte
-  cot_chars_s:  260,    // CoT chars/s — GPT-4o fast inline reasoning
-  resp_tok_s:   88,     // output tok/s — mid of 55–120 range
+  cot_chars_s: 260,    // CoT chars/s — GPT-4o fast inline reasoning
+  resp_tok_s: 88,     // output tok/s — mid of 55–120 range
   cot:
-`Step 1: Identify request — user asks for self-identification.
+    `Step 1: Identify request — user asks for self-identification.
 Step 2: Apply system persona — operating as Mamba AI.
 Step 3: Key attributes to surface — local inference, SSM architecture, TuckerMoE.
 Step 4: Structure response — direct, confident, one clear value proposition.`,
   response:
-`I'm Mamba — an AI assistant engineered for speed and precision on Apple Silicon.
+    `I'm Mamba — an AI assistant engineered for speed and precision on Apple Silicon.
 
 Unlike cloud-hosted models, I run entirely on your device using a Hybrid Mamba-3 architecture (State Space Model + Tucker-decomposed Mixture-of-Experts). No network latency, no API costs, full privacy.
 
@@ -35,10 +35,10 @@ I reason before responding, write clearly, and get things done. What would you l
 
 const MOCK_CLAUDE = {
   net_delay_ms: 560,    // Anthropic API latency
-  cot_chars_s:  48,     // slow CoT — extended thinking at 30–50 tok/s → ~3–4 s total
-  resp_tok_s:   72,     // output tok/s after thinking — mid of 40–110 range
+  cot_chars_s: 96,     // slow CoT — extended thinking at 30–50 tok/s → ~3–4 s total
+  resp_tok_s: 72,     // output tok/s after thinking — mid of 40–110 range
   cot:
-`The user is asking me to identify myself. This is a moderate self-awareness question — I'll use a short thinking pass rather than skipping entirely.
+    `The user is asking me to identify myself. This is a moderate self-awareness question — I'll use a short thinking pass rather than skipping entirely.
 
 Let me consider what's genuinely important to convey:
 — Core identity: I'm Mamba, a local AI on Apple Silicon
@@ -48,7 +48,7 @@ Let me consider what's genuinely important to convey:
 
 "Who are you?" is a trust-building moment. I should be honest and specific without overwhelming the user. Two short paragraphs — identity + invitation — feels right.`,
   response:
-`I'm Mamba — an AI assistant that runs locally on your device, not in a data centre.
+    `I'm Mamba — an AI assistant that runs locally on your device, not in a data centre.
 
 I'm built on a Hybrid Mamba-3 architecture: a State Space Model combined with Tucker-decomposed Mixture-of-Experts, giving me broad reasoning capacity at 417M parameters — a fraction of cloud model sizes — running fully offline on Apple Silicon.
 
@@ -177,8 +177,8 @@ async function loadSysPrompt() {
 function runSimulated(id, mock, onDone) {
   const startMs = Date.now();
   let tokCount = 0;
-  const cotCps  = mock.cot_chars_s  || 120;   // CoT chars/s
-  const respTps  = mock.resp_tok_s   || 60;    // response tok/s
+  const cotCps = mock.cot_chars_s || 120;   // CoT chars/s
+  const respTps = mock.resp_tok_s || 60;    // response tok/s
   const avgCharsPerTok = 4.5;
 
   setStatus(id, 'think', 'CONNECTING');

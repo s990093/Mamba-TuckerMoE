@@ -91,6 +91,20 @@ ui/desktop_pet/run.sh --width 360 --height 440
 
 ---
 
+## 生產力功能
+
+**拖檔案進來 → 自動讀 + 摘要**
+- 把 **PDF** 或文字檔（`.txt/.md/.eml/.csv/.json/.log/.html/程式碼…`）**拖放到寵物身上**。
+- 拖到牠上面時，寵物會**睜大眼、上浮、發藍光「伸手要接」**並顯示「⬇ drop to read」；放下時做出「接住」反應。
+- 原生端讀檔（PDF 用 PDFKit 抽文字；其餘 UTF-8，截到 6000 字），切到 **Summarize&Email** 模式，請模型「結論先行 + 重點 + action items」。
+- **讀取動畫**：prefill/思考期間，寵物會**捧著一張紙、文字行逐行被暖光掃讀、頭微低**——一個乾淨的 reading 疊加狀態（`petStartReading/petStopReading`），疊在對話狀態之上，答案一開始就自動收起。
+- 結果**逐字串流到原生草稿視窗**（可 Copy / Open in Mail）。不支援的檔會在終端提示。
+
+**Perf Matrix（獨立原生視窗）**
+- 選單列 🐍 → **Perf matrix**（或按 `P`）開／關。
+- **不透明、有標題列、置中彈出**的獨立 `NSWindow`（深色、floating、可拖曳/縮放）——一眼就是另一個視窗，不會疊在寵物上。載入 profiler 儀表板（`:8765`），即時 GPU / CPU / 記憶體 / tok-s。
+- 證明「本地、compute-bound on Apple Silicon、不上雲」。需要 profiler 在跑（`make chat` 會一起起 `:8765`）。
+
 ## Email 特化功能（原生視窗 + 逐字串流）
 
 切到 **email persona**（persona 鈕循環到 `email_summary`，或輸出被偵測為 `Subject:`）後請它寫/整理信：

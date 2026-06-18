@@ -94,9 +94,11 @@ final class EmailWindow: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString("Subject: \(subj)\n\n\(body)", forType: .string)
         case "send":
+            let to = "angus.lu0611@gmail.com"
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
             let su = subj.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
             let bo = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            if let url = URL(string: "https://mail.google.com/mail/u/0/?tf=cm&to=&su=\(su)&body=\(bo)") {
+            if let url = URL(string: "https://mail.google.com/mail/u/0/?tf=cm&to=\(to)&su=\(su)&body=\(bo)") {
                 NSWorkspace.shared.open(url)
             }
         default: break

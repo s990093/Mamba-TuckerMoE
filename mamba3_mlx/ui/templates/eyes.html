@@ -50,6 +50,11 @@
           document.body.classList.toggle("dragging", !!on);
         };
 
+        // A file is hovering over the pet → eager "reach out to catch it" look.
+        window.petDragFile = function (on) {
+          document.body.classList.toggle("file-over", !!on);
+        };
+
         document.addEventListener("DOMContentLoaded", function () {
           document.body.classList.add("pet");
           // Disable the built-in random gaze so it doesn't fight cursor tracking.
@@ -71,6 +76,22 @@
           inp.autocomplete = "off";
           bar.appendChild(inp);
           document.body.appendChild(bar);
+
+          // Document the pet "reads" while summarizing a dropped file (shown
+          // only while body.reading; the lines highlight one by one).
+          var doc = document.createElement("div");
+          doc.id = "pet-reading";
+          doc.setAttribute("aria-hidden", "true");
+          doc.innerHTML =
+            '<div class="pr-page">' +
+            '<i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+            '<div class="pr-cap">reading<span></span></div>';
+          document.body.appendChild(doc);
+
+          // Toast for defensive file-drop feedback (防呆).
+          var toast = document.createElement("div");
+          toast.id = "pet-toast";
+          document.body.appendChild(toast);
           inp.addEventListener("keydown", function (e) {
             e.stopPropagation(); // don't trigger pet shortcuts while typing
             if (e.key === "Enter" && inp.value.trim() && window.sendPrompt) {
@@ -110,6 +131,52 @@
               try { window.webkit.messageHandlers.petquit.postMessage("quit"); } catch (_) {}
             });
           }
+
+          // ── File drag & drop (HTML5 — reliable in WKWebView) ──────────────
+          // Hovering a file shows the eager "catch" look; on drop we send the
+          // bytes to native (base64), which extracts text (PDFKit/UTF-8) and
+          // asks the model to summarize.
+          var _dragDepth = 0;
+          window.addEventListener("dragenter", function (e) {
+            e.preventDefault();
+            _dragDepth++;
+            document.body.classList.add("file-over");
+          });
+          window.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+          });
+          window.addEventListener("dragleave", function (e) {
+            e.preventDefault();
+            _dragDepth = Math.max(0, _dragDepth - 1);
+            if (_dragDepth === 0) document.body.classList.remove("file-over");
+          });
+          window.addEventListener("drop", function (e) {
+            e.preventDefault();
+            _dragDepth = 0;
+            document.body.classList.remove("file-over");
+            var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!f) return;
+            if (f.size > 30 * 1024 * 1024) {            // skip pathologically large files
+              if (window.petFileError) window.petFileError("that file is too big (>30MB)");
+              return;
+            }
+            var ext = (f.name.split(".").pop() || "").toLowerCase();
+            // The model only keeps ~3500 chars. For text/code, read just the
+            // first 256KB so a huge file never builds a giant base64 / blocks
+            // the bridge. PDFs need the whole byte stream (structure), capped above.
+            var blob = ext === "pdf" ? f : f.slice(0, 262144);
+            var r = new FileReader();
+            r.onload = function () {
+              var s = String(r.result || "");
+              var b64 = s.indexOf(",") >= 0 ? s.slice(s.indexOf(",") + 1) : s;
+              try {
+                window.webkit.messageHandlers.petfile.postMessage(
+                  { name: f.name, ext: ext, b64: b64 });
+              } catch (_) {}
+            };
+            r.readAsDataURL(blob);
+          });
         });
       })();
     </script>

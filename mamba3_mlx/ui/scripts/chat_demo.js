@@ -693,8 +693,8 @@ function renderGuideMarkdown(text) {
       }
       out.push(
         "<ul>" +
-          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
-          "</ul>"
+        items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+        "</ul>"
       );
       continue;
     }
@@ -707,8 +707,8 @@ function renderGuideMarkdown(text) {
       }
       out.push(
         "<ol>" +
-          items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
-          "</ol>"
+        items.map((it) => "<li>" + inlineMarkdown(it) + "</li>").join("") +
+        "</ol>"
       );
       continue;
     }
@@ -1067,7 +1067,7 @@ function _wireChatEmailCard(cardEl) {
       await navigator.clipboard.writeText(getPlain());
       copyBtn.classList.add("cec-copied");
       setTimeout(() => copyBtn.classList.remove("cec-copied"), 1800);
-    } catch {}
+    } catch { }
   });
 
   sendBtn2.addEventListener("click", () => {
@@ -1092,9 +1092,9 @@ function injectEmailCard(bodyEl, streamText) {
   const finalText = cot.hasCoT
     ? (cot.finalContent || "").trim()
     : (streamText || "")
-        .replace(/<think>[\s\S]*?<\/think>/g, "")
-        .replace(/<\/?final>/g, "")
-        .trim();
+      .replace(/<think>[\s\S]*?<\/think>/g, "")
+      .replace(/<\/?final>/g, "")
+      .trim();
   if (!finalText) return;
 
   const wrapper = document.createElement("div");
@@ -1160,6 +1160,12 @@ function renderSidebarCategories(categories) {
           applySysCardForCategory(cat.key);
           applyModeConfig(cat.key);
         }
+        // Per-example sampling override (e.g. {"seed": 26}) — applied AFTER
+        // applyModeConfig so the example's seed wins over the mode default.
+        if (ex.sampling && typeof ex.sampling === "object") {
+          Object.assign(samplingState, ex.sampling);
+          renderSamplingControls();
+        }
         doSend();
       });
       wrap.appendChild(btn);
@@ -1191,8 +1197,8 @@ function renderStyleAndTools(constraints, tools) {
     if (c.default_voice) pills.push(c.default_voice);
     stylePanel.innerHTML = pills.length
       ? pills
-          .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
-          .join("")
+        .map((p) => `<span class="style-pill">${escapeHtml(p)}</span>`)
+        .join("")
       : '<span class="style-pill muted">no constraints declared</span>';
   }
   const toolList = document.getElementById("tool-registry");
@@ -1463,7 +1469,7 @@ function _fetchInputTokCount(userText) {
       // Re-trigger enter animation by replacing element in place
       _tccCard.hidden = false;
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 input.oninput = () => {
@@ -1623,8 +1629,8 @@ function addToolRow(call, systemResult, phase) {
     : "";
   const injHtml = systemResult
     ? `<div class="tool-line tool-line-result"><div class="tool-sublabel">Injected back into the conversation</div>${renderControlBlock(
-        systemResult
-      )}</div>`
+      systemResult
+    )}</div>`
     : "";
   card.innerHTML =
     '<div class="tool-inner">' +
@@ -1719,27 +1725,27 @@ function addMetrics(obj, data) {
   if (prefillTps) {
     parts.push(
       `<span class="mpb-section">` +
-        `<span class="mpb-lbl">Prefill</span>` +
-        `<span class="mpb-nums">${prefillTps} tok/s · ${ptok} tok · ${prefillMs.toFixed(
-          0
-        )}ms</span>` +
-        `</span>`
+      `<span class="mpb-lbl">Prefill</span>` +
+      `<span class="mpb-nums">${prefillTps} tok/s · ${ptok} tok · ${prefillMs.toFixed(
+        0
+      )}ms</span>` +
+      `</span>`
     );
   }
   parts.push(
     `<span class="mpb-section">` +
-      `<span class="mpb-lbl">Decode</span>` +
-      `<span class="mpb-nums">${decodeTps.toFixed(
-        1
-      )} tok/s · ${totalTok} tok · ${decodeMs.toFixed(0)}ms</span>` +
-      `</span>`
+    `<span class="mpb-lbl">Decode</span>` +
+    `<span class="mpb-nums">${decodeTps.toFixed(
+      1
+    )} tok/s · ${totalTok} tok · ${decodeMs.toFixed(0)}ms</span>` +
+    `</span>`
   );
   if (ttftMs > 0) {
     parts.push(
       `<span class="mpb-section">` +
-        `<span class="mpb-lbl">TTFT</span>` +
-        `<span class="mpb-nums">${ttftMs.toFixed(0)}ms</span>` +
-        `</span>`
+      `<span class="mpb-lbl">TTFT</span>` +
+      `<span class="mpb-nums">${ttftMs.toFixed(0)}ms</span>` +
+      `</span>`
     );
   }
   m.innerHTML = parts.join('<span class="mpb-dot">·</span>');

@@ -1343,7 +1343,10 @@ async def pytorch_ws(ws: WebSocket):
         return
 
     prompt_text  = data.get("prompt", "Who are you?")
-    max_tokens   = int(data.get("max_tokens", 256))
+    # The PyTorch reference has a hard positional limit (model_max_length=2048);
+    # cap generation so prompt + output stays inside it (avoids the indexing-error
+    # freeze on long dropped files).
+    max_tokens   = min(int(data.get("max_tokens", 256)), 512)
     category_key = data.get("category_key", "self_awareness")
     seed         = int(data.get("seed", 0))
     samp         = data.get("sampling") or {}
@@ -1359,6 +1362,12 @@ async def pytorch_ws(ws: WebSocket):
     )
     bos  = _pt_tok.token_to_id("<s>") or 1
     ids  = [bos] + _pt_tok.encode(full_prompt, add_special_tokens=False).ids
+    # Hard-truncate to the PyTorch model's positional limit, keeping BOS + the
+    # tail (document body + assistant marker). Prevents 2610>2048 indexing errors.
+    _PT_MAX_CTX = 2048
+    _budget = max(16, _PT_MAX_CTX - max_tokens - 8)
+    if len(ids) > _budget:
+        ids = [ids[0]] + ids[-(_budget - 1):]
     stop = []
     for n in ("<|im_end|>", "</s>"):
         t = _pt_tok.token_to_id(n)
@@ -1891,9 +1900,14 @@ async def websocket_chat(ws: WebSocket):
 
             if action == "chat":
                 prompt = msg.get("prompt", "").strip()
+                # Hard server-side ceiling (防呆): no client request can ask for a
+                # runaway generation that pins the GPU for minutes and freezes the
+                # whole machine. 2048 is a no-op for normal turns (frontend sends
+                # ≤2048) but clamps pathological values like 12864.
                 max_tokens = min(
-                    msg.get("max_tokens", 512),
+                    int(msg.get("max_tokens", 512) or 512),
                     int(getattr(_args, "max_new_tokens", DEFAULT_MAX_NEW_TOKENS)) if _args else DEFAULT_MAX_NEW_TOKENS,
+                    2048,
                 )
                 if not prompt:
                     await ws.send_json({"type": "error", "message": "Empty prompt"})

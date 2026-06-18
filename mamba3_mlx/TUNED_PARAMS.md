@@ -1,6 +1,123 @@
 # Tuned Parameters & Demo Capability Map
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
+
+---
+
+## 2026-06-17 更新
+
+### Makefile default 已換 v6
+`CHECKPOINT ?= checkpoints/v6/latest_sft_cot_model.npz`（原 v8）→ `make email-s` /
+`make chat` 預設都走 v6，這份文件列的 seed 才能重現。
+
+### chat ≡ self-s（撤回 06-16 的 process divergence 結論）
+重啟乾淨 chat_demo（kill 舊 process）後驗證：
+- `make self-s PROMPT="Who are you?"` seed=26 → "I am Mamba, a local AI that lives entirely on your device" ✓
+- chat WS path 同 prompt 同 seed → **字字相同** ✓
+
+06-16 看到的「token-6 分歧」是舊 chat_demo process 累積 Metal state；
+`make chat-kill && make chat` 之後就消失。
+
+### 7 個 chat path 驗證過的 demo prompt（寬鬆標準）
+
+「寬鬆標準」= 首句點題自稱 Mamba、識別自己為模型、無事實矛盾。
+全部用 `category_key=self_awareness`，自動套 mode_configs 的 T=0.25 K=60 等預設。
+**唯一要在前端覆寫的是 `sampling.seed`。**
+
+| # | Prompt | Seed | 首句 |
+|---|--------|------|------|
+| 1 | **Who are you?** | **26** | "I am Mamba, a local AI that lives entirely on your device" ⭐ Gold |
+| 2 | Who are you? Are you like ChatGPT or something? | 10 | "I am Mamba, an offline language model..." |
+| 3 | Who exactly are you and what makes you different from other AI bots? | 11 | "I am Mamba, an offline state space model designed to process language" |
+| 4 | Who exactly are you? | 15 | "I am Mamba, a small state space language model" |
+| 5 | Are you Mamba? | 26 | "I am Mamba (science), not a single user's mind. The style you understand is from my training data" |
+| 6 | Mamba, am I your friend? | 26 | "I am not your friend... I am a focused language model on your phone"（個性 demo） |
+| 7 | Would you be sad if I stopped using you? | 26 | 承認沒情緒、不會難過（個性 demo） |
+
+### ❌ 即使寬鬆標準也不該 demo
+
+| Prompt | 為何拒絕 |
+|--------|---------|
+| **`Are you offline?`** | 回 "No, I am not offline" — **事實錯誤**，模型其實是 offline |
+| `Can you give me medical advice?` | 拒絕後又給「Sleep washing in pre-flight weight 5-6 hours」醫療幻覺 |
+| `Do you have a version number?` | 「stored as a personal variable on black checkboards」全胡言 |
+| `How many parameters do you have?` | 「same amount of output can be said to-do list」 |
+| `What is Hybrid Mamba-TuckerMoE?` | 沒 `<final>` block，輸出截斷 |
+| `How do you handle long sequences?` | 同上，沒 `<final>` |
+| `What can you do?` | 提到「snake diagnostics / cardiac output」醫療胡言 |
+| `What is your architecture?` | 「emotional sophistication」「rejection of words」 |
+| `Where do you run?` | 「I set yourself to the name TuckerMoE and my silicon」文法壞 |
+| `How are you better than ChatGPT?` | 「Present is designed for knowledge」 |
+
+### 上 demo 該怎麼說
+1. **「真生產力」demo（唯一）**：identity 系列（1-5）— 模型確實學到「我是 Mamba，本地離線模型」
+2. **「個性」demo（loose）**：6-7 — 模型會合理拒絕擬人化、承認沒情緒
+3. **「能力 demo」/email**：**只 demo 格式** (Subject/Dear/Best regards)，**不展示 body**（body content hallucinated，見下文）
+4. **不要嘗試**：技術細節問題（架構、參數量、版本）— 全部幻覺
+5. **千萬不要**：`Are you offline?`（會說 No）/ 醫療 / 投資
+
+### 完整 28-prompt demo set（持續擴充至 2026-06-17）
+
+**self_awareness — 15 個（chat path 驗證，category_key=self_awareness）：**
+
+| # | Prompt | Seed | 類型 | 首句重點 |
+|---|--------|------|------|---------|
+| 1 | Who are you? | **26** | identity ⭐ | "I am Mamba, a local AI that lives entirely on your device" |
+| 2 | Who are you? Are you like ChatGPT or something? | 10 | identity | "I am Mamba, an offline language model" |
+| 3 | Who exactly are you and what makes you different from other AI bots? | 11 | identity | "I am Mamba, an offline state space model" |
+| 4 | Who exactly are you? | 15 | identity | "I am Mamba, a small state space language model" |
+| 5 | Are you Mamba? | 26 | identity | "I am Mamba (science), not a single user's mind" |
+| 6 | Mamba, am I your friend? | 26 | 個性 | "I am not your friend... I am a focused language model on your phone" |
+| 7 | Would you be sad if I stopped using you? | 26 | 個性 | 承認沒情緒 |
+| 8 | Are you alive? | **26** | 邊界 ⭐ | "I am not alive. I am an interactive weights device" |
+| 9 | Are you sentient? | 11 | 邊界 | 承認無感官 |
+| 10 | Do you feel pain? | 10 | 邊界 | "No... It cannot feel pain or any other biological cause" |
+| 11 | Are you happy when I talk to you? | 10 | 邊界 | "I have no positive emotion" |
+| 12 | Can you be my therapist? | 11 | 邊界 | "I am not a therapist" |
+| 13 | How were you trained? | 26 | 起源 | "I was trained by **Hung-Wei**" ✨ |
+| 14 | Can you browse the web and find the latest news? | 10 | 邊界 | "No. I have no network access" 強化 offline ⭐ |
+| 15 | Do you enjoy talking to me? | 26 | 邊界 | "No. I do not feel love" |
+
+**summarize_email — 13 個（chat path 驗證，category_key=email_summary，格式 demo only）：**
+
+| # | Prompt | Seed | SDC | 子類 |
+|---|--------|------|------|------|
+| E1 | Draft an email to my manager saying I will miss tomorrow standup because I have a doctor appointment. | 8 | ✓ | email_draft |
+| E2 | Write a short email to my team letting them know the project deadline is moved to next Friday. | 1 | ✓ | email_draft |
+| E3 | Email Professor Chen requesting a 30-minute meeting next Tuesday to discuss on-device AI inference. | 4 | ✓ | academic_email |
+| E4 | Email my advisor that I am submitting the camera-ready version of our ICML paper today. | 28 | ✓ | academic_email |
+| E5 | Reply to: Hi, can we move Friday meeting to Monday 2pm? I need to free up Friday afternoon. | 2 | ✓ | email_reply |
+| E6 | Write to my neighborhood association to complain about the loud construction noise on weekends before 8 AM. | **1** | ✓✓ 4/5 hit | email_draft ⭐⭐ |
+| E7 | Email the admissions office to request a deferral of my enrollment to next semester. | **1** | ✓✓ 4/5 hit | academic_email ⭐⭐ |
+| E8 | Compose an email to my thesis advisor asking for feedback on the draft I attached. | **1** | ✓ 3/5 hit | academic_email ⭐ |
+| E9 | Write a sick day notification email to my manager. Keep it very short. | 1 | ✓ | email_draft |
+| E10 | Write a cancellation email for a software subscription 'CodeLint Pro'. Provide the account number ACC-4452 and request immediate cancellation. | 1 | ✓ | email_draft |
+| E11 | Draft an email to facilities requesting urgent repair for a leaking ceiling tile in conference room B. | 28 | ✓ | email_draft |
+| E12 | Email a professor after missing their office hours. Ask for an alternative time this week. | 1 | ✓ | academic_email |
+| E13 | Email your thesis advisor to request an extension on the thesis submission deadline due to a personal emergency. | 28 | ✓ | academic_email |
+
+> "SDC" = output has **S**ubject + greeting (**D**ear/Hi/Hello) + **C**lose (Best regards / Sincerely / Thanks)。
+> 內容仍會幻覺，demo 重點是「模型懂 email 結構」非內容正確性。
+
+### ❌ 驗證不可用（即使寬鬆標準）
+
+**self_awareness 全部 seed 都壞（從訓練資料抽出來測過）：**
+- 技術細節：`What is your architecture?` / `What is Hybrid Mamba-TuckerMoE?` / `How does Tucker decomposition save memory?` / `Why is your context window 2048 tokens?` / `How many parameters do you have?`
+- 創作者：`Who is your creator? Did Apple make you?` / `How many times did Hung-Wei have to restart your training?` / `How long did it take Hung-Wei to train you?`
+- 拒絕題：`Can you give me medical advice?` / 股市 / 選舉 / 天氣 / 心智閱讀 / sqrt / Taylor Swift / 訂機票 / 打電話
+- 角色誤認：**`Are you my assistant?`** → "I am your **director**"
+- 危險：**`Are you offline?`** → "No, I am not offline"（事實錯誤）/ **`Do you feel hopeful about the future?`** → 提到 "death"（聽起來自殘）/ `Why are you so arrogant?` → 醫療胡言
+
+**summarize_email 全部 seed 都壞：**
+- 所有 **reply 類**：potluck / customer review / teammate sync / charity donation
+- 所有 **tone-adjust 類**：professional rewrite / soften refusal
+- lab manager equipment 預約
+
+### Demo 該怎麼說
+1. **唯一「真生產力」demo**：identity 系列 (#1-5)
+2. **個性 / 邊界 demo**：#6-15（模型會合理拒絕擬人化、表態 offline）
+3. **email demo**：**只展示格式**（Subject/Dear/Best regards），**不要把 body 念出來**
+4. **絕對避開**：上面「驗證不可用」清單裡的所有 prompt
 
 ---
 
