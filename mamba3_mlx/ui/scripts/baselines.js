@@ -190,40 +190,81 @@ function runPythia(prompt) {
 }
 
 // ── Ours (417M) runner — uses main /ws chat protocol ───────────────
+// Accumulates cumulative stream text and re-parses on every event so that
+// `</think>` / `<final>` / `</final>` survive being SPLIT across multiple
+// token events (the tokenizer can break them into "</", "think", ">").
+// This mirrors chat_demo's streamText approach.
 function runOurs(prompt) {
   return new Promise((resolve) => {
     const side = 'ours';
     const t0 = Date.now();
     let firstTok = null;
-    let n = 0;
+    let totalTokens = 0;
     let thinkStart = null;
-    let rawMode = 'think';
-    const RAW_TAGS = { '</think>': 'between', '<final>': 'final', '</final>': 'done' };
+    let lastReasoningText = '';
 
-    function rawRoute(text) {
-      if (!text) return;
-      for (const [tag, next] of Object.entries(RAW_TAGS)) {
-        const idx = text.indexOf(tag);
-        if (idx < 0) continue;
-        if (idx > 0) rawRoute(text.slice(0, idx));
-        rawMode = next;
-        if (next === 'final') {
-          doneThink(side, Date.now() - (thinkStart || t0));
-          setStatus(side, 'generating', 'GENERATING');
-          if (firstTok === null) {
-            firstTok = Date.now() - t0;
-            setStats(side, firstTok, null, null);
-          }
-        }
-        rawRoute(text.slice(idx + tag.length));
+    let cumulative = '';
+    let phase = 'think';     // 'think' | 'final' | 'done'
+
+    function setThinkBody(text) {
+      const el = $(`think-body-${side}`);
+      if (!el) return;
+      el.textContent = text;
+      el.scrollTop = el.scrollHeight;
+    }
+    function setRespBody(text) {
+      const el = $(`resp-${side}`);
+      if (!el) return;
+      const ph = el.querySelector('.bl-idle');
+      if (ph) ph.remove();
+      el.innerHTML = '';
+      const parts = text.split('\n');
+      parts.forEach((part, i) => {
+        if (part) el.appendChild(document.createTextNode(part));
+        if (i < parts.length - 1) el.appendChild(document.createElement('br'));
+      });
+      const cur = document.createElement('span');
+      cur.className = 'bl-cursor';
+      el.appendChild(cur);
+      _cursors[side] = cur;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function reparseAndRender() {
+      const closeIdx     = cumulative.indexOf('</think>');
+      const finalOpenIdx = cumulative.indexOf('<final>');
+      const finalCloseIdx = cumulative.indexOf('</final>');
+
+      if (closeIdx < 0) {
+        showThink(side);
+        setThinkBody(cumulative);
         return;
       }
-      if (rawMode === 'think') appendThink(side, text);
-      else if (rawMode === 'final') { appendResp(side, text); n++; }
+
+      // </think> seen — think content frozen
+      setThinkBody(cumulative.slice(0, closeIdx).trimEnd());
+      if (phase === 'think') {
+        doneThink(side, Date.now() - (thinkStart || t0));
+        phase = 'final';
+      }
+
+      if (finalOpenIdx >= 0) {
+        if (firstTok === null) {
+          firstTok = Date.now() - t0;
+          setStats(side, firstTok, null, null);
+          setStatus(side, 'generating', 'GENERATING');
+        }
+        const start = finalOpenIdx + '<final>'.length;
+        const end   = finalCloseIdx >= 0 ? finalCloseIdx : cumulative.length;
+        setRespBody(cumulative.slice(start, end).replace(/^\n+/, ''));
+        if (finalCloseIdx >= 0) phase = 'done';
+      }
     }
 
     const finish = (r) => {
-      doneResp(side);
+      const cur = _cursors[side];
+      if (cur && cur.parentNode) cur.parentNode.removeChild(cur);
+      delete _cursors[side];
       $(`col-${side}`)?.classList.remove('running');
       $(`col-${side}`)?.classList.add('done');
       resolve(r);
@@ -252,18 +293,33 @@ function runOurs(prompt) {
         if (m.type === 'meta') {
           thinkStart = Date.now();
           showThink(side);
+        } else if (m.type === 'reasoning') {
+          // FSM mode: server sends cumulative think markdown
+          const full = m.markdown || '';
+          const delta = full.slice(lastReasoningText.length);
+          lastReasoningText = full;
+          if (delta) { cumulative += delta; reparseAndRender(); }
         } else if (m.type === 'reasoning_token') {
-          appendThink(side, m.text || '');
+          // FSM mode (older): per-token think text
+          cumulative += (m.text || '');
+          reparseAndRender();
+        } else if (m.type === 'mw_inject') {
+          // FSM mode: explicit think→final transition — synthesise the markers
+          cumulative += '\n</think>\n<final>\n';
+          reparseAndRender();
         } else if (m.type === 'token') {
-          rawRoute(m.text || '');
-          if (m.tok_s != null && rawMode === 'final') {
-            setStats(side, null, m.tok_s, null);
+          cumulative += (m.text || '');
+          totalTokens = m.n ?? (totalTokens + 1);
+          reparseAndRender();
+          if (m.tok_s != null) {
+            setStats(side, firstTok, m.tok_s, totalTokens);
             updateBar(side, m.tok_s);
           }
         } else if (m.type === 'done') {
           const ttft = firstTok ?? (Date.now() - t0);
-          const totalTok = m.total_tokens ?? n;
+          const totalTok = m.total_tokens ?? totalTokens;
           const tokS = m.tok_s ?? 0;
+          reparseAndRender();   // flush any pending tail
           setStats(side, ttft, tokS, totalTok);
           updateBar(side, tokS);
           setStatus(side, 'done', 'DONE');
@@ -276,7 +332,7 @@ function runOurs(prompt) {
       $(`resp-${side}`).innerHTML =
         '<span class="bl-idle">WebSocket error — main model not ready?</span>';
       setStatus(side, 'error', 'ERROR');
-      finish({ side, ttft: null, tokS: 0, n });
+      finish({ side, ttft: null, tokS: 0, n: totalTokens });
     };
   });
 }
