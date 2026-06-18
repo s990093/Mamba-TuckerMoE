@@ -1290,6 +1290,176 @@ async def ui_speed_race_css():
     return _serve_no_store(_UI_DIR / "styles" / "speed_race.css", "text/css")
 
 
+# ── /baselines: same-scale Mamba-130M comparison ──────────────────
+@app.get("/baselines", response_class=HTMLResponse)
+async def baselines_page():
+    html = (_UI_DIR / "templates" / "baselines.html").read_text(encoding="utf-8")
+    try:
+        js_v  = int((_UI_DIR / "scripts" / "baselines.js").stat().st_mtime)
+        css_v = int((_UI_DIR / "styles"  / "baselines.css").stat().st_mtime)
+    except OSError:
+        js_v = css_v = 0
+    html = html.replace("/static/scripts/baselines.js", f"/ui/baselines.js?v={js_v}")
+    html = html.replace("/static/styles/baselines.css", f"/ui/baselines.css?v={css_v}")
+    resp = HTMLResponse(html)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.get("/ui/baselines.js")
+async def ui_baselines_js():
+    return _serve_no_store(_UI_DIR / "scripts" / "baselines.js", "application/javascript")
+
+
+@app.get("/ui/baselines.css")
+async def ui_baselines_css():
+    return _serve_no_store(_UI_DIR / "styles" / "baselines.css", "text/css")
+
+
+@app.get("/api/baseline-info")
+async def baseline_info():
+    try:
+        from mamba3_mlx import baseline_mamba as _bm
+        from mamba3_mlx import baseline_pythia as _bp
+        return JSONResponse({"mamba_130m": _bm.info(), "pythia_160m": _bp.info()})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.websocket("/ws/baseline-pythia")
+async def baseline_pythia_ws(ws: WebSocket):
+    """Stream Pythia-160M @step1000 (~2.1B tokens, same as ours).
+
+    Accepts the same chat payload shape as /ws so the frontend can reuse the
+    main chat WS protocol: {action:'chat', prompt, max_tokens, sampling:{...},
+    category_key?} — system prompts / CoT are silently ignored (Pythia has no
+    instruction-following or system-prompt handling).
+    """
+    from mamba3_mlx import baseline_pythia as _bp
+
+    await ws.accept()
+    if not _bp.is_available():
+        await ws.send_json({
+            "type": "error",
+            "message": "Pythia-160M @step1000 weights not downloaded. "
+                       "Run: hf download EleutherAI/pythia-160m --revision step1000 "
+                       "--local-dir baselines/pythia-160m-step1000",
+        })
+        await ws.close()
+        return
+    await ws.send_json({"type": "connected", "info": _bp.info()})
+
+    try:
+        data = await ws.receive_json()
+    except Exception:
+        await ws.close()
+        return
+
+    if data.get("action") != "chat":
+        await ws.close()
+        return
+
+    prompt    = str(data.get("prompt", "Who are you?"))
+    # Chat-style payload: prefer `max_tokens`, fall back to legacy `max_new_tokens`
+    max_new   = int(data.get("max_tokens") or data.get("max_new_tokens") or 80)
+    # sampling is a nested object in the chat payload
+    samp      = data.get("sampling") or {}
+    temp      = float(samp.get("temperature", data.get("temperature", 0.7)))
+    top_p     = float(samp.get("top_p",       data.get("top_p", 0.9)))
+    do_samp   = bool(data.get("do_sample", True))
+    seed      = data.get("seed")
+    # `reasoning`, `category_key` accepted but ignored — Pythia has no CoT path
+
+    loop  = asyncio.get_event_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def _worker():
+        try:
+            for ev in _bp.stream(prompt, max_new_tokens=max_new, do_sample=do_samp,
+                                 temperature=temp, top_p=top_p,
+                                 seed=int(seed) if seed is not None else None):
+                loop.call_soon_threadsafe(queue.put_nowait, ev)
+        except Exception as exc:
+            loop.call_soon_threadsafe(queue.put_nowait,
+                                     {"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+        loop.call_soon_threadsafe(queue.put_nowait, None)
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+    try:
+        while True:
+            ev = await queue.get()
+            if ev is None:
+                break
+            await ws.send_json(ev)
+    except Exception:
+        pass
+    finally:
+        await ws.close()
+
+
+@app.websocket("/ws/baseline-mamba")
+async def baseline_mamba_ws(ws: WebSocket):
+    """Stream same-scale Mamba-130M (official, HF) output side-by-side."""
+    from mamba3_mlx import baseline_mamba as _bm
+
+    await ws.accept()
+    if not _bm.is_available():
+        await ws.send_json({
+            "type": "error",
+            "message": "Mamba-130M weights not downloaded. "
+                       "Run: hf download state-spaces/mamba-130m-hf "
+                       "--local-dir baselines/mamba-130m-hf",
+        })
+        await ws.close()
+        return
+    await ws.send_json({"type": "connected", "info": _bm.info()})
+
+    try:
+        data = await ws.receive_json()
+    except Exception:
+        await ws.close()
+        return
+
+    if data.get("action") != "chat":
+        await ws.close()
+        return
+
+    prompt   = str(data.get("prompt", "Who are you?"))
+    max_new  = int(data.get("max_new_tokens", 80))
+    do_samp  = bool(data.get("do_sample", True))
+    temp     = float(data.get("temperature", 0.7))
+    top_p    = float(data.get("top_p", 0.9))
+    seed     = data.get("seed")
+
+    loop  = asyncio.get_event_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def _worker():
+        try:
+            for ev in _bm.stream(prompt, max_new_tokens=max_new, do_sample=do_samp,
+                                 temperature=temp, top_p=top_p,
+                                 seed=int(seed) if seed is not None else None):
+                loop.call_soon_threadsafe(queue.put_nowait, ev)
+        except Exception as exc:
+            loop.call_soon_threadsafe(queue.put_nowait,
+                                     {"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+        loop.call_soon_threadsafe(queue.put_nowait, None)
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+    try:
+        while True:
+            ev = await queue.get()
+            if ev is None:
+                break
+            await ws.send_json(ev)
+    except Exception:
+        pass
+    finally:
+        await ws.close()
+
+
 @app.get("/api/load-status")
 async def load_status():
     """Live loading progress — poll this until ready:true."""

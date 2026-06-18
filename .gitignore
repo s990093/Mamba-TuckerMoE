@@ -163,3 +163,8 @@ cot_dataset/**/*.txt
 *.trace/
 Launch_*.trace/
 gputrace_analysis.md
+
+# Downloaded HuggingFace baseline weights (large; download via `hf download`)
+baselines/mamba-130m-hf/
+baselines/mamba-370m-hf/
+baselines/pythia-160m-step1000/

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Baseline Showdown · Mamba 3</title>
+  <link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
+  <link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+  <link rel="stylesheet" href="/static/styles/baselines.css" />
+</head>
+<body>
+
+  <header class="bl-header">
+    <div class="bl-header-left">
+      <a href="/" class="bl-back" title="Back to chat">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      </a>
+      <img src="/static/assets/tuckericon.png" class="bl-logo" alt="Mamba">
+      <div class="bl-title">
+        <h1>Baseline Showdown</h1>
+        <span class="bl-sub">Same training budget · architecture wins</span>
+      </div>
+    </div>
+    <div class="bl-header-right">
+      <a href="/compare"   class="bl-link">vs Cloud</a>
+      <a href="/speed-race" class="bl-link">Speed Race</a>
+      <button class="bl-run" id="bl-start">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+        Run Same Prompt
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Hero training-budget claim ────────────────────────────── -->
+  <section class="bl-hero">
+    <div class="bl-hero-eyebrow">IDENTICAL TRAINING BUDGET · DIFFERENT ARCHITECTURE</div>
+    <div class="bl-hero-row">
+      <div class="bl-hero-card bl-hero-bad">
+        <div class="bl-hero-num">2.1<small>B</small></div>
+        <div class="bl-hero-lbl">tokens · Pythia-160M @ step1000</div>
+      </div>
+      <div class="bl-hero-eq">=</div>
+      <div class="bl-hero-card bl-hero-good">
+        <div class="bl-hero-num">2.1<small>B</small></div>
+        <div class="bl-hero-lbl">tokens · Mamba 3 + TuckerMoE (ours, 417M)</div>
+      </div>
+    </div>
+    <div class="bl-hero-take">
+      Both models saw the <b>same number of training tokens</b>. The difference
+      below is <b>architecture and post-training</b> — Tucker MoE, hybrid SSM,
+      and a 5-factor Chain-of-Thought loss.
+    </div>
+  </section>
+
+  <!-- ── Prompt selector ──────────────────────────────────────── -->
+  <div class="bl-prompt-bar">
+    <span class="bl-pill">PROMPT</span>
+    <select class="bl-prompt-select" id="bl-prompt">
+      <option value="Who are you?">Who are you?</option>
+      <option value="Are you Mamba?">Are you Mamba?</option>
+      <option value="Mamba, am I your friend?">Mamba, am I your friend?</option>
+      <option value="Would you be sad if I left?">Would you be sad if I left?</option>
+      <option value="Who exactly are you?">Who exactly are you?</option>
+      <option value="How are you different from ChatGPT?">How are you different from ChatGPT?</option>
+    </select>
+    <span class="bl-pill bl-pill-sys">SYS · self_awareness (ours only)</span>
+  </div>
+
+  <!-- ── Two-column comparison ───────────────────────────────── -->
+  <div class="bl-grid">
+
+    <!-- Pythia baseline ── -->
+    <div class="bl-col bl-col-base" id="col-pythia">
+      <div class="bl-col-head">
+        <div class="bl-model">
+          <div class="bl-model-name">Pythia-160M <span class="bl-tag">step1000</span></div>
+          <div class="bl-model-meta">EleutherAI · vanilla Transformer · The Pile</div>
+        </div>
+        <span class="bl-status" id="status-pythia">READY</span>
+      </div>
+
+      <div class="bl-spec-row">
+        <div class="bl-spec"><span class="bl-spec-v">162M</span><span class="bl-spec-l">params</span></div>
+        <div class="bl-spec"><span class="bl-spec-v">2.1B</span><span class="bl-spec-l">train tokens</span></div>
+        <div class="bl-spec"><span class="bl-spec-v">none</span><span class="bl-spec-l">post-train</span></div>
+        <div class="bl-spec"><span class="bl-spec-v">—</span><span class="bl-spec-l">CoT</span></div>
+      </div>
+
+      <div class="bl-metrics">
+        <div class="bl-metric"><span class="bl-metric-v" id="ttft-pythia">—</span><span class="bl-metric-l">TTFT</span></div>
+        <div class="bl-metric"><span class="bl-metric-v" id="toks-pythia">—</span><span class="bl-metric-l">tok/s</span></div>
+        <div class="bl-metric"><span class="bl-metric-v" id="total-pythia">—</span><span class="bl-metric-l">tokens</span></div>
+      </div>
+      <div class="bl-track"><div class="bl-track-fill bl-fill-base" id="bar-pythia"></div></div>
+
+      <div class="bl-response" id="resp-pythia">
+        <span class="bl-idle">Waiting to start…</span>
+      </div>
+    </div>
+
+    <!-- Ours (Tucker) ── -->
+    <div class="bl-col bl-col-ours" id="col-ours">
+      <div class="bl-col-head">
+        <div class="bl-model">
+          <div class="bl-model-name">
+            <img src="/static/assets/tuckericon.png" class="bl-model-icon" alt="">
+            Mamba 3 + TuckerMoE
+            <span class="bl-tag bl-tag-ours">ours</span>
+          </div>
+          <div class="bl-model-meta">Hybrid SSM + low-rank MoE · 417M · Apple Silicon</div>
+        </div>
+        <span class="bl-status" id="status-ours">READY</span>
+      </div>
+
+      <div class="bl-spec-row">
+        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">417M</span><span class="bl-spec-l">params</span></div>
+        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">2.1B</span><span class="bl-spec-l">train tokens</span></div>
+        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">SFT + CoT</span><span class="bl-spec-l">post-train</span></div>
+        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">5-factor loss</span><span class="bl-spec-l">CoT</span></div>
+      </div>
+
+      <div class="bl-metrics">
+        <div class="bl-metric"><span class="bl-metric-v" id="ttft-ours">—</span><span class="bl-metric-l">TTFT</span></div>
+        <div class="bl-metric bl-metric-accent"><span class="bl-metric-v" id="toks-ours">—</span><span class="bl-metric-l">tok/s</span></div>
+        <div class="bl-metric"><span class="bl-metric-v" id="total-ours">—</span><span class="bl-metric-l">tokens</span></div>
+      </div>
+      <div class="bl-track"><div class="bl-track-fill bl-fill-ours" id="bar-ours"></div></div>
+
+      <div class="bl-think" id="think-ours" hidden>
+        <button class="bl-think-toggle" id="think-toggle-ours">
+          <span class="bl-think-dot"></span>
+          <span class="bl-think-lbl" id="think-lbl-ours">Thinking…</span>
+          <span class="bl-think-dur" id="think-time-ours"></span>
+          <svg class="bl-chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="bl-think-body" id="think-body-ours"></div>
+      </div>
+
+      <div class="bl-response" id="resp-ours">
+        <span class="bl-idle">Waiting to start…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Architecture diff table ──────────────────────────────── -->
+  <section class="bl-arch">
+    <div class="bl-arch-head">What actually changed</div>
+    <div class="bl-arch-wrap">
+      <table>
+        <thead>
+          <tr><th>Axis</th><th class="t-base">Pythia-160M @step1000</th><th class="t-ours">Mamba 3 + TuckerMoE (ours)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Backbone</td><td>GPT-NeoX (vanilla Transformer)</td><td>Mamba 3 + GQA attention (hybrid SSM)</td></tr>
+          <tr><td>MoE</td><td>—</td><td>8 experts, Tucker-decomposed (–90.2% params)</td></tr>
+          <tr><td>KV cache</td><td>O(N) per token</td><td>O(1) recurrent state</td></tr>
+          <tr><td>Training corpus</td><td>The Pile</td><td>FineWeb-Edu + UltraChat + CoT bundle</td></tr>
+          <tr><td>Training tokens</td><td class="t-base">2.1B</td><td class="t-ours">2.1B (identical)</td></tr>
+          <tr><td>Post-training</td><td>—</td><td>3-stage: pretrain → SFT → CoT</td></tr>
+          <tr><td>CoT loss</td><td>—</td><td>5-factor token weighting + FCP EOS</td></tr>
+          <tr><td>Persona</td><td>—</td><td>"Mamba" identity, multi-system prompts</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="bl-foot">
+    Pythia served via HuggingFace transformers on Apple Silicon (MPS, fp32).
+    Ours runs the native MLX inference stack with the same hardware.
+    Same prompt is sent to both; ours additionally receives a
+    <code>self_awareness</code> system prompt and ChatML scaffolding — the
+    structure used during training.
+  </div>
+
+  <script src="/static/scripts/baselines.js"></script>
+</body>
+</html>
