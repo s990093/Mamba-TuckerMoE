@@ -356,7 +356,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         plog("page loaded ✓ \(webView.url?.absoluteString ?? "")")
         webView.evaluateJavaScript(
             "document.documentElement.style.background='transparent';" +
-            "document.body.style.background='transparent';")
+            "document.body.style.background='transparent';" +
+            "document.documentElement.style.zoom='\(pageZoom)';")
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
