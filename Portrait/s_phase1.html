@@ -21,23 +21,23 @@
         <defs>
           <marker
             id="ra"
-            markerWidth="8"
-            markerHeight="7"
-            refX="7"
-            refY="3.5"
+            markerWidth="6"
+            markerHeight="5"
+            refX="5"
+            refY="2.5"
             orient="auto"
           >
-            <path d="M0,0 L8,3.5 L0,7 L1.5,3.5 Z" fill="#2F4F4F" />
+            <path d="M0,0 L6,2.5 L0,5 L1.1,2.5 Z" fill="#2F4F4F" />
           </marker>
           <marker
             id="raDash"
-            markerWidth="9"
-            markerHeight="8"
-            refX="2"
-            refY="4"
+            markerWidth="6"
+            markerHeight="5"
+            refX="1.5"
+            refY="2.5"
             orient="auto"
           >
-            <path d="M9,0 L0,4 L9,8 L7.5,4 Z" fill="#2F4F4F" />
+            <path d="M6,0 L0,2.5 L6,5 L4.9,2.5 Z" fill="#2F4F4F" />
           </marker>
           <filter id="raSf">
             <feDropShadow
@@ -163,11 +163,11 @@
           />
 
           <!-- ×6 label in top-right corner -->
-          <rect x="920" y="34" width="28" height="20" rx="8" fill="#7A5800" />
+          <rect x="915" y="50" width="22" height="15" rx="6" fill="#7A5800" />
           <text
-            x="934"
-            y="48"
-            font-size="11.5"
+            x="926"
+            y="61"
+            font-size="9.5"
             fill="#F4F7F9"
             text-anchor="middle"
             font-weight="800"
@@ -733,14 +733,14 @@
           <line
             x1="917"
             y1="94"
-            x2="919"
+            x2="929"
             y2="94"
             stroke="#2F4F4F"
             stroke-width="2.2"
             marker-end="url(#ra)"
           />
           <circle
-            cx="930"
+            cx="940"
             cy="94"
             r="11"
             fill="#E8F7EC"
@@ -748,26 +748,26 @@
             stroke-width="2.5"
           />
           <line
-            x1="922"
+            x1="932"
             y1="94"
-            x2="938"
+            x2="948"
             y2="94"
             stroke="#1B5E34"
             stroke-width="2"
           />
           <line
-            x1="930"
+            x1="940"
             y1="86"
-            x2="930"
+            x2="940"
             y2="102"
             stroke="#1B5E34"
             stroke-width="2"
           />
 
           <line
-            x1="941"
+            x1="951"
             y1="94"
-            x2="957"
+            x2="967"
             y2="94"
             stroke="#2F4F4F"
             stroke-width="2.5"
@@ -776,7 +776,7 @@
 
           <!-- LM Head -->
           <rect
-            x="959"
+            x="969"
             y="63"
             width="76"
             height="54"
@@ -787,7 +787,7 @@
             filter="url(#raSf)"
           />
           <text
-            x="997"
+            x="1007"
             y="86"
             font-size="11.7"
             fill="#0A3D20"
@@ -797,7 +797,7 @@
             LM Head
           </text>
           <text
-            x="997"
+            x="1007"
             y="100"
             font-size="9.1"
             fill="#1A5C32"
@@ -807,9 +807,9 @@
           </text>
 
           <line
-            x1="1035"
+            x1="1045"
             y1="90"
-            x2="1051"
+            x2="1061"
             y2="90"
             stroke="#2F4F4F"
             stroke-width="2.5"
@@ -818,7 +818,7 @@
 
           <!-- Logits -->
           <text
-            x="1055"
+            x="1065"
             y="85"
             font-size="11.7"
             fill="#2F4F4F"
@@ -826,7 +826,7 @@
           >
             Logits
           </text>
-          <text x="1055" y="98" font-size="9.8" fill="#374151">(V=32k)</text>
+          <text x="1065" y="98" font-size="9.8" fill="#374151">(V=32k)</text>
         </g>
         <!-- end translate group -->
       </svg>
@@ -932,27 +932,7 @@
           fill="#374151"
           text-anchor="middle"
           font-weight="700"
-        >
-          <tspan font-style="italic">W</tspan>
-          <tspan font-style="italic" font-size="9.5" baseline-shift="sub">
-            e
-          </tspan>
-          ≈
-          <tspan font-style="italic">U</tspan>
-          <tspan font-style="italic" font-size="9.5" baseline-shift="sub">
-            in
-          </tspan>
-          ·
-          <tspan font-style="italic">Core</tspan>
-          <tspan font-style="italic" font-size="9.5" baseline-shift="sub">
-            e
-          </tspan>
-          ·
-          <tspan font-style="italic">U</tspan>
-          <tspan font-style="italic" font-size="9.5" baseline-shift="sub">
-            out
-          </tspan>
-        </text>
+        ><tspan font-style="italic">W</tspan><tspan font-style="italic" font-size="9.5" dy="2">e</tspan><tspan dy="-2"> ≈ </tspan><tspan font-style="italic">U</tspan><tspan font-style="italic" font-size="9.5" dy="2">in</tspan><tspan dy="-2"> · </tspan><tspan font-style="italic">Core</tspan><tspan font-style="italic" font-size="9.5" dy="2">e</tspan><tspan dy="-2"> · </tspan><tspan font-style="italic">U</tspan><tspan font-style="italic" font-size="9.5" dy="2">out</tspan><tspan dy="-2"></tspan></text>
 
         <!-- Dense W_e — sliced iso cube showing E=8 expert layers, with E / d_in / d_out dimensions -->
         <text
@@ -963,11 +943,8 @@
           text-anchor="middle"
           font-weight="800"
         >
-          Dense&#160;
-          <tspan font-style="italic">W</tspan>
-          <tspan font-style="italic" font-size="8.5" baseline-shift="sub">
-            e
-          </tspan>
+          Dense
+          <tspan font-style="italic">W</tspan><tspan font-style="italic" font-size="8" dy="2">e</tspan><tspan dy="-2"></tspan>
         </text>
 
         <!-- E bracket (left, vertical axis showing E=8 layers) -->
@@ -997,7 +974,7 @@
         />
         <text
           x="14"
-          y="160"
+          y="158"
           font-size="10"
           fill="#2F4F4F"
           font-weight="800"
@@ -1159,13 +1136,11 @@
         />
 
         <!-- Subtle expert labels (e₁, e₈) at top and bottom slices -->
-        <text x="32" y="109" font-size="5.5" fill="#475569" font-weight="800">
-          <tspan font-style="italic">e</tspan>
-          <tspan font-size="4.5" baseline-shift="sub">1</tspan>
+        <text x="34" y="104" font-size="7" fill="#475569" font-weight="800">
+          <tspan font-style="italic">e</tspan><tspan font-size="5.5" dy="1.5">1</tspan><tspan dy="-1.5"></tspan>
         </text>
-        <text x="32" y="226" font-size="5.5" fill="#475569" font-weight="800">
-          <tspan font-style="italic">e</tspan>
-          <tspan font-size="4.5" baseline-shift="sub">8</tspan>
+        <text x="34" y="221" font-size="7" fill="#475569" font-weight="800">
+          <tspan font-style="italic">e</tspan><tspan font-size="5.5" dy="1.5">8</tspan><tspan dy="-1.5"></tspan>
         </text>
 
         <!-- Shape caption: clean dimension labels -->
@@ -1176,16 +1151,8 @@
           fill="#475569"
           text-anchor="middle"
           font-weight="700"
-        >
-          shape:
-          <tspan font-style="italic">E</tspan>
-          ×
-          <tspan font-style="italic">d</tspan>
-          <tspan font-size="6" baseline-shift="sub">in</tspan>
-          ×
-          <tspan font-style="italic">d</tspan>
-          <tspan font-size="6" baseline-shift="sub">out</tspan>
-        </text>
+          letter-spacing="-0.2"
+        >shape: <tspan font-style="italic">E</tspan> × <tspan font-style="italic">d</tspan><tspan font-size="6" dy="1.5">in</tspan><tspan dy="-1.5"> × </tspan><tspan font-style="italic">d</tspan><tspan font-size="6" dy="1.5">out</tspan><tspan dy="-1.5"></tspan></text>
         <text
           x="47"
           y="259"
@@ -1202,14 +1169,14 @@
         <text
           x="98"
           y="158"
-          font-size="11"
+          font-size="10"
           fill="#374151"
           text-anchor="middle"
           font-weight="700"
         >
           Tucker
         </text>
-        <text x="98" y="172" font-size="11" fill="#374151" text-anchor="middle">
+        <text x="98" y="170" font-size="8.5" fill="#374151" text-anchor="middle">
           decompose
         </text>
         <line
@@ -1218,7 +1185,7 @@
           x2="116"
           y2="180"
           stroke="#2F4F4F"
-          stroke-width="2.6"
+          stroke-width="1.3"
           marker-end="url(#pAr)"
         />
 
@@ -1231,10 +1198,7 @@
           text-anchor="middle"
           font-weight="800"
         >
-          <tspan font-style="italic">U</tspan>
-          <tspan font-style="italic" font-size="8.5" baseline-shift="sub">
-            in
-          </tspan>
+          <tspan font-style="italic">U</tspan><tspan font-style="italic" font-size="8" dy="2">in</tspan><tspan dy="-2"></tspan>
         </text>
         <path
           d="M 122,98 L 151,80 L 180,98 L 151,116 Z"
@@ -1261,12 +1225,7 @@
           font-size="10.5"
           fill="#2F4F4F"
           text-anchor="middle"
-        >
-          <tspan font-style="italic">d</tspan>
-          ×
-          <tspan font-style="italic">r</tspan>
-          <tspan font-size="7.5" baseline-shift="sub">3</tspan>
-        </text>
+        ><tspan font-style="italic">d</tspan> × <tspan font-style="italic">r</tspan><tspan font-size="7" dy="1.5">3</tspan><tspan dy="-1.5"></tspan></text>
         <text
           x="151"
           y="259"
@@ -1300,6 +1259,7 @@
         </text>
 
         <!-- Core_e (muted brick iso cube ×E) — colour weight-balanced with U_in/U_out -->
+        <!-- Header: "Core_e" centred over cube (x=235), with inline ×E pill placed to the right (between Core and U_out columns) -->
         <text
           x="235"
           y="78"
@@ -1308,19 +1268,16 @@
           text-anchor="middle"
           font-weight="800"
         >
-          <tspan font-style="italic">Core</tspan>
-          <tspan font-style="italic" font-size="8.5" baseline-shift="sub">
-            e
-          </tspan>
+          <tspan font-style="italic">Core</tspan><tspan font-style="italic" font-size="8" dy="2">e</tspan><tspan dy="-2"></tspan>
         </text>
-        <rect x="260" y="64" width="36" height="16" rx="8" fill="#DE5A28" />
+        <rect x="258" y="68" width="30" height="13" rx="6.5" fill="#DE5A28" />
         <text
-          x="278"
-          y="76"
-          font-size="10"
+          x="273"
+          y="77.5"
+          font-size="9"
           fill="#FFF"
           text-anchor="middle"
-          font-weight="700"
+          font-weight="800"
         >
           ×
           <tspan font-style="italic">E</tspan>
@@ -1350,16 +1307,7 @@
           font-size="10.5"
           fill="#DE5A28"
           text-anchor="middle"
-        >
-          <tspan font-style="italic">r</tspan>
-          <tspan font-size="7.5" baseline-shift="sub">1</tspan>
-          ×
-          <tspan font-style="italic">r</tspan>
-          <tspan font-size="7.5" baseline-shift="sub">2</tspan>
-          ×
-          <tspan font-style="italic">r</tspan>
-          <tspan font-size="7.5" baseline-shift="sub">3</tspan>
-        </text>
+        ><tspan font-style="italic">r</tspan><tspan font-size="7" dy="1.5">1</tspan><tspan dy="-1.5"> × </tspan><tspan font-style="italic">r</tspan><tspan font-size="7" dy="1.5">2</tspan><tspan dy="-1.5"> × </tspan><tspan font-style="italic">r</tspan><tspan font-size="7" dy="1.5">3</tspan><tspan dy="-1.5"></tspan></text>
         <text
           x="235"
           y="259"
@@ -1401,10 +1349,7 @@
           text-anchor="middle"
           font-weight="800"
         >
-          <tspan font-style="italic">U</tspan>
-          <tspan font-style="italic" font-size="8.5" baseline-shift="sub">
-            out
-          </tspan>
+          <tspan font-style="italic">U</tspan><tspan font-style="italic" font-size="8" dy="2">out</tspan><tspan dy="-2"></tspan>
         </text>
         <path
           d="M 290,98 L 319,80 L 348,98 L 319,116 Z"
@@ -1431,12 +1376,7 @@
           font-size="10.5"
           fill="#2F4F4F"
           text-anchor="middle"
-        >
-          <tspan font-style="italic">r</tspan>
-          <tspan font-size="7.5" baseline-shift="sub">2</tspan>
-          ×
-          <tspan font-style="italic">d</tspan>
-        </text>
+        ><tspan font-style="italic">r</tspan><tspan font-size="7" dy="1.5">2</tspan><tspan dy="-1.5"> × </tspan><tspan font-style="italic">d</tspan></text>
         <text
           x="319"
           y="259"
@@ -1463,7 +1403,7 @@
           x="14"
           y="276"
           width="354"
-          height="64"
+          height="70"
           rx="7"
           fill="#EFF7F0"
           stroke="#1B5E34"
@@ -1472,39 +1412,23 @@
         />
         <text
           x="191"
-          y="287"
+          y="285"
           font-size="9.5"
           fill="#0A3D20"
           text-anchor="middle"
           font-weight="700"
           font-style="italic"
-        >
-          How
-          <tspan font-style="italic">Core</tspan>
-          <tspan font-size="7" baseline-shift="sub">e</tspan>
-          is built — weighted sum of
-          <tspan font-style="italic">r</tspan>
-          <tspan font-size="7" baseline-shift="sub">1</tspan>
-          =32 shared slices (different weights per expert
-          <tspan font-style="italic">e</tspan>
-          )
-        </text>
+        >Each <tspan font-style="italic">Core</tspan><tspan font-size="7" dy="1.5">e</tspan><tspan dy="-1.5"> = weighted sum of </tspan><tspan font-style="italic">r</tspan><tspan font-size="7" dy="1.5">1</tspan><tspan dy="-1.5">=32 shared slices · per-expert weights</tspan></text>
 
         <!-- Zone 1: Shared Core slices (yellow stacks) -->
         <text
           x="65"
-          y="299"
+          y="301"
           font-size="8.5"
           fill="#DE5A28"
           text-anchor="middle"
           font-weight="700"
-        >
-          Shared slices
-          <tspan font-style="italic">Core</tspan>
-          [
-          <tspan font-style="italic">r</tspan>
-          ,:,:]
-        </text>
+        >Shared slices <tspan font-style="italic">Core</tspan>[<tspan font-style="italic">r</tspan>,:,:]</text>
         <rect
           x="22"
           y="305"
@@ -1571,8 +1495,8 @@
           stroke-width="0.9"
         />
         <text
-          x="65"
-          y="338"
+          x="72"
+          y="340"
           font-size="7"
           fill="#C45840"
           text-anchor="middle"
@@ -1597,18 +1521,12 @@
         <!-- Zone 2: U_expert[e] weight bars (purple) -->
         <text
           x="180"
-          y="299"
+          y="301"
           font-size="8.5"
           fill="#2F4F4F"
           text-anchor="middle"
           font-weight="700"
-        >
-          <tspan font-style="italic">U</tspan>
-          <tspan font-size="6" baseline-shift="sub">expert</tspan>
-          [
-          <tspan font-style="italic">e</tspan>
-          ] (per-expert weights)
-        </text>
+        ><tspan font-style="italic">U</tspan><tspan font-size="6" dy="1.5">expert</tspan><tspan dy="-1.5">[</tspan><tspan font-style="italic">e</tspan>] (per-expert weights)</text>
         <line
           x1="134"
           y1="332"
@@ -1693,7 +1611,7 @@
         />
         <text
           x="180"
-          y="338"
+          y="340"
           font-size="7"
           fill="#2F4F4F"
           text-anchor="middle"
@@ -1717,20 +1635,12 @@
         <!-- Zone 3: Core_e result -->
         <text
           x="305"
-          y="299"
+          y="301"
           font-size="8.5"
           fill="#DE5A28"
           text-anchor="middle"
           font-weight="700"
-        >
-          <tspan font-style="italic">Core</tspan>
-          <tspan font-size="6.5" baseline-shift="sub" font-style="italic">
-            e
-          </tspan>
-          (unique to expert
-          <tspan font-style="italic">e</tspan>
-          )
-        </text>
+        ><tspan font-style="italic">Core</tspan><tspan font-size="6.5" dy="2" font-style="italic">e</tspan><tspan dy="-2"> (unique to expert </tspan><tspan font-style="italic">e</tspan>)</text>
         <path
           d="M 258,317 L 273,307 L 288,317 L 273,327 Z"
           fill="#C97A5F"
@@ -1761,7 +1671,7 @@
           × E
         </text>
         <text
-          x="332"
+          x="345"
           y="320"
           font-size="8"
           fill="#DE5A28"
@@ -1769,13 +1679,10 @@
           font-weight="700"
         >
           one
-          <tspan font-style="italic">Core</tspan>
-          <tspan font-size="6" baseline-shift="sub" font-style="italic">
-            e
-          </tspan>
+          <tspan font-style="italic">Core</tspan><tspan font-size="6" dy="2" font-style="italic">e</tspan><tspan dy="-2"></tspan>
         </text>
         <text
-          x="332"
+          x="345"
           y="332"
           font-size="8"
           fill="#DE5A28"
@@ -1788,9 +1695,9 @@
         <!-- Per-Expert Compression — enhanced with individual Tucker matrix breakdown -->
         <rect
           x="14"
-          y="346"
+          y="352"
           width="354"
-          height="142"
+          height="156"
           rx="7"
           fill="#FAFBFC"
           stroke="#DE5A28"
@@ -1798,11 +1705,11 @@
           filter="url(#pSm)"
         />
         <!-- Bigger, more prominent title bar -->
-        <rect x="14" y="346" width="354" height="22" rx="7" fill="#DE5A28" />
-        <rect x="14" y="360" width="354" height="8" fill="#DE5A28" />
+        <rect x="14" y="352" width="354" height="22" rx="7" fill="#DE5A28" />
+        <rect x="14" y="366" width="354" height="8" fill="#DE5A28" />
         <text
           x="191"
-          y="362"
+          y="368"
           font-size="14"
           fill="#FFF8F0"
           text-anchor="middle"
@@ -1815,7 +1722,7 @@
         <!-- Dense bar — Bigger, more prominent -->
         <text
           x="68"
-          y="386"
+          y="396"
           font-size="13"
           fill="#7F1D1D"
           font-weight="800"
@@ -1825,7 +1732,7 @@
         </text>
         <rect
           x="72"
-          y="374"
+          y="384"
           width="284"
           height="24"
           rx="4"
@@ -1835,7 +1742,7 @@
         />
         <text
           x="214"
-          y="391"
+          y="401"
           font-size="14"
           fill="#7F1D1D"
           font-weight="800"
@@ -1843,36 +1750,11 @@
         >
           75.5M
         </text>
-        <!-- "saved" annotation as a translucent overlay on the right portion of the dense bar -->
-        <rect
-          x="105"
-          y="374"
-          width="251"
-          height="24"
-          rx="2"
-          fill="none"
-          stroke="#0A3D20"
-          stroke-width="1.4"
-          stroke-dasharray="4 2"
-          opacity="0.6"
-        />
-        <text
-          x="230"
-          y="391"
-          font-size="12"
-          fill="#0A3D20"
-          text-anchor="middle"
-          font-weight="800"
-          font-style="italic"
-          opacity="0.0"
-        >
-          ↓ 89.8% saved ↓
-        </text>
 
         <!-- Big SAVED banner under dense bar — increased height for text breathing room -->
         <rect
           x="72"
-          y="402"
+          y="412"
           width="294"
           height="20"
           rx="6"
@@ -1882,7 +1764,7 @@
         />
         <text
           x="219"
-          y="416"
+          y="426"
           font-size="9"
           fill="#0A3D20"
           text-anchor="middle"
@@ -1894,7 +1776,7 @@
         <!-- Tucker bar — 3 segments, each labeled with role and matrix size -->
         <text
           x="68"
-          y="437"
+          y="446"
           font-size="13"
           fill="#0A3D20"
           font-weight="800"
@@ -1905,7 +1787,7 @@
         <!-- U_in segment (shared, smallest) — width proportional to params ≈ 0.05M -->
         <rect
           x="72"
-          y="425"
+          y="434"
           width="14"
           height="24"
           rx="3"
@@ -1916,7 +1798,7 @@
         <!-- Core_e segment (shared, largest) ≈ 4.19M -->
         <rect
           x="86"
-          y="425"
+          y="434"
           width="154"
           height="24"
           fill="#F5C4B0"
@@ -1926,7 +1808,7 @@
         <!-- U_out segment (shared) ≈ 3.15M -->
         <rect
           x="240"
-          y="425"
+          y="434"
           width="116"
           height="24"
           rx="3"
@@ -1934,23 +1816,23 @@
           stroke="#2F4F4F"
           stroke-width="0.8"
         />
-        <text x="357" y="442" font-size="14" fill="#0A3D20" font-weight="800" text-anchor="end">
+        <text x="317" y="451" font-size="14" fill="#0A3D20" font-weight="800" text-anchor="end">
           7.39M
         </text>
 
         <!-- Per-segment labels (matrix name · shape · size) — shifted down to follow Tucker bar -->
-        <!-- U_in label -->
+        <!-- U_in label (3-line stack: name / shape / params; spacing 11u to avoid descender overlap) -->
         <line
           x1="79"
-          y1="452"
+          y1="462"
           x2="79"
-          y2="460"
+          y2="469"
           stroke="#2F4F4F"
           stroke-width="0.8"
         />
         <text
           x="79"
-          y="469"
+          y="476"
           font-size="9"
           fill="#2F4F4F"
           text-anchor="middle"
@@ -1961,7 +1843,7 @@
         </text>
         <text
           x="79"
-          y="478"
+          y="487"
           font-size="7"
           fill="#2F4F4F"
           text-anchor="middle"
@@ -1971,7 +1853,7 @@
         </text>
         <text
           x="79"
-          y="487"
+          y="499"
           font-size="7.5"
           fill="#2F4F4F"
           text-anchor="middle"
@@ -1983,15 +1865,15 @@
         <!-- Core label -->
         <line
           x1="163"
-          y1="452"
+          y1="462"
           x2="163"
-          y2="460"
+          y2="469"
           stroke="#DE5A28"
           stroke-width="0.8"
         />
         <text
           x="163"
-          y="469"
+          y="476"
           font-size="9"
           fill="#DE5A28"
           text-anchor="middle"
@@ -2001,7 +1883,7 @@
         </text>
         <text
           x="163"
-          y="478"
+          y="487"
           font-size="7"
           fill="#DE5A28"
           text-anchor="middle"
@@ -2011,7 +1893,7 @@
         </text>
         <text
           x="163"
-          y="487"
+          y="499"
           font-size="7.5"
           fill="#DE5A28"
           text-anchor="middle"
@@ -2023,15 +1905,15 @@
         <!-- U_out label -->
         <line
           x1="298"
-          y1="452"
+          y1="462"
           x2="298"
-          y2="460"
+          y2="469"
           stroke="#2F4F4F"
           stroke-width="0.8"
         />
         <text
           x="298"
-          y="469"
+          y="476"
           font-size="9"
           fill="#2F4F4F"
           text-anchor="middle"
@@ -2042,7 +1924,7 @@
         </text>
         <text
           x="298"
-          y="478"
+          y="487"
           font-size="7"
           fill="#2F4F4F"
           text-anchor="middle"
@@ -2052,7 +1934,7 @@
         </text>
         <text
           x="298"
-          y="487"
+          y="499"
           font-size="7.5"
           fill="#2F4F4F"
           text-anchor="middle"
