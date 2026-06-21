@@ -6,6 +6,7 @@ known hallucination patterns (Conyner, Conyley, Conyberg, Analley, MStep, M##, e
 Also provides ALWAYS_BAN for tokens that are individually problematic and unlikely
 to appear in legitimate self-awareness output.
 """
+
 from __future__ import annotations
 
 # ── Conditional bans ───────────────────────────────────────────────────────────

@@ -753,27 +753,139 @@
               </text>
 
               <!-- ── COL 3: MoE Weight Redundancy ── -->
-              <text x="700" y="30" text-anchor="middle" font-size="10.5" fill="#2F4F4F" font-weight="800" font-family="Helvetica">③ MoE Weight Redundancy</text>
-              <text x="700" y="39" text-anchor="middle" font-size="6.5" fill="#6B7280" font-family="Helvetica">per-token decode cost  (M2 Pro · 68 GB/s)</text>
+              <text
+                x="700"
+                y="30"
+                text-anchor="middle"
+                font-size="10.5"
+                fill="#2F4F4F"
+                font-weight="800"
+                font-family="Helvetica"
+              >
+                ③ MoE Weight Redundancy
+              </text>
+              <text
+                x="700"
+                y="39"
+                text-anchor="middle"
+                font-size="6.5"
+                fill="#6B7280"
+                font-family="Helvetica"
+              >
+                per-token decode cost (M2 Pro · 68 GB/s)
+              </text>
 
               <!-- Row 1: Load — long coral bar -->
-              <text x="610" y="55" font-size="7" fill="#2F4F4F" font-weight="700" font-family="Helvetica" text-anchor="end">Load DRAM→GPU</text>
-              <rect x="613" y="46" width="192" height="13" rx="2" fill="#DE5A28"/>
-              <text x="811" y="55" font-size="8.5" fill="#DE5A28" font-weight="800" font-family="Helvetica">4.2 ms</text>
+              <text
+                x="610"
+                y="55"
+                font-size="7"
+                fill="#2F4F4F"
+                font-weight="700"
+                font-family="Helvetica"
+                text-anchor="end"
+              >
+                Load DRAM→GPU
+              </text>
+              <rect
+                x="613"
+                y="46"
+                width="192"
+                height="13"
+                rx="2"
+                fill="#DE5A28"
+              />
+              <text
+                x="811"
+                y="55"
+                font-size="8.5"
+                fill="#DE5A28"
+                font-weight="800"
+                font-family="Helvetica"
+              >
+                4.2 ms
+              </text>
 
               <!-- Row 2: Compute — tiny teal sliver -->
-              <text x="610" y="72" font-size="7" fill="#2F4F4F" font-weight="700" font-family="Helvetica" text-anchor="end">Compute</text>
-              <rect x="613" y="63" width="7" height="13" rx="1.5" fill="#2F4F4F"/>
-              <text x="623" y="72" font-size="8.5" fill="#2F4F4F" font-weight="800" font-family="Helvetica">0.04 ms</text>
+              <text
+                x="610"
+                y="72"
+                font-size="7"
+                fill="#2F4F4F"
+                font-weight="700"
+                font-family="Helvetica"
+                text-anchor="end"
+              >
+                Compute
+              </text>
+              <rect
+                x="613"
+                y="63"
+                width="7"
+                height="13"
+                rx="1.5"
+                fill="#2F4F4F"
+              />
+              <text
+                x="623"
+                y="72"
+                font-size="8.5"
+                fill="#2F4F4F"
+                font-weight="800"
+                font-family="Helvetica"
+              >
+                0.04 ms
+              </text>
 
               <!-- Ratio callout — the shocking number -->
-              <text x="780" y="72" font-size="10" fill="#DE5A28" font-weight="800" font-family="Helvetica">× 105</text>
-              <line x1="778" y1="65" x2="778" y2="75" stroke="#DE5A28" stroke-width="1"/>
-              <line x1="621" y1="75" x2="778" y2="75" stroke="#DE5A28" stroke-width="1" stroke-dasharray="3,2"/>
-              <line x1="621" y1="65" x2="621" y2="75" stroke="#DE5A28" stroke-width="1"/>
+              <text
+                x="780"
+                y="72"
+                font-size="10"
+                fill="#DE5A28"
+                font-weight="800"
+                font-family="Helvetica"
+              >
+                × 105
+              </text>
+              <line
+                x1="778"
+                y1="65"
+                x2="778"
+                y2="75"
+                stroke="#DE5A28"
+                stroke-width="1"
+              />
+              <line
+                x1="621"
+                y1="75"
+                x2="778"
+                y2="75"
+                stroke="#DE5A28"
+                stroke-width="1"
+                stroke-dasharray="3,2"
+              />
+              <line
+                x1="621"
+                y1="65"
+                x2="621"
+                y2="75"
+                stroke="#DE5A28"
+                stroke-width="1"
+              />
 
               <!-- Bottom takeaway -->
-              <text x="700" y="87" text-anchor="middle" font-size="6.5" fill="#2F4F4F" font-family="Helvetica">different experts each token · weights evicted · no cache reuse → BW-bound</text>
+              <text
+                x="700"
+                y="87"
+                text-anchor="middle"
+                font-size="6.5"
+                fill="#2F4F4F"
+                font-family="Helvetica"
+              >
+                different experts each token · weights evicted · no cache reuse
+                → BW-bound
+              </text>
             </svg>
           </div>
         </div>
@@ -787,8 +899,12 @@
         <div class="cols">
           <div class="col">
             <div id="slot-phase3"><div class="loading">Loading…</div></div>
-            <div id="slot-phase4" style="margin-top:3mm"><div class="loading">Loading…</div></div>
-            <div id="slot-phase2" style="margin-top:3mm"><div class="loading">Loading…</div></div>
+            <div id="slot-phase4" style="margin-top: 3mm">
+              <div class="loading">Loading…</div>
+            </div>
+            <div id="slot-phase2" style="margin-top: 3mm">
+              <div class="loading">Loading…</div>
+            </div>
           </div>
           <div class="col">
             <div id="slot-results"><div class="loading">Loading…</div></div>
@@ -807,23 +923,6 @@
             flex-shrink: 0;
           "
         >
-          <div
-            style="
-              font-family: &quot;Times New Roman&quot;, Times, serif;
-              font-size: 23.4pt;
-              color: #333333;
-              line-height: 1.45;
-            "
-          >
-            <span style="font-weight: 800; color: #2d5f3d; font-size: 26pt"
-              >Acknowledgements
-            </span>
-            We thank Prof. Chun-Hao Chen for his invaluable suggestions and
-            guidance, and the
-            <span style="font-weight: 700; color: #5c7a99">Mamba</span> &amp;
-            <span style="font-weight: 700; color: #2f4f4f">MLX</span>
-            communities for their open-source contributions.
-          </div>
           <div
             style="
               font-family: &quot;Times New Roman&quot;, Times, serif;

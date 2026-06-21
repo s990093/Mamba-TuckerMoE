@@ -202,7 +202,6 @@
           </tr>
         </tbody>
       </table>
-      <div style="padding:1.5mm 2.5mm;font-size:15.6pt;color:#5C7A99;font-style:italic;">★ CoT stage triggered at val PPL ≤ 16 · 5-weight product loss: (w<sub>sc</sub>·w<sub>go</sub>·w<sub>fw</sub>·w<sub>pd</sub>·w<sub>ie</sub>)·ℓ<sub>CE</sub> + λℒ<sub>FCP</sub> + α·ℒ<sub>lb</sub> + β·ℒ<sub>z</sub></div>
     </div>
 
     <!-- Decode Comparison: full width -->
@@ -247,7 +246,6 @@
             </tr>
           </tbody>
         </table>
-        <div style="padding:1.5mm 2.5mm;font-size:15.6pt;color:#5C7A99;font-style:italic;">★ Dense FFN & Pure Transformer OOM @ 32K context. TuckerMoE fits on M2 Pro: 14.1 MiB SSM state (O(1)) vs KV cache O(n). Total = model weights + activations + cache/state.</div>
       </div>
     </div>
 
@@ -316,51 +314,68 @@
       </div>
     </div>
 
-    <div style="border:2.5px solid #2F4F4F;border-radius:5px;overflow:hidden;background:#fff;font-family:'Times New Roman',Times,serif;margin-bottom:3mm;">
-      <div style="background:#2F4F4F;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:16.9pt;font-weight:700;text-align:center;padding:2.5mm 3mm;">Tucker vs SVD Reconstruction MSE ↓</div>
+    <div style="margin-bottom:3mm;border:2.5px solid #2F4F4F;border-radius:5px;padding:2.5mm 3mm;background:#fff;font-family:'Times New Roman',Times,serif;">
+      <div style="font-size:20.8pt;font-weight:700;color:#2F4F4F;text-align:center;margin-bottom:2mm;">TuckerMoE FFN Ablation — FineWeb, Base Transformer, 100k Steps</div>
       <table style="width:100%;border-collapse:collapse;font-size:20.8pt;color:#2F4F4F;">
         <thead>
-          <tr style="border-bottom:1.5px solid #2F4F4F;background:#F4F7F9;">
-            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">Compress.</th>
-            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;color:#1B5E34;">Tucker MSE</th>
-            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;color:#DE5A28;">SVD MSE</th>
-            <th style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">Δ</th>
+          <tr style="border-top:2.5px solid #2F4F4F;border-bottom:1.5px solid #2F4F4F;">
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Arm</th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Params</th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Memory</th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">Marginal Cost / Expert</th>
+            <th style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">best val PPL ↓</th>
           </tr>
         </thead>
         <tbody>
           <tr style="border-bottom:0.8px solid #5C7A99;">
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">70%</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1B5E34;">0.00050</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#DE5A28;">0.00070</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;">+29%</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;">dense</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">110.03M</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">~7.9 GB</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#5C7A99;">—</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">34.41</td>
           </tr>
+          <tr style="border-bottom:0.8px solid #5C7A99;">
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;">tucker r1-8</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">110.42M</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">~10.4 GB</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">8 (r1)</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;">37.91</td>
+          </tr>
+          <!-- Chosen operating point -->
           <tr style="border-bottom:0.8px solid #5C7A99;background:#F4F7F9;">
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">80%</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1B5E34;">0.00100</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#DE5A28;">0.00180</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">+44%</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">tucker r1-4 <sup>★</sup></td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">110.90M</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">~11.0 GB</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-weight:700;">4 (r1)</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;background:#DE5A28;font-weight:800;color:#2F4F4F;border-radius:3px;">38.73 <sup>★</sup></td>
           </tr>
-          <tr style="border-bottom:0.8px solid #5C7A99;background:#FDE8DC;">
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#2F4F4F;">82.87%★</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#2F4F4F;">0.00135</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#DE5A28;">0.00247</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:800;color:#DE5A28;">+45.3%</td>
+          <tr style="border-bottom:0.8px solid #5C7A99;">
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;color:#5C7A99;">tucker r1-16</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#5C7A99;">~110.3M</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#5C7A99;">~10.0 GB</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#5C7A99;">16 (r1)</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#5C7A99;">67.31 <sup>†</sup></td>
           </tr>
-          <tr style="border-bottom:0.8px solid #5C7A99;background:#F4F7F9;">
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">90%</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1B5E34;">0.00250</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#DE5A28;">0.00450</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">+44%</td>
-          </tr>
-          <tr style="border-bottom:2.5px solid #2F4F4F;">
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-style:italic;">95%</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#1B5E34;">0.00500</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;color:#DE5A28;">0.00850</td>
-            <td style="padding:1.8mm 2.5mm;text-align:center;font-weight:700;">+41%</td>
+          <tr style="border-bottom:2.5px solid #2F4F4F;background:#F4F7F9;">
+            <td style="padding:1.8mm 1.8mm;text-align:center;font-style:italic;">dense_moe E8</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#DE5A28;font-weight:700;">506.76M</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#DE5A28;font-weight:700;">~24 GB (OOM)</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#DE5A28;font-size:16.9pt;">4,718,592</td>
+            <td style="padding:1.8mm 1.8mm;text-align:center;color:#DE5A28;">50.50 <sup>†</sup></td>
           </tr>
         </tbody>
       </table>
-      <div style="padding:1.5mm 2.5mm;font-size:15.6pt;color:#5C7A99;font-style:italic;">★ Chosen operating point. Tucker consistently outperforms SVD at 80–95%.</div>
+      <div style="font-size:16.9pt;color:#5C7A99;margin-top:1.5mm;">
+        <sup>★</sup> chosen operating point (82.87% compression) &ensp;·&ensp; <sup>†</sup> preliminary result &ensp;·&ensp; Tucker r1-4/r1-8: &lt;600,000× lower marginal expert cost vs dense_moe at competitive PPL
+      </div>
+    </div>
+
+    <!-- Future Work -->
+    <div style="margin-top:3mm;border:2.5px solid #2F4F4F;border-radius:5px;overflow:hidden;background:#F4F7F9;">
+      <div style="background:#2F4F4F;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:16.9pt;font-weight:700;text-align:center;padding:2mm 3mm;">Future Work</div>
+      <div style="padding:2.5mm 3mm;font-size:16.9pt;color:#2F4F4F;font-family:'Times New Roman',Times,serif;line-height:1.5;">
+        Extending TuckerMoE to masked diffusion objectives (<span style="color:#DE5A28;font-weight:700;">dLLM</span>) is a natural next step; our SSM backbone's bidirectional extension (e.g., Mamba-2 Bi-SSM) would enable absorbing diffusion inference with comparable compression ratios.
+      </div>
     </div>
   </div>
 </div>

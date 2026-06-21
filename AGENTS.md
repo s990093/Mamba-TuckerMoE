@@ -71,19 +71,19 @@ python mamba3_mlx/speculative/bake_cache.py
 
 ## Source layout (what lives where)
 
-| Directory | Responsibility |
-|-----------|---------------|
-| `mamba3_mlx/mlx_model/` | Model architecture (hybrid, mamba, tucker, transformer, ops, weights) |
-| `mamba3_mlx/mlx_model_v2/` | Parallel v2 implementation (different scan_metal) — not default |
-| `mamba3_mlx/inference/` | Sampler, generator (prefill/decode loop), token bans |
-| `mamba3_mlx/mv/` | CoT middleware (format FSM, phase injection) |
-| `mamba3_mlx/speculative/` | Jacobi decoding, draft/verify, ngram cache, CoT cache baking |
-| `mamba3_mlx/utils/` | Config dataclasses, system prompts, per-mode sampling configs |
-| `mamba3_mlx/ui/` | Chat frontend (HTML/CSS/JS) |
-| `mamba3_mlx/tools/` | Sidecar converter, utilities |
-| `mamba3_mlx/profiler/` | WebSocket-based inference profiler |
-| `pre-train/` | PyTorch+Triton training (separate from MLX inference) |
-| `cot_dataset/` | Training data, tokenizer, Metal shader dev |
+| Directory                  | Responsibility                                                        |
+| -------------------------- | --------------------------------------------------------------------- |
+| `mamba3_mlx/mlx_model/`    | Model architecture (hybrid, mamba, tucker, transformer, ops, weights) |
+| `mamba3_mlx/mlx_model_v2/` | Parallel v2 implementation (different scan_metal) — not default       |
+| `mamba3_mlx/inference/`    | Sampler, generator (prefill/decode loop), token bans                  |
+| `mamba3_mlx/mv/`           | CoT middleware (format FSM, phase injection)                          |
+| `mamba3_mlx/speculative/`  | Jacobi decoding, draft/verify, ngram cache, CoT cache baking          |
+| `mamba3_mlx/utils/`        | Config dataclasses, system prompts, per-mode sampling configs         |
+| `mamba3_mlx/ui/`           | Chat frontend (HTML/CSS/JS)                                           |
+| `mamba3_mlx/tools/`        | Sidecar converter, utilities                                          |
+| `mamba3_mlx/profiler/`     | WebSocket-based inference profiler                                    |
+| `pre-train/`               | PyTorch+Triton training (separate from MLX inference)                 |
+| `cot_dataset/`             | Training data, tokenizer, Metal shader dev                            |
 
 ## References
 
