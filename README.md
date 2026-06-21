@@ -169,6 +169,37 @@ SJD K=8:       ARL ≈ 3.93       →  92/3.93 = 23 ms/tok  →  1.53× speedup
 
 ---
 
+## Diffusion-LLM (dLLM) Port — Experimental
+
+> **Status: untrained scaffolding.** An additive port that turns the AR stack into an
+> **absorbing-state diffusion LLM** (LLaDA-style): the response starts as all `[MASK]`
+> and is filled in over a few bidirectional denoising passes instead of token-by-token.
+> No checkpoint is loaded yet (dLLM weights are still training) — the inference,
+> high-performance, and validation paths are verified end-to-end on shape-correct tensors.
+
+Lives in [`mamba3_mlx/mlx_dllm_model/`](mamba3_mlx/mlx_dllm_model/) and **reuses `Mamba3Block` /
+`TuckerMoE` unchanged**. Only 4 things change (see [`DLLM_MLX_PORT.md`](sft_cot_bundle/DLLM_MLX_PORT.md)):
+① `[MASK]` token (vocab 32,007 → 32,008), ② bidirectional attention (Mamba stays unidirectional
+= _partial-bidirectional_), ③ masked-CE training loss, ④ iterative unmasking generation.
+
+**Inference optimizations** (ported from HF `transformers` DiffusionGemma, adapted to `[MASK]` diffusion):
+
+| Optimization                              | Effect                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| Entropy-bound sampler                     | commit a data-adaptive number of confident positions per step              |
+| Linear temperature schedule               | explore early (`t_max`) → commit sharply late (`t_min`)                     |
+| Stable + confident early stop             | end denoising once the canvas stabilizes                                   |
+| **Prefix cache** (encoder/decoder split)  | encode prompt once, denoise canvas-only → **~2.7× / ~1.8×** vs eager / compiled |
+
+```bash
+make -C mamba3_mlx dllm-fast      # prefix-cache generation (fastest path)
+make -C mamba3_mlx dllm-canvas    # watch the [MASK] canvas fill in, step by step
+make -C mamba3_mlx dllm-bench     # eager-full vs static-full vs prefix-cache
+make -C mamba3_mlx dllm-validate  # parity + reconstruction suite
+```
+
+---
+
 ## Quick Start
 
 ### Requirements
@@ -236,6 +267,7 @@ make mlx-profile PROFILE_DECODE_STEPS=32         # per-layer latency
 ├── mamba3_mlx/               # MLX inference stack (Apple Silicon)
 │   ├── mlx_model/            #   Model architecture (hybrid, mamba, tucker, scan)
 │   ├── mlx_model_v2/         #   v2 with updated scan_metal
+│   ├── mlx_dllm_model/       #   Diffusion-LLM port (absorbing-[MASK], experimental)
 │   ├── inference/            #   Generator, sampler, token bans
 │   ├── speculative/          #   Speculative decode (Jacobi, ngram, CoT cache)
 │   ├── mv/                   #   CoT middleware + FSM format enforcement
