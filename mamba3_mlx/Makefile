@@ -123,7 +123,8 @@ $(info [ckpt] $(if $(wildcard $(_SIDECAR)),sidecar → $(_SIDECAR),source  → $
         sjd-movie sjd-deep sjd-syscall \
         sjds sjds-self sjds-math sjds-daily sjds-emotion sjds-email \
         sjds-movie sjds-deep sjds-syscall \
-        pt-server pt-bench pt-mock
+        pt-server pt-bench pt-mock \
+        dllm dllm-s dllm-fast dllm-canvas dllm-bench dllm-validate
 
 PT_PORT ?= 7861
 
@@ -143,6 +144,49 @@ pt-mock:
 pt-bench:
 	cd $(REPO) && $(PYTHON) mamba3_mlx/bench_pytorch_ref.py \
 	  --checkpoint "$(CHECKPOINT)"
+
+# ── dLLM (diffusion-LLM) port — mamba3_mlx/mlx_dllm_model ─────────────────────
+# Untrained model (no checkpoint — real dLLM weights are still training).
+# Bidirectional attention (②) + iterative unmasking (④); output is gibberish
+# until trained weights are loaded — these targets verify the inference +
+# high-performance + validation paths run, are faithful, and are fast (batch=1).
+DLLM      := $(PYTHON) $(ROOT)/dllm_infer.py
+DLLM_GEN  ?= 64           # masked response length G (canvas)
+DLLM_STEP ?= 16           # max denoising iterations T
+DLLM_SAMPLER ?= entropy   # entropy = adaptive entropy-bound | cosine = fixed schedule
+DLLM_EBOUND ?= 0.1        # entropy-bound (joint-MI) for the entropy sampler
+DLLM_EXTRA ?=             # extra flags, e.g. --adaptive-stop --self-cond --d-model 256
+
+_DLLM_BASE = --tokenizer_path "$(TOKENIZER)" --prompt "$(PROMPT)" \
+  --gen-len $(DLLM_GEN) --steps $(DLLM_STEP) \
+  --sampler $(DLLM_SAMPLER) --entropy-bound $(DLLM_EBOUND) \
+  $(_SEED_FLAG) $(DLLM_EXTRA)
+
+## dllm: absorbing-[MASK] diffusion generation (eager; entropy sampler)
+dllm:
+	$(DLLM) --mode generate $(_DLLM_BASE)
+
+## dllm-s: StaticDLLM compiled full (P+G) forward (full-bidirectional, matches the doc)
+dllm-s:
+	$(DLLM) --mode generate --static $(_DLLM_BASE)
+
+## dllm-fast: prefix-cache (encode prompt once, denoise canvas-only) — FASTEST
+##   ~1.8x over dllm-s. Uses prefix-LM attention (prompt doesn't see canvas) —
+##   match it at training time (DiffusionGemma encoder/decoder split).
+dllm-fast:
+	$(DLLM) --mode generate --prefix-cache $(_DLLM_BASE)
+
+## dllm-canvas: watch the [MASK] canvas fill in step by step (█=filled ·=mask)
+dllm-canvas:
+	$(DLLM) --mode generate --static --show-canvas $(_DLLM_BASE)
+
+## dllm-bench: throughput — eager vs StaticDLLM (tok/s, fwd/s, steps, compile)
+dllm-bench:
+	$(DLLM) --mode bench $(_DLLM_BASE)
+
+## dllm-validate: §驗證 suite — (A) parity (B) fixed-ratio recon (C) iterative recon
+dllm-validate:
+	$(DLLM) --mode validate $(_DLLM_BASE)
 
 ## tune-self: 200-trial identity param search (finds params that say "I am Mamba")
 tune-self:
@@ -613,3 +657,17 @@ help:
 	@echo "  make profiler                              # http://localhost:8765  ws://localhost:8765/ws"
 	@echo "  make profiler-kill                         # kill profiler on \$$PROFILER_PORT"
 	@echo "  PROFILER_PORT=9000 make profiler           # custom port"
+	@echo ""
+	@echo "dLLM (diffusion-LLM port, mamba3_mlx/mlx_dllm_model — UNTRAINED, no checkpoint):"
+	@echo "  make dllm                                  # absorbing-[MASK] diffusion (eager, entropy sampler)"
+	@echo "  make dllm-s                                # compiled full (P+G) forward (full-bidirectional)"
+	@echo "  make dllm-fast                             # prefix-cache (encode once, denoise G) — FASTEST ~1.8x"
+	@echo "  make dllm-canvas                           # watch [MASK] canvas fill in step by step"
+	@echo "  make dllm-bench                            # throughput: eager-full vs static-full vs prefix-cache"
+	@echo "  make dllm-validate                         # parity + reconstruction suite"
+	@echo "  DiffusionGemma-inspired knobs (DLLM_SAMPLER entropy|cosine, DLLM_EBOUND, DLLM_EXTRA):"
+	@echo "  make dllm-canvas PROMPT='Who are you?' DLLM_GEN=48 DLLM_STEP=16"
+	@echo "  make dllm DLLM_SAMPLER=cosine              # fixed cosine schedule instead of entropy"
+	@echo "  make dllm DLLM_EXTRA='--adaptive-stop'     # stable+confident early stop"
+	@echo "  make dllm DLLM_EXTRA='--self-cond'         # cross-step self-conditioning (untrained)"
+	@echo "  DLLM_EXTRA='--d-model 256' make dllm-validate   # quicker smoke"
