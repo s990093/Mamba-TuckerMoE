@@ -288,6 +288,12 @@ UNICODE_TEXT_MATH_REPLACEMENTS = {
     "↔": r"$\leftrightarrow$",
     "≈": r"$\approx$",
     "↓": r"$\downarrow$",
+    # STIX Two Text lacks the circled digits used in the dLLM section tables.
+    "①": "(1)",
+    "②": "(2)",
+    "③": "(3)",
+    "④": "(4)",
+    "⑤": "(5)",
 }
 
 
@@ -528,12 +534,17 @@ def build_pdf(
         "../assets/images/architecture.svg", f"../assets/images/architecture.{diagram_format}"
     )
 
+    # Build from the report/ directory: report.md's image paths are written
+    # as ../assets/... (relative to report/), and raw-LaTeX \includegraphics
+    # is resolved by xelatex relative to the build cwd — so both the temp md
+    # and the pandoc cwd must live in report/ for ../assets to resolve.
+    report_dir = REPORT_MD.parent
     with tempfile.NamedTemporaryFile(
         mode="w",
         suffix=".md",
         encoding="utf-8",
         delete=False,
-        dir=str(PROJECT_DIR),
+        dir=str(report_dir),
     ) as tmp_md:
         tmp_md.write(report_text)
         tmp_md_path = Path(tmp_md.name)
@@ -582,11 +593,15 @@ def build_pdf(
         str(output_pdf),
     ]
     try:
-        subprocess.run(cmd, cwd=PROJECT_DIR, check=True)
+        subprocess.run(cmd, cwd=str(report_dir), check=True)
     finally:
         tmp_md_path.unlink(missing_ok=True)
         header_path.unlink(missing_ok=True)
-    print(f"Built PDF: {output_pdf.relative_to(PROJECT_DIR)}")
+    try:
+        shown = output_pdf.relative_to(PROJECT_DIR)
+    except ValueError:
+        shown = output_pdf
+    print(f"Built PDF: {shown}")
 
 
 def main() -> None:

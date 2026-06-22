@@ -110,7 +110,8 @@ Selective State Space Model（Mamba 系列 [7]）提供了另一條路徑。SSM 
 | **§7**     | 訓練方法         | 聯合損失、兩階段 SFT、Router 退火、AdamW 分組、Triton Kernel      |
 | **§8**     | 推論優化         | 圖級融合數學說明、KV Cache 分析                                   |
 | **§9**     | 實驗結果         | 參數對照、Router 診斷、壓縮研究、NCU、MLX、訓練進度、SFT 曲線     |
-| **§10**    | 結論             | 核心貢獻總結、「同算力擴增容量」命題、Future Work                 |
+| **§10**    | dLLM 擴展        | 吸收態擴散四處改動、迭代去遮罩與取樣最佳化、前綴快取加速           |
+| **§11**    | 結論             | 核心貢獻總結、「同算力擴增容量」命題、Future Work                 |
 | **附錄 A** | 演算法虛擬碼     | TuckerMoE Forward/Backward、Chunk-Parallel Scan、Router Annealing |
 | **附錄 B** | 超參數表         | 完整訓練設定                                                      |
 | **附錄 C** | Decode 量測原數據 | §9.6 圖級融合吞吐 A/B 重複量測                                    |
@@ -639,7 +640,7 @@ $$
 \underset{\mathbb{R}^{r_2}\to\mathbb{R}^{d_\text{out}}}{z_e \xrightarrow{U_\text{out}} y}
 $$
 
-每一步都只涉及低秩維度 $r_2, r_3$，而非完整的 $d_\text{in}\times d_\text{out}$。以本研究的設定（$d_\text{in}=1536, d_\text{out}=6144, r_2=512, r_3=256$）為例，若物化完整矩陣需要 $1536\times 6144 = 9.4\text{M}$ 個參數（per expert）；而 on-the-fly 路徑所需的最大中間張量僅 $\max(r_3, r_2) = 512$ 維，峰值記憶體大幅降低。這也是 TD-MoE On-the-fly Inference Pipeline（§10.3）的理論基礎：Tucker 的因式結構允許將推論完全保持在 latent 空間內，無需回到完整維度。
+每一步都只涉及低秩維度 $r_2, r_3$，而非完整的 $d_\text{in}\times d_\text{out}$。以本研究的設定（$d_\text{in}=1536, d_\text{out}=6144, r_2=512, r_3=256$）為例，若物化完整矩陣需要 $1536\times 6144 = 9.4\text{M}$ 個參數（per expert）；而 on-the-fly 路徑所需的最大中間張量僅 $\max(r_3, r_2) = 512$ 維，峰值記憶體大幅降低。這也是 TD-MoE On-the-fly Inference Pipeline（§11.3）的理論基礎：Tucker 的因式結構允許將推論完全保持在 latent 空間內，無需回到完整維度。
 
 初始化方面，本研究採用**正交初始化**於 $U_\text{in}$ 與 $U_\text{out}$，使其在保留的子空間上盡量滿足
 
@@ -1345,7 +1346,7 @@ _圖 4：基於 step 38,400 checkpoint 的真實權重空間壓縮研究。左�
 
 #### 9.3.4 實驗限制與後續擴展方向（Limitations）
 
-本節的壓縮前沿曲線、rank 敏感度分析與 shared-subspace 解讀均屬**權重空間層級**的實驗證據，直接從現有 checkpoint 可重現。然而，將論證從權重重建品質推廣到任務表現層級，尚需以下三類補充實驗：(i) 在不同壓縮率下的 validation PPL 比較；(ii) 壓縮後的 recovery fine-tuning 與品質恢復曲線；(iii) system throughput gain 與生成品質之間的 matched-quality 對照。這些實驗已列為下一階段最優先的擴展方向（見 §10.3）。
+本節的壓縮前沿曲線、rank 敏感度分析與 shared-subspace 解讀均屬**權重空間層級**的實驗證據，直接從現有 checkpoint 可重現。然而，將論證從權重重建品質推廣到任務表現層級，尚需以下三類補充實驗：(i) 在不同壓縮率下的 validation PPL 比較；(ii) 壓縮後的 recovery fine-tuning 與品質恢復曲線；(iii) system throughput gain 與生成品質之間的 matched-quality 對照。這些實驗已列為下一階段最優先的擴展方向（見 §11.3）。
 
 ### 9.3.5 反向誤差分析（Backward Reconstruction MSE）
 
@@ -1433,7 +1434,7 @@ _表 4：在 Apple M 系列晶片上以 MLX 後端量測的 Prefill 與 Decode �
 
 **Decode 延遲分解與 §8.2 圖級融合的關聯。** 圖 6b-D 展示單步 decode 的 13 個子元件時間（eager mode, M2 Pro），其中 Tucker MoE 的 `x_up_proj`（3.41 ms）與 `out_proj`（2.74 ms）為兩大延遲貢獻者，合計佔 Mamba 側 ~52%。圖級融合（§8.2）的收益正是來自將這些高頻 dispatch 路徑——包含 router softmax、top-$k$ gating、latent expert 重建——與前後的 RMSNorm / residual 合併至同一張 MLX 計算圖，從而消除中間的 `mx.eval` 同步柵欄與 Metal command buffer 切換。以同一台 M2 Pro（bf16）進行 5 次重複 A/B 實測（圖 6c）：eager 平均為 **35.18 tok/s**（std 2.12），compile 模式平均為 **48.14 tok/s**（std 4.17），相對提升 **+36.84%**。此結果與原先 ~31% 的估計同向且幅度更高，進一步驗證圖級融合在本架構中的實際吞吐收益（完整逐次量測詳見附錄 C）。
 
-這些數據共同支持本研究在 §10.2 中的命題：在 Apple Silicon 等記憶體受限設備上，本架構可以更小的記憶體預算交付等效的生成能力。特別是 8-bit 量化結合 Hybrid 架構的 decode 記憶體僅 14.1 MiB，在 16 GB 統一記憶體的消費級裝置上留有充分的 headroom 供應用層使用。
+這些數據共同支持本研究在 §11.2 中的命題：在 Apple Silicon 等記憶體受限設備上，本架構可以更小的記憶體預算交付等效的生成能力。特別是 8-bit 量化結合 Hybrid 架構的 decode 記憶體僅 14.1 MiB，在 16 GB 統一記憶體的消費級裝置上留有充分的 headroom 供應用層使用。
 
 ### 9.7 Live Training Progress（截至 step 43,529）
 
@@ -1508,17 +1509,66 @@ _圖 8：目前 SFT 訓練與驗證曲線。左上為訓練 loss 與 CE loss 的
 \end{figure}
 ```
 
-此 Demo 證明了「同算力擴增容量」命題（§10.2）的實用性：在不妥協互動流暢度與設備續航力的前提下，本架構可將具備龐大知識庫的語言模型完整壓縮至消費級手機中，以 14.1 MiB 的解碼狀態記憶體支撐即時語音問答，為邊緣端 AI 助手應用提供了可行的底層方案。
+此 Demo 證明了「同算力擴增容量」命題（§11.2）的實用性：在不妥協互動流暢度與設備續航力的前提下，本架構可將具備龐大知識庫的語言模型完整壓縮至消費級手機中，以 14.1 MiB 的解碼狀態記憶體支撐即時語音問答，為邊緣端 AI 助手應用提供了可行的底層方案。
 
 ---
 
-## 10 結論與未來工作（Conclusion & Future Work）
+## 10 Diffusion-LLM 擴展（dLLM Extension）
 
-### 10.1 核心貢獻總結
+本節將前述自回歸（autoregressive, AR）骨幹擴展為**吸收態擴散語言模型**（absorbing-state diffusion LLM，LLaDA 式）：回應區段於生成起始時全為 `[MASK]`，再經數次雙向去噪前向逐步「填入」，而非逐 token 由左而右解碼。此擴展**完整重用** §5 之 Mamba-3 與 TuckerMoE 模組，僅更動四處，並以一組推論期最佳化將單機（batch=1）吞吐推進至接近 AR 解碼之水準。本節所述為**實作骨架與推論堆疊**；對應權重仍在訓練中，故數值結果以未訓練模型之形狀正確性、路徑保真度與吞吐量為主，輸出語意從略。實作位於 `mamba3_mlx/mlx_dllm_model/`，採 **additive** 設計，不更動既有 `mlx_model/`。
+
+### 10.1 四處改動（其餘前向不變）
+
+延續 §5 之拓撲，僅以下四處需更動，其餘 forward 與 §5–§8 完全一致：
+
+| #  | 改動                                         | 影響範圍        | 訓練／推論 |
+| -- | -------------------------------------------- | --------------- | :--------: |
+| ①  | 加入 `[MASK]` token（詞表 32,007 → 32,008）  | embedding／head |    兩者    |
+| ②  | 注意力關閉 causal（雙向）                     | 僅 attention 層 |    兩者    |
+| ③  | 訓練目標改為 masked-CE（$1/t$ 加權）          | loss            |    訓練    |
+| ④  | 推論改為迭代去遮罩（iterative unmasking）     | 生成迴圈        |    推論    |
+
+其中 Mamba 層**維持單向 scan**——僅 attention 轉為雙向，形成刻意的 **partial-bidirectional** 設計；欲全雙向則需改動 scan（BiMamba），本版不採。`[MASK]` 為輸入專用佔位符，於輸出 logits 上以 $-\infty$ 遮蔽，確保模型永不**生成** `[MASK]`。
+
+吸收態擴散之訓練目標（改動③）對每序列抽樣噪聲比例 $t\in(0,1]$，僅遮蔽回應區 $\mathcal{R}$（prompt 永不遮蔽），並僅於被遮位置集合 $\mathcal{M}_t$ 計算交叉熵，以 $1/t$ 加權：
+
+$$\mathcal{L}_{\text{dLLM}} = \mathbb{E}_{t}\!\left[\frac{1}{t}\cdot\frac{1}{|\mathcal{R}|}\sum_{i\in\mathcal{M}_t}\operatorname{CE}\big(f_\theta(x_{\text{noisy}})_i,\;x_i\big)\right].$$
+
+### 10.2 迭代去遮罩與取樣最佳化
+
+推論（改動④）自全 `[MASK]` 之 canvas 出發，每步以一次雙向前向取得所有被遮位置之分佈，提交（commit）信心最高者；已提交位置固定不變（吸收態），未提交者維持 `[MASK]`，直至填滿或觸發早停。本研究借鏡 DiffusionGemma 之推論期設計並適配於吸收態擴散：
+
+- **熵界取樣器（entropy-bound sampler）**：每步提交「最低熵」之被遮位置，使其聯合互信息上界 $\sum_i H_i - \max_i H_i \le \tau$，即僅提交在給定上下文下近似獨立之 token；提交數**隨模型信心自適應**，取代固定 cosine 排程。
+- **線性溫度排程**：溫度自 $t_{\max}$（早期探索）線性退火至 $t_{\min}$（後期銳化）。
+- **穩定且自信早停**：當 argmax canvas 連續數步不變且平均熵低於門檻時提前結束去噪。
+
+### 10.3 高效能前綴快取（Encoder/Decoder 拆分）
+
+dLLM 每去噪步需對整段序列前向一次，成本遠高於 AR 之單 token 解碼。對 batch=1 之逐層分析顯示：前向成本**完全由 forward 主導**（每步選擇邏輯約 1.5 ms 可忽略），且 $(1,L)$ 前向於 $L\le 64$ 呈 dispatch-bound 地板（約 62 ms），並於 chunk 大小 64 處出現**階梯**——$L\le 64$ 為單 chunk、$65\le L\le 128$ 為雙 chunk（約 123 ms）。
+
+據此採 DiffusionGemma 之 **encoder／decoder 拆分**：以 `encode_prefix` 將 prompt **編碼一次**（Mamba state——因 Mamba 單向故精確——與 Transformer KV cache），其後每步僅以 `denoise` 對 $G$ 個 canvas token 前向、attend 已快取之 prompt KV。此舉同時免除「每步重讀 prompt」與「跨越 chunk 階梯」，且 eager 與編譯路徑**位元等價**。全尺寸量測（M2 Pro，417M，$G{=}32$，$T{=}12$）：
+
+| 路徑                                          | tok/s | 相對 eager |
+| --------------------------------------------- | ----: | :--------: |
+| eager-full（每步整段 $P{+}G$ 前向）            |    16 |    1.0×    |
+| static-full（`mx.compile` 整段前向）          |    24 |    1.5×    |
+| **prefix-cache（編碼一次、僅去噪 $G$）**      |  **43** |  **2.7×**  |
+
+去噪步數 $T$ 為另一線性槓桿（$T{=}6$ 時約 112 tok/s）；熵界取樣與自信早停可進一步降低有效前向數。
+
+### 10.4 現況與限制
+
+本擴展之權重仍在訓練，故輸出尚無語意；已驗證者為：雙向 $\neq$ 因果（改動② 已生效）、eager $=$ 編譯前向（保真）、以及上述吞吐。需注意前綴快取採 **prefix-LM** 注意力（prompt 不 attend canvas），與 §10.1 之全雙向略異，須於訓練端一致採用方能對齊品質；此即 DiffusionGemma encoder／decoder 設計之取向。
+
+---
+
+## 11 結論與未來工作（Conclusion & Future Work）
+
+### 11.1 核心貢獻總結
 
 本報告系統性地提出並驗證了 **Hybrid Mamba-TuckerMoE** 架構：在拓撲層面以 4:1 的 Mamba-Transformer 比例同時獲得 SSM 的 $O(1)$ 解碼狀態與 attention 的全域回看能力；在前饋層層面以 Tucker 三階分解的 TuckerMoE 取代 Dense / Sparse FFN，透過跨專家共享 $U^{(2)}, U^{(3)}$ 與低秩核心張量 $\mathcal{G}$，在目前 checkpoint 的實際參數帳簿上達成 **82.87%** 的整體壓縮率；在系統層面以前向與反向 kernel 融合降低訓練端記憶體流量，並以圖級融合降低推論端逐層控制開銷；在驗證層面通過 Router Collapse Diagnostic 全部四項門檻，且 raw NCU 顯示 `_fused_latent_moe_fwd` 與 `_chunk_scan_fwd_kernel` 具有互補瓶頸：前者主要受片上記憶體與 scheduler stall 制約，後者則維持明顯 DRAM-bound。
 
-### 10.2 「同算力擴增容量」命題
+### 11.2 「同算力擴增容量」命題
 
 本架構的最終科學意義在於驗證以下命題：
 
