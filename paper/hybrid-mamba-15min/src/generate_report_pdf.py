@@ -14,7 +14,23 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 REPORT_MD = PROJECT_DIR / "report/report.md"
+SECTIONS_DIR = PROJECT_DIR / "report/sections"
 OUTPUT_PDF = PROJECT_DIR / "output/report.pdf"
+
+
+def read_report_source() -> str:
+    """Assemble the report markdown.
+
+    The report is split into per-section files under report/sections/ (NN_*.md).
+    They are concatenated in filename order to reproduce the original document
+    byte-for-byte (so the figure MD→LaTeX replacements still match). Falls back
+    to the legacy single report.md if no section files are present.
+    """
+    if SECTIONS_DIR.is_dir():
+        files = sorted(SECTIONS_DIR.glob("*.md"))
+        if files:
+            return "".join(f.read_text(encoding="utf-8") for f in files)
+    return REPORT_MD.read_text(encoding="utf-8")
 
 DIAGRAM_SPECS = (
     ("prototypes/method_flowchart.html", "assets/method_flowchart.svg"),
@@ -498,7 +514,7 @@ def build_pdf(
     if not pandoc_cmd:
         raise RuntimeError("pandoc not found. Install pandoc to build PDF.")
 
-    report_text = report_md.read_text(encoding="utf-8")
+    report_text = read_report_source()
     for old, new in UNICODE_TEXT_MATH_REPLACEMENTS.items():
         report_text = report_text.replace(old, new)
     report_text = report_text.replace(
