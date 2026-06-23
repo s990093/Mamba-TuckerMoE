@@ -145,6 +145,7 @@ transcripts/
 
 # Portrait images (large binary assets)
 Portrait/
+!Portrait/presentation_script.html
 
 # CoT dataset — large JSON shards & text previews (keep locally; do not commit / push)
 cot_dataset/**/*.json

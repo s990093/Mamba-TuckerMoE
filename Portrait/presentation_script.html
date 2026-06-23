@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>發表逐字稿 — Hybrid Mamba-TuckerMoE（15 分鐘）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box}
+body{font-family:'Noto Sans TC',system-ui,sans-serif;background:#f1f5f9}
+.script{line-height:2.3;font-size:1.08rem;color:#1e293b}
+.em{font-weight:700;color:#3730a3}
+.em2{font-weight:700;color:#0f766e}
+.pause{display:inline-block;border-bottom:2px dotted #94a3b8;width:1.5rem;height:0;vertical-align:bottom;margin:0 2px}
+details>summary{list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+details[open]>summary .arr{transform:rotate(90deg)}
+.arr{display:inline-block;transition:transform .2s}
+html{scroll-behavior:smooth}
+@media print{
+  .no-print{display:none!important}
+  section{page-break-inside:avoid}
+}
+</style>
+</head>
+<body class="text-slate-800">
+
+<!-- ===== STICKY HEADER ===== -->
+<header class="sticky top-0 z-50 bg-indigo-950 text-white shadow-xl no-print">
+  <div class="max-w-5xl mx-auto px-4 py-3">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <p class="text-indigo-300 text-xs tracking-widest uppercase">大四專題發表 · 國立高雄科技大學</p>
+        <h1 class="font-bold text-base leading-tight">Hybrid Mamba-TuckerMoE 發表逐字稿</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="timerDisplay" class="bg-indigo-800 border border-indigo-600 rounded-lg px-4 py-1.5 text-2xl font-mono font-bold tracking-widest text-teal-300">15:00</div>
+        <button onclick="startTimer()" id="btnPlay" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">▶ 開始練習</button>
+        <button onclick="resetTimer()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">⟳ 重設</button>
+        <button onclick="toggleAll()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">📖 展開說明</button>
+        <button onclick="toggleTTSPanel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">🔊 男聲朗讀</button>
+      </div>
+    </div>
+    <nav class="flex gap-1.5 mt-2 overflow-x-auto pb-1 text-xs">
+      <a href="#s1" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">0:00 開場</a>
+      <a href="#s2" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">1:00 背景</a>
+      <a href="#s3" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">2:30 技術</a>
+      <a href="#s4" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">5:10 CoT Loss</a>
+      <a href="#s5" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">6:30 成果</a>
+      <a href="#s6" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">7:10 結論</a>
+      <a href="#demo" class="bg-teal-700 hover:bg-teal-600 rounded px-2.5 py-1 whitespace-nowrap">10:00 Demo</a>
+      <a href="#qa" class="bg-violet-700 hover:bg-violet-600 rounded px-2.5 py-1 whitespace-nowrap">❓ Q&amp;A</a>
+      <a href="#glossary" class="bg-slate-600 hover:bg-slate-500 rounded px-2.5 py-1 whitespace-nowrap">📚 詞彙</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ===== TTS FLOATING PANEL ===== -->
+<div id="ttsPanel" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 no-print">
+  <div class="bg-slate-900 text-white rounded-2xl shadow-2xl px-5 py-4 flex items-center gap-3 border border-slate-700 min-w-max">
+    <span class="text-rose-400 font-bold text-sm whitespace-nowrap">🔊 男聲朗讀</span>
+    <div class="w-px h-6 bg-slate-600"></div>
+
+    <button onclick="ttsPrev()" title="上一段" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-2.5 py-1.5 text-sm transition">⏮</button>
+    <button id="ttsPlayBtn" onclick="ttsToggle()" class="bg-rose-600 hover:bg-rose-500 rounded-lg px-3 py-1.5 text-sm font-bold transition min-w-[64px]">▶ 播放</button>
+    <button onclick="ttsStop()" title="停止" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-2.5 py-1.5 text-sm transition">⏹</button>
+    <button onclick="ttsNext()" title="下一段" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-2.5 py-1.5 text-sm transition">⏭</button>
+
+    <div class="w-px h-6 bg-slate-600"></div>
+
+    <label class="text-xs text-slate-400 whitespace-nowrap">速度</label>
+    <select id="ttsRate" onchange="ttsUpdateRate()" class="bg-slate-700 text-white text-xs rounded-lg px-2 py-1.5 border-0 outline-none cursor-pointer">
+      <option value="0.75">0.75×</option>
+      <option value="0.9">0.9×</option>
+      <option value="1.0" selected>1.0×</option>
+      <option value="1.15">1.15×</option>
+      <option value="1.3">1.3×</option>
+    </select>
+
+    <div class="w-px h-6 bg-slate-600"></div>
+
+    <label class="text-xs text-slate-400 whitespace-nowrap">聲音</label>
+    <select id="ttsVoiceSelect" class="bg-slate-700 text-white text-xs rounded-lg px-2 py-1.5 border-0 outline-none cursor-pointer max-w-[140px]"></select>
+
+    <div class="w-px h-6 bg-slate-600"></div>
+
+    <span id="ttsProgress" class="text-xs text-slate-400 whitespace-nowrap font-mono">0 / 0</span>
+
+    <button onclick="toggleTTSPanel()" class="text-slate-500 hover:text-white text-lg leading-none ml-1 transition">✕</button>
+  </div>
+</div>
+
+<main class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+<!-- ===== TITLE CARD ===== -->
+<div class="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-800 text-white rounded-2xl p-8 shadow-2xl">
+  <p class="text-indigo-300 text-xs tracking-widest uppercase mb-2">15 分鐘完整發表稿 · 口說 10 分鐘 + Demo 5 分鐘</p>
+  <h1 class="text-3xl font-bold mb-1">Hybrid Mamba-TuckerMoE</h1>
+  <h2 class="text-lg text-indigo-200 mb-1">for On-Device LLM Inference</h2>
+  <p class="text-slate-400 text-sm mb-5">Joint Tucker Decomposition MoE · Multi-Strategy Speculative Decoding · Resource-Constrained Devices</p>
+  <p class="text-slate-300 text-sm mb-6">賴弘偉 · 藍信安 · 許俊銘 · 盧宇翰　｜　國立高雄科技大學 資訊工程系</p>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="bg-indigo-800/60 rounded-xl p-3 text-center border border-indigo-700">
+      <div class="text-2xl font-bold text-teal-300">82.87%</div>
+      <div class="text-xs text-indigo-300 mt-0.5">整體壓縮率</div>
+    </div>
+    <div class="bg-indigo-800/60 rounded-xl p-3 text-center border border-indigo-700">
+      <div class="text-2xl font-bold text-teal-300">417M</div>
+      <div class="text-xs text-indigo-300 mt-0.5">實際參數量</div>
+    </div>
+    <div class="bg-indigo-800/60 rounded-xl p-3 text-center border border-indigo-700">
+      <div class="text-2xl font-bold text-teal-300">2.4B</div>
+      <div class="text-xs text-indigo-300 mt-0.5">等效容量</div>
+    </div>
+    <div class="bg-indigo-800/60 rounded-xl p-3 text-center border border-indigo-700">
+      <div class="text-2xl font-bold text-teal-300">3.2×</div>
+      <div class="text-xs text-indigo-300 mt-0.5">推理加速</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== COACH BOX ===== -->
+<div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 no-print">
+  <h3 class="text-amber-800 font-bold text-base mb-3">🎤 發表前教練提醒</h3>
+  <div class="grid md:grid-cols-3 gap-4 text-xs text-amber-900">
+    <div>
+      <p class="font-bold mb-1.5">✅ 必做</p>
+      <ul class="space-y-1 list-disc list-inside">
+        <li>遇到數字放慢速度，讓評審看清楚</li>
+        <li>每個技術縮寫第一次出現要展開說明</li>
+        <li>換投影片時指向螢幕，眼神看評審</li>
+        <li>Demo 前先說「接下來五分鐘我來 live 示範」</li>
+        <li>結尾面帶微笑，眼神掃場再說謝謝</li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-bold mb-1.5">⚠️ 避免</p>
+      <ul class="space-y-1 list-disc list-inside">
+        <li>語速太快——技術段要刻意放慢 20%</li>
+        <li>「那個」「就是說」等口頭禪</li>
+        <li>背對評審一直看螢幕</li>
+        <li>Demo 卡住時手忙腳亂——先說「讓我重新跑一次」</li>
+        <li>只說數字不解釋意義（「ARL=5.92，意思是每次主模型前向傳播可以接受將近六個 token」）</li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-bold mb-1.5">⏱️ 時間分配</p>
+      <ul class="space-y-1">
+        <li>口說：<strong>10:00</strong>（6 段）</li>
+        <li>Demo：<strong>5:00</strong>（2 部分）</li>
+        <li>總計：<strong>15:00</strong></li>
+        <li class="mt-2 text-amber-700 font-semibold">每段後面的字數計算不含說明，只計算你實際說的字。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION 1 ===== -->
+<section id="s1" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-indigo-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">0:00 – 1:00</span>
+      <h2 class="text-white font-bold text-lg">第一段：開場與動機</h2>
+    </div>
+    <span class="text-indigo-200 text-xs">目標 60 秒 · ~155 字</span>
+  </div>
+  <div class="p-6">
+    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-5 text-sm text-indigo-800">
+      📽️ <strong>投影片：</strong>顯示海報大標題，三個瓶頸圖（Attention / KV Cache / MoE）
+    </div>
+    <div class="script space-y-3 mb-5">
+      <p>各位老師、同學，大家好。</p>
+      <p>我是資工系的賴弘偉，今天我們要報告的專題叫做 <span class="em">Hybrid Mamba-TuckerMoE for On-Device LLM Inference</span>。中文可以理解成「混合式 Mamba 加 Tucker 分解專家模型，用於裝置端大型語言模型推理」。</p>
+      <p>大家應該都有用過 ChatGPT，或者試過手機上的 AI 助理。但這些模型通常需要幾十 GB 的記憶體，完全沒有辦法直接跑在一般的筆電或手機上——必須連到雲端伺服器。</p>
+      <p>我們這個專題問的問題是：<span class="em">能不能把一個 24 億參數等級的大型語言模型，壓縮到只需要四億多個參數，同時還能在 MacBook 上流暢推理，不需要網路？</span></p>
+      <p>答案是可以的。讓我來解釋我們怎麼做到。</p>
+    </div>
+    <details class="bg-indigo-50 rounded-xl p-4">
+      <summary class="text-indigo-800 font-semibold text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> 本段關鍵詞解釋
+      </summary>
+      <div class="mt-3 space-y-2 text-sm">
+        <div class="bg-white rounded-lg p-3 border-l-4 border-indigo-400">
+          <p class="font-semibold">LLM（Large Language Model，大型語言模型）</p>
+          <p class="text-slate-500 mt-1">參數量在十億以上的語言理解與生成模型，如 GPT-4、Llama。需要龐大算力與記憶體，通常只能跑在雲端伺服器。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-indigo-400">
+          <p class="font-semibold">On-Device Inference（裝置端推理）</p>
+          <p class="text-slate-500 mt-1">不依賴雲端，直接在終端設備（手機、筆電）上執行 AI 推理。好處是離線可用、保護隱私、低延遲；挑戰是記憶體和算力嚴重受限。</p>
+        </div>
+      </div>
+    </details>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 155 字 · 約 60 秒</p>
+  </div>
+</section>
+
+<!-- ===== SECTION 2 ===== -->
+<section id="s2" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-slate-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-slate-700 text-xs font-bold px-3 py-1 rounded-full">1:00 – 2:30</span>
+      <h2 class="text-white font-bold text-lg">第二段：問題背景與三大瓶頸</h2>
+    </div>
+    <span class="text-slate-300 text-xs">目標 90 秒 · ~225 字</span>
+  </div>
+  <div class="p-6">
+    <div class="bg-slate-100 rounded-xl p-3 mb-4 text-sm text-slate-600">
+      📽️ <strong>投影片：</strong>指向三個瓶頸圖，逐一放大說明每個瓶頸的數字
+    </div>
+
+    <!-- 手指提示 -->
+    <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-5 no-print">
+      <p class="text-amber-800 font-bold text-xs mb-2">🖐️ LLM INFERENCE BOTTLENECKS — 手指順序</p>
+      <ol class="space-y-1.5 text-xs text-amber-900 list-decimal list-inside">
+        <li>手指海報左上角 <strong>① Attention O(N²)</strong>，指向 16K seq → 256× cost 的那個箭頭</li>
+        <li>移動到 <strong>② KV Cache O(N)</strong>，指向 16K tok = 1.4 GiB 那行紅色文字</li>
+        <li>移動到 <strong>③ MoE Weight Redundancy</strong>，先指 Load DRAM→GPU 4.2ms，再指 Compute 0.04ms，讓對比視覺化</li>
+      </ol>
+    </div>
+
+    <div class="script space-y-3 mb-5">
+      <p>要了解我們的貢獻，得先知道為什麼把大型語言模型放到邊緣裝置這麼困難。我們歸納出<span class="em">三個根本性的瓶頸</span>。</p>
+      <p>第一個是<span class="em">注意力機制的計算複雜度是 O(N²)</span>，也就是說輸入序列長度每增加一倍，計算量就暴增四倍。以 16K token 的長文脈輸入為例，計算成本是 512 token 的整整 256 倍，在邊緣裝置上幾乎不可能負擔。</p>
+      <p>第二個是<span class="em">KV Cache 的記憶體佔用</span>。KV Cache 是 Transformer 推理的加速機制，但代價是佔大量記憶體。512 個 token 就要 113 MB，到了 16K token 就高達 <span class="em">1.4 GB，等於吃掉裝置 88% 的 RAM</span>，根本沒辦法部署。</p>
+      <p>第三個，也是最有趣的，是<span class="em">MoE 的權重冗餘與頻寬瓶頸</span>。MoE，混合專家模型，是讓不同輸入走不同「專家子網路」的架構，理論上很高效。但問題在於每生成一個 token，就要從記憶體重新載入不同的專家權重。我們在 M2 Pro 上實測：<span class="em">載入權重要 4.2 毫秒，但實際計算只要 0.04 毫秒</span>——差了整整 100 倍。整個系統完全被記憶體頻寬卡住，根本不是算力問題。</p>
+      <p>這三個問題，就是我們這個專題的核心出發點。</p>
+    </div>
+    <details class="bg-slate-50 rounded-xl p-4">
+      <summary class="text-slate-800 font-semibold text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> 本段關鍵詞解釋
+      </summary>
+      <div class="mt-3 space-y-2 text-sm">
+        <div class="bg-white rounded-lg p-3 border-l-4 border-slate-400">
+          <p class="font-semibold">O(N²)（平方計算複雜度）</p>
+          <p class="text-slate-500 mt-1">演算法理論中的符號，代表計算量與輸入長度 N 的平方成正比。N 翻倍→計算量變 4 倍。Transformer Self-Attention 就是 O(N²)，這讓長文脈輸入代價極高。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-blue-400">
+          <p class="font-semibold">KV Cache（Key-Value 快取）</p>
+          <p class="text-slate-500 mt-1">Transformer 推理時，把每層計算過的 Key 和 Value 向量暫存起來，避免重複計算。加速效果大但記憶體佔用隨序列長度線性成長 O(N)。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-orange-400">
+          <p class="font-semibold">MoE（Mixture of Experts，混合專家模型）</p>
+          <p class="text-slate-500 mt-1">每個 token 僅激活部分「專家子網路」，其餘閒置。理論上以少量計算達到大模型容量。但裝置端問題：每個 token 用不同專家，權重不斷換入換出記憶體，造成頻寬瓶頸。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-red-400">
+          <p class="font-semibold">記憶體頻寬瓶頸（Memory Bandwidth Bound）</p>
+          <p class="text-slate-500 mt-1">速度限制來自「資料搬移速度」而非「計算速度」。類比：廚師（GPU）很快，但食材輸送帶（記憶體頻寬）太慢，廚師一直在等材料。</p>
+        </div>
+      </div>
+    </details>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 225 字 · 約 90 秒</p>
+  </div>
+</section>
+
+<!-- ===== SECTION 3 ===== -->
+<section id="s3" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-teal-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-teal-700 text-xs font-bold px-3 py-1 rounded-full">2:30 – 5:10</span>
+      <h2 class="text-white font-bold text-lg">第三段：核心技術方法（最長段）</h2>
+    </div>
+    <span class="text-teal-100 text-xs">目標 160 秒 · ~405 字</span>
+  </div>
+  <div class="p-6">
+    <div class="bg-teal-50 rounded-xl p-3 mb-4 text-sm text-teal-800">
+      📽️ <strong>投影片：</strong>逐一指向 ① 架構圖 Mamba-3 區塊 ② Tucker 分解示意 ③ Standard MoE vs TuckerMoE 比較圖 ④ Jacobi 解碼流程圖 ⑤ MLX Zero-Copy 圖
+    </div>
+
+    <!-- 手指提示 -->
+    <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-5 no-print">
+      <p class="text-amber-800 font-bold text-xs mb-3">🖐️ Tucker Decomposition & MoE Computation Flow — 手指順序</p>
+      <div class="grid md:grid-cols-2 gap-3">
+        <div>
+          <p class="text-xs font-bold text-amber-700 mb-1.5">① Tucker Decomposition Principle（左圖）</p>
+          <ol class="space-y-1 text-xs text-amber-900 list-decimal list-inside">
+            <li>指向左側大方塊 <strong>Dense W_e = 75.5M</strong>，強調「這是原始專家的大小」</li>
+            <li>指向分解後的三個薄板：<strong>U_in（1536×256）</strong> · <strong>Core_e（32×512×256）</strong> · <strong>U_out（512×6144）</strong></li>
+            <li>指向紅色方框 <strong>Per-Expert Compression 75.5M → 7.39M（90.2%↓）</strong></li>
+            <li>指向 Core_e 說「只有這個是每個專家獨有的，只需要 32 個數字描述個性」</li>
+          </ol>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-amber-700 mb-1.5">② MoE Computation Flow（右圖）</p>
+          <ol class="space-y-1 text-xs text-amber-900 list-decimal list-inside">
+            <li>指上半 <strong>Standard MoE</strong> 區塊，描述 K 個平行 GEMM → 輸出空間加總</li>
+            <li>指 output-space sum 那個 Σ 符號，說「這就是頻寬殺手」</li>
+            <li>指下半 <strong>TuckerMoE</strong> 區塊，描述先 Tucker Blend 在 weight space</li>
+            <li>指 <strong>blended core</strong> 那個合併後的小方塊，說「融合後只跑一次 GEMM」</li>
+            <li>指最右下角對比欄（Complexity / On-device Efficiency），確認加速效果</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="script space-y-4 mb-5">
+      <p>接下來是我們的解決方案，核心架構叫做 <span class="em">Hybrid Mamba-TuckerMoE</span>，有三個主要的技術貢獻。</p>
+
+      <p><span class="em">第一個貢獻：用 Mamba-3 SSM 取代大部分的 Attention。</span></p>
+      <p>Mamba 是近幾年提出的「狀態空間模型」，英文 State Space Model，縮寫 SSM。它跟 Transformer 不同的是，它用一個固定大小的「隱狀態」來壓縮並記憶所有歷史資訊，計算複雜度只有線性的 O(N)，而且不需要 KV Cache。我們採用的是第三版 Mamba-3，加入了更精確的梯形離散化方法，讓隱狀態的數值更穩定。我們的架構把多數層換成 Mamba-3，只在少數關鍵位置保留 GQA Attention，取兩者之長。</p>
+
+      <p><span class="em">第二個貢獻：TuckerMoE，用 Tucker 張量分解壓縮 MoE 的專家權重，並從根本改變計算流程。</span></p>
+      <p>先說壓縮的部分。每個 MoE 專家的權重矩陣可以想像成一個巨大的 3D 立方體。Tucker 分解把它拆成三個薄板——U_in、Core_e、U_out——相乘的形式。其中 U_in 和 U_out 是所有專家共用的，只有中間那個 Core_e 是每個專家獨有的，而且它非常小，只需要 32 個數字就能描述這個專家的個性。這樣原本一個專家要 <span class="em">75.5M 個參數，壓縮後只剩 7.39M，壓縮了 90.2%</span>。</p>
+      <p>但更關鍵的是——壓縮不只減少儲存量，它還<span class="em">從根本改變了計算路徑</span>，這才是解決頻寬瓶頸的關鍵。我們來比較兩種做法：</p>
+      <p><span class="em2">傳統 Standard MoE 的做法是「在輸出空間混合」。</span>路由器選出 K 個專家之後，每個專家各自對輸入 x 做一次完整的大矩陣乘法，算出自己的輸出，最後再把 K 個輸出加權加總。問題就在這裡——每個專家的矩陣 W_e 有 75.5M 個參數，K 個專家就要從記憶體載入 K × 75.5M 的資料量，完全被頻寬卡死。</p>
+      <p><span class="em">TuckerMoE 的做法是「在權重空間先融合，再只算一次」。</span>同樣是 K=2 個專家被路由器選中，但我們不去分別跑兩次大 GEMM。取而代之的是：先把 K 個專家的 Core_e 按路由權重加權混合，得到一個融合後的 Core_blended——這個步驟幾乎不費算力，因為 Core_e 只有 32 個數字。然後，用這一個融合核心搭配共用的 U_in 和 U_out，跑三次很薄的小矩陣乘法就完成了。<span class="em">整個過程 K 個專家合力只需要一套 GEMM，U_in 和 U_out 只從記憶體載入一次。</span>這樣記憶體搬移量從 K × 75.5M 降到遠小於一個專家的量，頻寬瓶頸直接消失。</p>
+
+      <p><span class="em">第三個貢獻：多策略投機式雅可比解碼（Multi-Strategy Speculative Jacobi Decoding）。</span></p>
+      <p>一般語言模型是逐字生成，一個一個 token 跑主模型，很慢。我們的方法是：先用多種輕量快取——包括 N-gram Cache 和 SuffixRetriever——快速預測出一排候選 token，然後讓主模型一次前向傳播就並行驗證所有候選，通過的直接接受。實測在 Demo 情境下，主模型每次前向傳播平均可以接受 <span class="em">ARL≈5.92 個 token，最高加速達 3.2 倍</span>。</p>
+
+      <p>最後，整套系統跑在 Apple Silicon 的 MLX 框架上，CPU、GPU、ANE 三個處理器共享同一塊記憶體，不需要複製資料，做到 Zero-Copy 推理，prefill 吞吐量約 3,800 tok/s。</p>
+    </div>
+    <details class="bg-teal-50 rounded-xl p-4">
+      <summary class="text-teal-900 font-semibold text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> 本段關鍵詞解釋（必看！最多技術詞）
+      </summary>
+      <div class="mt-3 space-y-2 text-sm">
+        <div class="bg-white rounded-lg p-3 border-l-4 border-teal-400">
+          <p class="font-semibold">SSM / Mamba-3（狀態空間模型）</p>
+          <p class="text-slate-500 mt-1">用固定大小的「隱狀態向量」概括所有歷史資訊，複雜度 O(N)，不需 KV Cache。Mamba-3 加入梯形離散化（Trapezoidal Discretization）讓狀態轉移更穩定，並加入 MIMO（多輸入多輸出）投影。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-teal-400">
+          <p class="font-semibold">GQA（Grouped Query Attention，分組查詢注意力）</p>
+          <p class="text-slate-500 mt-1">Attention 的輕量版，多個 Query head 共享同一組 K/V，減少 KV Cache 佔用。Llama-2/3 也採用此技術。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-orange-400">
+          <p class="font-semibold">Tucker 張量分解（Tucker Decomposition）</p>
+          <p class="text-slate-500 mt-1">把三維（或更高維）張量分解為「小核心張量 Core × 三個因子矩陣 U_in, U_out, ...」的乘積。類似 SVD 但適用於多維。本專題用它壓縮 MoE 專家矩陣，每個專家從 75.5M → 7.39M（-90.2%）。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-orange-400">
+          <p class="font-semibold">GEMM（General Matrix Multiplication，通用矩陣乘法）</p>
+          <p class="text-slate-500 mt-1">深度學習最核心的計算操作。TuckerMoE 把傳統 MoE 的 K 次大 GEMM 縮減為 1 次小 GEMM，是速度提升的關鍵。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-purple-400">
+          <p class="font-semibold">Speculative Decoding（投機式解碼）</p>
+          <p class="text-slate-500 mt-1">先用快速但可能不準確的「草稿」預測多個候選，再讓主模型一次驗證。驗證比生成便宜，整體加速。本專題不用小模型，改用 N-gram/SuffixRetriever 快取作草稿來源。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-purple-400">
+          <p class="font-semibold">ARL（Average Replacement Length，平均替換長度）</p>
+          <p class="text-slate-500 mt-1">每次主模型一次前向傳播平均接受多少個 token。ARL=1 表示完全沒加速，ARL=5.92 表示等效快了約 5.92 倍（實際扣掉驗證成本，加速比約 3.2×）。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-purple-400">
+          <p class="font-semibold">N-gram Cache / SuffixRetriever</p>
+          <p class="text-slate-500 mt-1">兩種無需神經網路的快速預測器。N-gram Cache 記憶詞序列後接什麼詞；SuffixRetriever 從上文找相同後綴，預測接下來的詞。本專題三層策略（N-gram + SuffixRetriever + Runtime N-gram）組合使用。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-green-400">
+          <p class="font-semibold">MLX / Zero-Copy / Apple Silicon</p>
+          <p class="text-slate-500 mt-1">Apple 為 M 系列晶片開發的 ML 框架。CPU/GPU/ANE 共享統一記憶體，不需複製資料（Zero-Copy），大幅降低記憶體搬移開銷。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-green-400">
+          <p class="font-semibold">Prefill vs Decode 吞吐量</p>
+          <p class="text-slate-500 mt-1">Prefill：處理輸入 prompt 的批次階段，可並行，速度快（本專題 ~3,800 tok/s）。Decode：逐 token 生成的自回歸階段，是速度瓶頸（本專題實測 Demo ~56 tok/s）。</p>
+        </div>
+      </div>
+    </details>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 405 字 · 約 160 秒</p>
+  </div>
+</section>
+
+<!-- ===== SECTION 4 : CoT Loss ===== -->
+<section id="s4" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-blue-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-blue-700 text-xs font-bold px-3 py-1 rounded-full">5:10 – 6:30</span>
+      <h2 class="text-white font-bold text-lg">第四段：Multi-Stage Training & CoT Loss 設計</h2>
+    </div>
+    <span class="text-blue-100 text-xs">目標 80 秒 · ~200 字</span>
+  </div>
+  <div class="p-6">
+    <div class="bg-blue-50 rounded-xl p-3 mb-4 text-sm text-blue-800">
+      📽️ <strong>投影片：</strong>切換到 Multi-Stage Training &amp; CoT Loss Design 圖 → 手指向公式 → 指 A 圖（Load Balance bar） → 指 B 圖（Router Logit 曲線）
+    </div>
+    <div class="script space-y-3 mb-5">
+      <p>接下來是訓練設計。我們用三階段漸進：預訓練 PPL 24.6 → SFT PPL 18.3 → 自建 CoT 訓練 PPL <span class="em">12.1</span>。重點放在第三階段的損失函數設計，大家可以看圖，主要有三個部分：</p>
+      <p><span class="em">第一個</span>是這個 1/S_t 加權交叉熵——對每個 token 用五種細粒度的 w 來決定它對訓練的貢獻比重，讓推理步驟的 token 比填充 token 被更嚴格地學習。<span class="em">第二個</span>是 λL_FCP，格式合規損失，確保 CoT 的 think 和 final 標籤格式閉合正確。</p>
+      <p><span class="em">第三個就是這邊的 A 圖和 B 圖。</span>大家看 <span class="em">A 圖，αL_lb，Expert Load Balance</span>——加這個損失之前，幾乎所有 token 都湧進同一個專家，其他七個閒置；加了之後，你可以看到每個 bar 的高度趨於均勻，這就是防止 Expert Collapse 的效果。再看 <span class="em">B 圖，βL_Z，Router Logit Stability</span>——這是每個 token 路由到八個專家的機率分布，加了 β 項之後曲線變穩定，不會某個專家的機率暴增。這兩個正則項，才讓 MoE 路由真的在「混合」，而不是假裝混合。</p>
+    </div>
+    <details class="bg-blue-50 rounded-xl p-4">
+      <summary class="text-blue-900 font-semibold text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> 本段關鍵詞解釋
+      </summary>
+      <div class="mt-3 space-y-2 text-sm">
+        <div class="bg-white rounded-lg p-3 border-l-4 border-blue-400">
+          <p class="font-semibold">PPL（Perplexity，困惑度）</p>
+          <p class="text-slate-500 mt-1">語言模型標準評估指標，越低越好。PPL 24.6→18.3→12.1 代表三階段訓練顯著有效。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-blue-400">
+          <p class="font-semibold">SFT（Supervised Fine-Tuning）</p>
+          <p class="text-slate-500 mt-1">用人工標注的指令-回應對微調，讓模型從「語言預測」變成「指令遵循」。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-purple-400">
+          <p class="font-semibold">CoT Loss 五個 w 權重</p>
+          <p class="text-slate-500 mt-1">w_sc（系統指令）· w_go（目標答案，最重要）· w_fw（推理步驟）· w_pd（填充，最低）· w_ic（輸入複製）。讓模型重視推理品質而非平等對待每個 token。</p>
+        </div>
+        <div class="bg-white rounded-lg p-3 border-l-4 border-rose-400">
+          <p class="font-semibold">Expert Load Balance / Router Logit Stability</p>
+          <p class="text-slate-500 mt-1">αL_lb 讓路由均勻分配，βL_Z 讓路由機率穩定。兩者共同防止 Expert Collapse（全部 token 湧進同一專家）。</p>
+        </div>
+      </div>
+    </details>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 200 字 · 約 80 秒</p>
+  </div>
+</section>
+
+<!-- ===== SECTION 5 : Main Results ===== -->
+<section id="s5" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-violet-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-violet-700 text-xs font-bold px-3 py-1 rounded-full">6:30 – 7:10</span>
+      <h2 class="text-white font-bold text-lg">第五段：Main Results, Compression Study & Conclusion</h2>
+    </div>
+    <span class="text-violet-100 text-xs">目標 40 秒 · ~100 字</span>
+  </div>
+  <div class="p-6">
+    <div class="bg-violet-50 rounded-xl p-3 mb-4 text-sm text-violet-800">
+      📽️ <strong>投影片：</strong>Main Results 四格數字 → Decode Memory Comparison 表 → Speedup Ratio 表 → TuckerMoE FFN Ablation 表
+    </div>
+    <div class="script space-y-3 mb-5">
+      <p>好，直接看成果。<span class="em">壓縮率 82.87%</span>，2.43B → 417M，等效容量 2.4B，推理記憶體節省 90%。Tucker 重建誤差 0.00135，比 SVD 的 0.00247 <span class="em">好了 45.3%</span>，表示同樣壓縮量下我們的精度更高。</p>
+      <p>記憶體比較：32K 長文脈情境，Dense FFN 和 Pure Transformer 都 OOM，我們 <span class="em">只需 3.1 GB</span>。推理速度搭配 Jacobi 解碼最高 <span class="em">3.2 倍加速</span>，實測約 56 tok/s。</p>
+      <p>消融實驗看這個表格：r1=8 是甜蜜點，PPL 37.91 最接近 Dense 基準的 34.41；r1=4 rank 太低 PPL 爆到 63；Dense MoE E8 直接 OOM，連跑都跑不起來。</p>
+      <div class="overflow-x-auto mt-3 mb-1">
+        <table class="w-full text-xs border-collapse rounded-lg overflow-hidden shadow-sm">
+          <thead>
+            <tr class="bg-violet-700 text-white">
+              <th class="text-left px-3 py-2">架構</th>
+              <th class="text-center px-3 py-2">參數量</th>
+              <th class="text-center px-3 py-2">記憶體</th>
+              <th class="text-center px-3 py-2">邊際成本/專家</th>
+              <th class="text-center px-3 py-2">Val PPL ↓</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="bg-slate-50 border-b border-slate-200">
+              <td class="px-3 py-2">Dense（基準）</td>
+              <td class="text-center px-3 py-2">110.03M</td>
+              <td class="text-center px-3 py-2">~7.9 GB</td>
+              <td class="text-center px-3 py-2">—</td>
+              <td class="text-center px-3 py-2 font-semibold">34.41</td>
+            </tr>
+            <tr class="bg-teal-50 border-b border-teal-200 font-semibold">
+              <td class="px-3 py-2 text-teal-800">✅ Tucker r1=8</td>
+              <td class="text-center px-3 py-2">110.42M</td>
+              <td class="text-center px-3 py-2">~10.4 GB</td>
+              <td class="text-center px-3 py-2">8</td>
+              <td class="text-center px-3 py-2 text-teal-700">37.91</td>
+            </tr>
+            <tr class="bg-white border-b border-slate-200">
+              <td class="px-3 py-2">Tucker r1=4</td>
+              <td class="text-center px-3 py-2">110.90M</td>
+              <td class="text-center px-3 py-2">~11.0 GB</td>
+              <td class="text-center px-3 py-2">4</td>
+              <td class="text-center px-3 py-2 text-red-600">63.73 ★</td>
+            </tr>
+            <tr class="bg-white border-b border-slate-200">
+              <td class="px-3 py-2">Tucker r1=16</td>
+              <td class="text-center px-3 py-2">~110.3M</td>
+              <td class="text-center px-3 py-2">~10.0 GB</td>
+              <td class="text-center px-3 py-2">16</td>
+              <td class="text-center px-3 py-2 text-red-600">67.31</td>
+            </tr>
+            <tr class="bg-red-50">
+              <td class="px-3 py-2">Dense MoE E8</td>
+              <td class="text-center px-3 py-2">506.76M</td>
+              <td class="text-center px-3 py-2 text-red-600">~24 GB (OOM)</td>
+              <td class="text-center px-3 py-2 text-red-500">4,719,592</td>
+              <td class="text-center px-3 py-2">59.50</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 100 字 · 約 40 秒</p>
+  </div>
+</section>
+
+<!-- ===== SECTION 6 ===== -->
+<section id="s6" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-emerald-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">7:10 – 8:00</span>
+      <h2 class="text-white font-bold text-lg">第五段：結論與 Demo 銜接</h2>
+    </div>
+    <span class="text-emerald-100 text-xs">目標 45 秒 · ~115 字</span>
+  </div>
+  <div class="p-6">
+    <div class="bg-emerald-50 rounded-xl p-3 mb-5 text-sm text-emerald-800">
+      📽️ <strong>投影片：</strong>Main Results 四個數字（82.87% / 417M / 2.4B / 0.00135），最後切換到 Demo 啟動畫面
+    </div>
+    <div class="script space-y-3 mb-5">
+      <p>總結一下。我們的 <span class="em">Hybrid Mamba-TuckerMoE</span> 用 <span class="em">417M 的實際參數達到 2.4B 的等效容量</span>，整體壓縮 82.87%；Tucker 分解比 SVD 精度好 45.3%；32K 長文脈只需 3.1 GB，其他架構都 OOM；Jacobi 解碼最高加速 3.2 倍。讓大型語言模型真正可以在一般筆電上離線推理，是這個專題的核心意義。</p>
+      <p>接下來五分鐘，我來做現場 Demo——先展示模型的對話能力，再跟同級模型做直接比較。</p>
+    </div>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 115 字 · 約 45 秒</p>
+  </div>
+</section>
+
+<!-- ===== DEMO SECTION ===== -->
+<section id="demo" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-gradient-to-r from-teal-700 to-indigo-700 px-6 py-4">
+    <div class="flex items-center gap-3">
+      <span class="bg-white text-teal-700 text-xs font-bold px-3 py-1 rounded-full">10:00 – 15:00</span>
+      <h2 class="text-white font-bold text-xl">🖥️ Demo 段（5 分鐘）</h2>
+    </div>
+    <p class="text-teal-100 text-sm mt-1">兩部分：① 模型能力展示（2 分鐘）　② 同級模型對比（3 分鐘）</p>
+  </div>
+  <div class="p-6 space-y-6">
+
+    <!-- Part A -->
+    <div class="border-2 border-teal-200 rounded-xl p-5 bg-teal-50">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="bg-teal-600 text-white text-xs font-bold px-3 py-1 rounded-full">Part A · 10:00–12:00 · 2 分鐘</span>
+        <h3 class="font-bold text-teal-900 text-base">模型能力展示</h3>
+      </div>
+      <div class="space-y-4 text-sm">
+        <div class="bg-white rounded-lg p-4 border border-teal-200">
+          <p class="font-bold text-teal-700 mb-2">🎯 展示目標</p>
+          <ul class="space-y-1 list-disc list-inside text-slate-700">
+            <li>讓評審看到這是一個真的「能對話的語言模型」，不只是一個數字表格</li>
+            <li>展示推理速度（tok/s 數字要在畫面上看到）</li>
+            <li>展示它能回答什麼類型的問題</li>
+          </ul>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-teal-200">
+          <p class="font-bold text-teal-700 mb-2">📋 建議操作步驟</p>
+          <ol class="space-y-3 list-decimal list-inside text-slate-700">
+            <li>
+              <strong>開啟 chat_demo.py 或 stream_mlx.py</strong>（已預先載入模型）<br>
+              <span class="ml-5 text-slate-500 text-xs">說：「我們的模型已經在本機記憶體裡了，完全離線，不需要網路。」</span>
+            </li>
+            <li>
+              <strong>Prompt 1：基本推理題</strong><br>
+              <code class="ml-5 bg-slate-100 px-2 py-0.5 rounded text-xs">「請用繁體中文，一步一步解釋為什麼 Tucker 分解可以壓縮模型參數。」</code><br>
+              <span class="ml-5 text-slate-500 text-xs">邊等邊說 tok/s 數字，CoT 推理輸出時說：「這就是我們第三階段 CoT 訓練帶來的推理能力。」</span>
+            </li>
+            <li>
+              <strong>Prompt 2：長文脈測試（展示 32K 能力）</strong><br>
+              <code class="ml-5 bg-slate-100 px-2 py-0.5 rounded text-xs">貼上一段較長的文章，讓模型做摘要</code><br>
+              <span class="ml-5 text-slate-500 text-xs">說：「我這邊輸入的是超過兩千字的文章，其他同規模模型在這個情境下可能 OOM，我們的 TuckerMoE 記憶體只用了 1.3 GB 左右。」</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="bg-amber-50 rounded-lg p-4 border border-amber-200">
+          <p class="font-bold text-amber-700 mb-1">🚨 Demo 備案（若主模型當機）</p>
+          <p class="text-slate-600 text-xs">預先錄一段 screen recording，若 live demo 崩潰立刻播放，並說：「讓我播放一段我們事先錄好的示範，結果是一樣的。」不要慌張，這在研討會很正常。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Part B -->
+    <div class="border-2 border-indigo-200 rounded-xl p-5 bg-indigo-50">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">Part B · 12:00–15:00 · 3 分鐘</span>
+        <h3 class="font-bold text-indigo-900 text-base">同級模型對比</h3>
+      </div>
+      <div class="space-y-4 text-sm">
+
+        <!-- Comparison table -->
+        <div class="bg-white rounded-lg p-4 border border-indigo-200 overflow-x-auto">
+          <p class="font-bold text-indigo-700 mb-3">📊 同級對比說明表（用於口頭介紹，可印出來）</p>
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="bg-indigo-700 text-white">
+                <th class="text-left p-2 rounded-tl-lg">模型</th>
+                <th class="text-center p-2">實際參數</th>
+                <th class="text-center p-2">記憶體 @512 tok</th>
+                <th class="text-center p-2">32K 支援</th>
+                <th class="text-center p-2">推理速度</th>
+                <th class="text-center p-2 rounded-tr-lg">架構</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="bg-teal-50 font-bold border-b-2 border-teal-300">
+                <td class="p-2 text-teal-800">✅ 我們的 TuckerMoE</td>
+                <td class="text-center p-2">417M</td>
+                <td class="text-center p-2 text-teal-700">1.2 GB</td>
+                <td class="text-center p-2 text-teal-700">✅ 3.1 GB</td>
+                <td class="text-center p-2 text-teal-700">~56 tok/s</td>
+                <td class="text-center p-2">Mamba+MoE</td>
+              </tr>
+              <tr class="bg-white border-b border-slate-100">
+                <td class="p-2">TinyLlama-1.1B</td>
+                <td class="text-center p-2">1.1B</td>
+                <td class="text-center p-2">~2.2 GB</td>
+                <td class="text-center p-2 text-red-500">❌ OOM</td>
+                <td class="text-center p-2">~40 tok/s</td>
+                <td class="text-center p-2">Transformer</td>
+              </tr>
+              <tr class="bg-white border-b border-slate-100">
+                <td class="p-2">Phi-2 (2.7B)</td>
+                <td class="text-center p-2">2.7B</td>
+                <td class="text-center p-2">~5.4 GB</td>
+                <td class="text-center p-2 text-red-500">❌ OOM</td>
+                <td class="text-center p-2">~20 tok/s</td>
+                <td class="text-center p-2">Transformer</td>
+              </tr>
+              <tr class="bg-white border-b border-slate-100">
+                <td class="p-2">Mamba-1.4B（原版）</td>
+                <td class="text-center p-2">1.4B</td>
+                <td class="text-center p-2">~2.8 GB</td>
+                <td class="text-center p-2">✅</td>
+                <td class="text-center p-2">~35 tok/s</td>
+                <td class="text-center p-2">Pure SSM</td>
+              </tr>
+              <tr class="bg-white">
+                <td class="p-2">Dense FFN 等效（2.4B）</td>
+                <td class="text-center p-2">2.4B</td>
+                <td class="text-center p-2 text-red-500">9.8 GB</td>
+                <td class="text-center p-2 text-red-500">❌ OOM</td>
+                <td class="text-center p-2">~15 tok/s</td>
+                <td class="text-center p-2">Transformer</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-xs text-slate-400 mt-2">* 速度數字為 M2 Pro bf16 估算，僅供說明用，實際依環境不同</p>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-indigo-200">
+          <p class="font-bold text-indigo-700 mb-2">🗣️ Demo Part B 口說引導稿</p>
+          <div class="script space-y-2 text-slate-700">
+            <p>好，接下來我想讓大家看一個直接比較。</p>
+            <p>我這邊有一個對比表格。大家看一下左邊，<span class="em">我們的模型只有 417M 個參數，但等效容量是 2.4B</span>。</p>
+            <p>我們跟 TinyLlama-1.1B、Phi-2、以及原版 Mamba-1.4B 相比——這些都是同級或更大的模型——在 32K 長文脈的情境下，只有我們能夠不 OOM，其他的都超出 16GB 記憶體了。</p>
+            <p>在速度上，我們實測約 56 tok/s，優於 Phi-2 的大約 20 tok/s，這個差距主要來自 Tucker 分解把記憶體頻寬瓶頸轉換成算力瓶頸。</p>
+            <p>最重要的是，雖然我們壓縮了 82.87%，PPL 從 Dense FFN 基準的 34 降到 37.91，<span class="em">品質下降有限</span>，但記憶體從 9.8 GB 降到 1.2 GB，這個 trade-off 在邊緣部署的應用場景上非常值得。</p>
+            <p>以上就是我們的 Demo，感謝大家，也歡迎提問！</p>
+          </div>
+        </div>
+
+        <div class="bg-indigo-100 rounded-lg p-4 border border-indigo-200">
+          <p class="font-bold text-indigo-700 mb-2">💡 比較時的關鍵說法</p>
+          <ul class="space-y-1.5 text-xs text-slate-700 list-disc list-inside">
+            <li>「我們不跟 GPT-4 比——規模差太多不公平。我們跟同等或更大規模的 on-device 模型比。」</li>
+            <li>「這個比較的重點不是誰的語言最好，是誰能在記憶體受限的裝置上跑最長的文脈、最快的速度。」</li>
+            <li>「TinyLlama 雖然比我們的實際參數多，但沒有 MoE 設計，密度更高，記憶體和速度都比我們差。」</li>
+            <li>「我們的壓縮損失（PPL 從 34 到 37）遠小於記憶體收益（從 9.8 GB 到 1.2 GB），這個 trade-off 在 edge AI 應用上是合理的。」</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Q&A SECTION ===== -->
+<section id="qa" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-violet-700 px-6 py-4">
+    <h2 class="text-white font-bold text-xl">❓ 教授級提問與建議回答（8 題）</h2>
+    <p class="text-violet-200 text-sm mt-1">請理解後自然回答，不要死背。展示思考過程比背出完美答案更加分。</p>
+  </div>
+  <div class="p-6 space-y-4">
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q1. Tucker 分解的 rank 是怎麼決定的？有理論依據嗎？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「老師這個問題我自己也研究了很久。嚴格的理論最優 rank 需要分析權重張量的奇異值分佈，但實務上很難事先知道。我們主要靠消融實驗——r1=4、8、16 都試過，發現 r1=8 在 PPL 和記憶體間取得最佳平衡。這屬於工程調參，未來可以考慮用 AutoML 或 Bayesian 優化來自動搜索最佳 rank。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q2. Tucker 分解和 LoRA 有什麼不同？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「LoRA 是對權重的『更新量 ΔW』做低秩近似，常用於高效微調；Tucker 分解是對『原始權重矩陣 W 本身』做低秩分解，用於壓縮推理時的記憶體佔用。另外 Tucker 天然適合三維以上的 MoE 張量結構，LoRA 主要針對二維矩陣。兩者都用了低秩假設，但應用時機和作用對象不一樣。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q3. ARL 最高有 5.92，但有時候只有 1.22，差距怎麼解釋？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「ARL 高度依賴輸入文本的重複性和快取狀態。如果輸入有大量重複的詞序列，N-gram Cache 命中率高，ARL 就高。在 cold start（快取是空的）或輸入多樣化的情況下，命中率低，ARL 就接近 1。這也是為什麼我們的表格同時報告了 cold 和 warm 兩個情境，不想讓人誤以為隨時都有 5.92 的效果。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q4. Mamba 和 Transformer 各自的優缺點，為什麼要 Hybrid？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「Mamba 優點是 O(N) 複雜度、不需 KV Cache，長序列很高效；缺點是固定大小的隱狀態在需要精確長距離回憶的任務上有時表現不如 Attention。Transformer Attention 擅長精確位置對應，但有 O(N²) 問題。我們的 Hybrid 讓 Mamba 負責大量的順序推理，GQA Attention 只在少數關鍵層補足精確召回能力，實測這個組合比 pure SSM 或 pure Transformer 都更適合長文脈裝置端部署。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q5. 你們的模型跟 Llama、GPT 的語言品質比怎麼樣？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「直接比較對我們不公平，因為 Llama-3-70B 的參數量是我們的 160 倍以上。我們的定位是『在記憶體和算力嚴格受限的裝置端，同等效容量模型中的最高效率』。我們的對比基準是同等 on-device 場景的模型，如 TinyLlama-1.1B 和 Phi-2——這些比較才是公平的。語言品質我們用 PPL 和 CoT 推理能力衡量，我們的 Val PPL 12.1 顯示訓練顯著有效。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q6. Expert Collapse 問題是怎麼發現的，怎麼解決的？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「我們在訓練初期發現 loss 沒有正常下降，去分析路由器的 softmax 輸出分佈，發現幾乎所有 token 都導到同一個或兩個專家，其他六個閒置。解法是加入 Expert Load Balance Loss，強迫路由器讓每個專家的負載接近均勻；同時加入 Router Logit Stability 正則項，防止某個專家的 logit 爆炸性增長。調完這兩個之後，8 個專家的分佈才趨於平衡，模型也開始正常學習。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q7. 有沒有在 MMLU、HellaSwag 等標準 benchmark 上測試？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「我必須誠實說，受限於訓練資源和時間，我們目前的評估集中在 Val PPL、記憶體使用和推理速度三個維度。標準 benchmark 評測是我們非常重要的未來工作，PPL 並不等同於下游任務準確率，這也是為什麼我們定位這個研究為 infrastructure 和 efficiency 研究，而不是聲稱達到語言 SOTA。有了完整 benchmark 結果後，我們的論文可信度會更強。」
+        </div>
+      </div>
+    </details>
+
+    <details class="bg-violet-50 rounded-xl border border-violet-200">
+      <summary class="p-4 font-bold text-violet-900 text-sm flex items-center gap-2 select-none">
+        <span class="arr">▶</span> Q8. 這個研究未來最有潛力的應用場景是什麼？
+      </summary>
+      <div class="px-4 pb-4">
+        <div class="bg-white rounded-lg p-4 text-sm text-slate-700">
+          「最直接的場景是隱私敏感的邊緣 AI——像醫療問診 App（病患資料不能上雲端）、企業內部知識助理（機密資料保護）、離線翻譯器、或者 IoT 裝置上的語音助手。TuckerMoE 的壓縮讓 2.4B 等效容量的模型放進 16GB 筆電，這是現有量化方案（Llama.cpp）之外的另一條技術路線，而且我們的壓縮不依賴量化，可以和量化疊加使用，未來潛力很大。」
+        </div>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<!-- ===== GLOSSARY ===== -->
+<section id="glossary" class="bg-white rounded-2xl shadow-md overflow-hidden">
+  <div class="bg-slate-800 px-6 py-4">
+    <h2 class="text-white font-bold text-xl">📚 完整技術詞彙表</h2>
+    <p class="text-slate-300 text-sm mt-1">建議在發表前通讀一次，確保每個詞你能用自己的話解釋</p>
+  </div>
+  <div class="p-6 grid md:grid-cols-2 gap-6">
+
+    <div>
+      <h3 class="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-3">🏗️ 架構</h3>
+      <div class="space-y-2.5 text-sm">
+        <div><p class="font-semibold">LLM / 大型語言模型</p><p class="text-slate-500">參數 10 億以上的神經網路，能理解並生成語言。GPT-4、Llama 都是 LLM。</p></div>
+        <div><p class="font-semibold">Transformer</p><p class="text-slate-500">以 Self-Attention 為核心的架構，現代 LLM 的主流基礎。</p></div>
+        <div><p class="font-semibold">SSM / Mamba / Mamba-3</p><p class="text-slate-500">State Space Model，用固定大小隱狀態記憶歷史，O(N) 複雜度。Mamba-3 加入梯形離散化和 MIMO 投影。</p></div>
+        <div><p class="font-semibold">GQA（Grouped Query Attention）</p><p class="text-slate-500">Attention 的輕量版，多 Query head 共享一組 KV，縮小 KV Cache。</p></div>
+        <div><p class="font-semibold">MoE（Mixture of Experts）</p><p class="text-slate-500">每個 token 只激活部分「專家」網路，以少算力達大容量。</p></div>
+        <div><p class="font-semibold">RoPE（旋轉位置編碼）</p><p class="text-slate-500">讓模型理解詞的相對位置，是現代 LLM 的標準位置編碼方法。</p></div>
+        <div><p class="font-semibold">SwiGLU / SiLU</p><p class="text-slate-500">激活函數，控制神經元輸出的非線性。SwiGLU 常用於 FFN（前饋層）。</p></div>
+        <div><p class="font-semibold">LM Head</p><p class="text-slate-500">語言模型最後一層，把隱向量映射到詞彙機率（本專題詞彙量 32,007）。</p></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="font-bold text-teal-700 border-b border-teal-100 pb-1 mb-3">🗜️ 壓縮技術</h3>
+      <div class="space-y-2.5 text-sm">
+        <div><p class="font-semibold">Tucker 張量分解</p><p class="text-slate-500">把高維張量分解為「核心張量 Core × 多個因子矩陣」。本專題每專家 75.5M → 7.39M（-90.2%）。</p></div>
+        <div><p class="font-semibold">TuckerMoE</p><p class="text-slate-500">本專題提出的架構，在「權重空間」融合 K 個專家核心後，僅做一次小矩陣乘法，大幅降低記憶體頻寬需求。</p></div>
+        <div><p class="font-semibold">LoRA（Low-Rank Adaptation）</p><p class="text-slate-500">用低秩矩陣 A×B 近似權重更新量 ΔW，常用於高效微調。與 Tucker 不同：LoRA 作用於 ΔW，Tucker 作用於 W 本身。</p></div>
+        <div><p class="font-semibold">量化（Quantization）</p><p class="text-slate-500">把 bf16 浮點壓縮成 int8/int4，降低模型大小和記憶體頻寬。可與 TuckerMoE 疊加使用。</p></div>
+        <div><p class="font-semibold">GEMM（矩陣乘法）</p><p class="text-slate-500">深度學習最核心計算。TuckerMoE 把 K 次大 GEMM 縮為 1 次小 GEMM，是加速關鍵。</p></div>
+        <div><p class="font-semibold">bf16（bfloat16）</p><p class="text-slate-500">16 位浮點格式，與 fp32 相同的指數位寬，適合 ML 動態範圍，節省一半記憶體。</p></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="font-bold text-purple-700 border-b border-purple-100 pb-1 mb-3">⚡ 推理加速</h3>
+      <div class="space-y-2.5 text-sm">
+        <div><p class="font-semibold">Speculative Decoding（投機式解碼）</p><p class="text-slate-500">預測多個候選，主模型一次並行驗證，被接受的 token 等同免費取得。</p></div>
+        <div><p class="font-semibold">Jacobi Decoding（雅可比解碼）</p><p class="text-slate-500">把多位置並行解碼，類似數值分析的雅可比迭代法，迭代直到收斂。</p></div>
+        <div><p class="font-semibold">ARL（Average Replacement Length）</p><p class="text-slate-500">每次主模型前向傳播平均接受多少 token。ARL=1 無加速，ARL=5.92 約 5.92 倍吞吐量。</p></div>
+        <div><p class="font-semibold">N-gram Cache</p><p class="text-slate-500">記憶詞序列後接什麼，快速無神經網路預測候選 token。</p></div>
+        <div><p class="font-semibold">SuffixRetriever（後綴檢索）</p><p class="text-slate-500">從上文找相同後綴，預測接下來的詞。</p></div>
+        <div><p class="font-semibold">Prefill vs Decode</p><p class="text-slate-500">Prefill：批次處理輸入 prompt，並行快速（~3,800 tok/s）。Decode：逐 token 自回歸生成，是速度瓶頸（~56 tok/s）。</p></div>
+        <div><p class="font-semibold">tok/s（Tokens per Second）</p><p class="text-slate-500">推理速度指標，越高越好。56 tok/s 在 on-device 場景屬優秀。</p></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="font-bold text-orange-700 border-b border-orange-100 pb-1 mb-3">🎓 訓練與評估</h3>
+      <div class="space-y-2.5 text-sm">
+        <div><p class="font-semibold">PPL（Perplexity，困惑度）</p><p class="text-slate-500">語言模型標準指標，越低越好。本專題：24.6 → 18.3 → 12.1 代表三階段訓練顯著有效。</p></div>
+        <div><p class="font-semibold">SFT（Supervised Fine-Tuning）</p><p class="text-slate-500">用人工標注的指令-回應對微調，讓模型從「語言接龍」學會「遵循指令」。</p></div>
+        <div><p class="font-semibold">CoT（Chain of Thought，鏈式思考）</p><p class="text-slate-500">讓模型先輸出推理步驟再給答案，提升複雜推理準確率。</p></div>
+        <div><p class="font-semibold">Expert Collapse（專家坍塌）</p><p class="text-slate-500">MoE 訓練失敗：路由器全選同一專家，其他閒置。解法：Load Balance Loss。</p></div>
+        <div><p class="font-semibold">消融實驗（Ablation Study）</p><p class="text-slate-500">逐一替換元件，驗證每個設計的貢獻。本專題用來比較不同 Tucker rank。</p></div>
+        <div><p class="font-semibold">FineWeb-Edu / UltraChat</p><p class="text-slate-500">訓練資料集。FineWeb-Edu：高質量網頁教育文本。UltraChat 200k：多輪對話資料。</p></div>
+        <div><p class="font-semibold">OOM（Out of Memory）</p><p class="text-slate-500">記憶體超出硬體上限導致崩潰。Dense MoE E8 在 M2 Pro 上 OOM；TuckerMoE 成功避免。</p></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="font-bold text-green-700 border-b border-green-100 pb-1 mb-3">💻 硬體與系統</h3>
+      <div class="space-y-2.5 text-sm">
+        <div><p class="font-semibold">Apple Silicon / M2 Pro</p><p class="text-slate-500">Apple 自研 ARM 晶片，CPU/GPU/ANE 共用統一記憶體，非常適合 LLM 推理。</p></div>
+        <div><p class="font-semibold">MLX</p><p class="text-slate-500">Apple 為 M 系列晶片開發的 ML 框架，支援 mx.compile 圖優化，Zero-Copy 推理。</p></div>
+        <div><p class="font-semibold">Metal（Apple GPU 程式語言）</p><p class="text-slate-500">類似 CUDA 的 Apple GPU 程式語言。本專題用它寫自定義 SSM scan 融合核心。</p></div>
+        <div><p class="font-semibold">Zero-Copy</p><p class="text-slate-500">CPU/GPU 共享記憶體，無需複製資料即可互相存取，降低搬移開銷。</p></div>
+        <div><p class="font-semibold">ANE（Apple Neural Engine）</p><p class="text-slate-500">Apple Silicon 中的神經網路加速器，專門處理特定矩陣運算。</p></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="font-bold text-rose-700 border-b border-rose-100 pb-1 mb-3">📐 數學符號快查</h3>
+      <div class="space-y-2.5 text-sm">
+        <div><p class="font-semibold">O(N²) vs O(N)</p><p class="text-slate-500">大O符號。N²：計算量與 N 的平方成正比（Attention）。O(N)：線性（Mamba）。</p></div>
+        <div><p class="font-semibold">W_e ≈ U_in · Core_e · U_out</p><p class="text-slate-500">Tucker 分解公式。每個專家的大矩陣 W_e 被分解為三個小矩陣的乘積。</p></div>
+        <div><p class="font-semibold">ARL = K=16 → 5.92</p><p class="text-slate-500">K 是候選 token 數量，ARL 是平均接受數量。K=16 時最佳 ARL 為 5.92。</p></div>
+        <div><p class="font-semibold">r1=8（Tucker rank）</p><p class="text-slate-500">Tucker 分解的第一維秩值，控制壓縮程度與表達能力的平衡，實驗最佳為 r1=8。</p></div>
+        <div><p class="font-semibold">82.87% 壓縮 = 2.4B → 417M</p><p class="text-slate-500">整體壓縮率計算：(2400-417)/2400 ≈ 82.6%（海報數字 82.87% 含精確實測值）。</p></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===== TIMING SUMMARY ===== -->
+<section class="bg-white rounded-2xl shadow-md p-6 no-print">
+  <h3 class="font-bold text-slate-700 text-lg mb-4">⏱️ 段落時間總覽</h3>
+  <div class="space-y-2">
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-indigo-600 w-28 shrink-0">0:00 – 1:00</span><div class="flex-1 bg-indigo-100 rounded-full h-2.5"><div class="bg-indigo-500 h-2.5 rounded-full" style="width:6.67%"></div></div><span class="text-xs text-slate-400 w-36 text-right">開場 · ~155 字</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-slate-600 w-28 shrink-0">1:00 – 2:30</span><div class="flex-1 bg-slate-100 rounded-full h-2.5"><div class="bg-slate-500 h-2.5 rounded-full" style="width:10%"></div></div><span class="text-xs text-slate-400 w-36 text-right">背景 · ~225 字</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-teal-600 w-28 shrink-0">2:30 – 5:10</span><div class="flex-1 bg-teal-100 rounded-full h-2.5"><div class="bg-teal-500 h-2.5 rounded-full" style="width:17.8%"></div></div><span class="text-xs text-slate-400 w-36 text-right">技術 · ~405 字（最長）</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-blue-600 w-28 shrink-0">5:10 – 7:10</span><div class="flex-1 bg-blue-100 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width:13.3%"></div></div><span class="text-xs text-slate-400 w-36 text-right">結果 · ~370 字</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-emerald-600 w-28 shrink-0">7:10 – 8:00</span><div class="flex-1 bg-emerald-100 rounded-full h-2.5"><div class="bg-emerald-500 h-2.5 rounded-full" style="width:5.5%"></div></div><span class="text-xs text-slate-400 w-36 text-right">結論 · ~115 字</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-teal-700 w-28 shrink-0">10:00 – 15:00</span><div class="flex-1 bg-gradient-to-r from-teal-300 to-indigo-400 rounded-full h-2.5"></div><span class="text-xs text-slate-400 w-36 text-right">Demo · 見 Demo 段腳本</span></div>
+    <div class="flex items-center gap-3 border-t pt-2 mt-1"><span class="text-xs font-mono font-bold text-slate-800 w-28 shrink-0">總計口說</span><div class="flex-1 bg-gradient-to-r from-indigo-400 via-teal-400 to-emerald-400 rounded-full h-2.5"></div><span class="text-xs font-bold text-slate-700 w-36 text-right">~1,510 字 · 10:00</span></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bg-slate-800 text-slate-400 text-center py-5 text-sm no-print">
+  <p>發表逐字稿 · 賴弘偉 · Hybrid Mamba-TuckerMoE · NKUST 大四專題 2026</p>
+  <p class="text-xs mt-1">所有內容依據海報 07.pdf 生成，請結合投影片與個人理解練習，切勿死背</p>
+</footer>
+
+<script>
+// ===== TIMER =====
+let totalSec = 900; // 15:00
+let remaining = 900;
+let iv = null;
+let running = false;
+
+function p(n){ return String(n).padStart(2,'0'); }
+function updDisplay(){
+  const m=Math.floor(remaining/60), s=remaining%60;
+  const el=document.getElementById('timerDisplay');
+  el.textContent=p(m)+':'+p(s);
+  if(remaining<=30){ el.className=el.className.replace('text-teal-300',''); el.classList.add('text-red-400'); }
+  else if(remaining<=60){ el.className=el.className.replace('text-teal-300',''); el.classList.add('text-yellow-300'); }
+  else{ el.classList.remove('text-red-400','text-yellow-300'); el.classList.add('text-teal-300'); }
+}
+function startTimer(){
+  if(running){
+    clearInterval(iv); running=false;
+    document.getElementById('btnPlay').textContent='▶ 繼續'; return;
+  }
+  running=true;
+  document.getElementById('btnPlay').textContent='⏸ 暫停';
+  iv=setInterval(()=>{
+    if(remaining<=0){ clearInterval(iv); running=false;
+      document.getElementById('timerDisplay').textContent='00:00';
+      document.getElementById('btnPlay').textContent='⏰ 時間到！'; return; }
+    remaining--; updDisplay();
+  },1000);
+}
+function resetTimer(){
+  clearInterval(iv); running=false; remaining=900;
+  document.getElementById('btnPlay').textContent='▶ 開始練習';
+  updDisplay();
+}
+
+// ===== TOGGLE ALL DETAILS =====
+let allOpen=false;
+function toggleAll(){
+  allOpen=!allOpen;
+  document.querySelectorAll('details').forEach(d=>{ d.open=allOpen; });
+}
+
+// ===== ARROW ROTATION ON OPEN =====
+document.querySelectorAll('details').forEach(d=>{
+  d.addEventListener('toggle',()=>{
+    const arr=d.querySelector('.arr');
+    if(arr) arr.style.transform=d.open?'rotate(90deg)':'rotate(0deg)';
+  });
+});
+
+// ===== TTS 男聲朗讀 =====
+let ttsParas = [];
+let ttsIdx = 0;
+let ttsPlaying = false;
+let ttsVoices = [];
+let ttsCurUtter = null;
+
+function toggleTTSPanel(){
+  const p = document.getElementById('ttsPanel');
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')) ttsInit();
+}
+
+function ttsInit(){
+  // Collect all script paragraphs (skip table cells and coaching boxes)
+  ttsParas = Array.from(document.querySelectorAll('.script p'));
+  document.getElementById('ttsProgress').textContent = ttsIdx + ' / ' + ttsParas.length;
+  ttsLoadVoices();
+}
+
+function ttsLoadVoices(){
+  const load = () => {
+    ttsVoices = window.speechSynthesis.getVoices();
+    const sel = document.getElementById('ttsVoiceSelect');
+    sel.innerHTML = '';
+    const zhVoices = ttsVoices.filter(v => v.lang.startsWith('zh'));
+    const list = zhVoices.length ? zhVoices : ttsVoices;
+    // Priority: Google 國語（台灣） > zh-TW > zh > male name keywords
+    const preferred = (v) =>
+      v.name.includes('國語（台灣）') || v.name.includes('Google 國語') ||
+      (v.lang === 'zh-TW' && v.name.toLowerCase().includes('google')) ||
+      v.lang === 'zh-TW' ||
+      v.name.toLowerCase().includes('male') || v.name.includes('Yunxi') ||
+      v.name.includes('Zhiwei') || v.name.includes('Ming');
+    let defaultSet = false;
+    list.forEach((v, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = v.name.slice(0, 24);
+      if(!defaultSet && preferred(v)){ o.selected = true; defaultSet = true; }
+      sel.appendChild(o);
+    });
+  };
+  if(window.speechSynthesis.getVoices().length) load();
+  else window.speechSynthesis.onvoiceschanged = load;
+}
+
+function ttsGetVoice(){
+  const sel = document.getElementById('ttsVoiceSelect');
+  const idx = parseInt(sel.value);
+  const zhVoices = ttsVoices.filter(v => v.lang.startsWith('zh'));
+  const list = zhVoices.length ? zhVoices : ttsVoices;
+  return list[idx] || null;
+}
+
+function ttsSpeak(idx){
+  if(idx < 0 || idx >= ttsParas.length){ ttsStop(); return; }
+  window.speechSynthesis.cancel();
+
+  // Highlight
+  document.querySelectorAll('.script p').forEach(p => {
+    p.style.background = ''; p.style.borderRadius = ''; p.style.padding = '';
+  });
+  const el = ttsParas[idx];
+  el.style.background = '#fef08a';
+  el.style.borderRadius = '6px';
+  el.style.padding = '2px 6px';
+  el.scrollIntoView({ behavior:'smooth', block:'center' });
+
+  const text = el.textContent.trim();
+  if(!text){ ttsIdx++; ttsSpeak(ttsIdx); return; }
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-TW';
+  u.rate = parseFloat(document.getElementById('ttsRate').value);
+  u.pitch = 0.85; // lower = more male
+  const v = ttsGetVoice();
+  if(v) u.voice = v;
+
+  u.onend = () => {
+    if(ttsPlaying){ ttsIdx++; ttsSpeak(ttsIdx); }
+  };
+  u.onerror = () => {
+    if(ttsPlaying){ ttsIdx++; ttsSpeak(ttsIdx); }
+  };
+
+  ttsCurUtter = u;
+  window.speechSynthesis.speak(u);
+  document.getElementById('ttsProgress').textContent = (idx+1) + ' / ' + ttsParas.length;
+  document.getElementById('ttsPlayBtn').textContent = '⏸ 暫停';
+}
+
+function ttsToggle(){
+  if(!ttsParas.length) ttsInit();
+  if(ttsPlaying){
+    // Pause TTS + pause timer
+    window.speechSynthesis.pause();
+    ttsPlaying = false;
+    document.getElementById('ttsPlayBtn').textContent = '▶ 繼續';
+    if(running){ clearInterval(iv); running = false;
+      document.getElementById('btnPlay').textContent = '▶ 繼續'; }
+  } else {
+    // Resume or start TTS + start timer
+    if(window.speechSynthesis.paused){
+      window.speechSynthesis.resume();
+      ttsPlaying = true;
+      document.getElementById('ttsPlayBtn').textContent = '⏸ 暫停';
+    } else {
+      ttsPlaying = true;
+      ttsSpeak(ttsIdx);
+    }
+    // Start timer if not already running
+    if(!running) startTimer();
+  }
+}
+
+function ttsStop(){
+  window.speechSynthesis.cancel();
+  ttsPlaying = false;
+  ttsIdx = 0;
+  document.querySelectorAll('.script p').forEach(p => {
+    p.style.background = ''; p.style.borderRadius = ''; p.style.padding = '';
+  });
+  document.getElementById('ttsPlayBtn').textContent = '▶ 播放';
+  document.getElementById('ttsProgress').textContent = '0 / ' + ttsParas.length;
+  // Also pause timer (don't reset, let user decide)
+  if(running){ clearInterval(iv); running = false;
+    document.getElementById('btnPlay').textContent = '▶ 繼續'; }
+}
+
+function ttsNext(){
+  window.speechSynthesis.cancel();
+  ttsIdx = Math.min(ttsIdx + 1, ttsParas.length - 1);
+  if(ttsPlaying) ttsSpeak(ttsIdx);
+  else {
+    // Just highlight without playing
+    document.querySelectorAll('.script p').forEach(p => {
+      p.style.background = ''; p.style.borderRadius = ''; p.style.padding = '';
+    });
+    if(ttsParas[ttsIdx]){
+      ttsParas[ttsIdx].style.background = '#bfdbfe';
+      ttsParas[ttsIdx].style.borderRadius = '6px';
+      ttsParas[ttsIdx].style.padding = '2px 6px';
+      ttsParas[ttsIdx].scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+    document.getElementById('ttsProgress').textContent = (ttsIdx+1) + ' / ' + ttsParas.length;
+  }
+}
+
+function ttsPrev(){
+  window.speechSynthesis.cancel();
+  ttsIdx = Math.max(ttsIdx - 1, 0);
+  if(ttsPlaying) ttsSpeak(ttsIdx);
+  else {
+    document.querySelectorAll('.script p').forEach(p => {
+      p.style.background = ''; p.style.borderRadius = ''; p.style.padding = '';
+    });
+    if(ttsParas[ttsIdx]){
+      ttsParas[ttsIdx].style.background = '#bfdbfe';
+      ttsParas[ttsIdx].style.borderRadius = '6px';
+      ttsParas[ttsIdx].style.padding = '2px 6px';
+      ttsParas[ttsIdx].scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+    document.getElementById('ttsProgress').textContent = (ttsIdx+1) + ' / ' + ttsParas.length;
+  }
+}
+
+function ttsUpdateRate(){
+  // If mid-sentence, restart current para with new rate
+  if(ttsPlaying){ window.speechSynthesis.cancel(); ttsSpeak(ttsIdx); }
+}
+
+// Stop TTS if page hidden
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden) window.speechSynthesis.pause();
+});
+</script>
+</body>
+</html>
