@@ -35,14 +35,39 @@ html{scroll-behavior:smooth}
         <h1 class="font-bold text-base leading-tight">Hybrid Mamba-TuckerMoE 發表逐字稿</h1>
       </div>
       <div class="flex items-center gap-2">
-        <div id="timerDisplay" class="bg-indigo-800 border border-indigo-600 rounded-lg px-4 py-1.5 text-2xl font-mono font-bold tracking-widest text-teal-300">15:00</div>
         <button onclick="startTimer()" id="btnPlay" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">▶ 開始練習</button>
         <button onclick="resetTimer()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">⟳ 重設</button>
         <button onclick="toggleAll()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">📖 展開說明</button>
         <button onclick="toggleTTSPanel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">🔊 男聲朗讀</button>
       </div>
     </div>
-    <nav class="flex gap-1.5 mt-2 overflow-x-auto pb-1 text-xs">
+
+    <!-- 進度條計時器 -->
+    <div class="mt-2 mb-1">
+      <div class="flex items-center justify-between mb-1">
+        <span id="timerDisplay" class="font-mono font-bold text-sm tracking-widest text-teal-300">15:00</span>
+        <span id="timerLabel" class="text-xs text-indigo-300">剩餘時間</span>
+      </div>
+      <div class="w-full bg-indigo-900 rounded-full h-3 overflow-hidden relative">
+        <div id="timerBar"
+             class="h-3 rounded-full transition-all duration-1000 ease-linear"
+             style="width:100%; background: linear-gradient(90deg, #2dd4bf, #818cf8);">
+        </div>
+        <!-- 10分鐘刻度（口說結束） -->
+        <div class="absolute top-0 bottom-0 w-px bg-white/40" style="left:66.67%" title="10:00 口說結束"></div>
+        <!-- 段落刻度 -->
+        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:6.67%"  title="1:00"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:16.67%" title="2:30"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:34.44%" title="5:10"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:43.33%" title="6:30"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:47.33%" title="7:10"></div>
+      </div>
+      <div class="flex justify-between text-indigo-400 mt-0.5" style="font-size:9px">
+        <span>開場</span><span>背景</span><span>技術</span><span style="margin-left:2rem">CoT</span><span>成果</span><span>口說結束↑</span><span>Demo</span><span>15:00</span>
+      </div>
+    </div>
+
+    <nav class="flex gap-1.5 mt-1 overflow-x-auto pb-1 text-xs">
       <a href="#s1" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">0:00 開場</a>
       <a href="#s2" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">1:00 背景</a>
       <a href="#s3" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">2:30 技術</a>
@@ -172,7 +197,7 @@ html{scroll-behavior:smooth}
     <div class="script space-y-3 mb-5">
       <p>各位老師、同學，大家好。</p>
       <p>我是資工系的賴弘偉，今天我們要報告的專題叫做 <span class="em">Hybrid Mamba-TuckerMoE for On-Device LLM Inference</span>。中文可以理解成「混合式 Mamba 加 Tucker 分解專家模型，用於裝置端大型語言模型推理」。</p>
-      <p>大家應該都有用過 ChatGPT，或者試過手機上的 AI 助理。但這些模型通常需要幾十 GB 的記憶體，完全沒有辦法直接跑在一般的筆電或手機上——必須連到雲端伺服器。</p>
+      <p>現在 AI 很普遍，但大家可能不知道：一個<span class="em">真正具有智能的語言模型</span>，光是把它放進記憶體就動輒需要 <span class="em">10 幾 GB</span>——這已經超過大多數筆電和手機的上限了。所以現在這些 AI 幾乎都得靠雲端伺服器才能跑。</p>
       <p>我們這個專題問的問題是：<span class="em">能不能把一個 24 億參數等級的大型語言模型，壓縮到只需要四億多個參數，同時還能在 MacBook 上流暢推理，不需要網路？</span></p>
       <p>答案是可以的。讓我來解釋我們怎麼做到。</p>
     </div>
@@ -223,7 +248,7 @@ html{scroll-behavior:smooth}
       <p>要了解我們的貢獻，得先知道為什麼把大型語言模型放到邊緣裝置這麼困難。我們歸納出<span class="em">三個根本性的瓶頸</span>。</p>
       <p>第一個是<span class="em">注意力機制的計算複雜度是 O(N²)</span>，也就是說輸入序列長度每增加一倍，計算量就暴增四倍。以 16K token 的長文脈輸入為例，計算成本是 512 token 的整整 256 倍，在邊緣裝置上幾乎不可能負擔。</p>
       <p>第二個是<span class="em">KV Cache 的記憶體佔用</span>。KV Cache 是 Transformer 推理的加速機制，但代價是佔大量記憶體。512 個 token 就要 113 MB，到了 16K token 就高達 <span class="em">1.4 GB，等於吃掉裝置 88% 的 RAM</span>，根本沒辦法部署。</p>
-      <p>第三個，也是最有趣的，是<span class="em">MoE 的權重冗餘與頻寬瓶頸</span>。MoE，混合專家模型，是讓不同輸入走不同「專家子網路」的架構，理論上很高效。但問題在於每生成一個 token，就要從記憶體重新載入不同的專家權重。我們在 M2 Pro 上實測：<span class="em">載入權重要 4.2 毫秒，但實際計算只要 0.04 毫秒</span>——差了整整 100 倍。整個系統完全被記憶體頻寬卡住，根本不是算力問題。</p>
+      <p>第三個，也是最有趣的，是<span class="em">MoE 的權重冗餘與頻寬瓶頸</span>。MoE，全名 Mixture of Experts，中文「混合專家模型」，是讓不同輸入走不同「專家子網路」的架構，理論上很高效。但問題在於每生成一個 token，就要從記憶體重新載入不同的專家權重。我們在 M2 Pro 上實測：<span class="em">載入權重要 4.2 毫秒，但實際計算只要 0.04 毫秒</span>——差了整整 100 倍。整個系統完全被記憶體頻寬卡住，根本不是算力問題。</p>
       <p>這三個問題，就是我們這個專題的核心出發點。</p>
     </div>
     <details class="bg-slate-50 rounded-xl p-4">
@@ -991,9 +1016,30 @@ function updDisplay(){
   const m=Math.floor(remaining/60), s=remaining%60;
   const el=document.getElementById('timerDisplay');
   el.textContent=p(m)+':'+p(s);
-  if(remaining<=30){ el.className=el.className.replace('text-teal-300',''); el.classList.add('text-red-400'); }
-  else if(remaining<=60){ el.className=el.className.replace('text-teal-300',''); el.classList.add('text-yellow-300'); }
-  else{ el.classList.remove('text-red-400','text-yellow-300'); el.classList.add('text-teal-300'); }
+
+  // Progress bar
+  const pct = (remaining / totalSec) * 100;
+  const bar = document.getElementById('timerBar');
+  bar.style.width = pct + '%';
+
+  // Colour shift: green→indigo→yellow→red
+  if(remaining<=30){
+    el.className='font-mono font-bold text-sm tracking-widest text-red-400';
+    bar.style.background='#f87171';
+    document.getElementById('timerLabel').textContent='⏰ 快結束！';
+  } else if(remaining<=60){
+    el.className='font-mono font-bold text-sm tracking-widest text-yellow-300';
+    bar.style.background='linear-gradient(90deg,#fbbf24,#f87171)';
+    document.getElementById('timerLabel').textContent='剩餘不到1分鐘';
+  } else if(remaining<=600){
+    el.className='font-mono font-bold text-sm tracking-widest text-teal-300';
+    bar.style.background='linear-gradient(90deg,#2dd4bf,#818cf8)';
+    document.getElementById('timerLabel').textContent='Demo 進行中';
+  } else {
+    el.className='font-mono font-bold text-sm tracking-widest text-teal-300';
+    bar.style.background='linear-gradient(90deg,#2dd4bf,#818cf8)';
+    document.getElementById('timerLabel').textContent='剩餘時間';
+  }
 }
 function startTimer(){
   if(running){
