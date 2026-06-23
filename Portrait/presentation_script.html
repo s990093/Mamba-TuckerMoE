@@ -185,21 +185,18 @@ html{scroll-behavior:smooth}
 <section id="s1" class="bg-white rounded-2xl shadow-md overflow-hidden">
   <div class="bg-indigo-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <span class="bg-white text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">0:00 – 1:00</span>
+      <span class="bg-white text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">0:00 – 0:30</span>
       <h2 class="text-white font-bold text-lg">第一段：開場與動機</h2>
     </div>
-    <span class="text-indigo-200 text-xs">目標 60 秒 · ~155 字</span>
+    <span class="text-indigo-200 text-xs">目標 30 秒 · ~65 字</span>
   </div>
   <div class="p-6">
     <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-5 text-sm text-indigo-800">
       📽️ <strong>投影片：</strong>顯示海報大標題，三個瓶頸圖（Attention / KV Cache / MoE）
     </div>
     <div class="script space-y-3 mb-5">
-      <p>各位老師、同學，大家好。</p>
-      <p>我是資工系的賴弘偉，今天我們要報告的專題叫做 <span class="em">Hybrid Mamba-TuckerMoE for On-Device LLM Inference</span>。中文可以理解成「混合式 Mamba 加 Tucker 分解專家模型，用於裝置端大型語言模型推理」。</p>
-      <p>現在 AI 很普遍，但大家可能不知道：一個<span class="em">真正具有智能的語言模型</span>，光是把它放進記憶體就動輒需要 <span class="em">10 幾 GB</span>——這已經超過大多數筆電和手機的上限了。所以現在這些 AI 幾乎都得靠雲端伺服器才能跑。</p>
-      <p>我們這個專題問的問題是：<span class="em">能不能把一個 24 億參數等級的大型語言模型，壓縮到只需要四億多個參數，同時還能在 MacBook 上流暢推理，不需要網路？</span></p>
-      <p>答案是可以的。讓我來解釋我們怎麼做到。</p>
+      <p>各位老師好，我是賴弘偉，我們的專題是 <span class="em">Hybrid Mamba-TuckerMoE</span>，做的是裝置端大型語言模型推理。</p>
+      <p>一個真正具有智能的語言模型，光放進記憶體就要 <span class="em">10 幾 GB</span>，超過大多數筆電上限，只能靠雲端。我們的目標是：<span class="em">把 24 億參數壓縮到 4 億，直接在 MacBook 上跑</span>。</p>
     </div>
     <details class="bg-indigo-50 rounded-xl p-4">
       <summary class="text-indigo-800 font-semibold text-sm flex items-center gap-2 select-none">
@@ -322,7 +319,7 @@ html{scroll-behavior:smooth}
       <p>接下來是我們的解決方案，核心架構叫做 <span class="em">Hybrid Mamba-TuckerMoE</span>，有三個主要的技術貢獻。</p>
 
       <p><span class="em">第一個貢獻：用 Mamba-3 SSM 取代大部分的 Attention。</span></p>
-      <p>Mamba 是近幾年提出的「狀態空間模型」，英文 State Space Model，縮寫 SSM。它跟 Transformer 不同的是，它用一個固定大小的「隱狀態」來壓縮並記憶所有歷史資訊，計算複雜度只有線性的 O(N)，而且不需要 KV Cache。我們採用的是第三版 Mamba-3，加入了更精確的梯形離散化方法，讓隱狀態的數值更穩定。我們的架構把多數層換成 Mamba-3，只在少數關鍵位置保留 GQA Attention，取兩者之長。</p>
+      <p>因為 Transformer 的 KV Cache 會隨序列長度一直增長，<span class="em">所以</span>我們改用 SSM——它的記憶體是固定大小的隱狀態，不管序列多長 KV Cache 都不會膨脹。我們用的是第三代 Mamba-3，比前兩代多了兩個改進：第一，<span class="em">首次加入 RoPE 旋轉位置編碼</span>，讓模型能理解 token 的相對位置；第二，採用<span class="em">更精確的梯形離散化</span>方法，讓狀態轉移的數值更穩定、精度更高。最後，我們不是全部換掉 Attention，而是少數關鍵層保留 <span class="em">GQA（Grouped Query Attention）</span>，補足 Mamba 在精確長距離回憶上的不足，兩者取長補短。</p>
 
       <p><span class="em">第二個貢獻：TuckerMoE，用 Tucker 張量分解壓縮 MoE 的專家權重，並從根本改變計算流程。</span></p>
       <p>先說壓縮的部分。每個 MoE 專家的權重矩陣可以想像成一個巨大的 3D 立方體。Tucker 分解把它拆成三個薄板——U_in、Core_e、U_out——相乘的形式。其中 U_in 和 U_out 是所有專家共用的，只有中間那個 Core_e 是每個專家獨有的，而且它非常小，只需要 32 個數字就能描述這個專家的個性。這樣原本一個專家要 <span class="em">75.5M 個參數，壓縮後只剩 7.39M，壓縮了 90.2%</span>。</p>
@@ -330,10 +327,9 @@ html{scroll-behavior:smooth}
       <p><span class="em2">傳統 Standard MoE 的做法是「在輸出空間混合」。</span>路由器選出 K 個專家之後，每個專家各自對輸入 x 做一次完整的大矩陣乘法，算出自己的輸出，最後再把 K 個輸出加權加總。問題就在這裡——每個專家的矩陣 W_e 有 75.5M 個參數，K 個專家就要從記憶體載入 K × 75.5M 的資料量，完全被頻寬卡死。</p>
       <p><span class="em">TuckerMoE 的做法是「在權重空間先融合，再只算一次」。</span>同樣是 K=2 個專家被路由器選中，但我們不去分別跑兩次大 GEMM。取而代之的是：先把 K 個專家的 Core_e 按路由權重加權混合，得到一個融合後的 Core_blended——這個步驟幾乎不費算力，因為 Core_e 只有 32 個數字。然後，用這一個融合核心搭配共用的 U_in 和 U_out，跑三次很薄的小矩陣乘法就完成了。<span class="em">整個過程 K 個專家合力只需要一套 GEMM，U_in 和 U_out 只從記憶體載入一次。</span>這樣記憶體搬移量從 K × 75.5M 降到遠小於一個專家的量，頻寬瓶頸直接消失。</p>
 
-      <p><span class="em">第三個貢獻：多策略投機式雅可比解碼（Multi-Strategy Speculative Jacobi Decoding）。</span></p>
-      <p>一般語言模型是逐字生成，一個一個 token 跑主模型，很慢。我們的方法是：先用多種輕量快取——包括 N-gram Cache 和 SuffixRetriever——快速預測出一排候選 token，然後讓主模型一次前向傳播就並行驗證所有候選，通過的直接接受。實測在 Demo 情境下，主模型每次前向傳播平均可以接受 <span class="em">ARL≈5.92 個 token，最高加速達 3.2 倍</span>。</p>
+      <p><span class="em">第三個貢獻：多策略投機式雅可比解碼。</span>一般模型逐字生成很慢，我們先用 N-gram Cache 和 SuffixRetriever 快速猜一串候選 token，主模型一次並行驗證，猜對的直接接受。Demo 實測平均一次前向傳播接受 <span class="em">ARL≈5.92 個 token，最高加速 3.2 倍</span>。</p>
 
-      <p>最後，整套系統跑在 Apple Silicon 的 MLX 框架上，CPU、GPU、ANE 三個處理器共享同一塊記憶體，不需要複製資料，做到 Zero-Copy 推理，prefill 吞吐量約 3,800 tok/s。</p>
+      <p>最後是推理系統。Prefill 階段用我們自己寫的 <span class="em">chunk_scan_metal</span> Metal kernel 做平行掃描；Decode 階段用 <span class="em">mx.compile</span> 把解碼圖編譯成靜態圖減少每步的啟動開銷；底層則是 Apple Silicon 的<span class="em">統一記憶體（Unified Memory）Zero-Copy</span>，CPU、GPU、ANE 共享同一塊記憶體，資料不需要複製，prefill 吞吐量約 <span class="em">3,800 tok/s</span>。</p>
     </div>
     <details class="bg-teal-50 rounded-xl p-4">
       <summary class="text-teal-900 font-semibold text-sm flex items-center gap-2 select-none">

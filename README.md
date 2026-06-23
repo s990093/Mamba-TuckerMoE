@@ -6,7 +6,6 @@
 
 **On-Device LLM Inference via Tucker-Decomposed Mixture of Experts**
 
-[![Paper](https://img.shields.io/badge/Paper-ICLR%202026-blue?style=flat-square)](paper/hybrid-mamba-15min/report.md)
 [![Docs](https://img.shields.io/badge/Docs-Tucker%20MoE%20Theory-purple?style=flat-square)](docs/tucker_moe_justification.html)
 [![Platform](https://img.shields.io/badge/Platform-Apple%20Silicon-black?style=flat-square&logo=apple)](https://developer.apple.com/metal/)
 [![Framework](https://img.shields.io/badge/Framework-MLX%20%7C%20PyTorch%20%7C%20Triton-orange?style=flat-square)](https://github.com/ml-explore/mlx)
@@ -184,12 +183,12 @@ Lives in [`mamba3_mlx/mlx_dllm_model/`](mamba3_mlx/mlx_dllm_model/) and **reuses
 
 **Inference optimizations** (ported from HF `transformers` DiffusionGemma, adapted to `[MASK]` diffusion):
 
-| Optimization                              | Effect                                                                     |
-| ----------------------------------------- | -------------------------------------------------------------------------- |
-| Entropy-bound sampler                     | commit a data-adaptive number of confident positions per step              |
-| Linear temperature schedule               | explore early (`t_max`) → commit sharply late (`t_min`)                     |
-| Stable + confident early stop             | end denoising once the canvas stabilizes                                   |
-| **Prefix cache** (encoder/decoder split)  | encode prompt once, denoise canvas-only → **~2.7× / ~1.8×** vs eager / compiled |
+| Optimization                             | Effect                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
+| Entropy-bound sampler                    | commit a data-adaptive number of confident positions per step                   |
+| Linear temperature schedule              | explore early (`t_max`) → commit sharply late (`t_min`)                         |
+| Stable + confident early stop            | end denoising once the canvas stabilizes                                        |
+| **Prefix cache** (encoder/decoder split) | encode prompt once, denoise canvas-only → **~2.7× / ~1.8×** vs eager / compiled |
 
 ```bash
 make -C mamba3_mlx dllm-fast      # prefix-cache generation (fastest path)
