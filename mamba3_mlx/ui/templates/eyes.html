@@ -164,7 +164,12 @@
             var ext = (f.name.split(".").pop() || "").toLowerCase();
             // The model only keeps ~3500 chars. For text/code, read just the
             // first 256KB so a huge file never builds a giant base64 / blocks
-            // the bridge. PDFs need the whole byte stream (structure), capped above.
+            // the bridge. PDFs need the whole byte stream (structure) but cap
+            // at 2MB to prevent OOM on large academic papers / scanned docs.
+            if (ext === "pdf" && f.size > 1 * 1024 * 1024) {
+              if (window.petFileError) window.petFileError("PDF too large (>1MB) — try a shorter doc");
+              return;
+            }
             var blob = ext === "pdf" ? f : f.slice(0, 262144);
             var r = new FileReader();
             r.onload = function () {
