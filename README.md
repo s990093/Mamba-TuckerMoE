@@ -263,27 +263,43 @@ make mlx-profile PROFILE_DECODE_STEPS=32         # per-layer latency
 ## Repository Structure
 
 ```
-├── mamba3_mlx/               # MLX inference stack (Apple Silicon)
-│   ├── mlx_model/            #   Model architecture (hybrid, mamba, tucker, scan)
-│   ├── mlx_model_v2/         #   v2 with updated scan_metal
-│   ├── mlx_dllm_model/       #   Diffusion-LLM port (absorbing-[MASK], experimental)
-│   ├── inference/            #   Generator, sampler, token bans
-│   ├── speculative/          #   Speculative decode (Jacobi, ngram, CoT cache)
-│   ├── mv/                   #   CoT middleware + FSM format enforcement
-│   ├── ui/                   #   Chat frontend (HTML/CSS/JS)
-│   └── chat_demo.py          #   FastAPI WebSocket server (:7860)
+├── mamba3_mlx/                   # Active MLX inference stack (Apple Silicon only)
+│   ├── mlx_model/                #   Core model: Mamba3Block, TransformerBlock, TuckerMoE, hybrid_model, scan_metal
+│   ├── mlx_model_v2/             #   Parallel v2 impl (different scan_metal) — not the default
+│   ├── mlx_dllm_model/           #   Diffusion-LLM (absorbing-state [MASK]) experimental port
+│   ├── inference/                #   Sampler, generator (prefill/decode loop), token bans
+│   ├── mv/                       #   CoT middleware (FSM + <think>/<final> injection & validation)
+│   ├── speculative/              #   Jacobi speculative decoding, N-gram/CoT caches, draft/verify
+│   ├── ui/                       #   Chat frontend (templates, CSS, JS)
+│   ├── utils/                    #   Config dataclasses, per-mode sampling params, system prompts
+│   ├── tools/                    #   Sidecar converter (npz), profiling & sweep utilities
+│   ├── profiler/                 #   WebSocket-based real-time inference profiler
+│   ├── pure_torch_mlx/           #   Pure PyTorch reference implementation
+│   ├── run.py                    #   Main CLI entry point
+│   ├── chat_demo.py              #   WebSocket chat server (:7860)
+│   └── Makefile                  #   All launch targets (make -C mamba3_mlx ...)
 │
-├── pre-train/                # Training (PyTorch + Triton)
-│   ├── train.py              #   Unified pre-train + SFT entry
-│   └── sft_cot_bundle/       #   Dataset pipeline + model.py (TritonTuckerMoE)
+├── pre-train/                    # Training (PyTorch + Triton)
+│   ├── train.py                  #   Unified pre-train + SFT entrypoint
+│   └── sft_cot_bundle/           #   Dataset pipeline, scripts, TritonTuckerMoE model
 │
-├── cot_dataset/              # SFT dataset, tokenizer (vocab 32,007)
-├── checkpoints/              # Model weights (.pt / .npz sidecars)
-├── metal/                    # Custom Metal shaders (SSM scan, Mamba mixer)
-├── paper/hybrid-mamba-15min/ # Technical report + 3D interactive assets
-├── docs/                     # Supplementary docs
-│   └── tucker_moe_justification.html   # Tucker theory (math + LaTeX)
-└── assets/                   # Project visuals
+├── cot_dataset/                  # SFT dataset (JSON per category), tokenizer, Metal dev
+│   ├── *.json                    #   8 SFT categories (self_awareness, math_drill, ...)
+│   ├── tokenizer.json            #   BPE tokenizer (vocab 32,007)
+│   ├── SFT_FORMAT.md             #   ChatML + loss masking spec
+│   └── metal/                    #   Custom Metal kernels (SSM scan, Tucker fusion, etc.)
+│
+├── checkpoints/                  # Model weights (.npz + .mlx_bf16.npz sidecars)
+│   └── v{3..8}/latest_*.npz
+│
+├── paper/                        # Paper artifacts & tech report
+│   └── hybrid-mamba-15min/       #   Technical report + interactive 3D assets
+│
+├── docs/                         # Supplementary documentation (HTML)
+├── old_and_no_stable_mamba_api/  # Legacy inference code (archived)
+├── baselines/                    # HF baseline models for comparison
+├── assets/                       # Project visuals & diagrams
+└── sft_cot_bundle/               # Root-level copy of training bundle (legacy location)
 ```
 
 ---
@@ -306,7 +322,7 @@ make mlx-profile PROFILE_DECODE_STEPS=32         # per-layer latency
 @article{lai2026hybrid,
   title   = {Hybrid Mamba-TuckerMoE for On-Device LLM Inference},
   author  = {Lai, Hung-Wei and Lan, Hsin-An and Hsu, Chun-Ming and Lu, Yu-Han},
-  journal = {Technical Report, ICLR 2026},
+  journal = {Technical Report, 2026},
   year    = {2026}
 }
 ```
