@@ -13,8 +13,8 @@
     />
     <meta name="theme-color" content="#0d0c0b" />
     <title>Eyes · Mamba</title>
-    <link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
-    <link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
+    <link rel="icon" type="image/png" href="/static/assets/tuckericon.png" />
+    <link rel="apple-touch-icon" href="/static/assets/tuckericon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -41,7 +41,11 @@
           s.setProperty("--gaze-y", (ny * MAX).toFixed(2) + "px");
           // "Notices you" when the desktop cursor first comes close to the pet.
           var near = Math.sqrt(nx * nx + ny * ny) < 0.3;
-          if (near && _wasFar) { try { window.petReact && window.petReact("perk", 700); } catch (_) {} }
+          if (near && _wasFar) {
+            try {
+              window.petReact && window.petReact("perk", 700);
+            } catch (_) {}
+          }
           _wasFar = !near;
         };
 
@@ -69,13 +73,82 @@
           // spoken (TTS) and shown in the subtitle bubble.
           var bar = document.createElement("div");
           bar.id = "pet-chat-bar";
-          var inp = document.createElement("input");
+
+          // Demo prompt pills — tap fills input, does NOT send
+          var _demoByCat = {};  // populated from /api/demo-config
+
+          function buildDemoPills(catKey) {
+            var pills = document.getElementById("pet-demo-pills");
+            if (!pills) return;
+            pills.innerHTML = "";
+            var prompts = _demoByCat[catKey] || [];
+            prompts.forEach(function (text) {
+              var btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "pet-demo-pill";
+              btn.textContent = text;
+              btn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var inp = document.getElementById("pet-chat-input");
+                if (inp) {
+                  inp.value = text;
+                  inp.focus();
+                  // trigger auto-resize after filling
+                  inp.style.height = "auto";
+                  inp.style.height = inp.scrollHeight + "px";
+                }
+              });
+              pills.appendChild(btn);
+            });
+          }
+
+          // Fetch demo-config and populate _demoByCat.
+          // petOnCatChange is called by eyes.js after loadCategories() sets _activeCat,
+          // so it will trigger buildDemoPills with the correct key once data is ready.
+          fetch("/api/demo-config", { cache: "no-store" })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              (data.categories || []).forEach(function (cat) {
+                if (!cat.key || !Array.isArray(cat.examples)) return;
+                _demoByCat[cat.key] = cat.examples
+                  .map(function (ex) { return ex.user || ""; })
+                  .filter(Boolean);
+              });
+              // If eyes.js already called petOnCatChange before fetch completed,
+              // we missed it — rebuild now with the first available category.
+              var firstCat = Object.keys(_demoByCat)[0] || "self_awareness";
+              buildDemoPills(firstCat);
+            })
+            .catch(function () {});
+
+          // Hook called by eyes.js updateSysLabel whenever category changes
+          window.petOnCatChange = function (catKey) { buildDemoPills(catKey); };
+
+          // Hide pills while the pet is busy; show again when idle
+          window.petOnStateChange = function (state) {
+            var pills = document.getElementById("pet-demo-pills");
+            if (!pills) return;
+            pills.style.display = (state === "idle" || state === "sleep") ? "" : "none";
+          };
+
+          var pills = document.createElement("div");
+          pills.id = "pet-demo-pills";
+          bar.appendChild(pills);
+
+          var inp = document.createElement("textarea");
           inp.id = "pet-chat-input";
-          inp.type = "text";
+          inp.rows = 1;
           inp.placeholder = "Say something… (Enter)";
           inp.autocomplete = "off";
           bar.appendChild(inp);
           document.body.appendChild(bar);
+
+          // Auto-resize helper — resets height then grows to fit content
+          function resizeInp() {
+            inp.style.height = "auto";
+            inp.style.height = inp.scrollHeight + "px";
+          }
+          inp.addEventListener("input", resizeInp);
 
           // Document the pet "reads" while summarizing a dropped file (shown
           // only while body.reading; the lines highlight one by one).
@@ -84,7 +157,7 @@
           doc.setAttribute("aria-hidden", "true");
           doc.innerHTML =
             '<div class="pr-page">' +
-            '<i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+            "<i></i><i></i><i></i><i></i><i></i><i></i></div>" +
             '<div class="pr-cap">reading<span></span></div>';
           document.body.appendChild(doc);
 
@@ -94,9 +167,14 @@
           document.body.appendChild(toast);
           inp.addEventListener("keydown", function (e) {
             e.stopPropagation(); // don't trigger pet shortcuts while typing
-            if (e.key === "Enter" && inp.value.trim() && window.sendPrompt) {
+            if (e.key === "Enter" && !e.shiftKey && inp.value.trim() && window.sendPrompt) {
+              e.preventDefault();
               window.sendPrompt(inp.value.trim());
               inp.value = "";
+              inp.style.height = "auto";
+              // hide pills immediately on send
+              var pills = document.getElementById("pet-demo-pills");
+              if (pills) pills.style.display = "none";
             }
           });
 
@@ -115,7 +193,9 @@
               b.addEventListener("click", function (e) {
                 e.stopPropagation();
                 try {
-                  window.webkit.messageHandlers.petzoom.postMessage(b.dataset.z);
+                  window.webkit.messageHandlers.petzoom.postMessage(
+                    b.dataset.z,
+                  );
                 } catch (_) {}
               });
             });
@@ -128,7 +208,9 @@
             panel.appendChild(quit);
             quit.addEventListener("click", function (e) {
               e.stopPropagation();
-              try { window.webkit.messageHandlers.petquit.postMessage("quit"); } catch (_) {}
+              try {
+                window.webkit.messageHandlers.petquit.postMessage("quit");
+              } catch (_) {}
             });
           }
 
@@ -155,10 +237,13 @@
             e.preventDefault();
             _dragDepth = 0;
             document.body.classList.remove("file-over");
-            var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            var f =
+              e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
             if (!f) return;
-            if (f.size > 30 * 1024 * 1024) {            // skip pathologically large files
-              if (window.petFileError) window.petFileError("that file is too big (>30MB)");
+            if (f.size > 30 * 1024 * 1024) {
+              // skip pathologically large files
+              if (window.petFileError)
+                window.petFileError("that file is too big (>30MB)");
               return;
             }
             var ext = (f.name.split(".").pop() || "").toLowerCase();
@@ -167,7 +252,8 @@
             // the bridge. PDFs need the whole byte stream (structure) but cap
             // at 2MB to prevent OOM on large academic papers / scanned docs.
             if (ext === "pdf" && f.size > 1 * 1024 * 1024) {
-              if (window.petFileError) window.petFileError("PDF too large (>1MB) — try a shorter doc");
+              if (window.petFileError)
+                window.petFileError("PDF too large (>1MB) — try a shorter doc");
               return;
             }
             var blob = ext === "pdf" ? f : f.slice(0, 262144);
@@ -176,8 +262,11 @@
               var s = String(r.result || "");
               var b64 = s.indexOf(",") >= 0 ? s.slice(s.indexOf(",") + 1) : s;
               try {
-                window.webkit.messageHandlers.petfile.postMessage(
-                  { name: f.name, ext: ext, b64: b64 });
+                window.webkit.messageHandlers.petfile.postMessage({
+                  name: f.name,
+                  ext: ext,
+                  b64: b64,
+                });
               } catch (_) {}
             };
             r.readAsDataURL(blob);
@@ -1332,15 +1421,59 @@
       <div class="email-card" id="email-card" hidden aria-hidden="true">
         <div class="email-card-hdr">
           <button class="ec-btn" id="ec-edit" title="Edit">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+              />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
+            </svg>
             <span id="ec-edit-lbl">Edit</span>
           </button>
           <div class="email-card-hdr-r">
             <button class="ec-btn" id="ec-copy" title="Copy to clipboard">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                />
+              </svg>
             </button>
-            <button class="ec-btn ec-btn-send" id="ec-send" title="Open in Mail">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <button
+              class="ec-btn ec-btn-send"
+              id="ec-send"
+              title="Open in Mail"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
               <span>Send</span>
             </button>
           </div>

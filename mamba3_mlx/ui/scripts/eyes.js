@@ -300,6 +300,7 @@ function renderSysMenu() {
 function updateSysLabel() {
   const cat = _categories.find(c => c.key === _activeCat);
   $sysBtnLbl.textContent = cat ? cat.title.slice(0, 14) : _activeCat.slice(0, 14);
+  if (typeof window.petOnCatChange === 'function') window.petOnCatChange(_activeCat);
 }
 
 function openSysMenu() {
@@ -490,6 +491,7 @@ let _tokenCount = 0;
 function setState(s) {
   if (!STATES.includes(s)) return;
   _state = s;
+  if (typeof window.petOnStateChange === 'function') window.petOnStateChange(s);
   // Reading overlay only spans prefill→thinking; the answer (or any terminal
   // state) ends it. Keep it during processing/thinking only.
   if (s !== 'processing' && s !== 'thinking') petStopReading();

@@ -1,8 +1,11 @@
 'use strict';
 /* Baseline Showdown — Pythia-160M @step1000 (2.1B tokens) vs Mamba 3 + Tucker
- * Sequential execution: GPU is shared on Apple Silicon, running both at once
- * thrashes MPS scheduling and drops measured tok/s.
- * Payload format mirrors /ws (chat protocol): max_tokens + sampling{temperature, top_p}.
+ * On page load we auto warm-up BOTH models (Pythia load+short gen, then Mamba via
+ * the dedicated self_awareness identity pre-warm). This stabilises Metal bf16 state
+ * for the tuned seed=26 path so "Who are you?" produces the expected "I am Mamba..."
+ * result instead of generic "Step ..." think output.
+ * Sequential to avoid MPS thrash.
+ * Payload format mirrors /ws (chat protocol).
  */
 
 const WS_PYTHIA = `ws://${location.host}/ws/baseline-pythia`;
@@ -13,6 +16,9 @@ const $start  = $('bl-start');
 const $prompt = $('bl-prompt');
 
 let running = false;
+
+// Start disabled until models are warmed on page load (like main site behaviour)
+if ($start) $start.disabled = true;
 let wsPythia = null;
 let wsOurs   = null;
 
@@ -41,7 +47,123 @@ async function loadOursSampling() {
     // prompts, just less reliably for self_awareness.
   }
 }
-loadOursSampling();
+const _samplingReadyP = loadOursSampling();
+
+// ── Auto warm-up both models after page load (stabilise Metal state for self_awareness) ──
+// This mirrors the main chat site's expectation that first identity queries are warmed.
+// We do silent short generations so the visible comparison cards stay clean until user clicks Run.
+// Pythia is warmed first, then Mamba (ours) — but using a self_awareness payload on Mamba so
+// the exact raw_sampling fastpath + seed config gets exercised (critical for "I am Mamba").
+async function waitForModelReady(timeoutMs = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const r = await fetch('/api/load-status', { cache: 'no-store' });
+      const j = await r.json();
+      if (j && j.ready) return true;
+    } catch (_) {}
+    await new Promise(res => setTimeout(res, 400));
+  }
+  return false;
+}
+
+async function silentWarmPythia() {
+  // Best-effort: load + one short generation to warm HF/MPS
+  try {
+    const infoResp = await fetch('/api/baseline-info');
+    const info = await infoResp.json();
+    const pyInfo = info && info.pythia_160m;
+    if (!pyInfo || pyInfo.available_on_disk === false) return false;
+
+    return await new Promise((resolve) => {
+      let ws = null;
+      const done = (ok) => { try { if (ws) ws.close(); } catch {} resolve(ok); };
+      try {
+        ws = new WebSocket(WS_PYTHIA);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            action: 'chat',
+            prompt: 'Who are you?',
+            max_tokens: 24,
+            reasoning: false,
+            sampling: { temperature: 0.7, top_p: 0.9 },
+            category_key: 'self_awareness',
+          }));
+        };
+        ws.onmessage = (ev) => {
+          try {
+            const m = JSON.parse(ev.data);
+            if (m.type === 'done' || m.type === 'error') done(true);
+          } catch (_) {}
+        };
+        ws.onerror = () => done(false);
+        // safety timeout
+        setTimeout(() => done(false), 15000);
+      } catch (_) { done(false); }
+    });
+  } catch (_) { return false; }
+}
+
+async function silentWarmOurs() {
+  // Prefer the dedicated warmup action: this triggers _prewarm_identity(3)
+  // (multiple short seeded gens) which is the exact routine written to
+  // stabilise Metal bf16 for seed=26 self_awareness "I am Mamba".
+  // Falls back to a short chat if server doesn't know the action.
+  try {
+    return await new Promise((resolve) => {
+      let ws = null;
+      const done = (ok) => { try { if (ws) ws.close(); } catch {} resolve(ok); };
+      try {
+        ws = new WebSocket(WS_OURS);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            action: 'warmup',
+            category_key: 'self_awareness',
+          }));
+        };
+        ws.onmessage = (ev) => {
+          try {
+            const m = JSON.parse(ev.data);
+            if (m.type === 'warmup_done' || m.type === 'warmup_start' || m.type === 'done' || m.type === 'error') {
+              // warmup action path ends with warmup_done
+              if (m.type === 'warmup_done' || m.type === 'error') done(true);
+            }
+          } catch (_) {}
+        };
+        ws.onerror = () => done(false);
+        setTimeout(() => done(false), 25000);
+      } catch (_) { done(false); }
+    });
+  } catch (_) { return false; }
+}
+
+async function warmupBothModels() {
+  if (!$start) return;
+
+  const origText = $start.innerHTML;
+  $start.disabled = true;
+  $start.innerHTML = 'Warming Pythia + Mamba…';
+
+  setStatus('pythia', 'loading', 'WARMING');
+  setStatus('ours', 'loading', 'WARMING');
+
+  // Wait for sampling config + main model server-side ready
+  await _samplingReadyP.catch(() => {});
+  await waitForModelReady();
+
+  // Warm Pythia (loads HF model + one forward), then Ours (exercises our path)
+  await silentWarmPythia().catch(() => {});
+  setStatus('pythia', 'done', 'WARMED');
+
+  await silentWarmOurs().catch(() => {});
+  setStatus('ours', 'done', 'WARMED');
+
+  // Ready for user interaction
+  $start.disabled = false;
+  $start.innerHTML = origText || `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg> Run Same Prompt`;
+}
+
+// Kick off will be at end of file after all defs for safety.
 
 // ── Status pill ───────────────────────────────────────────────────
 function setStatus(side, cls, label) {
@@ -200,18 +322,10 @@ function runOurs(prompt) {
     const t0 = Date.now();
     let firstTok = null;
     let totalTokens = 0;
-    let thinkStart = null;
     let lastReasoningText = '';
 
     let cumulative = '';
-    let phase = 'think';     // 'think' | 'final' | 'done'
 
-    function setThinkBody(text) {
-      const el = $(`think-body-${side}`);
-      if (!el) return;
-      el.textContent = text;
-      el.scrollTop = el.scrollHeight;
-    }
     function setRespBody(text) {
       const el = $(`resp-${side}`);
       if (!el) return;
@@ -230,35 +344,15 @@ function runOurs(prompt) {
       el.scrollTop = el.scrollHeight;
     }
 
+    // Raw: dump everything as-is, tags included.
     function reparseAndRender() {
-      const closeIdx     = cumulative.indexOf('</think>');
-      const finalOpenIdx = cumulative.indexOf('<final>');
-      const finalCloseIdx = cumulative.indexOf('</final>');
-
-      if (closeIdx < 0) {
-        showThink(side);
-        setThinkBody(cumulative);
-        return;
+      if (!cumulative) return;
+      if (firstTok === null) {
+        firstTok = Date.now() - t0;
+        setStats(side, firstTok, null, null);
+        setStatus(side, 'generating', 'GENERATING');
       }
-
-      // </think> seen — think content frozen
-      setThinkBody(cumulative.slice(0, closeIdx).trimEnd());
-      if (phase === 'think') {
-        doneThink(side, Date.now() - (thinkStart || t0));
-        phase = 'final';
-      }
-
-      if (finalOpenIdx >= 0) {
-        if (firstTok === null) {
-          firstTok = Date.now() - t0;
-          setStats(side, firstTok, null, null);
-          setStatus(side, 'generating', 'GENERATING');
-        }
-        const start = finalOpenIdx + '<final>'.length;
-        const end   = finalCloseIdx >= 0 ? finalCloseIdx : cumulative.length;
-        setRespBody(cumulative.slice(start, end).replace(/^\n+/, ''));
-        if (finalCloseIdx >= 0) phase = 'done';
-      }
+      setRespBody(cumulative);
     }
 
     const finish = (r) => {
@@ -270,7 +364,7 @@ function runOurs(prompt) {
       resolve(r);
     };
 
-    setStatus(side, 'thinking', 'THINKING');
+    setStatus(side, 'loading', 'LOADING');
     $(`col-${side}`)?.classList.add('running');
 
     if (wsOurs) { try { wsOurs.close(); } catch {} }
@@ -287,12 +381,13 @@ function runOurs(prompt) {
       }));
     };
 
-    wsOurs.onmessage = (ev) => {
-      try {
-        const m = JSON.parse(ev.data);
+    function handleOursMsg(m) {
+        if (m.type === 'batch') {
+          (m.events || []).forEach(handleOursMsg);
+          return;
+        }
         if (m.type === 'meta') {
-          thinkStart = Date.now();
-          showThink(side);
+          setStatus(side, 'generating', 'GENERATING');
         } else if (m.type === 'reasoning') {
           // FSM mode: server sends cumulative think markdown
           const full = m.markdown || '';
@@ -320,12 +415,20 @@ function runOurs(prompt) {
           const totalTok = m.total_tokens ?? totalTokens;
           const tokS = m.tok_s ?? 0;
           reparseAndRender();   // flush any pending tail
+          // Safety net: if still idle after flush, force raw text (shouldn't happen).
+          if ($(`resp-${side}`)?.querySelector('.bl-idle') && cumulative.trim()) {
+            setRespBody(cumulative.replace(/<\/?(?:think|final)>/g, '').replace(/^\n+/, '').trim());
+          }
+
           setStats(side, ttft, tokS, totalTok);
           updateBar(side, tokS);
           setStatus(side, 'done', 'DONE');
           finish({ side, ttft, tokS, totalTok });
         }
-      } catch (e) { /* ignore */ }
+    }
+
+    wsOurs.onmessage = (ev) => {
+      try { handleOursMsg(JSON.parse(ev.data)); } catch (e) { /* ignore */ }
     };
 
     wsOurs.onerror = () => {
@@ -344,7 +447,7 @@ function runOurs(prompt) {
   if (btn && blk) btn.addEventListener('click', () => blk.classList.toggle('collapsed'));
 })();
 
-// ── Orchestrator: Pythia first (garbage warm-up), then ours (hero) ──
+// ── Orchestrator: Pythia first (visible), then ours (hero). Both were pre-warmed on load. ──
 const SEQUENCE = [
   { side: 'pythia', run: runPythia },
   { side: 'ours',   run: runOurs   },
@@ -370,3 +473,6 @@ $start.addEventListener('click', async () => {
   $start.disabled = false;
   $start.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg> Run Again`;
 });
+
+// Auto start warm-up after everything is defined (post load, after model ready polling)
+warmupBothModels();

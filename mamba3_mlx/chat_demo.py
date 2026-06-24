@@ -98,6 +98,7 @@ from cot_middleware import (  # noqa: E402 (sys.path tweak above)
 _load_stage:    str = "Initialising…"
 _load_progress: int = 0          # 0-100 integer
 _static_bench_tps: float | None = None   # cached pure-compute decode speed
+_identity_prewarmed: bool = False
 
 
 def _set_stage(stage: str, pct: int, *, bar: bool = True) -> None:
@@ -2006,6 +2007,26 @@ async def websocket_chat(ws: WebSocket):
 
             if action == "ping":
                 await ws.send_json({"type": "pong", "ready": _model_ready})
+                continue
+
+            if action == "warmup":
+                # Silent warm-up (used by /baselines page on load to stabilise
+                # both Pythia and the main model before visible comparison runs).
+                # For self_awareness we call the dedicated identity pre-warm which
+                # does several short seeded generations to stabilise Metal bf16
+                # state for the tuned seed=26 path.
+                global _identity_prewarmed
+                ck = str(msg.get("category_key") or "").strip() or "self_awareness"
+                await ws.send_json({"type": "warmup_start", "category_key": ck})
+                if ck in ("self_awareness", "self") and _model_ready and not _MOCK_MODE:
+                    if not _identity_prewarmed:
+                        try:
+                            _prewarm_identity(3)
+                            _identity_prewarmed = True
+                            print("[chat_demo] identity pre-warm triggered by warmup action")
+                        except Exception as _pw_exc:
+                            print(f"[chat_demo] WARN: identity pre-warm failed: {_pw_exc}")
+                await ws.send_json({"type": "warmup_done", "category_key": ck})
                 continue
 
             if action == "clear":

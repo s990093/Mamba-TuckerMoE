@@ -3187,19 +3187,61 @@ body.pet #pet-chat-bar {
   width: min(86vw, 320px);
   z-index: 50;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Demo prompt pills (tap to fill input, not to send) */
+body.pet #pet-demo-pills {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 2px 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+body.pet #pet-demo-pills::-webkit-scrollbar { display: none; }
+body.pet .pet-demo-pill {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 112, 80, 0.35);
+  background: rgba(20, 16, 13, 0.65);
+  color: rgba(236, 227, 216, 0.80);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  white-space: nowrap;
+}
+body.pet .pet-demo-pill:hover {
+  background: rgba(200, 112, 80, 0.22);
+  border-color: rgba(200, 112, 80, 0.65);
+  color: rgba(245, 232, 220, 1);
 }
 body.pet #pet-chat-input {
   width: 100%;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 16px;
   border: 1px solid rgba(200, 112, 80, 0.4);
   background: rgba(20, 16, 13, 0.72);
   color: rgba(236, 227, 216, 0.92);
   font-family: var(--font-body);
   font-size: 15px;
+  line-height: 1.45;
   outline: none;
+  resize: none;
+  overflow: hidden;
+  min-height: 36px;
+  max-height: 160px;
+  overflow-y: auto;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  display: block;
+  box-sizing: border-box;
 }
 body.pet #pet-chat-input::placeholder {
   color: rgba(236, 227, 216, 0.4);

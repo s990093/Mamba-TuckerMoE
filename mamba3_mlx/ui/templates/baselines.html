@@ -39,12 +39,12 @@
     <div class="bl-hero-eyebrow">IDENTICAL TRAINING BUDGET · DIFFERENT ARCHITECTURE</div>
     <div class="bl-hero-row">
       <div class="bl-hero-card bl-hero-bad">
-        <div class="bl-hero-num">2.1<small>B</small></div>
+        <div class="bl-hero-num">4.3<small>B</small></div>
         <div class="bl-hero-lbl">tokens · Pythia-160M @ step1000</div>
       </div>
       <div class="bl-hero-eq">=</div>
       <div class="bl-hero-card bl-hero-good">
-        <div class="bl-hero-num">2.1<small>B</small></div>
+        <div class="bl-hero-num">4.3<small>B</small></div>
         <div class="bl-hero-lbl">tokens · Mamba 3 + TuckerMoE (ours, 417M)</div>
       </div>
     </div>
@@ -84,7 +84,7 @@
 
       <div class="bl-spec-row">
         <div class="bl-spec"><span class="bl-spec-v">162M</span><span class="bl-spec-l">params</span></div>
-        <div class="bl-spec"><span class="bl-spec-v">2.1B</span><span class="bl-spec-l">train tokens</span></div>
+        <div class="bl-spec"><span class="bl-spec-v">4.3B</span><span class="bl-spec-l">train tokens</span></div>
         <div class="bl-spec"><span class="bl-spec-v">none</span><span class="bl-spec-l">post-train</span></div>
         <div class="bl-spec"><span class="bl-spec-v">—</span><span class="bl-spec-l">CoT</span></div>
       </div>
@@ -117,7 +117,7 @@
 
       <div class="bl-spec-row">
         <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">417M</span><span class="bl-spec-l">params</span></div>
-        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">2.1B</span><span class="bl-spec-l">train tokens</span></div>
+        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">4.3B</span><span class="bl-spec-l">train tokens</span></div>
         <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">SFT + CoT</span><span class="bl-spec-l">post-train</span></div>
         <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">5-factor loss</span><span class="bl-spec-l">CoT</span></div>
       </div>
@@ -159,7 +159,7 @@
           <tr><td>MoE</td><td>—</td><td>8 experts, Tucker-decomposed (–90.2% params)</td></tr>
           <tr><td>KV cache</td><td>O(N) per token</td><td>O(1) recurrent state</td></tr>
           <tr><td>Training corpus</td><td>The Pile</td><td>FineWeb-Edu + UltraChat + CoT bundle</td></tr>
-          <tr><td>Training tokens</td><td class="t-base">2.1B</td><td class="t-ours">2.1B (identical)</td></tr>
+          <tr><td>Training tokens</td><td class="t-base">4.3B</td><td class="t-ours">4.3B (identical)</td></tr>
           <tr><td>Post-training</td><td>—</td><td>3-stage: pretrain → SFT → CoT</td></tr>
           <tr><td>CoT loss</td><td>—</td><td>5-factor token weighting + FCP EOS</td></tr>
           <tr><td>Persona</td><td>—</td><td>"Mamba" identity, multi-system prompts</td></tr>

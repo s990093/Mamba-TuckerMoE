@@ -22,6 +22,39 @@ html{scroll-behavior:smooth}
   .no-print{display:none!important}
   section{page-break-inside:avoid}
 }
+
+/* 精簡練習模式：只留大字稿 + TTS，方便跟 poster.pdf 一起看 */
+body.compact-mode header,
+body.compact-mode .bg-amber-50.border-amber-300,
+body.compact-mode .bg-indigo-50.border-indigo-100,
+body.compact-mode details,
+body.compact-mode .mt-3.text-xs.text-slate-400,
+body.compact-mode nav {
+  display: none !important;
+}
+body.compact-mode main {
+  max-width: 100% !important;
+  padding: 8px !important;
+}
+body.compact-mode .script {
+  font-size: 1.35rem !important;
+  line-height: 1.7 !important;
+}
+body.compact-mode .script p {
+  margin-bottom: 1rem !important;
+  padding: 6px 10px !important;
+}
+body.compact-mode #ttsPanel {
+  bottom: 12px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+.compact-exit {
+  display: none;
+}
+body.compact-mode .compact-exit {
+  display: inline-block !important;
+}
 </style>
 </head>
 <body class="text-slate-800">
@@ -39,6 +72,8 @@ html{scroll-behavior:smooth}
         <button onclick="resetTimer()" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">⟳ 重設</button>
         <button onclick="toggleAll()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">📖 展開說明</button>
         <button onclick="toggleTTSPanel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">🔊 男聲朗讀</button>
+    <button onclick="toggleCompactMode()" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition" title="只顯示講稿文字 + 大字，方便邊看 poster.pdf 邊對稿">📖 精簡練習</button>
+    <span class="text-[10px] text-teal-300 hidden md:inline">提示：開啟精簡模式 + 背景繼續，即可一邊看 poster.pdf 一邊聽/跟稿</span>
       </div>
     </div>
 
@@ -54,22 +89,20 @@ html{scroll-behavior:smooth}
              style="width:100%; background: linear-gradient(90deg, #2dd4bf, #818cf8);">
         </div>
         <!-- 10分鐘刻度（口說結束） -->
-        <div class="absolute top-0 bottom-0 w-px bg-white/40" style="left:66.67%" title="10:00 口說結束"></div>
-        <!-- 段落刻度 -->
-        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:6.67%"  title="1:00"></div>
-        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:16.67%" title="2:30"></div>
-        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:34.44%" title="5:10"></div>
-        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:43.33%" title="6:30"></div>
-        <div class="absolute top-0 bottom-0 w-px bg-white/20" style="left:47.33%" title="7:10"></div>
+        <div class="absolute top-0 bottom-0 w-[2px] bg-white/70" style="left:66.67%" title="10:00 口說結束↑"></div>
+        <!-- 段落刻度（嚴格對照使用者時間） -->
+        <div class="absolute top-0 bottom-0 w-px bg-white/30" style="left:16.67%" title="2:30 技術"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/30" style="left:34.44%" title="5:10 CoT Loss"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/30" style="left:43.33%" title="6:30 成果"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-white/30" style="left:47.33%" title="7:10 結論"></div>
       </div>
       <div class="flex justify-between text-indigo-400 mt-0.5" style="font-size:9px">
-        <span>開場</span><span>背景</span><span>技術</span><span style="margin-left:2rem">CoT</span><span>成果</span><span>口說結束↑</span><span>Demo</span><span>15:00</span>
+        <span>0:00 開場與動機</span><span>2:30 技術</span><span>5:10 CoT</span><span>6:30 成果</span><span>7:10 結論</span><span style="font-weight:700">10:00 口說結束↑</span><span>Demo</span><span>15:00</span>
       </div>
     </div>
 
     <nav class="flex gap-1.5 mt-1 overflow-x-auto pb-1 text-xs">
-      <a href="#s1" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">0:00 開場</a>
-      <a href="#s2" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">1:00 背景</a>
+      <a href="#s1" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">0:00 開場與動機</a>
       <a href="#s3" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">2:30 技術</a>
       <a href="#s4" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">5:10 CoT Loss</a>
       <a href="#s5" class="bg-indigo-700 hover:bg-indigo-600 rounded px-2.5 py-1 whitespace-nowrap">6:30 成果</a>
@@ -112,7 +145,18 @@ html{scroll-behavior:smooth}
 
     <span id="ttsProgress" class="text-xs text-slate-400 whitespace-nowrap font-mono">0 / 0</span>
 
+    <button onclick="copyCurrentPara()" title="複製目前段落文字" class="bg-slate-700 hover:bg-slate-600 rounded-lg px-2 py-1 text-xs transition">📋</button>
+    <button onclick="toggleCompactMode()" title="切換精簡大字練習模式（方便同時看PDF）" class="bg-teal-700 hover:bg-teal-600 rounded-lg px-2 py-1 text-xs transition">📖</button>
+
+    <label class="flex items-center gap-1 text-[10px] text-slate-400 cursor-pointer" title="開啟後切換到 poster.pdf 視窗時語音不會自動暫停">
+      <input type="checkbox" id="ttsBackgroundToggle" onchange="updateTtsBackgroundMode()" class="accent-rose-500"> 
+      <span>背景繼續</span>
+    </label>
+
     <button onclick="toggleTTSPanel()" class="text-slate-500 hover:text-white text-lg leading-none ml-1 transition">✕</button>
+
+    <!-- Compact exit, only visible in compact mode via CSS -->
+    <button onclick="toggleCompactMode()" class="compact-exit bg-teal-700 hover:bg-teal-600 text-white text-[10px] px-2 py-0.5 rounded ml-1">退出精簡</button>
   </div>
 </div>
 
@@ -120,7 +164,7 @@ html{scroll-behavior:smooth}
 
 <!-- ===== TITLE CARD ===== -->
 <div class="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-800 text-white rounded-2xl p-8 shadow-2xl">
-  <p class="text-indigo-300 text-xs tracking-widest uppercase mb-2">15 分鐘完整發表稿 · 口說 10 分鐘 + Demo 5 分鐘</p>
+  <p class="text-indigo-300 text-xs tracking-widest uppercase mb-2">15 分鐘完整發表稿 · 口說 ~10:00（結束） + Demo 5 分鐘（10:00～15:00）</p>
   <h1 class="text-3xl font-bold mb-1">Hybrid Mamba-TuckerMoE</h1>
   <h2 class="text-lg text-indigo-200 mb-1">for On-Device LLM Inference</h2>
   <p class="text-slate-400 text-sm mb-5">Joint Tucker Decomposition MoE · Multi-Strategy Speculative Decoding · Resource-Constrained Devices</p>
@@ -170,33 +214,65 @@ html{scroll-behavior:smooth}
       </ul>
     </div>
     <div>
-      <p class="font-bold mb-1.5">⏱️ 時間分配</p>
-      <ul class="space-y-1">
-        <li>口說：<strong>10:00</strong>（6 段）</li>
-        <li>Demo：<strong>5:00</strong>（2 部分）</li>
-        <li>總計：<strong>15:00</strong></li>
-        <li class="mt-2 text-amber-700 font-semibold">每段後面的字數計算不含說明，只計算你實際說的字。</li>
+      <p class="font-bold mb-1.5">⏱️ 時間分配（嚴格對照）</p>
+      <ul class="space-y-1 text-xs">
+        <li>0:00 – 2:30 <strong>開場與動機</strong></li>
+        <li>2:30 – 5:10 <strong>技術</strong></li>
+        <li>5:10 – 6:30 <strong>CoT Loss</strong></li>
+        <li>6:30 – 7:10 <strong>成果</strong></li>
+        <li>7:10 – 10:00 <strong>結論（口說結束↑）</strong></li>
+        <li>10:00 – 15:00 <strong>Demo（原生 Swift 透明視窗）</strong></li>
+        <li class="mt-1 text-amber-700 font-semibold">總計 15:00 · 口說控制在 10 分內結束</li>
       </ul>
+    </div>
+    <div class="md:col-span-3 text-xs bg-white/60 rounded p-2 border border-amber-200">
+      <strong>💡 練習技巧：</strong> 先開 <strong>poster.pdf</strong>，再開此頁。<br>
+      按「🔊 男聲朗讀」+「📖 精簡練習」，勾選「背景繼續」。<br>
+      這樣可以一邊看海報圖，一邊聽稿或跟讀，不會因為切換視窗就停掉。
     </div>
   </div>
 </div>
 
-<!-- ===== SECTION 1 ===== -->
+<!-- ===== SECTION 1 (merged with old s2) ===== -->
 <section id="s1" class="bg-white rounded-2xl shadow-md overflow-hidden">
   <div class="bg-indigo-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <span class="bg-white text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">0:00 – 0:30</span>
+      <span class="bg-white text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">0:00 – 2:30</span>
       <h2 class="text-white font-bold text-lg">第一段：開場與動機</h2>
     </div>
-    <span class="text-indigo-200 text-xs">目標 30 秒 · ~65 字</span>
+    <span class="text-indigo-200 text-xs">目標 150 秒</span>
   </div>
   <div class="p-6">
     <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-5 text-sm text-indigo-800">
-      📽️ <strong>投影片：</strong>顯示海報大標題，三個瓶頸圖（Attention / KV Cache / MoE）
+      📽️ <strong>投影片：</strong>顯示海報最上方大標題 + 「LLM INFERENCE BOTTLENECKS」三大瓶頸圖（① Attention O(N²) ② KV Cache O(N) ③ MoE Weight Redundancy），手指依次指向三區塊與細節數字
     </div>
+
+    <!-- 手指提示（合併版） -->
+    <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-5 no-print">
+      <p class="text-amber-800 font-bold text-xs mb-2">🖐️ 開場 + 三大瓶頸手指順序</p>
+      <ol class="space-y-1 text-xs text-amber-900 list-decimal list-inside">
+        <li>指向海報最上方大標題 <strong>Hybrid Mamba-TuckerMoE for On-Device LLM Inference</strong></li>
+        <li>移到頂端 <strong>LLM INFERENCE BOTTLENECKS</strong> 區，依序細指 ①②③：
+          <ul class="ml-4 list-none text-[10px]">
+            <li>① Attention：指向 16K seq → 256× cost</li>
+            <li>② KV Cache：指向 1.4 GiB / 88% RAM</li>
+            <li>③ MoE：先指 Load 4.2ms，再指 Compute 0.04ms（×105）</li>
+          </ul>
+        </li>
+        <li>簡單指向成果區，強調「我們把這些問題解決了」</li>
+      </ol>
+    </div>
+
     <div class="script space-y-3 mb-5">
-      <p>各位老師好，我是賴弘偉，我們的專題是 <span class="em">Hybrid Mamba-TuckerMoE</span>，做的是裝置端大型語言模型推理。</p>
-      <p>一個真正具有智能的語言模型，光放進記憶體就要 <span class="em">10 幾 GB</span>，超過大多數筆電上限，只能靠雲端。我們的目標是：<span class="em">把 24 億參數壓縮到 4 億，直接在 MacBook 上跑</span>。</p>
+      <p>各位老師好，我是賴弘偉。我們的專題是 <span class="em">Hybrid Mamba-TuckerMoE</span>，要做的是讓大型語言模型真正能在裝置端離線運行。</p>
+      <p>請看海報最上方的大標題。</p>
+      <p>但為什麼裝置端這麼難？海報頂端這整塊 <span class="em">LLM Inference Bottlenecks</span> 就是關鍵。</p>
+      <p>現有的 LLM 部署到裝置上有三個瓶頸。</p>
+      <p>第一，<span class="em">Attention 是 O(N²)</span>——序列長度翻倍，計算量暴增四倍。16K seq 就會變成 256 倍的成本。</p>
+      <p>第二，<span class="em">KV Cache 隨序列線性膨脹</span>，16K token 就吃掉 1.4 GiB、88% 的 RAM。</p>
+      <p>第三，<span class="em">MoE 的頻寬瓶頸</span>——Mixture of Experts 每個 token 要重新從記憶體載入專家權重，實測載入要 4.2 毫秒、計算只要 0.04 毫秒，差了 100 倍，完全卡在頻寬上。</p>
+      <p>這三個問題疊加，就讓「在筆電或手機上跑真正有智能的模型」變成幾乎不可能的任務。</p>
+      <p>我們的目標，就是用 Mamba-3 + Tucker 分解 + 投機解碼三大技術，<span class="em">把 2.4B 等效容量的模型壓縮 82.87%（只剩 417M 實際參數）</span>，讓它能在 MacBook 上離線、快速、隱私地跑起來。</p>
     </div>
     <details class="bg-indigo-50 rounded-xl p-4">
       <summary class="text-indigo-800 font-semibold text-sm flex items-center gap-2 select-none">
@@ -211,48 +287,6 @@ html{scroll-behavior:smooth}
           <p class="font-semibold">On-Device Inference（裝置端推理）</p>
           <p class="text-slate-500 mt-1">不依賴雲端，直接在終端設備（手機、筆電）上執行 AI 推理。好處是離線可用、保護隱私、低延遲；挑戰是記憶體和算力嚴重受限。</p>
         </div>
-      </div>
-    </details>
-    <p class="mt-3 text-xs text-slate-400">預估字數：約 155 字 · 約 60 秒</p>
-  </div>
-</section>
-
-<!-- ===== SECTION 2 ===== -->
-<section id="s2" class="bg-white rounded-2xl shadow-md overflow-hidden">
-  <div class="bg-slate-700 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <span class="bg-white text-slate-700 text-xs font-bold px-3 py-1 rounded-full">1:00 – 2:30</span>
-      <h2 class="text-white font-bold text-lg">第二段：問題背景與三大瓶頸</h2>
-    </div>
-    <span class="text-slate-300 text-xs">目標 90 秒 · ~225 字</span>
-  </div>
-  <div class="p-6">
-    <div class="bg-slate-100 rounded-xl p-3 mb-4 text-sm text-slate-600">
-      📽️ <strong>投影片：</strong>指向三個瓶頸圖，逐一放大說明每個瓶頸的數字
-    </div>
-
-    <!-- 手指提示 -->
-    <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-5 no-print">
-      <p class="text-amber-800 font-bold text-xs mb-2">🖐️ LLM INFERENCE BOTTLENECKS — 手指順序</p>
-      <ol class="space-y-1.5 text-xs text-amber-900 list-decimal list-inside">
-        <li>手指海報左上角 <strong>① Attention O(N²)</strong>，指向 16K seq → 256× cost 的那個箭頭</li>
-        <li>移動到 <strong>② KV Cache O(N)</strong>，指向 16K tok = 1.4 GiB 那行紅色文字</li>
-        <li>移動到 <strong>③ MoE Weight Redundancy</strong>，先指 Load DRAM→GPU 4.2ms，再指 Compute 0.04ms，讓對比視覺化</li>
-      </ol>
-    </div>
-
-    <div class="script space-y-3 mb-5">
-      <p>要了解我們的貢獻，得先知道為什麼把大型語言模型放到邊緣裝置這麼困難。我們歸納出<span class="em">三個根本性的瓶頸</span>。</p>
-      <p>第一個是<span class="em">注意力機制的計算複雜度是 O(N²)</span>，也就是說輸入序列長度每增加一倍，計算量就暴增四倍。以 16K token 的長文脈輸入為例，計算成本是 512 token 的整整 256 倍，在邊緣裝置上幾乎不可能負擔。</p>
-      <p>第二個是<span class="em">KV Cache 的記憶體佔用</span>。KV Cache 是 Transformer 推理的加速機制，但代價是佔大量記憶體。512 個 token 就要 113 MB，到了 16K token 就高達 <span class="em">1.4 GB，等於吃掉裝置 88% 的 RAM</span>，根本沒辦法部署。</p>
-      <p>第三個，也是最有趣的，是<span class="em">MoE 的權重冗餘與頻寬瓶頸</span>。MoE，全名 Mixture of Experts，中文「混合專家模型」，是讓不同輸入走不同「專家子網路」的架構，理論上很高效。但問題在於每生成一個 token，就要從記憶體重新載入不同的專家權重。我們在 M2 Pro 上實測：<span class="em">載入權重要 4.2 毫秒，但實際計算只要 0.04 毫秒</span>——差了整整 100 倍。整個系統完全被記憶體頻寬卡住，根本不是算力問題。</p>
-      <p>這三個問題，就是我們這個專題的核心出發點。</p>
-    </div>
-    <details class="bg-slate-50 rounded-xl p-4">
-      <summary class="text-slate-800 font-semibold text-sm flex items-center gap-2 select-none">
-        <span class="arr">▶</span> 本段關鍵詞解釋
-      </summary>
-      <div class="mt-3 space-y-2 text-sm">
         <div class="bg-white rounded-lg p-3 border-l-4 border-slate-400">
           <p class="font-semibold">O(N²)（平方計算複雜度）</p>
           <p class="text-slate-500 mt-1">演算法理論中的符號，代表計算量與輸入長度 N 的平方成正比。N 翻倍→計算量變 4 倍。Transformer Self-Attention 就是 O(N²)，這讓長文脈輸入代價極高。</p>
@@ -271,18 +305,20 @@ html{scroll-behavior:smooth}
         </div>
       </div>
     </details>
-    <p class="mt-3 text-xs text-slate-400">預估字數：約 225 字 · 約 90 秒</p>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 300 字 · 約 100 秒（邊看海報邊說，數字放慢）</p>
   </div>
 </section>
+
+
 
 <!-- ===== SECTION 3 ===== -->
 <section id="s3" class="bg-white rounded-2xl shadow-md overflow-hidden">
   <div class="bg-teal-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <span class="bg-white text-teal-700 text-xs font-bold px-3 py-1 rounded-full">2:30 – 5:10</span>
-      <h2 class="text-white font-bold text-lg">第三段：核心技術方法（最長段）</h2>
+      <h2 class="text-white font-bold text-lg">第二段：核心技術（Mamba-3 + TuckerMoE + Speculative）</h2>
     </div>
-    <span class="text-teal-100 text-xs">目標 160 秒 · ~405 字</span>
+    <span class="text-teal-100 text-xs">目標 ~160 秒</span>
   </div>
   <div class="p-6">
     <div class="bg-teal-50 rounded-xl p-3 mb-4 text-sm text-teal-800">
@@ -318,8 +354,7 @@ html{scroll-behavior:smooth}
     <div class="script space-y-4 mb-5">
       <p>接下來是我們的解決方案，核心架構叫做 <span class="em">Hybrid Mamba-TuckerMoE</span>，有三個主要的技術貢獻。</p>
 
-      <p><span class="em">第一個貢獻：用 Mamba-3 SSM 取代大部分的 Attention。</span></p>
-      <p>因為 Transformer 的 KV Cache 會隨序列長度一直增長，<span class="em">所以</span>我們改用 SSM——它的記憶體是固定大小的隱狀態，不管序列多長 KV Cache 都不會膨脹。我們用的是第三代 Mamba-3，比前兩代多了兩個改進：第一，<span class="em">首次加入 RoPE 旋轉位置編碼</span>，讓模型能理解 token 的相對位置；第二，採用<span class="em">更精確的梯形離散化</span>方法，讓狀態轉移的數值更穩定、精度更高。最後，我們不是全部換掉 Attention，而是少數關鍵層保留 <span class="em">GQA（Grouped Query Attention）</span>，補足 Mamba 在精確長距離回憶上的不足，兩者取長補短。</p>
+      <p><span class="em">第一個貢獻：用 Mamba-3 SSM 取代大部分的 Attention。</span>因為 KV Cache 會隨序列膨脹，我們改用固定大小隱狀態的 SSM。Mamba-3 比前兩代新增三點：<span class="em">RoPE</span> 位置編碼、<span class="em">梯形離散化</span>提升狀態精度、以及 <span class="em">MIMO 投影</span>——讓每層能同時處理多個輸入輸出通道，大幅提升頻寬利用率。少數關鍵層仍保留 <span class="em">GQA</span> 補足長距離回憶，兩者互補。</p>
 
       <p><span class="em">第二個貢獻：TuckerMoE，用 Tucker 張量分解壓縮 MoE 的專家權重，並從根本改變計算流程。</span></p>
       <p>先說壓縮的部分。每個 MoE 專家的權重矩陣可以想像成一個巨大的 3D 立方體。Tucker 分解把它拆成三個薄板——U_in、Core_e、U_out——相乘的形式。其中 U_in 和 U_out 是所有專家共用的，只有中間那個 Core_e 是每個專家獨有的，而且它非常小，只需要 32 個數字就能描述這個專家的個性。這樣原本一個專家要 <span class="em">75.5M 個參數，壓縮後只剩 7.39M，壓縮了 90.2%</span>。</p>
@@ -329,7 +364,7 @@ html{scroll-behavior:smooth}
 
       <p><span class="em">第三個貢獻：多策略投機式雅可比解碼。</span>一般模型逐字生成很慢，我們先用 N-gram Cache 和 SuffixRetriever 快速猜一串候選 token，主模型一次並行驗證，猜對的直接接受。Demo 實測平均一次前向傳播接受 <span class="em">ARL≈5.92 個 token，最高加速 3.2 倍</span>。</p>
 
-      <p>最後是推理系統。Prefill 階段用我們自己寫的 <span class="em">chunk_scan_metal</span> Metal kernel 做平行掃描；Decode 階段用 <span class="em">mx.compile</span> 把解碼圖編譯成靜態圖減少每步的啟動開銷；底層則是 Apple Silicon 的<span class="em">統一記憶體（Unified Memory）Zero-Copy</span>，CPU、GPU、ANE 共享同一塊記憶體，資料不需要複製，prefill 吞吐量約 <span class="em">3,800 tok/s</span>。</p>
+      <p>最後是推理系統。Prefill 階段用我們自己寫的 <span class="em">chunk_scan_metal</span> Metal kernel，把平行掃描整個高度融合成單一 kernel；Decode 階段則用 <span class="em">mx.compile</span> 把<span class="em">整個模型的一次解碼</span>（從 embedding、30 層 Hybrid 架構、一直到 sampling 懲罰）trace 成<span class="em">單一個靜態計算圖</span>，就像 TPU 那樣高度 fused 成一個 dispatch 就跑完，Python 開銷從每步 ~50 次直接降到 1 次，大幅消除 kernel launch 成本。</p>
     </div>
     <details class="bg-teal-50 rounded-xl p-4">
       <summary class="text-teal-900 font-semibold text-sm flex items-center gap-2 select-none">
@@ -366,7 +401,7 @@ html{scroll-behavior:smooth}
         </div>
         <div class="bg-white rounded-lg p-3 border-l-4 border-green-400">
           <p class="font-semibold">MLX / Zero-Copy / Apple Silicon</p>
-          <p class="text-slate-500 mt-1">Apple 為 M 系列晶片開發的 ML 框架。CPU/GPU/ANE 共享統一記憶體，不需複製資料（Zero-Copy），大幅降低記憶體搬移開銷。</p>
+          <p class="text-slate-500 mt-1">Apple 為 M 系列晶片開發的 ML 框架。Decode 階段用 mx.compile 把整個模型（所有層 + sampling）trace 成單一靜態圖，像 TPU 一樣高度融合，一次 dispatch 完成。底層以統一記憶體實現 Zero-Copy。</p>
         </div>
         <div class="bg-white rounded-lg p-3 border-l-4 border-green-400">
           <p class="font-semibold">Prefill vs Decode 吞吐量</p>
@@ -383,9 +418,9 @@ html{scroll-behavior:smooth}
   <div class="bg-blue-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <span class="bg-white text-blue-700 text-xs font-bold px-3 py-1 rounded-full">5:10 – 6:30</span>
-      <h2 class="text-white font-bold text-lg">第四段：Multi-Stage Training & CoT Loss 設計</h2>
+      <h2 class="text-white font-bold text-lg">第三段：CoT Loss 設計</h2>
     </div>
-    <span class="text-blue-100 text-xs">目標 80 秒 · ~200 字</span>
+    <span class="text-blue-100 text-xs">目標 80 秒</span>
   </div>
   <div class="p-6">
     <div class="bg-blue-50 rounded-xl p-3 mb-4 text-sm text-blue-800">
@@ -428,18 +463,25 @@ html{scroll-behavior:smooth}
   <div class="bg-violet-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <span class="bg-white text-violet-700 text-xs font-bold px-3 py-1 rounded-full">6:30 – 7:10</span>
-      <h2 class="text-white font-bold text-lg">第五段：Main Results, Compression Study & Conclusion</h2>
+      <h2 class="text-white font-bold text-lg">第四段：成果（Results & Compression）</h2>
     </div>
-    <span class="text-violet-100 text-xs">目標 40 秒 · ~100 字</span>
+    <span class="text-violet-100 text-xs">目標 40 秒</span>
   </div>
   <div class="p-6">
     <div class="bg-violet-50 rounded-xl p-3 mb-4 text-sm text-violet-800">
       📽️ <strong>投影片：</strong>Main Results 四格數字 → Decode Memory Comparison 表 → Speedup Ratio 表 → TuckerMoE FFN Ablation 表
     </div>
+    <div class="bg-amber-50 border border-amber-200 rounded px-2.5 py-1 mb-3 text-xs text-amber-700 no-print">
+      💡 念數字時刻意放慢 + 用手指向「邊際成本／專家」欄（8 vs 4,719,592 的對比要讓評審看清楚）
+    </div>
     <div class="script space-y-3 mb-5">
       <p>好，直接看成果。<span class="em">壓縮率 82.87%</span>，2.43B → 417M，等效容量 2.4B，推理記憶體節省 90%。Tucker 重建誤差 0.00135，比 SVD 的 0.00247 <span class="em">好了 45.3%</span>，表示同樣壓縮量下我們的精度更高。</p>
       <p>記憶體比較：32K 長文脈情境，Dense FFN 和 Pure Transformer 都 OOM，我們 <span class="em">只需 3.1 GB</span>。推理速度搭配 Jacobi 解碼最高 <span class="em">3.2 倍加速</span>，實測約 56 tok/s。</p>
-      <p>消融實驗看這個表格：r1=8 是甜蜜點，PPL 37.91 最接近 Dense 基準的 34.41；r1=4 rank 太低 PPL 爆到 63；Dense MoE E8 直接 OOM，連跑都跑不起來。</p>
+      <p>消融實驗重點看 TuckerMoE FFN 這張表。我們固定其他條件，只調 r1（Tucker 第一維的 rank）。</p>
+      <p>Dense（基準）PPL 是 <span class="em">34.41</span>。r1=8 時 PPL 來到 <span class="em">37.91</span>，誤差很小，卻把「邊際成本／專家」壓到只有 <span class="em">8</span> —— 這代表多加一個專家幾乎不增加記憶體。這就是我們的甜蜜點。</p>
+      <p>如果 rank 設太低（r1=4），表達能力嚴重不足，PPL 直接爆到 <span class="em">63.73</span>。</p>
+      <p>傳統 Dense MoE E8（完全不做 Tucker 分解）雖然理論 PPL 可能更好，但參數量暴增到 506M，記憶體需求將近 <span class="em">24 GB</span>，直接 OOM，實驗根本跑不起來。</p>
+      <p>因此 r1=8 讓我們用極低的邊際成本，得到最接近 Dense 基準的模型品質。</p>
       <div class="overflow-x-auto mt-3 mb-1">
         <table class="w-full text-xs border-collapse rounded-lg overflow-hidden shadow-sm">
           <thead>
@@ -489,9 +531,10 @@ html{scroll-behavior:smooth}
             </tr>
           </tbody>
         </table>
+        <div class="text-[10px] leading-tight text-teal-700 mt-0.5">★ r1=8：用幾乎為 0 的邊際成本，PPL 只從 34.41 上升到 37.91</div>
       </div>
     </div>
-    <p class="mt-3 text-xs text-slate-400">預估字數：約 100 字 · 約 40 秒</p>
+    <p class="mt-3 text-xs text-slate-400">預估字數：約 155 字 · 約 50–55 秒（數字放慢說）</p>
   </div>
 </section>
 
@@ -499,10 +542,10 @@ html{scroll-behavior:smooth}
 <section id="s6" class="bg-white rounded-2xl shadow-md overflow-hidden">
   <div class="bg-emerald-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <span class="bg-white text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">7:10 – 8:00</span>
-      <h2 class="text-white font-bold text-lg">第五段：結論與 Demo 銜接</h2>
+      <span class="bg-white text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">7:10 – 10:00</span>
+      <h2 class="text-white font-bold text-lg">第五段：結論（口說結束）</h2>
     </div>
-    <span class="text-emerald-100 text-xs">目標 45 秒 · ~115 字</span>
+    <span class="text-emerald-100 text-xs">目標 ~170 秒（含緩衝）</span>
   </div>
   <div class="p-6">
     <div class="bg-emerald-50 rounded-xl p-3 mb-5 text-sm text-emerald-800">
@@ -527,6 +570,38 @@ html{scroll-behavior:smooth}
   </div>
   <div class="p-6 space-y-6">
 
+    <!-- NEW: 原生 Swift 透明 HUD（使用者指定 Demo 工具） -->
+    <div class="bg-slate-900 text-white rounded-2xl p-5 border border-teal-400">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="bg-teal-400 text-slate-900 text-xs font-extrabold px-3 py-0.5 rounded">★ 10:00 Demo 核心</span>
+        <h3 class="font-bold text-lg">原生 Swift 透明背景視窗 + 進度條 + 即時調整大小</h3>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="font-semibold text-teal-300 mb-1">需求重點</p>
+          <ul class="list-disc list-inside space-y-0.5 text-slate-200">
+            <li>背景完全透明（或毛玻璃），可疊在任何畫面</li>
+            <li>顯示剩餘時間 + Demo 進度條</li>
+            <li>「實際跟」：可跟隨游標或手動拖曳定位</li>
+            <li>報告時可即時拉大 / 縮小視窗（效果自己調整）</li>
+            <li>永遠置頂 + 可快速隱藏/顯示</li>
+          </ul>
+          <p class="mt-2 text-[10px] text-slate-400">程式碼位置：<code>Portrait/swift_hud/</code>（見下方建立說明）</p>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-3 text-xs">
+          <p class="font-bold text-amber-400">使用流程</p>
+          <ol class="list-decimal list-inside text-slate-300 space-y-0.5 mt-1">
+            <li>報告進行到 10:00 時，先說：「接下來進入 Demo，我會開啟透明輔助視窗。」</li>
+            <li>啟動 Swift HUD（置頂、透明）</li>
+            <li>開始 Part A 模型對話，HUD 顯示 Part A 進度條</li>
+            <li>可當場拉大視窗給評審看細節，或縮小不擋畫面</li>
+            <li>Part B 對比時切換 HUD 標題為「同級模型比較」</li>
+          </ol>
+        </div>
+      </div>
+      <p class="mt-3 text-[10px] text-teal-400">提示：HUD 本身可作為「跟實際進度」的視覺輔助，Python inference 跑在另一個終端，HUD 顯示你口控的 Demo 階段進度。</p>
+    </div>
+
     <!-- Part A -->
     <div class="border-2 border-teal-200 rounded-xl p-5 bg-teal-50">
       <div class="flex items-center gap-2 mb-4">
@@ -544,21 +619,24 @@ html{scroll-behavior:smooth}
         </div>
 
         <div class="bg-white rounded-lg p-4 border border-teal-200">
-          <p class="font-bold text-teal-700 mb-2">📋 建議操作步驟</p>
+          <p class="font-bold text-teal-700 mb-2">📋 建議操作步驟（搭配原生 Swift 透明 HUD）</p>
           <ol class="space-y-3 list-decimal list-inside text-slate-700">
             <li>
-              <strong>開啟 chat_demo.py 或 stream_mlx.py</strong>（已預先載入模型）<br>
-              <span class="ml-5 text-slate-500 text-xs">說：「我們的模型已經在本機記憶體裡了，完全離線，不需要網路。」</span>
+              <strong>先開啟 Swift HUD</strong>（<code>swift_hud/</code> 內的 Xcode 專案）<br>
+              <span class="ml-5 text-slate-500 text-xs">HUD 會透明置頂，顯示 5:00 倒數 + 總進度條。直接拖曳或按「大」「小」調整。</span>
             </li>
             <li>
-              <strong>Prompt 1：基本推理題</strong><br>
+              <strong>開啟 Python inference</strong>（chat_demo.py / stream_mlx.py）<br>
+              <span class="ml-5 text-slate-500 text-xs">說：「模型已載入記憶體，完全離線。」</span>
+            </li>
+            <li>
+              <strong>HUD 上按「開始 Part A」</strong>，開始 Prompt 1<br>
               <code class="ml-5 bg-slate-100 px-2 py-0.5 rounded text-xs">「請用繁體中文，一步一步解釋為什麼 Tucker 分解可以壓縮模型參數。」</code><br>
-              <span class="ml-5 text-slate-500 text-xs">邊等邊說 tok/s 數字，CoT 推理輸出時說：「這就是我們第三階段 CoT 訓練帶來的推理能力。」</span>
+              <span class="ml-5 text-slate-500 text-xs">邊說邊指向 HUD 上的進度條，強調「這是我們現場的 Demo 階段進度」。</span>
             </li>
             <li>
-              <strong>Prompt 2：長文脈測試（展示 32K 能力）</strong><br>
-              <code class="ml-5 bg-slate-100 px-2 py-0.5 rounded text-xs">貼上一段較長的文章，讓模型做摘要</code><br>
-              <span class="ml-5 text-slate-500 text-xs">說：「我這邊輸入的是超過兩千字的文章，其他同規模模型在這個情境下可能 OOM，我們的 TuckerMoE 記憶體只用了 1.3 GB 左右。」</span>
+              <strong>Part A 結束後按「切換 Part B」</strong>，輸入長文脈或切到對比表格<br>
+              <span class="ml-5 text-slate-500 text-xs">可當場把 HUD 拉大讓評審清楚看剩餘時間與階段。</span>
             </li>
           </ol>
         </div>
@@ -660,6 +738,18 @@ html{scroll-behavior:smooth}
           </ul>
         </div>
       </div>
+    </div>
+
+    <!-- Swift HUD 快速啟動 -->
+    <div class="rounded-xl border border-teal-300 bg-teal-50 p-4 text-xs">
+      <p class="font-bold text-teal-800">🖥️ 原生 Swift 透明 HUD 快速啟動</p>
+      <ol class="mt-1.5 list-decimal list-inside text-teal-900 space-y-0.5">
+        <li><code>cd Portrait/swift_hud</code></li>
+        <li>Xcode → New Project → macOS App → SwiftUI，替換 <code>DemoHUDApp.swift</code> 與 <code>ContentView.swift</code></li>
+        <li>Run，視窗會透明浮動 + 進度條</li>
+        <li>報告時用「大」「小」按鈕或直接拖拉邊角調整，HUD 會跟著你的 Demo 階段跑。</li>
+      </ol>
+      <p class="mt-1 text-[10px] text-teal-700">單檔測試版：直接開 <code>TransparentHUD.swift</code> 看註解。</p>
     </div>
   </div>
 </section>
@@ -958,7 +1048,7 @@ html{scroll-behavior:smooth}
       <h3 class="font-bold text-green-700 border-b border-green-100 pb-1 mb-3">💻 硬體與系統</h3>
       <div class="space-y-2.5 text-sm">
         <div><p class="font-semibold">Apple Silicon / M2 Pro</p><p class="text-slate-500">Apple 自研 ARM 晶片，CPU/GPU/ANE 共用統一記憶體，非常適合 LLM 推理。</p></div>
-        <div><p class="font-semibold">MLX</p><p class="text-slate-500">Apple 為 M 系列晶片開發的 ML 框架，支援 mx.compile 圖優化，Zero-Copy 推理。</p></div>
+        <div><p class="font-semibold">MLX</p><p class="text-slate-500">Apple 為 M 系列晶片開發的 ML 框架。Decode 用 mx.compile 把整個模型一步（embedding → 30 層 → sampling）trace 成單一靜態圖，像 TPU 一樣高度 fused 成一個 dispatch，Python 開銷極低。</p></div>
         <div><p class="font-semibold">Metal（Apple GPU 程式語言）</p><p class="text-slate-500">類似 CUDA 的 Apple GPU 程式語言。本專題用它寫自定義 SSM scan 融合核心。</p></div>
         <div><p class="font-semibold">Zero-Copy</p><p class="text-slate-500">CPU/GPU 共享記憶體，無需複製資料即可互相存取，降低搬移開銷。</p></div>
         <div><p class="font-semibold">ANE（Apple Neural Engine）</p><p class="text-slate-500">Apple Silicon 中的神經網路加速器，專門處理特定矩陣運算。</p></div>
@@ -983,13 +1073,13 @@ html{scroll-behavior:smooth}
 <section class="bg-white rounded-2xl shadow-md p-6 no-print">
   <h3 class="font-bold text-slate-700 text-lg mb-4">⏱️ 段落時間總覽</h3>
   <div class="space-y-2">
-    <div class="flex items-center gap-3"><span class="text-xs font-mono text-indigo-600 w-28 shrink-0">0:00 – 1:00</span><div class="flex-1 bg-indigo-100 rounded-full h-2.5"><div class="bg-indigo-500 h-2.5 rounded-full" style="width:6.67%"></div></div><span class="text-xs text-slate-400 w-36 text-right">開場 · ~155 字</span></div>
-    <div class="flex items-center gap-3"><span class="text-xs font-mono text-slate-600 w-28 shrink-0">1:00 – 2:30</span><div class="flex-1 bg-slate-100 rounded-full h-2.5"><div class="bg-slate-500 h-2.5 rounded-full" style="width:10%"></div></div><span class="text-xs text-slate-400 w-36 text-right">背景 · ~225 字</span></div>
-    <div class="flex items-center gap-3"><span class="text-xs font-mono text-teal-600 w-28 shrink-0">2:30 – 5:10</span><div class="flex-1 bg-teal-100 rounded-full h-2.5"><div class="bg-teal-500 h-2.5 rounded-full" style="width:17.8%"></div></div><span class="text-xs text-slate-400 w-36 text-right">技術 · ~405 字（最長）</span></div>
-    <div class="flex items-center gap-3"><span class="text-xs font-mono text-blue-600 w-28 shrink-0">5:10 – 7:10</span><div class="flex-1 bg-blue-100 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width:13.3%"></div></div><span class="text-xs text-slate-400 w-36 text-right">結果 · ~370 字</span></div>
-    <div class="flex items-center gap-3"><span class="text-xs font-mono text-emerald-600 w-28 shrink-0">7:10 – 8:00</span><div class="flex-1 bg-emerald-100 rounded-full h-2.5"><div class="bg-emerald-500 h-2.5 rounded-full" style="width:5.5%"></div></div><span class="text-xs text-slate-400 w-36 text-right">結論 · ~115 字</span></div>
-    <div class="flex items-center gap-3"><span class="text-xs font-mono text-teal-700 w-28 shrink-0">10:00 – 15:00</span><div class="flex-1 bg-gradient-to-r from-teal-300 to-indigo-400 rounded-full h-2.5"></div><span class="text-xs text-slate-400 w-36 text-right">Demo · 見 Demo 段腳本</span></div>
-    <div class="flex items-center gap-3 border-t pt-2 mt-1"><span class="text-xs font-mono font-bold text-slate-800 w-28 shrink-0">總計口說</span><div class="flex-1 bg-gradient-to-r from-indigo-400 via-teal-400 to-emerald-400 rounded-full h-2.5"></div><span class="text-xs font-bold text-slate-700 w-36 text-right">~1,510 字 · 10:00</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-indigo-600 w-28 shrink-0">0:00 – 2:30</span><div class="flex-1 bg-indigo-100 rounded-full h-2.5"><div class="bg-indigo-500 h-2.5 rounded-full" style="width:16.7%"></div></div><span class="text-xs text-slate-400 w-36 text-right">開場與動機</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-teal-600 w-28 shrink-0">2:30 – 5:10</span><div class="flex-1 bg-teal-100 rounded-full h-2.5"><div class="bg-teal-500 h-2.5 rounded-full" style="width:17.8%"></div></div><span class="text-xs text-slate-400 w-36 text-right">技術</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-blue-600 w-28 shrink-0">5:10 – 6:30</span><div class="flex-1 bg-blue-100 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width:8.9%"></div></div><span class="text-xs text-slate-400 w-36 text-right">CoT Loss</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-violet-600 w-28 shrink-0">6:30 – 7:10</span><div class="flex-1 bg-violet-100 rounded-full h-2.5"><div class="bg-violet-500 h-2.5 rounded-full" style="width:4.4%"></div></div><span class="text-xs text-slate-400 w-36 text-right">成果</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-emerald-600 w-28 shrink-0">7:10 – 10:00</span><div class="flex-1 bg-emerald-100 rounded-full h-2.5"><div class="bg-emerald-500 h-2.5 rounded-full" style="width:19%"></div></div><span class="text-xs text-slate-400 w-36 text-right">結論（口說結束）</span></div>
+    <div class="flex items-center gap-3"><span class="text-xs font-mono text-teal-700 w-28 shrink-0">10:00 – 15:00</span><div class="flex-1 bg-gradient-to-r from-teal-300 to-indigo-400 rounded-full h-2.5"></div><span class="text-xs text-slate-400 w-36 text-right">Demo · 原生 Swift 透明 HUD</span></div>
+    <div class="flex items-center gap-3 border-t pt-2 mt-1"><span class="text-xs font-mono font-bold text-slate-800 w-28 shrink-0">總計口說</span><div class="flex-1 bg-gradient-to-r from-indigo-400 via-teal-400 to-emerald-400 rounded-full h-2.5"></div><span class="text-xs font-bold text-slate-700 w-36 text-right">10:00 口說結束</span></div>
   </div>
 </section>
 
@@ -1013,8 +1103,8 @@ function updDisplay(){
   const el=document.getElementById('timerDisplay');
   el.textContent=p(m)+':'+p(s);
 
-  // Progress bar
-  const pct = (remaining / totalSec) * 100;
+  // Progress bar（已用時間，從左往右增長）
+  const pct = ((totalSec - remaining) / totalSec) * 100;
   const bar = document.getElementById('timerBar');
   bar.style.width = pct + '%';
 
@@ -1090,6 +1180,13 @@ function ttsInit(){
   ttsParas = Array.from(document.querySelectorAll('.script p'));
   document.getElementById('ttsProgress').textContent = ttsIdx + ' / ' + ttsParas.length;
   ttsLoadVoices();
+
+  // Sync the background toggle UI (default: allow background reading)
+  const cb = document.getElementById('ttsBackgroundToggle');
+  if (cb) {
+    cb.checked = true;          // default = 背景繼續
+    ttsAutoPauseOnHide = false;
+  }
 }
 
 function ttsLoadVoices(){
@@ -1243,9 +1340,51 @@ function ttsUpdateRate(){
   if(ttsPlaying){ window.speechSynthesis.cancel(); ttsSpeak(ttsIdx); }
 }
 
-// Stop TTS if page hidden
+function updateTtsBackgroundMode(){
+  const cb = document.getElementById('ttsBackgroundToggle');
+  ttsAutoPauseOnHide = !cb.checked; // checked = allow background = do NOT auto-pause
+}
+
+function copyCurrentPara(){
+  if(!ttsParas.length) ttsInit();
+  const el = ttsParas[ttsIdx];
+  if(!el) return;
+  const text = el.textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = el.style.boxShadow;
+    el.style.boxShadow = '0 0 0 3px #4ade80';
+    setTimeout(() => { el.style.boxShadow = orig || ''; }, 800);
+  }).catch(() => {
+    // fallback
+    prompt('無法自動複製，請手動複製以下文字：', text);
+  });
+}
+
+let compactMode = false;
+function toggleCompactMode(){
+  compactMode = !compactMode;
+  document.body.classList.toggle('compact-mode', compactMode);
+  // Optional: scroll to current spoken area
+  if(compactMode && ttsParas[ttsIdx]){
+    ttsParas[ttsIdx].scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  // Make sure TTS panel is visible in compact mode
+  if (compactMode) {
+    const p = document.getElementById('ttsPanel');
+    if (p.classList.contains('hidden')) {
+      p.classList.remove('hidden');
+      if(!ttsParas.length) ttsInit();
+    }
+  }
+}
+
+// Pause TTS only if the user has the "auto-pause on hide" option enabled
+let ttsAutoPauseOnHide = false; // Default OFF so user can look at poster.pdf while voice plays
+
 document.addEventListener('visibilitychange', () => {
-  if(document.hidden) window.speechSynthesis.pause();
+  if (document.hidden && ttsAutoPauseOnHide) {
+    window.speechSynthesis.pause();
+  }
 });
 </script>
 </body>

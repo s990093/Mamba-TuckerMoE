@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mamba · Edge</title>
+<title>Mamba3-XR</title>
 <link rel="icon" type="image/png" href="/static/assets/tuckericon.png">
 <link rel="apple-touch-icon" href="/static/assets/tuckericon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,8 +19,8 @@
 <div id="loading-overlay" class="loading-overlay">
   <div class="loading-card">
     <img src="/static/assets/tuckericon.png" class="loading-logo" alt="Mamba">
-    <div class="loading-title">Mamba · Edge</div>
-    <div class="loading-subtitle">Hybrid Mamba-3 · TuckerMoE · 417M params</div>
+    <div class="loading-title">Mamba3-XR</div>
+    <div class="loading-subtitle">State scan · TuckerMoE · 417M</div>
     <div class="loading-stage" id="loading-stage">Initialising…</div>
     <div class="loading-bar-track">
       <div class="loading-bar-fill" id="loading-bar-fill"></div>
@@ -116,7 +116,7 @@
       </div>
       <div class="header-center">
         <button type="button" class="header-title-pill" id="header-title-pill" title="Conversation">
-          <span class="header-title-text">Mamba · Edge CoT</span>
+          <span class="header-title-text">Mamba3-XR</span>
           <span class="header-title-chev" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg>
           </span>
@@ -177,10 +177,10 @@
       <div class="welcome-wrap landing" id="welcome-wrap">
         <div class="landing-inner">
           <div class="landing-logo" aria-hidden="true">
-            <img class="landing-logo-svg" src="/static/assets/claude-color.svg" alt="" width="58" height="58" draggable="false">
+            <img class="landing-logo-svg" src="/static/assets/tuckericon.png" alt="" width="48" height="48" draggable="false">
           </div>
-          <h1 class="landing-greeting" id="landing-greeting">Good evening</h1>
-          <p class="landing-tagline" id="landing-tagline">How can we help you today?</p>
+          <h1 class="landing-greeting" id="landing-greeting">Mamba3-XR</h1>
+          <p class="landing-tagline" id="landing-tagline">State scan · CoT · Apple Silicon</p>
           <div class="landing-pills" role="group" aria-label="Quick starts">
             <button type="button" class="landing-pill" data-prompt="Write a small Python function with type hints and a one-line docstring that reads a JSON file safely.">
               <span class="lp-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg></span>
@@ -203,7 +203,7 @@
               <span>Mamba's choice</span>
             </button>
           </div>
-          <p class="landing-footnote">Replies render as Markdown; chain-of-thought follows your <strong>Thinking</strong> / <strong>Direct</strong> mode. Try a <strong>Recents</strong> example in the sidebar.</p>
+          <p class="landing-footnote">Visible &lt;think&gt; trajectory before &lt;final&gt;. 30 hybrid layers (4 Mamba + 1 TF). Local only.</p>
         </div>
       </div>
     </div>
@@ -290,8 +290,8 @@
           </div>
         </div>
         <div class="landing-strip" id="landing-strip">
-          <span class="landing-strip-msg" id="landing-strip-msg">Runs locally — your conversation stays on this machine.</span>
-          <button type="button" class="landing-strip-link" id="landing-strip-link">Open metrics</button>
+          <span class="landing-strip-msg" id="landing-strip-msg">Local · 417M params · chunked parallel scan</span>
+          <button type="button" class="landing-strip-link" id="landing-strip-link">Metrics</button>
         </div>
         <!-- EOS No Stop progress tracker -->
         <div class="nes-tracker" id="nes-tracker" hidden>
@@ -311,7 +311,7 @@
           </div>
         </div>
         <div class="input-footer">
-          <div class="input-hint">System prompt is editable in mock JSON and shown in the drawer.</div>
+          <div class="input-hint">4 Mamba + 1 Transformer × 6 · TuckerMoE top-2</div>
           <div class="footer-ctrls">
             <div class="token-ctrl">
               <label>Max tokens</label>

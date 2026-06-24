@@ -822,27 +822,26 @@ function _countSteps(text) {
 }
 
 function _buildThinkBlockHtml(thinkContent, closed) {
-  // Time label: "Thought for Xs" when closed, "Thinking…" while streaming
-  let timeLabel = "Thinking…";
-  if (closed) {
-    const s = lastThinkMs > 0 ? (lastThinkMs / 1000).toFixed(1) : null;
-    timeLabel = s ? `Thought for ${s}s` : "Thought";
+  // Instrument label
+  let timeLabel = closed ? "SCAN LOCKED" : "SCANNING";
+  if (closed && lastThinkMs > 0) {
+    timeLabel = `SCAN · ${(lastThinkMs / 1000).toFixed(1)}s`;
   }
-  // SVG brain icon
-  const brainSvg =
-    `<svg class="cot-brain-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
-    `<path d="M9 18h6"/><path d="M10 22h4"/>` +
-    `<path d="M12 2a7 7 0 00-4.95 11.95c.6.6.95 1.41.95 2.26V17h8v-.79c0-.85.35-1.66.95-2.26A7 7 0 0012 2z"/>` +
-    `</svg>`;
-  // Chevron SVG (rotates via CSS when open)
+
   const chevSvg =
     `<svg class="cot-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
     `<path d="M6 9l6 6 6-6"/>` +
     `</svg>`;
+
+  // The signature element: a state scan track.
+  // While streaming we let CSS animate the head; when closed we freeze it.
+  const scanClass = closed ? "state-scan frozen" : "state-scan scanning";
+  const scanHtml = `<div class="${scanClass}"><div class="scan-track"></div><div class="scan-head"></div></div>`;
+
   return (
     `<details class="cot-think-block${closed ? "" : " cot-streaming"}" open>` +
+    scanHtml +
     `<summary class="cot-think-summary">` +
-    brainSvg +
     `<span class="cot-label">${timeLabel}</span>` +
     chevSvg +
     `</summary>` +
