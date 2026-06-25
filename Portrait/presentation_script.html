@@ -55,6 +55,60 @@ body.compact-mode #ttsPanel {
 body.compact-mode .compact-exit {
   display: inline-block !important;
 }
+
+/* ── 謁見模式（夜覽）── */
+body.night-mode {
+  background: #0d1117 !important;
+  color: #c9d1d9 !important;
+}
+body.night-mode .script { color: #d0d7de !important; }
+body.night-mode .em  { color: #79c0ff !important; }
+body.night-mode .em2 { color: #3fb950 !important; }
+
+/* 白底卡片 → 暗底 */
+body.night-mode .bg-white,
+body.night-mode [class*="bg-slate-50"],
+body.night-mode [class*="bg-gray-50"],
+body.night-mode [class*="bg-teal-50"],
+body.night-mode [class*="bg-indigo-50"],
+body.night-mode [class*="bg-violet-50"],
+body.night-mode [class*="bg-amber-50"],
+body.night-mode [class*="bg-rose-50"] {
+  background-color: #161b22 !important;
+}
+/* 邊框淡化 */
+body.night-mode [class*="border-"] {
+  border-color: #30363d !important;
+}
+/* 文字顏色收斂 */
+body.night-mode [class*="text-slate-"],
+body.night-mode [class*="text-gray-"] {
+  color: #8b949e !important;
+}
+body.night-mode [class*="text-teal-"] { color: #3fb950 !important; }
+body.night-mode [class*="text-indigo-"] { color: #79c0ff !important; }
+body.night-mode [class*="text-violet-"] { color: #d2a8ff !important; }
+body.night-mode [class*="text-amber-"] { color: #e3b341 !important; }
+body.night-mode [class*="text-rose-"] { color: #f85149 !important; }
+/* 強調框背景 */
+body.night-mode [class*="bg-amber-"] { background-color: #1a1500 !important; }
+body.night-mode [class*="bg-teal-50"] { background-color: #071a12 !important; }
+body.night-mode [class*="bg-indigo-50"] { background-color: #0d1126 !important; }
+body.night-mode [class*="bg-violet-50"] { background-color: #110d1a !important; }
+/* 表格 */
+body.night-mode table, body.night-mode th, body.night-mode td {
+  border-color: #30363d !important;
+}
+body.night-mode th { background: #161b22 !important; color: #8b949e !important; }
+body.night-mode tbody tr:hover td { background: #1c2128 !important; }
+/* TTS 面板保持深色不受影響 */
+body.night-mode #ttsPanel > div { background: #010409 !important; }
+/* highlight 當前朗讀段落 */
+body.night-mode .tts-active { background: #1a2a1a !important; }
+/* 滾動條 */
+body.night-mode::-webkit-scrollbar { width: 6px; }
+body.night-mode::-webkit-scrollbar-track { background: #0d1117; }
+body.night-mode::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
 </style>
 </head>
 <body class="text-slate-800">
@@ -73,6 +127,7 @@ body.compact-mode .compact-exit {
         <button onclick="toggleAll()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">📖 展開說明</button>
         <button onclick="toggleTTSPanel()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">🔊 男聲朗讀</button>
     <button onclick="toggleCompactMode()" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-semibold transition" title="只顯示講稿文字 + 大字，方便邊看 poster.pdf 邊對稿">📖 精簡練習</button>
+    <button onclick="toggleNightMode()" id="btnNight" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition" title="謁見模式：護眼黑底">🌙 謁見</button>
     <span class="text-[10px] text-teal-300 hidden md:inline">提示：開啟精簡模式 + 背景繼續，即可一邊看 poster.pdf 一邊聽/跟稿</span>
       </div>
     </div>
@@ -264,15 +319,9 @@ body.compact-mode .compact-exit {
     </div>
 
     <div class="script space-y-3 mb-5">
-      <p>各位老師好，我是賴弘偉。我們的專題是 <span class="em">Hybrid Mamba-TuckerMoE</span>，要做的是讓大型語言模型真正能在裝置端離線運行。</p>
-      <p>請看海報最上方的大標題。</p>
-      <p>但為什麼裝置端這麼難？海報頂端這整塊 <span class="em">LLM Inference Bottlenecks</span> 就是關鍵。</p>
-      <p>現有的 LLM 部署到裝置上有三個瓶頸。</p>
-      <p>第一，<span class="em">Attention 是 O(N²)</span>——序列長度翻倍，計算量暴增四倍。16K seq 就會變成 256 倍的成本。</p>
-      <p>第二，<span class="em">KV Cache 隨序列線性膨脹</span>，16K token 就吃掉 1.4 GiB、88% 的 RAM。</p>
-      <p>第三，<span class="em">MoE 的頻寬瓶頸</span>——Mixture of Experts 每個 token 要重新從記憶體載入專家權重，實測載入要 4.2 毫秒、計算只要 0.04 毫秒，差了 100 倍，完全卡在頻寬上。</p>
-      <p>這三個問題疊加，就讓「在筆電或手機上跑真正有智能的模型」變成幾乎不可能的任務。</p>
-      <p>我們的目標，就是用 Mamba-3 + Tucker 分解 + 投機解碼三大技術，<span class="em">把 2.4B 等效容量的模型壓縮 82.87%（只剩 417M 實際參數）</span>，讓它能在 MacBook 上離線、快速、隱私地跑起來。</p>
+      <p>各位老師好，我是賴弘偉。我們這個專題，<span class="em">在 MacBook 上、離線、不靠雲端</span>，跑了一個具有 2.4B 等效容量的語言模型——而它的實際參數只有 417M，壓縮了 82.87%。</p>
+      <p>為什麼這件事難？要在裝置端跑一個真正有智能的模型，光是把它放進記憶體就要十幾 GB——因為 LLM 底層有三個卡死的瓶頸：<span class="em">Attention 的 O(N²) 爆炸、KV Cache 隨序列線性膨脹、MoE 每次要從記憶體搬幾百 MB 的專家權重</span>，三個疊在一起，普通筆電直接無解。</p>
+      <p>我們這個專題做的，就是正面拆解這三個瓶頸。用 <span class="em">Mamba-3 取代 Attention、Tucker 分解重新設計 MoE、再加上投機解碼</span>，把 2.4B 等效容量的模型壓到只剩 417M 實際參數，讓它真的能在 MacBook 上離線跑起來。</p>
     </div>
     <details class="bg-indigo-50 rounded-xl p-4">
       <summary class="text-indigo-800 font-semibold text-sm flex items-center gap-2 select-none">
@@ -357,10 +406,18 @@ body.compact-mode .compact-exit {
       <p><span class="em">第一個貢獻：用 Mamba-3 SSM 取代大部分的 Attention。</span>因為 KV Cache 會隨序列膨脹，我們改用固定大小隱狀態的 SSM。Mamba-3 比前兩代新增三點：<span class="em">RoPE</span> 位置編碼、<span class="em">梯形離散化</span>提升狀態精度、以及 <span class="em">MIMO 投影</span>——讓每層能同時處理多個輸入輸出通道，大幅提升頻寬利用率。少數關鍵層仍保留 <span class="em">GQA</span> 補足長距離回憶，兩者互補。</p>
 
       <p><span class="em">第二個貢獻：TuckerMoE，用 Tucker 張量分解壓縮 MoE 的專家權重，並從根本改變計算流程。</span></p>
+      <p>說這個之前先說一個思路。SVD 這類方法是先訓練 Dense 模型、事後再壓縮——訓練階段完全吃不到低秩假設的好處。LoRA 第一個把這件事反過來：直接在訓練時就用低秩結構學 ΔW。<span class="em">我們把同樣的邏輯帶進 MoE——直接在共享的 factorized space 裡訓練 expert，從來就沒有 Dense Expert 存在過。</span></p>
       <p>先說壓縮的部分。每個 MoE 專家的權重矩陣可以想像成一個巨大的 3D 立方體。Tucker 分解把它拆成三個薄板——U_in、Core_e、U_out——相乘的形式。其中 U_in 和 U_out 是所有專家共用的，只有中間那個 Core_e 是每個專家獨有的，而且它非常小，只需要 32 個數字就能描述這個專家的個性。這樣原本一個專家要 <span class="em">75.5M 個參數，壓縮後只剩 7.39M，壓縮了 90.2%</span>。</p>
       <p>但更關鍵的是——壓縮不只減少儲存量，它還<span class="em">從根本改變了計算路徑</span>，這才是解決頻寬瓶頸的關鍵。我們來比較兩種做法：</p>
       <p><span class="em2">傳統 Standard MoE 的做法是「在輸出空間混合」。</span>路由器選出 K 個專家之後，每個專家各自對輸入 x 做一次完整的大矩陣乘法，算出自己的輸出，最後再把 K 個輸出加權加總。問題就在這裡——每個專家的矩陣 W_e 有 75.5M 個參數，K 個專家就要從記憶體載入 K × 75.5M 的資料量，完全被頻寬卡死。</p>
       <p><span class="em">TuckerMoE 的做法是「在權重空間先融合，再只算一次」。</span>同樣是 K=2 個專家被路由器選中，但我們不去分別跑兩次大 GEMM。取而代之的是：先把 K 個專家的 Core_e 按路由權重加權混合，得到一個融合後的 Core_blended——這個步驟幾乎不費算力，因為 Core_e 只有 32 個數字。然後，用這一個融合核心搭配共用的 U_in 和 U_out，跑三次很薄的小矩陣乘法就完成了。<span class="em">整個過程 K 個專家合力只需要一套 GEMM，U_in 和 U_out 只從記憶體載入一次。</span>這樣記憶體搬移量從 K × 75.5M 降到遠小於一個專家的量，頻寬瓶頸直接消失。</p>
+
+      <div class="bg-amber-50 border-l-4 border-amber-400 rounded-r-xl p-4 my-3">
+        <p class="text-amber-900 font-bold text-sm mb-2">💡 TuckerMoE 最大的創新不是「壓縮」</p>
+        <p class="text-amber-800 text-sm leading-relaxed">這裡有一個容易誤解的地方。SVD 或 Tensor Compression 是先有一個 Dense 的大矩陣 W，再去找它的低秩近似；LoRA 是假設存在一個低秩的更新空間 ΔW。<span class="font-bold">我們都不是這樣。</span></p>
+        <p class="text-amber-800 text-sm leading-relaxed mt-2">我們只是相信：<span class="font-bold">不同 expert 應該共用大部分結構，所以可以共享 basis；而 expert 之間的差異，只需要用少量的 coefficients 去表示。</span>因此我們從一開始就直接在這個共享的 factorized space 裡學習——根本就沒有 Dense MoE 存在過，也沒有任何東西被「壓縮」。</p>
+        <p class="text-amber-900 font-bold text-sm mt-3">→ We are not compressing a dense model; we are parameterizing the expert space itself.</p>
+      </div>
 
       <p><span class="em">第三個貢獻：多策略投機式雅可比解碼。</span>一般模型逐字生成很慢，我們先用 N-gram Cache 和 SuffixRetriever 快速猜一串候選 token，主模型一次並行驗證，猜對的直接接受。Demo 實測平均一次前向傳播接受 <span class="em">ARL≈5.92 個 token，最高加速 3.2 倍</span>。</p>
 
@@ -429,6 +486,24 @@ body.compact-mode .compact-exit {
     <div class="script space-y-3 mb-5">
       <p>接下來是訓練設計。我們用三階段漸進：預訓練 PPL 24.6 → SFT PPL 18.3 → 自建 CoT 訓練 PPL <span class="em">12.1</span>。重點放在第三階段的損失函數設計，大家可以看圖，主要有三個部分：</p>
       <p><span class="em">第一個</span>是這個 1/S_t 加權交叉熵——對每個 token 用五種細粒度的 w 來決定它對訓練的貢獻比重，讓推理步驟的 token 比填充 token 被更嚴格地學習。<span class="em">第二個</span>是 λL_FCP，格式合規損失，確保 CoT 的 think 和 final 標籤格式閉合正確。</p>
+      <!-- 五個 w 快速參考（不需要念，視覺提示用） -->
+      <div class="no-print flex flex-wrap gap-2 my-1 ml-1">
+        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[11px] px-2.5 py-1 rounded-full font-mono border border-blue-200">
+          <span class="font-bold">w_sc</span><span class="text-blue-500">·</span><span class="font-normal text-blue-700">步驟語境</span>
+        </span>
+        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[11px] px-2.5 py-1 rounded-full font-mono border border-blue-200">
+          <span class="font-bold">w_go</span><span class="text-blue-500">·</span><span class="font-normal text-blue-700">目標輸出</span>
+        </span>
+        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[11px] px-2.5 py-1 rounded-full font-mono border border-blue-200">
+          <span class="font-bold">w_fw</span><span class="text-blue-500">·</span><span class="font-normal text-blue-700">格式合規</span>
+        </span>
+        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[11px] px-2.5 py-1 rounded-full font-mono border border-blue-200">
+          <span class="font-bold">w_pd</span><span class="text-blue-500">·</span><span class="font-normal text-blue-700">預測難度</span>
+        </span>
+        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[11px] px-2.5 py-1 rounded-full font-mono border border-blue-200">
+          <span class="font-bold">w_ic</span><span class="text-blue-500">·</span><span class="font-normal text-blue-700">資訊量</span>
+        </span>
+      </div>
       <p><span class="em">第三個就是這邊的 A 圖和 B 圖。</span>大家看 <span class="em">A 圖，αL_lb，Expert Load Balance</span>——加這個損失之前，幾乎所有 token 都湧進同一個專家，其他七個閒置；加了之後，你可以看到每個 bar 的高度趨於均勻，這就是防止 Expert Collapse 的效果。再看 <span class="em">B 圖，βL_Z，Router Logit Stability</span>——這是每個 token 路由到八個專家的機率分布，加了 β 項之後曲線變穩定，不會某個專家的機率暴增。這兩個正則項，才讓 MoE 路由真的在「混合」，而不是假裝混合。</p>
     </div>
     <details class="bg-blue-50 rounded-xl p-4">
@@ -476,6 +551,12 @@ body.compact-mode .compact-exit {
     </div>
     <div class="script space-y-3 mb-5">
       <p>好，直接看成果。<span class="em">壓縮率 82.87%</span>，2.43B → 417M，等效容量 2.4B，推理記憶體節省 90%。Tucker 重建誤差 0.00135，比 SVD 的 0.00247 <span class="em">好了 45.3%</span>，表示同樣壓縮量下我們的精度更高。</p>
+      <!-- 45.3% 怎麼算（不念，備查） -->
+      <div class="no-print bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 my-1 text-xs text-slate-600 font-mono">
+        MSE(W̃, W_e)：Tucker 還原 vs SVD 還原，相對同一個<span class="font-bold text-slate-700"> Dense Expert 原始權重 W_e</span><br>
+        (SVD − Tucker) / SVD = (0.00247 − 0.00135) / 0.00247 = 0.00112 / 0.00247 ≈ <span class="font-bold text-slate-800">45.3%</span>
+        <span class="ml-3 font-sans text-slate-400">← 相對誤差降幅，數字越小越好</span>
+      </div>
       <p>記憶體比較：32K 長文脈情境，Dense FFN 和 Pure Transformer 都 OOM，我們 <span class="em">只需 3.1 GB</span>。推理速度搭配 Jacobi 解碼最高 <span class="em">3.2 倍加速</span>，實測約 56 tok/s。</p>
       <p>消融實驗重點看 TuckerMoE FFN 這張表。我們固定其他條件，只調 r1（Tucker 第一維的 rank）。</p>
       <p>Dense（基準）PPL 是 <span class="em">34.41</span>。r1=8 時 PPL 來到 <span class="em">37.91</span>，誤差很小，卻把「邊際成本／專家」壓到只有 <span class="em">8</span> —— 這代表多加一個專家幾乎不增加記憶體。這就是我們的甜蜜點。</p>
@@ -1376,6 +1457,22 @@ function toggleCompactMode(){
       if(!ttsParas.length) ttsInit();
     }
   }
+}
+
+let nightMode = localStorage.getItem('nightMode') === '1';
+(function initNight(){
+  if(nightMode){
+    document.body.classList.add('night-mode');
+    const b = document.getElementById('btnNight');
+    if(b) b.textContent = '☀️ 日間';
+  }
+})();
+function toggleNightMode(){
+  nightMode = !nightMode;
+  document.body.classList.toggle('night-mode', nightMode);
+  const b = document.getElementById('btnNight');
+  if(b) b.textContent = nightMode ? '☀️ 日間' : '🌙 謁見';
+  localStorage.setItem('nightMode', nightMode ? '1' : '0');
 }
 
 // Pause TTS only if the user has the "auto-pause on hide" option enabled

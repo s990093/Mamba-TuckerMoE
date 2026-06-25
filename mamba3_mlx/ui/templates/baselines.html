@@ -117,7 +117,20 @@
 
       <div class="bl-spec-row">
         <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">417M</span><span class="bl-spec-l">params</span></div>
-        <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">4.3B</span><span class="bl-spec-l">train tokens</span></div>
+        <div class="bl-spec bl-spec-pos">
+          <span class="bl-spec-v">4.3B</span>
+          <span class="bl-spec-l">train tokens · 3 stages</span>
+          <div class="bl-stage-bar">
+            <div class="bl-stage-seg bl-seg-pt"  style="flex:3.0" title="Pretrain · 3B"></div>
+            <div class="bl-stage-seg bl-seg-sft" style="flex:0.5" title="SFT · 0.5B"></div>
+            <div class="bl-stage-seg bl-seg-cot" style="flex:0.8" title="CoT · 0.8B"></div>
+          </div>
+          <div class="bl-stage-labels">
+            <span class="bl-seg-pt-lbl">PT 3B</span>
+            <span class="bl-seg-sft-lbl">SFT .5B</span>
+            <span class="bl-seg-cot-lbl">CoT .8B</span>
+          </div>
+        </div>
         <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">SFT + CoT</span><span class="bl-spec-l">post-train</span></div>
         <div class="bl-spec bl-spec-pos"><span class="bl-spec-v">5-factor loss</span><span class="bl-spec-l">CoT</span></div>
       </div>

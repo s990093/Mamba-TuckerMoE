@@ -222,6 +222,23 @@ body {
   color: var(--fg3); text-transform: uppercase;
 }
 
+.bl-stage-bar {
+  display: flex; gap: 2px; height: 5px;
+  border-radius: 3px; overflow: hidden; margin-top: 7px;
+}
+.bl-stage-seg { border-radius: 2px; }
+.bl-seg-pt  { background: var(--accent); opacity: 0.85; }
+.bl-seg-sft { background: var(--warn);   opacity: 0.85; }
+.bl-seg-cot { background: #6ab187;       opacity: 0.85; }
+
+.bl-stage-labels {
+  display: flex; gap: 4px; margin-top: 4px;
+  font-size: 0.5rem; letter-spacing: 0.04em; color: var(--fg4);
+}
+.bl-seg-pt-lbl  { color: var(--accent-2); }
+.bl-seg-sft-lbl { color: var(--warn); }
+.bl-seg-cot-lbl { color: #6ab187; }
+
 .bl-metrics {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 8px; margin-bottom: 10px;
