@@ -416,10 +416,20 @@ UNICODE_TEXT_MATH_REPLACEMENTS = {
     "↔": r"$\leftrightarrow$",
     "≈": r"$\approx$",
     "↓": r"$\downarrow$",
-    "★": r"$\bigstar$",          # U+2605 BLACK STAR — 在 SJD 加速比表格中標示外推值
-    "†": r"$\dagger$",           # U+2020 DAGGER — 在 SJD 表格中標示直接量測值
-    "⁻": r"${}^{-}$",           # U+207B SUPERSCRIPT MINUS — lualatex/Songti SC 缺字
-    "⁺": r"${}^{+}$",           # U+207A SUPERSCRIPT PLUS (預防性)
+    "★": r"$\bigstar$",          # U+2605 BLACK STAR
+    "†": r"$\dagger$",           # U+2020 DAGGER
+    "⁻": r"${}^{-}$",           # U+207B SUPERSCRIPT MINUS
+    "⁺": r"${}^{+}$",           # U+207A SUPERSCRIPT PLUS
+    "✗": r"$\times$",           # U+2717 BALLOT X — §5.4.1.5 比較表
+    "✘": r"$\times$",           # U+2718 HEAVY BALLOT X
+    "△": r"$\triangle$",        # U+25B3 WHITE UP-POINTING TRIANGLE — §5.4.1.5 比較表
+    "▲": r"$\blacktriangle$",   # U+25B2 BLACK UP-POINTING TRIANGLE
+    "✓": r"$\checkmark$",       # U+2713 CHECK MARK
+    "✔": r"$\checkmark$",       # U+2714 HEAVY CHECK MARK
+    "≤": r"$\le$",              # U+2264 LESS-THAN OR EQUAL — 斜體文字模式缺字
+    "≥": r"$\ge$",              # U+2265 GREATER-THAN OR EQUAL
+    "≠": r"$\neq$",             # U+2260 NOT EQUAL TO
+    # 注意：不替換 × (U+00D7)，全域替換會破壞 3×3、10×20 等文字乘號
     # STIX Two Text lacks the circled digits used in the dLLM section tables.
     "①": "(1)",
     "②": "(2)",
@@ -951,7 +961,47 @@ def build_pdf(
             overall_progress.advance(replace_task)
 
     # Unicode replacements
-    for old, new in UNICODE_TEXT_MATH_REPLACEMENTS.items():
+    # IMPORTANT: pandoc tex_math_dollars rule: opening $ must NOT immediately follow
+    # an alphanumeric character. So "c≈2" → "c$\approx$2" fails ($ after c).
+    # Fix: for ≈ and → adjacent to alphanumeric, insert spaces so the $ is safe.
+    import re as _re
+    _alnum_adjacent = {
+        "≈": r"$\approx$",
+        "→": r"$\to$",
+        "≤": r"$\le$",
+        "≥": r"$\ge$",
+    }
+    for _ch, _repl in _alnum_adjacent.items():
+        # pandoc tex_math_dollars has TWO restrictions:
+        #   (a) opening $ must NOT immediately follow an alphanumeric
+        #   (b) closing $ must NOT be immediately followed by a digit
+        # We handle both by inserting spaces around the replacement when adjacent.
+        #
+        # Pattern: word-char BEFORE symbol, digit-or-word AFTER symbol
+        # e.g. "c≈2" → "c $\approx$ 2"   (space before AND after)
+        report_text = _re.sub(
+            r'(\w)' + _re.escape(_ch) + r'(\w)',
+            lambda m, r=_repl: m.group(1) + ' ' + r + ' ' + m.group(2),
+            report_text,
+        )
+        # word-char BEFORE but NOT after: e.g. "c≈ " → "c $\approx$ "
+        report_text = _re.sub(
+            r'(\w)' + _re.escape(_ch),
+            lambda m, r=_repl: m.group(1) + ' ' + r,
+            report_text,
+        )
+        # NOT before but digit AFTER: e.g. "≈2" → "$\approx$ 2"
+        report_text = _re.sub(
+            _re.escape(_ch) + r'(\d)',
+            lambda m, r=_repl: r + ' ' + m.group(1),
+            report_text,
+        )
+        # Case 3: remaining (no adjacent alphanumeric/digit) → simple replacement
+        report_text = report_text.replace(_ch, _repl)
+    # Remaining non-adjacent symbols (no pandoc math-start restriction issue)
+    _simple = {k: v for k, v in UNICODE_TEXT_MATH_REPLACEMENTS.items()
+               if k not in _alnum_adjacent}
+    for old, new in _simple.items():
         report_text = report_text.replace(old, new)
         if RICH_AVAILABLE and overall_progress:
             overall_progress.advance(replace_task)
@@ -1036,6 +1086,20 @@ def build_pdf(
             # TOC: include subsubsection (###) and paragraph (####) levels.
             # Default tocdepth=3 misses #### entries (7.2.7, 8.4.x, 8.5.x etc.).
             "\\setcounter{tocdepth}{4}\n"
+            # Fix "Missing character" warnings from hyperref PDF bookmarks:
+            # Math symbols in section titles ($\to$, $\approx$, etc.) get converted
+            # to Unicode for the bookmark tree. STIX Two Text lacks U+2192/U+2248 etc.
+            # \texorpdfstring{math}{text} tells hyperref which text to use for bookmarks.
+            # As a simpler global fix: disable math commands in bookmark strings.
+            "\\pdfstringdefDisableCommands{%\n"
+            "  \\def\\to{->}%\n"
+            "  \\def\\approx{~}%\n"
+            "  \\def\\le{<=}%\n"
+            "  \\def\\ge{>=}%\n"
+            "  \\def\\times{x}%\n"
+            "  \\def\\triangle{△}%\n"
+            "  \\def\\checkmark{v}%\n"
+            "}\n"
         )
         header_path = Path(header_file.name)
 
