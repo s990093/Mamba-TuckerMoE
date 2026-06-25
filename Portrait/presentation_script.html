@@ -406,17 +406,32 @@ body.night-mode::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3
       <p><span class="em">第一個貢獻：用 Mamba-3 SSM 取代大部分的 Attention。</span>因為 KV Cache 會隨序列膨脹，我們改用固定大小隱狀態的 SSM。Mamba-3 比前兩代新增三點：<span class="em">RoPE</span> 位置編碼、<span class="em">梯形離散化</span>提升狀態精度、以及 <span class="em">MIMO 投影</span>——讓每層能同時處理多個輸入輸出通道，大幅提升頻寬利用率。少數關鍵層仍保留 <span class="em">GQA</span> 補足長距離回憶，兩者互補。</p>
 
       <p><span class="em">第二個貢獻：TuckerMoE，用 Tucker 張量分解壓縮 MoE 的專家權重，並從根本改變計算流程。</span></p>
-      <p>說這個之前先說一個思路。SVD 這類方法是先訓練 Dense 模型、事後再壓縮——訓練階段完全吃不到低秩假設的好處。LoRA 第一個把這件事反過來：直接在訓練時就用低秩結構學 ΔW。<span class="em">我們把同樣的邏輯帶進 MoE——直接在共享的 factorized space 裡訓練 expert，從來就沒有 Dense Expert 存在過。</span></p>
+      <p>說這個之前先說一個思路。SVD 這類方法是先訓練 Dense 模型、事後再壓縮——訓練階段完全吃不到低秩假設的好處。有人可能會問：那能不能在<em>訓練中</em>做 Tucker 能量截斷，也就是每隔一段時間看一下奇異值的能量分佈，把貢獻很少的部分砍掉？聽起來很合理，<span class="em">但這樣反而把紅利截掉了</span>。因為在訓練早期，各個方向的重要性還沒有穩定，強行截斷等於限制了模型探索完整 factorized 空間的自由度——你沒辦法知道哪個方向最終有用、哪個方向真的可以丟。訓練結束後再做截斷才是對的時機。</p>
+      <p>LoRA 第一個把「訓練時就用結構約束」的邏輯反過來，但它的假設是：權重的<em>更新量</em> ΔW 本身是低秩的——所以用兩個小矩陣 BA 去學 ΔW。這個假設對微調很有用，但 LoRA 是在假設「低秩空間本來就在那裡」。<span class="em">我們不是這樣。我們不是找一個預先假設存在的低秩空間，而是直接把整個 MoE 的 expert 空間定義成 factorized 結構：不同 expert 共享 basis（U_in、U_out），只用少量的 Core_e coefficients 去描述各自的個性。我們把同樣「訓練時就有結構」的邏輯帶進 MoE——直接在共享的 factorized space 裡訓練 expert，從來就沒有 Dense Expert 存在過。</span></p>
       <p>先說壓縮的部分。每個 MoE 專家的權重矩陣可以想像成一個巨大的 3D 立方體。Tucker 分解把它拆成三個薄板——U_in、Core_e、U_out——相乘的形式。其中 U_in 和 U_out 是所有專家共用的，只有中間那個 Core_e 是每個專家獨有的，而且它非常小，只需要 32 個數字就能描述這個專家的個性。這樣原本一個專家要 <span class="em">75.5M 個參數，壓縮後只剩 7.39M，壓縮了 90.2%</span>。</p>
       <p>但更關鍵的是——壓縮不只減少儲存量，它還<span class="em">從根本改變了計算路徑</span>，這才是解決頻寬瓶頸的關鍵。我們來比較兩種做法：</p>
       <p><span class="em2">傳統 Standard MoE 的做法是「在輸出空間混合」。</span>路由器選出 K 個專家之後，每個專家各自對輸入 x 做一次完整的大矩陣乘法，算出自己的輸出，最後再把 K 個輸出加權加總。問題就在這裡——每個專家的矩陣 W_e 有 75.5M 個參數，K 個專家就要從記憶體載入 K × 75.5M 的資料量，完全被頻寬卡死。</p>
       <p><span class="em">TuckerMoE 的做法是「在權重空間先融合，再只算一次」。</span>同樣是 K=2 個專家被路由器選中，但我們不去分別跑兩次大 GEMM。取而代之的是：先把 K 個專家的 Core_e 按路由權重加權混合，得到一個融合後的 Core_blended——這個步驟幾乎不費算力，因為 Core_e 只有 32 個數字。然後，用這一個融合核心搭配共用的 U_in 和 U_out，跑三次很薄的小矩陣乘法就完成了。<span class="em">整個過程 K 個專家合力只需要一套 GEMM，U_in 和 U_out 只從記憶體載入一次。</span>這樣記憶體搬移量從 K × 75.5M 降到遠小於一個專家的量，頻寬瓶頸直接消失。</p>
 
       <div class="bg-amber-50 border-l-4 border-amber-400 rounded-r-xl p-4 my-3">
-        <p class="text-amber-900 font-bold text-sm mb-2">💡 TuckerMoE 最大的創新不是「壓縮」</p>
-        <p class="text-amber-800 text-sm leading-relaxed">這裡有一個容易誤解的地方。SVD 或 Tensor Compression 是先有一個 Dense 的大矩陣 W，再去找它的低秩近似；LoRA 是假設存在一個低秩的更新空間 ΔW。<span class="font-bold">我們都不是這樣。</span></p>
-        <p class="text-amber-800 text-sm leading-relaxed mt-2">我們只是相信：<span class="font-bold">不同 expert 應該共用大部分結構，所以可以共享 basis；而 expert 之間的差異，只需要用少量的 coefficients 去表示。</span>因此我們從一開始就直接在這個共享的 factorized space 裡學習——根本就沒有 Dense MoE 存在過，也沒有任何東西被「壓縮」。</p>
-        <p class="text-amber-900 font-bold text-sm mt-3">→ We are not compressing a dense model; we are parameterizing the expert space itself.</p>
+        <p class="text-amber-900 font-bold text-sm mb-3">💡 三種方法的根本差異：SVD 截斷 vs LoRA vs TuckerMoE</p>
+
+        <div class="grid grid-cols-1 gap-2 text-sm mb-3">
+          <div class="bg-white rounded-lg p-3 border border-amber-200">
+            <p class="font-bold text-slate-700 mb-1">① SVD / 事後 Tucker 能量截斷</p>
+            <p class="text-slate-600 leading-relaxed">先訓練完整 Dense 模型，再用奇異值能量比例決定要保留多少 rank，事後截斷。問題：<span class="font-bold text-rose-700">訓練階段吃不到任何結構假設的好處</span>，所有參數都走 Dense 路徑，壓縮只是最後的剪裁。若想在訓練中做動態截斷，反而限制了模型探索 factorized 空間的自由度——哪個方向最終有用，訓練前根本不知道。</p>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-amber-200">
+            <p class="font-bold text-slate-700 mb-1">② LoRA（Low-Rank Adaptation）</p>
+            <p class="text-slate-600 leading-relaxed">假設權重更新量 ΔW 存在一個低秩子空間，用兩個小矩陣 W = W₀ + BA（rank r ≪ d）去學習。這確實在訓練時就引入了結構約束，微調效率高。但它的核心<span class="font-bold text-orange-700">假設那個低秩空間已經存在</span>——只是去找它，而不是從頭定義它。對完整預訓練（而非微調）而言，這個假設不一定成立。</p>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-teal-300">
+            <p class="font-bold text-teal-800 mb-1">③ 我們的做法：TuckerMoE（Expert Space Parameterization）</p>
+            <p class="text-slate-600 leading-relaxed">我們<span class="font-bold">不假設存在一個低秩空間</span>，也不是對現有 Dense 模型做截斷。我們直接把整個 MoE 的 expert 空間重新定義：不同 expert 共享輸入輸出 basis（U_in、U_out），用少量的 Core_e coefficients 描述各自個性。<span class="font-bold text-teal-700">從第一個訓練步開始，Dense Expert 就從未存在過</span>——是直接在 factorized 結構裡學習，訓練全程都在吃這個結構帶來的紅利（參數共享、頻寬節省、compute-bound 計算路徑）。</p>
+          </div>
+        </div>
+
+        <p class="text-amber-900 font-bold text-sm">→ We are not compressing a dense model; we are <em>parameterizing</em> the expert space in factorized form from step 1.</p>
       </div>
 
       <p><span class="em">第三個貢獻：多策略投機式雅可比解碼。</span>一般模型逐字生成很慢，我們先用 N-gram Cache 和 SuffixRetriever 快速猜一串候選 token，主模型一次並行驗證，猜對的直接接受。Demo 實測平均一次前向傳播接受 <span class="em">ARL≈5.92 個 token，最高加速 3.2 倍</span>。</p>
